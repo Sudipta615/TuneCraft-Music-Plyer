@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TuneCraft v5.0 — WiX Toolset configuration for Windows .msi installer.
+
+  This file is used by `cargo wix` to generate a Windows installer (.msi)
+  for distributing TuneCraft on Windows. The installer:
+  - Installs Tunecraft.exe to Program Files
+  - Bundles the GStreamer runtime DLLs
+  - Creates Start Menu shortcuts
+  - Registers file associations for audio formats
+  - Registers an AUMID for proper Windows toast notifications
+  - Provides an uninstaller via Control Panel
+
+  Usage:
+    cargo wix --no-build --output Tunecraft-5.0-x64.msi
+
+  Prerequisites:
+    - cargo-wix installed: cargo install cargo-wix
+    - WiX Toolset v3 installed (cargo-wix downloads it automatically)
+    - Build the release binary first: cargo build --release
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?define Version = "5.0.0" ?>
+  <?define Manufacturer = "TuneCraft Contributors" ?>
+  <?define UpgradeCode = "E5C8B3A2-1D4F-4B8C-9A7E-3F2D1C0B9A8E" ?>
+
+  <Product Id="*"
+           Name="Tunecraft"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="$(var.Manufacturer)"
+           UpgradeCode="$(var.UpgradeCode)">
+
+    <Package Id="*"
+             InstallerVersion="200"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Description="Tunecraft - Professional cross-platform offline music player"
+             Manufacturer="$(var.Manufacturer)"
+             Platform="x64" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Tunecraft is already installed." />
+
+    <Media Id="1" Cabinet="Tunecraft.cab" EmbedCab="yes" />
+
+    <!-- ── Directory Structure ────────────────────────────────────────────── -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Tunecraft" />
+      </Directory>
+
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Tunecraft" />
+      </Directory>
+
+      <Directory Id="DesktopFolder" />
+    </Directory>
+
+    <!-- ── Application Files ─────────────────────────────────────────────── -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <!-- Main executable -->
+      <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890" Win64="yes">
+        <File Id="TunecraftExe"
+              Name="Tunecraft.exe"
+              Source="target\release\tunecraft.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- GStreamer runtime DLLs -->
+      <Component Id="GstRuntime" Guid="B2C3D4E5-F6A7-8901-BCDE-F12345678901" Win64="yes">
+        <File Id="GstGstreamer" Name="gstreamer-1.0-0.dll" Source="target\release\gst-runtime\gstreamer-1.0-0.dll" />
+        <File Id="GstBase" Name="gstbase-1.0-0.dll" Source="target\release\gst-runtime\gstbase-1.0-0.dll" />
+        <File Id="GstAudio" Name="gstaudio-1.0-0.dll" Source="target\release\gst-runtime\gstaudio-1.0-0.dll" />
+        <File Id="GstPbUtils" Name="gstpbutils-1.0-0.dll" Source="target\release\gst-runtime\gstpbutils-1.0-0.dll" />
+        <File Id="GstTag" Name="gsttag-1.0-0.dll" Source="target\release\gst-runtime\gsttag-1.0-0.dll" />
+        <File Id="GstApp" Name="gstapp-1.0-0.dll" Source="target\release\gst-runtime\gstapp-1.0-0.dll" />
+        <File Id="GstRiff" Name="gstriff-1.0-0.dll" Source="target\release\gst-runtime\gstriff-1.0-0.dll" />
+        <File Id="GstRtp" Name="gstrtp-1.0-0.dll" Source="target\release\gst-runtime\gstrtp-1.0-0.dll" />
+        <File Id="GstSdp" Name="gstsdp-1.0-0.dll" Source="target\release\gst-runtime\gstsdp-1.0-0.dll" />
+        <File Id="GstNet" Name="gstnet-1.0-0.dll" Source="target\release\gst-runtime\gstnet-1.0-0.dll" />
+        <File Id="GstController" Name="gstcontroller-1.0-0.dll" Source="target\release\gst-runtime\gstcontroller-1.0-0.dll" />
+
+        <!-- GLib dependencies -->
+        <File Id="Glib" Name="glib-2.0-0.dll" Source="target\release\gst-runtime\glib-2.0-0.dll" />
+        <File Id="Gobject" Name="gobject-2.0-0.dll" Source="target\release\gst-runtime\gobject-2.0-0.dll" />
+        <File Id="Gio" Name="gio-2.0-0.dll" Source="target\release\gst-runtime\gio-2.0-0.dll" />
+        <File Id="Gmodule" Name="gmodule-2.0-0.dll" Source="target\release\gst-runtime\gmodule-2.0-0.dll" />
+        <File Id="Intl" Name="intl-8.dll" Source="target\release\gst-runtime\intl-8.dll" />
+        <File Id="Libffi" Name="ffi-7.dll" Source="target\release\gst-runtime\ffi-7.dll" />
+        <File Id="Pcre2" Name="pcre2-8-0.dll" Source="target\release\gst-runtime\pcre2-8-0.dll" />
+        <File Id="Zlib" Name="zlib1.dll" Source="target\release\gst-runtime\zlib1.dll" />
+        <File Id="WinPthread" Name="libwinpthread-1.dll" Source="target\release\gst-runtime\libwinpthread-1.dll" />
+      </Component>
+
+      <!-- GStreamer plugins -->
+      <Directory Id="GstPluginsDir" Name="plugins">
+        <Component Id="GstPlugins" Guid="C3D4E5F6-A7B8-9012-CDEF-123456789012" Win64="yes">
+          <File Id="GstPlayback" Name="gstplayback.dll" Source="target\release\gst-runtime\plugins\gstplayback.dll" />
+          <File Id="GstAudioConvert" Name="gstaudioconvert.dll" Source="target\release\gst-runtime\plugins\gstaudioconvert.dll" />
+          <File Id="GstAudioResample" Name="gstaudioresample.dll" Source="target\release\gst-runtime\plugins\gstaudioresample.dll" />
+          <File Id="GstVolume" Name="gstvolume.dll" Source="target\release\gst-runtime\plugins\gstvolume.dll" />
+          <File Id="GstDecodeBin" Name="gstdecodebin.dll" Source="target\release\gst-runtime\plugins\gstdecodebin.dll" />
+          <File Id="GstUriDecodeBin" Name="gsturidecodebin.dll" Source="target\release\gst-runtime\plugins\gsturidecodebin.dll" />
+          <File Id="GstFlac" Name="gstflac.dll" Source="target\release\gst-runtime\plugins\gstflac.dll" />
+          <File Id="GstOgg" Name="gstogg.dll" Source="target\release\gst-runtime\plugins\gstogg.dll" />
+          <File Id="GstVorbis" Name="gstvorbis.dll" Source="target\release\gst-runtime\plugins\gstvorbis.dll" />
+          <File Id="GstOpus" Name="gstopus.dll" Source="target\release\gst-runtime\plugins\gstopus.dll" />
+          <File Id="GstIsomp4" Name="gstisomp4.dll" Source="target\release\gst-runtime\plugins\gstisomp4.dll" />
+          <File Id="GstWavParse" Name="gstwavparse.dll" Source="target\release\gst-runtime\plugins\gstwavparse.dll" />
+          <File Id="GstApeTag" Name="gstapetag.dll" Source="target\release\gst-runtime\plugins\gstapetag.dll" />
+          <File Id="GstId3Demux" Name="gstid3demux.dll" Source="target\release\gst-runtime\plugins\gstid3demux.dll" />
+          <File Id="GstAudioMixer" Name="gstaudiomixer.dll" Source="target\release\gst-runtime\plugins\gstaudiomixer.dll" />
+          <File Id="GstTypeFindFunctions" Name="gsttypefindfunctions.dll" Source="target\release\gst-runtime\plugins\gsttypefindfunctions.dll" />
+          <File Id="GstSpectrum" Name="gstspectrum.dll" Source="target\release\gst-runtime\plugins\gstspectrum.dll" />
+          <File Id="GstGio" Name="gstgio.dll" Source="target\release\gst-runtime\plugins\gstgio.dll" />
+          <File Id="GstLame" Name="gstlame.dll" Source="target\release\gst-runtime\plugins\gstlame.dll" />
+          <File Id="GstMpg123" Name="gstmpg123.dll" Source="target\release\gst-runtime\plugins\gstmpg123.dll" />
+          <File Id="GstAac" Name="gstaac.dll" Source="target\release\gst-runtime\plugins\gstaac.dll" />
+        </Component>
+      </Directory>
+    </DirectoryRef>
+
+    <!-- ── Start Menu Shortcuts ──────────────────────────────────────────── -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="D4E5F6A7-B8C9-0123-DEFA-234567890123">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="Tunecraft"
+                  Description="Professional cross-platform offline music player"
+                  Target="[INSTALLFOLDER]Tunecraft.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\Tunecraft" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- ── Desktop Shortcut (optional) ───────────────────────────────────── -->
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="E5F6A7B8-C9D0-1234-EFAB-345678901234">
+        <Shortcut Id="DesktopShortcut"
+                  Name="Tunecraft"
+                  Description="Professional cross-platform offline music player"
+                  Target="[INSTALLFOLDER]Tunecraft.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\Tunecraft" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- ── AUMID Registration (Phase 4: Windows Toast Notifications) ─────── -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="AumidRegistration" Guid="F6A7B8C9-D0E1-2345-FABC-456789012345" Win64="yes">
+        <!-- Register the AppUserModelID for proper toast notification display.
+             Without this, Windows toast notifications will fail or appear as
+             generic notifications without the app's identity. The AUMID must
+             match the one used in ToastNotificationManager::CreateToastNotifierWithId().
+        -->
+        <RegistryKey Root="HKCU" Key="Software\Classes\AppUserModelId\TuneCraft">
+          <RegistryValue Type="string" Name="DisplayName" Value="Tunecraft" />
+          <RegistryValue Type="string" Name="IconUri" Value="[INSTALLFOLDER]Tunecraft.exe,0" />
+        </RegistryKey>
+
+        <!-- Create a Start Menu shortcut that references the AUMID.
+             Windows requires a shortcut with the correct AUMID for toast
+             notifications to work properly.
+        -->
+        <Shortcut Id="AumidShortcut"
+                  Name="Tunecraft"
+                  Target="[INSTALLFOLDER]Tunecraft.exe"
+                  WorkingDirectory="INSTALLFOLDER">
+          <ShortcutProperty Key="System.AppUserModel.ID" Value="TuneCraft" />
+        </Shortcut>
+      </Component>
+    </DirectoryRef>
+
+    <!-- ── File Associations ─────────────────────────────────────────────── -->
+    <!-- Register audio file type associations so TuneCraft appears in
+         "Open With" menus for audio files. These are user-level registrations
+         that don't require admin privileges. -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="FileAssociations" Guid="B8C9D0E1-F2A3-4567-BCDE-678901234567" Win64="yes">
+        <ProgId Id="Tunecraft.mp3" Description="MP3 Audio File">
+          <Extension Id="mp3">
+            <Verb Id="open" Command="Open with Tunecraft" TargetFile="TunecraftExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+        <ProgId Id="Tunecraft.flac" Description="FLAC Audio File">
+          <Extension Id="flac">
+            <Verb Id="open" Command="Open with Tunecraft" TargetFile="TunecraftExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+        <ProgId Id="Tunecraft.ogg" Description="OGG Audio File">
+          <Extension Id="ogg">
+            <Verb Id="open" Command="Open with Tunecraft" TargetFile="TunecraftExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+        <ProgId Id="Tunecraft.wav" Description="WAV Audio File">
+          <Extension Id="wav">
+            <Verb Id="open" Command="Open with Tunecraft" TargetFile="TunecraftExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+        <ProgId Id="Tunecraft.aac" Description="AAC Audio File">
+          <Extension Id="aac">
+            <Verb Id="open" Command="Open with Tunecraft" TargetFile="TunecraftExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+        <ProgId Id="Tunecraft.m4a" Description="M4A Audio File">
+          <Extension Id="m4a">
+            <Verb Id="open" Command="Open with Tunecraft" TargetFile="TunecraftExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+        <ProgId Id="Tunecraft.opus" Description="Opus Audio File">
+          <Extension Id="opus">
+            <Verb Id="open" Command="Open with Tunecraft" TargetFile="TunecraftExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+      </Component>
+    </DirectoryRef>
+
+    <!-- ── Feature Tree ──────────────────────────────────────────────────── -->
+    <Feature Id="MainFeature" Title="Tunecraft" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="GstRuntime" />
+      <ComponentRef Id="GstPlugins" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="AumidRegistration" />
+      <ComponentRef Id="FileAssociations" />
+    </Feature>
+
+    <Feature Id="DesktopFeature" Title="Desktop Shortcut" Level="1">
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <!-- ── WiX UI ────────────────────────────────────────────────────────── -->
+    <UI>
+      <UIRef Id="WixUI_FeatureTree" />
+    </UI>
+
+    <!-- TODO: Create build-aux/LICENSE.rtf (RTF version of LICENSE-MIT/LICENSE-APACHE) -->
+    <!-- <WixVariable Id="WixUILicenseRtf" Value="build-aux\LICENSE.rtf" /> -->
+    <!-- TODO: Create build-aux/banner.bmp (493×58 BMP, WiX banner image) -->
+    <!-- <WixVariable Id="WixUIBannerBmp" Value="build-aux\banner.bmp" /> -->
+    <!-- TODO: Create build-aux/dialog.bmp (493×312 BMP, WiX dialog image) -->
+    <!-- <WixVariable Id="WixUIDialogBmp" Value="build-aux\dialog.bmp" /> -->
+  </Product>
+</Wix>

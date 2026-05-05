@@ -1,0 +1,265 @@
+# Hindi translations for Tunecraft.
+# Copyright (C) 2024 Tunecraft Contributors
+# This file is distributed under the same license as the Tunecraft package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: tunecraft 2.1\n"
+"Report-Msgid-Bugs-To: https://github.com/tunecraft/tunecraft/issues\n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"PO-Revision-Date: 2024-01-01 00:00+0000\n"
+"Last-Translator: Tunecraft Contributors\n"
+"Language-Team: Hindi <hi@li.org>\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Translators: Dialog heading for creating a new playlist
+msgid "New Playlist"
+msgstr "नया प्लेलिस्ट"
+
+#. Translators: Dialog body prompting for playlist name
+msgid "Enter a name for the new playlist"
+msgstr "नए प्लेलिस्ट के लिए नाम दर्ज करें"
+
+msgid "Cancel"
+msgstr "रद्द करें"
+
+msgid "Create"
+msgstr "बनाएं"
+
+msgid "Preferences"
+msgstr "प्राथमिकताएं"
+
+msgid "General"
+msgstr "सामान्य"
+
+msgid "Appearance"
+msgstr "दिखावट"
+
+msgid "Theme"
+msgstr "थीम"
+
+msgid "System"
+msgstr "सिस्टम"
+
+msgid "Dark"
+msgstr "डार्क"
+
+msgid "Light"
+msgstr "लाइट"
+
+msgid "Playback"
+msgstr "प्लेबैक"
+
+msgid "Default Volume"
+msgstr "डिफ़ॉल्ट वॉल्यूम"
+
+msgid "Playback Speed"
+msgstr "प्लेबैक गति"
+
+msgid "Audio"
+msgstr "ऑडियो"
+
+msgid "Audio Settings"
+msgstr "ऑडियो सेटिंग्स"
+
+msgid "Crossfade Duration (ms)"
+msgstr "क्रॉसफेड अवधि (मिलीसेकंड)"
+
+msgid "ReplayGain Normalization"
+msgstr "रीप्लेगेन सामान्यीकरण"
+
+msgid "Audio Output"
+msgstr "ऑडियो आउटपुट"
+
+msgid "Select the audio output device"
+msgstr "ऑडियो आउटपुट डिवाइस चुनें"
+
+msgid "Auto (Default)"
+msgstr "स्वचालित (डिफ़ॉल्ट)"
+
+msgid "Buffer Size (bytes)"
+msgstr "बफ़र आकार (बाइट्स)"
+
+msgid "Equalizer"
+msgstr "इक्वलाइज़र"
+
+msgid "Enable Equalizer"
+msgstr "इक्वलाइज़र सक्षम करें"
+
+msgid "Open Equalizer…"
+msgstr "इक्वलाइज़र खोलें…"
+
+msgid "Library"
+msgstr "लाइब्रेरी"
+
+msgid "Music Directories"
+msgstr "संगीत निर्देशिकाएं"
+
+msgid "Add Directory"
+msgstr "निर्देशिका जोड़ें"
+
+msgid "Select Music Directory"
+msgstr "संगीत निर्देशिका चुनें"
+
+msgid "Rescan Library"
+msgstr "लाइब्रेरी पुनः स्कैन करें"
+
+msgid "Rescan on Startup"
+msgstr "शुरू होने पर पुनः स्कैन करें"
+
+msgid "Scrobbling"
+msgstr "स्क्रॉबलिंग"
+
+msgid "Last.fm Scrobbling"
+msgstr "Last.fm स्क्रॉबलिंग"
+
+msgid "Enable Scrobbling"
+msgstr "स्क्रॉबलिंग सक्षम करें"
+
+msgid "Send listening history to Last.fm"
+msgstr "Last.fm पर सुनने का इतिहास भेजें"
+
+msgid "Minimum Duration (seconds)"
+msgstr "न्यूनतम अवधि (सेकंड)"
+
+msgid "Minimum Play Percentage"
+msgstr "न्यूनतम चलाने का प्रतिशत"
+
+msgid "Last.fm Authentication"
+msgstr "Last.fm प्रमाणीकरण"
+
+msgid "API Key"
+msgstr "API कुंजी"
+
+msgid "API Secret"
+msgstr "API गुप्त कुंजी"
+
+msgid "Status: Authenticated"
+msgstr "स्थिति: प्रमाणित"
+
+msgid "Status: Not authenticated"
+msgstr "स्थिति: अप्रमाणित"
+
+msgid "Authorize with Last.fm"
+msgstr "Last.fm से प्रमाणित करें"
+
+msgid "Session Key (auto-filled after auth)"
+msgstr "सत्र कुंजी (प्रमाणीकरण के बाद स्वतः भरी गई)"
+
+msgid "Auth Token (paste from Last.fm after authorizing)"
+msgstr "प्रमाणीकरण टोकन (प्रमाणीकरण के बाद Last.fm से पेस्ट करें)"
+
+msgid "Complete Authentication"
+msgstr "प्रमाणीकरण पूर्ण करें"
+
+msgid "10-Band Equalizer"
+msgstr "10-बैंड इक्वलाइज़र"
+
+msgid "Adjust the gain for each frequency band (dB)"
+msgstr "प्रत्येक आवृत्ति बैंड के लिए गेन समायोजित करें (dB)"
+
+msgid "Presets"
+msgstr "प्रीसेट"
+
+msgid "Preset"
+msgstr "प्रीसेट"
+
+msgid "Flat"
+msgstr "सपाट"
+
+msgid "Rock"
+msgstr "रॉक"
+
+msgid "Jazz"
+msgstr "जैज़"
+
+msgid "Classical"
+msgstr "शास्त्रीय"
+
+msgid "Pop"
+msgstr "पॉप"
+
+msgid "Bass Boost"
+msgstr "बास बूस्ट"
+
+msgid "Lyrics"
+msgstr "गीत"
+
+msgid "Fetching lyrics…"
+msgstr "गीत लाए जा रहे हैं…"
+
+msgid "No track playing"
+msgstr "कोई ट्रैक नहीं बज रहा"
+
+msgid "Professional offline music player for Linux"
+msgstr "लिनक्स के लिए पेशेवर ऑफ़लाइन संगीत प्लेयर"
+
+msgid "About Tunecraft"
+msgstr "Tunecraft के बारे में"
+
+#. Translators: Playback control button labels
+msgid "Play"
+msgstr "चलाएं"
+
+msgid "Pause"
+msgstr "रोकें"
+
+msgid "Previous"
+msgstr "पिछला"
+
+msgid "Next"
+msgstr "अगला"
+
+msgid "Shuffle"
+msgstr "शफल"
+
+msgid "Repeat"
+msgstr "दोहराएं"
+
+#. Translators: Sidebar navigation labels
+msgid "All Tracks"
+msgstr "सभी ट्रैक"
+
+msgid "Albums"
+msgstr "एल्बम"
+
+msgid "Artists"
+msgstr "कलाकार"
+
+msgid "Playlists"
+msgstr "प्लेलिस्ट"
+
+msgid "Moods"
+msgstr "मूड"
+
+msgid "Smart Playlists"
+msgstr "स्मार्ट प्लेलिस्ट"
+
+msgid "Recently Added"
+msgstr "हाल ही में जोड़े गए"
+
+msgid "Recently Played"
+msgstr "हाल ही में चलाए गए"
+
+msgid "Most Played"
+msgstr "सबसे अधिक चलाए गए"
+
+msgid "Favorites"
+msgstr "पसंदीदा"
+
+#. Translators: Repeat mode labels
+msgid "Repeat Off"
+msgstr "दोहराना बंद"
+
+msgid "Repeat All"
+msgstr "सभी दोहराएं"
+
+msgid "Repeat One"
+msgstr "एक दोहराएं"
+
+msgid "Tunecraft"
+msgstr "Tunecraft"

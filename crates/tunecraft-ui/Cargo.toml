@@ -1,0 +1,58 @@
+[package]
+name = "tunecraft-ui"
+version.workspace = true
+edition.workspace = true
+
+# ── cargo-bundle metadata (macOS .app) ────────────────────────────────────────
+[package.metadata.bundle]
+name = "Tunecraft"
+identifier = "com.tunecraft.Tunecraft"
+icon = ["data/icons/scalable/org.tunecraft.Tunecraft.svg"]
+category = "Music"
+short_description = "Professional cross-platform offline music player"
+long_description = """TuneCraft is a professional offline music player built with Rust, \
+Dioxus, and GStreamer — featuring mood-based discovery, smart playlists, \
+real-time DSP processing, and deep desktop integration across Linux, \
+macOS, and Windows."""
+debian_dependencies = ["libgstreamer1.0-0", "gstreamer1.0-plugins-base", "gstreamer1.0-plugins-good"]
+
+[dependencies]
+tunecraft-core = { path = "../tunecraft-core", features = ["lastfm", "lyrics"] }
+dioxus.workspace = true
+dioxus-signals.workspace = true
+dioxus-hooks.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+lofty.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+rand.workspace = true
+lru.workspace = true
+directories.workspace = true
+rfd.workspace = true
+
+# ── Linux-specific ──────────────────────────────────────────────────────────
+[target.'cfg(target_os = "linux")'.dependencies]
+mpris-server.workspace = true
+notify-rust.workspace = true
+
+# ── macOS-specific ──────────────────────────────────────────────────────────
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", features = ["std"] }
+objc2-foundation = { version = "0.3" }
+objc2-app-kit = { version = "0.3" }
+objc2-media-player = { version = "0.3" }
+block2 = "0.6"
+
+# ── Windows-specific ────────────────────────────────────────────────────────
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = [
+    "Media",
+    "Media_Playback",
+    "Data_Xml_Dom",
+    "UI_Notifications",
+    "Foundation",
+] }

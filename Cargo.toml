@@ -1,0 +1,104 @@
+[workspace]
+members = ["crates/tunecraft-core", "crates/tunecraft-ui"]
+resolver = "2"
+
+[workspace.package]
+version = "5.0.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+authors = ["Tunecraft Contributors"]
+description = "Professional cross-platform offline music player"
+
+[workspace.dependencies]
+# ── Audio / GStreamer ──────────────────────────────────────────────────────
+gstreamer = "0.23"
+gstreamer-app = "0.23"
+cpal = "0.15"
+ringbuf = "0.4"
+rubato = "0.15"
+
+# ── Metadata / Decode ─────────────────────────────────────────────────────
+lofty = "0.22"
+rustfft = "6.2"
+symphonia = { version = "0.5", features = ["mp3", "flac", "ogg", "wav", "aac"] }
+
+# ── Database ───────────────────────────────────────────────────────────────
+rusqlite = { version = "0.32", features = ["bundled", "chrono", "blob"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.25"
+
+# ── Async / HTTP ──────────────────────────────────────────────────────────
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+
+# ── File System / I/O ─────────────────────────────────────────────────────
+notify = "7.0"
+walkdir = "2.5"
+memmap2 = "0.9"
+directories = "5.0"
+
+# ── Serialization ─────────────────────────────────────────────────────────
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# ── Date / Time ───────────────────────────────────────────────────────────
+chrono = { version = "0.4", features = ["serde"] }
+
+# ── Crypto / Hashing ──────────────────────────────────────────────────────
+sha2 = "0.10"
+md-5 = "0.10"
+aes-gcm = "0.10"
+hkdf = "0.12"
+base64 = "0.22"
+hex = "0.4"
+keyring = "2"
+
+# ── Errors / Logging ──────────────────────────────────────────────────────
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# ── GLib / GIO (still needed for GStreamer interop) ───────────────────────
+glib = "0.20"
+gio = "0.20"
+
+# ── Misc ──────────────────────────────────────────────────────────────────
+url = "2.5"
+urlencoding = "2.1"
+gettext-rs = "0.7"
+rand = "0.9"
+lru = "0.12"
+tempfile = "3.10"
+libc = "0.2"
+
+# ── Platform-specific (workspace-level for consistency) ──────────────────────
+mpris-server = "0.8"
+notify-rust = "4"
+
+# ── Dioxus UI Framework (v5.0 cross-platform desktop) ──────────────────────
+dioxus = { version = "0.7", features = ["desktop"] }
+dioxus-signals = "0.7"
+dioxus-hooks = "0.7"
+rfd = "0.15"
+
+[profile.release]
+# Fix Architecture #20: Changed from opt-level = "s" (size) to opt-level = 3 (speed).
+# For an audio DSP application, opt-level = 3 is almost always better than "s".
+# opt-level = "s" reduces binary size at the cost of loop unrolling and SIMD
+# auto-vectorization — exactly the optimizations that matter in the biquad and
+# convolution hot paths. The size savings are negligible for a desktop music
+# player, but the performance difference is measurable in DSP-heavy workloads.
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+# Fix H16: panic = "abort" skips Drop destructors (preventing GStreamer cleanup)
+# and makes catch_unwind unavailable for FFI callback panics. Use "unwind" instead.
+panic = "unwind"
+
+[profile.dev]
+opt-level = 1

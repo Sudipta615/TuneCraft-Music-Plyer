@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Application metadata -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>Tunecraft-launcher</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.tunecraft.Tunecraft</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Tunecraft</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>5.0</string>
+    <key>CFBundleVersion</key>
+    <string>5.0</string>
+    <key>CFBundleIconFile</key>
+    <string>org.tunecraft.Tunecraft</string>
+    <!-- Fix: macOS requires .icns format for icons, not SVG. The icon file
+         referenced here should be an .icns file in the Resources directory. -->
+
+    <!-- Application description -->
+    <key>CFBundleDisplayName</key>
+    <string>Tunecraft</string>
+    <key>CFBundleSpokenName</key>
+    <string>Tune Craft</string>
+
+    <!-- Category -->
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.music</string>
+
+    <!-- Minimum macOS version -->
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+
+    <!-- High DPI support -->
+    <key>NSHighResolutionCapable</key>
+    <true/>
+
+    <!-- Support for Apple Silicon (ARM64) and Intel (x86_64) -->
+    <key>LSArchitecturePriority</key>
+    <array>
+        <string>arm64</string>
+        <string>x86_64</string>
+    </array>
+
+    <!-- Document types — audio files that TuneCraft can open -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Audio File</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.mp3</string>
+                <string>public.audio</string>
+                <string>org.xiph.flac</string>
+                <string>org.xiph.ogg-audio</string>
+                <string>com.microsoft.waveform-audio</string>
+                <string>public.aac-audio</string>
+                <string>com.apple.m4a-audio</string>
+            </array>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>mp3</string>
+                <string>flac</string>
+                <string>ogg</string>
+                <string>opus</string>
+                <string>wav</string>
+                <string>aac</string>
+                <string>m4a</string>
+                <string>wma</string>
+                <string>aiff</string>
+                <string>ape</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Fix M18: UIBackgroundModes is an iOS-only key with no effect on macOS.
+         Removed to avoid validation warnings. On macOS, background audio is
+         handled by MPNowPlayingInfoCenter and the audio session, not this key. -->
+
+    <!-- Privacy descriptions (required for App Store, good practice) -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Tunecraft does not use the microphone.</string>
+
+    <!-- Support for hardended runtime (notarization) -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
+
+    <!-- Version info -->
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright 2026 TuneCraft Contributors. Licensed under MIT OR Apache-2.0.</string>
+</dict>
+</plist>

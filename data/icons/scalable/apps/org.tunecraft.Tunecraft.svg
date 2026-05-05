@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#613583;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#1a73e8;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <!-- Music note -->
+  <g transform="translate(24, 20) scale(0.85)">
+    <path d="M 40 20 L 40 80 C 40 90 25 95 15 90 C 5 85 5 72 15 68 C 25 64 40 68 40 80 L 40 35 L 85 25 L 85 70 C 85 80 70 85 60 80 C 50 75 50 62 60 58 C 70 54 85 58 85 70 L 85 20 Z" fill="white" opacity="0.95"/>
+  </g>
+</svg>

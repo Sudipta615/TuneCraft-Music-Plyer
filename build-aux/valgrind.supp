@@ -1,0 +1,12 @@
+{
+   g_thread_init_leak
+   Memcheck:Leak
+   ...
+   fun:g_thread_init
+}
+{
+   glib_init_leak
+   Memcheck:Leak
+   ...
+   fun:g_main_context_default
+}

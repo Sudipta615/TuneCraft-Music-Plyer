@@ -1,0 +1,345 @@
+# Tunecraft translation template
+# Copyright (C) 2024 Tunecraft Contributors
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: tunecraft 4.2\n"
+"Report-Msgid-Bugs-To: https://github.com/tunecraft/tunecraft/issues\n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Translators: Application name
+msgid "Tunecraft"
+msgstr ""
+
+#. Translators: Dialog heading for creating a new playlist
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "New Playlist"
+msgstr ""
+
+#. Translators: Dialog body prompting for playlist name
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Enter a name for the new playlist"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Cancel"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Create"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Preferences"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "General"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Appearance"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Theme"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "System"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Dark"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Light"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Playback"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Default Volume"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Playback Speed"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Audio"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Audio Settings"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Crossfade Duration (ms)"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "ReplayGain Normalization"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Audio Output"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Select the audio output device"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Auto (Default)"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Buffer Size (bytes)"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Equalizer"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Enable Equalizer"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Open Equalizer…"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Library"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Music Directories"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Add Directory"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Select Music Directory"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Rescan Library"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Rescan on Startup"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Scrobbling"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Last.fm Scrobbling"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Enable Scrobbling"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Send listening history to Last.fm"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Minimum Duration (seconds)"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Minimum Play Percentage"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Last.fm Authentication"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "API Key"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "API Secret"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Status: Authenticated"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Status: Not authenticated"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Authorize with Last.fm"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Session Key (auto-filled after auth)"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Auth Token (paste from Last.fm after authorizing)"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Complete Authentication"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "10-Band Equalizer"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Adjust the gain for each frequency band (dB)"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Presets"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Preset"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Flat"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Rock"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Jazz"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Classical"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Pop"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Bass Boost"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Lyrics"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Fetching lyrics…"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "No track playing"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "Professional cross-platform offline music player"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/app.rs
+msgid "About Tunecraft"
+msgstr ""
+
+#. Translators: Playback control button labels
+#. Source: crates/tunecraft-ui/src/playback_bar.rs
+msgid "Play"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/playback_bar.rs
+msgid "Pause"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/playback_bar.rs
+msgid "Previous"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/playback_bar.rs
+msgid "Next"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/playback_bar.rs
+msgid "Shuffle"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/playback_bar.rs
+msgid "Repeat"
+msgstr ""
+
+#. Translators: Sidebar navigation labels
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "All Tracks"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Albums"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Artists"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Playlists"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Moods"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Smart Playlists"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Recently Added"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Recently Played"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Most Played"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/sidebar.rs
+msgid "Favorites"
+msgstr ""
+
+#. Translators: Repeat mode labels
+#. Source: crates/tunecraft-ui/src/queue.rs
+msgid "Repeat Off"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/queue.rs
+msgid "Repeat All"
+msgstr ""
+
+#. Source: crates/tunecraft-ui/src/queue.rs
+msgid "Repeat One"
+msgstr ""

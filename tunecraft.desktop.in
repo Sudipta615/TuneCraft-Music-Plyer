@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Tunecraft
+Comment=Professional cross-platform offline music player
+Exec=@bindir@/tunecraft %U
+Icon=org.tunecraft.Tunecraft
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;
+StartupNotify=true
+StartupWMClass=Tunecraft
+Keywords=Music;Audio;Player;MP3;FLAC;Equalizer;
+MimeType=audio/mpeg;audio/flac;audio/ogg;audio/x-vorbis+ogg;audio/opus;audio/mp4;audio/x-aac;audio/x-wav;audio/x-aiff;

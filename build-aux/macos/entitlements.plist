@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Hardened runtime entitlements for macOS notarization.
+         These are required for apps distributed outside the Mac App Store
+         that need to pass Apple's notarization process (Gatekeeper).
+
+         TuneCraft needs:
+         - Audio output (GStreamer + cpal)
+         - Network access (Last.fm scrobbling, LRCLIB lyrics)
+         - File system read access (music library scanning)
+         - D-Bus (not applicable on macOS, but MPRIS code compiles)
+         - Dynamic library loading (GStreamer plugins)
+    -->
+
+    <!-- Allow loading unsigned executable memory (needed for GStreamer plugins) -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- Allow JIT compilation (needed by wgpu/Metal shader compilation) -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Disable library validation so bundled GStreamer dylibs can load -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- Network access for Last.fm scrobbling and LRCLIB lyrics -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- Network server (MPRIS D-Bus is Linux-only, but include for completeness) -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <!-- Read access to music files (user's Music folder, external drives) -->
+    <key>com.apple.security.files.user-selected.read-only</key>
+    <true/>
+
+    <!-- Read-write access for cover art cache and config -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!-- Audio output -->
+    <key>com.apple.security.device.audio-input</key>
+    <false/>
+</dict>
+</plist>

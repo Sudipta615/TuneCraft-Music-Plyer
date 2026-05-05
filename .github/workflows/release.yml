@@ -1,0 +1,178 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact: tunecraft-linux-x86_64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            artifact: tunecraft-macos-x86_64
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact: tunecraft-macos-aarch64
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+            artifact: tunecraft-windows-x86_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      # ── Linux ──────────────────────────────────────────────────────────────
+      - name: Install GStreamer (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-libav \
+            libsqlite3-dev \
+            libsecret-1-dev \
+            pkg-config \
+            libasound2-dev \
+            libdbus-1-dev
+
+      # ── macOS ──────────────────────────────────────────────────────────────
+      - name: Install GStreamer (macOS)
+        if: runner.os == 'macOS'
+        run: brew install gstreamer gst-plugins-base gst-plugins-good
+
+      # ── Windows ────────────────────────────────────────────────────────────
+      - name: Install GStreamer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $url = "https://gstreamer.freedesktop.org/data/pkg/windows/1.24.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.0.msi"
+          Invoke-WebRequest $url -OutFile gstreamer.msi
+          Start-Process msiexec.exe -Wait -ArgumentList '/i gstreamer.msi /quiet'
+          echo "GSTREAMER_1_0_ROOT_MSVC_X86_64=C:\gstreamer\1.0\msvc_x86_64" >> $env:GITHUB_ENV
+          echo "C:\gstreamer\1.0\msvc_x86_64\bin" >> $env:GITHUB_PATH
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # ── GStreamer Bundling (Issue #11) ─────────────────────────────────
+      # Bundle GStreamer runtime libraries into the release artifacts so
+      # users don't need a separate GStreamer installation. The bundling
+      # scripts already exist in build-aux/ — they just need to be invoked.
+
+      - name: Bundle GStreamer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $binary = "target\${{ matrix.target }}\release\tunecraft-ui.exe"
+          $gstRuntime = "C:\gstreamer\1.0\msvc_x86_64"
+          if (Test-Path $binary) {
+            & build-aux\bundle-gstreamer-windows.bat $binary $gstRuntime
+          } else {
+            Write-Warning "Binary not found at $binary, skipping GStreamer bundling"
+          }
+
+      - name: Bundle GStreamer (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          BINARY="target/${{ matrix.target }}/release/tunecraft-ui"
+          # Create a minimal .app bundle structure for the bundler
+          APP_BUNDLE="Tunecraft.app"
+          mkdir -p "${APP_BUNDLE}/Contents/MacOS"
+          mkdir -p "${APP_BUNDLE}/Contents/Frameworks"
+          cp "$BINARY" "${APP_BUNDLE}/Contents/MacOS/Tunecraft"
+          chmod +x "${APP_BUNDLE}/Contents/MacOS/Tunecraft"
+          if [ -f "$BINARY" ]; then
+            chmod +x build-aux/bundle-gstreamer-macos.sh
+            ./build-aux/bundle-gstreamer-macos.sh "${APP_BUNDLE}/Contents/MacOS/Tunecraft" "${APP_BUNDLE}"
+          else
+            echo "WARNING: Binary not found at $BINARY, skipping GStreamer bundling"
+          fi
+
+      # ── Package ────────────────────────────────────────────────────────────
+      - name: Package (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          BINARY=target/${{ matrix.target }}/release/tunecraft-ui
+          ARCHIVE=${{ matrix.artifact }}.tar.gz
+          cp "$BINARY" tunecraft
+          # Issue #11: Include GStreamer runtime files if bundled (macOS)
+          if [ -d "Tunecraft.app" ]; then
+            tar czf "$ARCHIVE" Tunecraft.app config.toml.sample README.md LICENSE-MIT LICENSE-APACHE
+          else
+            tar czf "$ARCHIVE" tunecraft config.toml.sample README.md LICENSE-MIT LICENSE-APACHE
+          fi
+          echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $binary = "target\${{ matrix.target }}\release\tunecraft-ui.exe"
+          Copy-Item $binary tunecraft.exe
+          # Issue #11: Include GStreamer runtime files if bundled
+          $items = @("tunecraft.exe", "config.toml.sample", "README.md", "LICENSE-MIT", "LICENSE-APACHE")
+          if (Test-Path "gst-runtime") {
+            $items += "gst-runtime"
+          }
+          if (Test-Path "Tunecraft-launcher.bat") {
+            $items += "Tunecraft-launcher.bat"
+          }
+          Compress-Archive -Path $items -DestinationPath "${{ matrix.artifact }}.zip"
+          echo "ARCHIVE=${{ matrix.artifact }}.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ env.ARCHIVE }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

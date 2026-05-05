@@ -1,0 +1,82 @@
+# Tunecraft Configuration
+# This file matches the TunecraftConfig struct used by the application.
+# Settings here override the built-in defaults.
+#
+# Cross-platform note: Path separators and directories differ per platform:
+#   Linux:   ~/Music, ~/.config/TuneCraft/
+#   macOS:   ~/Music, ~/Library/Application Support/com.tunecraft.Tunecraft/
+#   Windows: C:\Users\<name>\Music, %APPDATA%\com.tunecraft.Tunecraft\config\
+
+[general]
+theme = "dark"           # "dark", "light", or "system"
+volume = 0.8             # Default volume (0.0–1.0)
+playback_speed = 1.0     # Playback speed multiplier (0.25–4.0)
+repeat_mode = "none"     # "none", "all", or "one"
+shuffle = false
+volume_muted = false          # Whether the volume is currently muted (persists across restarts)
+volume_before_mute = 1.0     # Volume level before muting (0.0–1.0), restored on unmute
+
+[library]
+# Cross-platform: use ~ for home directory on all platforms
+# Linux/macOS example: "~/Music"
+# Windows example: "C:\\Users\\YourName\\Music" (or ~/Music with tilde expansion)
+watch_dirs = ["~/Music"]
+exclude_dirs = []
+rescan_on_startup = true
+
+[audio]
+backend = "gstreamer"            # Decode backend — GStreamer handles decoding, cpal handles output
+# output_device = "default"      # cpal output device name (default uses system default)
+crossfade_duration_ms = 0        # Crossfade duration in milliseconds (0 = disabled)
+replaygain = false               # Enable ReplayGain volume normalization
+buffer_size = 4096               # Audio buffer size in bytes
+exclusive_mode = false           # Bit-perfect / exclusive mode — bypasses system mixer (audiophile)
+loudness_normalization = false   # Enable EBU R128 loudness normalization (fallback for files without RG tags)
+loudness_target_lufs = -23.0    # Target loudness in LUFS (-30.0 to 0.0, -23.0 = EBU R128 broadcast standard)
+
+# v3.0 Phase 4: Configurable ring buffer sizes for low-end hardware tuning.
+# These control how much audio data is buffered between the three pipeline threads.
+# Larger values improve resilience under heavy system load but use more memory.
+# Changes take effect on the next track load.
+decode_ring_size = 65536         # Decode ring buffer size in f32 samples (4096–262144)
+output_ring_size = 32768         # Output ring buffer size in f32 samples (2048–131072)
+
+# v3.0 Phase 4: Visualization rendering mode.
+# Controls whether GPU-intensive visualization rendering is performed.
+# - "deferred" (default): Render only when the visualization view is visible
+# - "always": Render visualizations at all times (GPU overhead)
+# - "disabled": Never render visualizations (saves GPU/CPU on low-end hardware)
+visualization_mode = "deferred"
+
+# Resampler cutoff frequency ratio (0.5–1.0, fraction of Nyquist).
+# 0.95 matches Poweramp default. Lower = less aliasing, more HF roll-off.
+resampler_cutoff = 0.95
+
+# Fade-out/in duration in milliseconds applied around a seek (0 = no fade).
+# Smooths audible clicks when seeking. Range: 0–200 ms.
+seek_fade_ms = 20
+
+# ReplayGain preamp: additional gain in dB applied on top of ReplayGain adjustment (-15.0 to +15.0).
+replaygain_preamp_db = 0.0
+
+# Preamp for tracks without ReplayGain tags, in dB (-15.0 to +15.0).
+replaygain_fallback_db = 0.0
+
+# ReplayGain mode: "off", "track", "album", "track_prevent_clip", "album_prevent_clip"
+replaygain_mode = "track"
+
+[scrobble]
+enabled = false           # Enable Last.fm scrobbling
+min_duration_secs = 30   # Minimum track duration to scrobble
+min_percent = 50          # Minimum playback percentage to scrobble
+
+[equalizer]
+enabled = false           # Enable the equalizer / DSP engine
+preset = "Flat"           # Default EQ preset name (or null for no preset)
+bass_db = 0.0             # Bass shelf gain in dB (-12.0 to +12.0), corner at 120 Hz
+treble_db = 0.0           # Treble shelf gain in dB (-12.0 to +12.0), corner at 10 kHz
+stereo_width = 1.0        # Stereo width: 0.0=mono, 1.0=original, 2.0=double-wide
+balance = 0.0             # Channel balance: -1.0=full left, 0.0=center, +1.0=full right
+dither_enabled = false    # TPDF dither for 16-bit output
+bass_freq_hz = 90.0         # Bass shelf corner frequency in Hz (20–500). Default: 90 Hz (matches Poweramp)
+treble_freq_hz = 10000.0    # Treble shelf corner frequency in Hz (1000–20000). Default: 10000 Hz

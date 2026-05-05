@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.tunecraft.Tunecraft</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <name>Tunecraft</name>
+  <summary>Professional cross-platform offline music player</summary>
+  <description>
+    <p>Tunecraft is a high-performance, cross-platform, offline music player built with Rust and Dioxus. It features gapless playback, professional-grade equalizer, smart playlists, and a refined dark UI designed for audio enthusiasts.</p>
+    <p>Key features include a hybrid three-thread audio pipeline (GStreamer decode, Rust DSP, cpal output), 10-band parametric EQ with coefficient smoothing, mood-based music discovery, crossfade playback, ReplayGain normalization, Last.fm scrobbling, MPRIS2 D-Bus integration, real-time spectrum analyzer, and waveform seek bar.</p>
+  </description>
+  <launchable type="desktop-id">org.tunecraft.Tunecraft.desktop</launchable>
+  <provides>
+    <binary>tunecraft</binary>
+    <mediatype>audio/mpeg</mediatype>
+    <mediatype>audio/flac</mediatype>
+    <mediatype>audio/ogg</mediatype>
+    <mediatype>audio/opus</mediatype>
+    <mediatype>audio/mp4</mediatype>
+  </provides>
+  <url type="homepage">https://github.com/tunecraft/tunecraft</url>
+  <url type="bugtracker">https://github.com/tunecraft/tunecraft/issues</url>
+  <releases>
+    <release version="5.0" date="2026-05-03">
+      <description>
+        <p>Version 5.0 — Dioxus UI Migration</p>
+        <ul>
+          <li>Changed: UI framework migrated from iced v0.14 to Dioxus v0.7</li>
+          <li>Changed: Architecture changed from Elm-style to component-based (React-like)</li>
+          <li>Changed: Styling migrated from iced style structs to CSS with light/dark theme</li>
+          <li>Changed: All UI elements rewired to TuneCraft Core</li>
+          <li>Removed: iced and tiny-skia dependencies</li>
+        </ul>
+      </description>
+    </release>
+    <release version="4.2" date="2026-05-02">
+      <description>
+        <p>Version 4.2</p>
+        <ul>
+          <li>Fixed: Version format corrected to x.y (was incorrectly x.y.z)</li>
+          <li>Fixed: README and CHANGELOG trimmed of redundant content</li>
+          <li>Changed: All version strings synchronized to 4.2</li>
+        </ul>
+      </description>
+    </release>
+    <release version="4.1" date="2026-05-02">
+      <description>
+        <p>Version 4.1 — Launch Readiness Release</p>
+        <ul>
+          <li>Fixed: OS keyring integration for credential encryption</li>
+          <li>Fixed: Build system version mismatch synchronized across all files</li>
+          <li>Added: 9 integration tests for audio pipeline</li>
+          <li>Changed: UI framework migrated from GTK4 to iced for cross-platform support</li>
+          <li>Changed: Dependencies updated (rubato replacing samplerate, rand 0.9)</li>
+        </ul>
+      </description>
+    </release>
+    <release version="3.14" date="2026-05-01">
+      <description>
+        <p>Version 3.14 — PCM Cache Wiring &amp; Memory Optimization</p>
+        <ul>
+          <li>Changed: PcmCache default capacity reduced from 10 to 5 entries, lowering peak memory from ~330 MB to ~165 MB for better compatibility with older hardware</li>
+          <li>Added: PcmCache wired into the production mood analysis pipeline — decoded PCM data is now cached and reused, eliminating redundant Symphonia decoding</li>
+          <li>Fixed: Version mismatch across project files (Cargo.toml, meson.build, Info.plist, WiX) — all synchronized to 3.14</li>
+        </ul>
+      </description>
+    </release>
+    <release version="3.6" date="2026-05-01">
+      <description>
+        <p>Version 3.6 — Code Quality, Audio Improvement &amp; Scrobble Wiring</p>
+        <ul>
+          <li>Fixed: Extracted duplicate cast_u8_to_f32() to shared utility (DRY cleanup)</li>
+          <li>Fixed: Centralized all gstreamer::init() calls through ensure_gstreamer_initialized()</li>
+          <li>Fixed: Smooth seek-fade ramp replaces hard mute/unmute for click-free seeking</li>
+          <li>Fixed: Split monolithic media_bridge.rs into per-platform modules for maintainability</li>
+          <li>Added: ScrobbleManager with automatic scrobble threshold checking and queue flushing</li>
+          <li>Changed: Version format now strictly follows x.y (no patch component)</li>
+        </ul>
+      </description>
+    </release>
+    <release version="2.1" date="2026-04-30">
+      <description>
+        <p>Version 2.1 — Architecture &amp; Quality Improvements</p>
+        <ul>
+          <li>Improved: AudioEngine Mutex fields consolidated from 15 separate locks into 3 grouped sub-structs (EngineVolumeState, EngineReplayGainState, EngineTransportState), reducing lock acquisitions and eliminating ReplayGain config inconsistency (Bug #33 fix)</li>
+          <li>Improved: All 57 UI-layer .expect() calls replaced with mutex poison recovery, matching the audio engine's consistent pattern</li>
+          <li>Improved: Shared PCM cache eliminates dual-decode overhead for mood analysis — tracks are no longer decoded twice</li>
+          <li>Added: Hindi (hi) locale translation for the Indian music audience that the mood classifier serves</li>
+          <li>Added: Playlist import/export UI — M3U and XSPF files can now be imported and exported via the sidebar (Ctrl+I / Ctrl+Shift+E)</li>
+          <li>Fixed: MPRIS set_loop_status() and set_shuffle() now emit PropertiesChanged D-Bus signals — external clients (GNOME panel, KDE media widget, media keys) see live state updates (Bug #52)</li>
+          <li>Fixed: Genre preset reset_built_in() now uses a static lookup table instead of reconstructing all 12 presets</li>
+        </ul>
+      </description>
+    </release>
+    <release version="2.0" date="2026-04-30">
+      <description>
+        <p>Version 2.0 — Complete Bug Fix &amp; Optimization Release</p>
+        <ul>
+          <li>Fixed: All 87 reported bugs across Critical, High, Medium, and Low severity levels</li>
+          <li>Fixed: Deadlock between toggle_playback and play_track_internal (ABBA lock ordering)</li>
+          <li>Fixed: Queue lock held across play_track_internal creating lock chains</li>
+          <li>Fixed: MPRIS metadata() doing file I/O while holding queue lock</li>
+          <li>Fixed: Shared DspEngine corrupted by preloaded session's DSP thread</li>
+          <li>Fixed: Heap allocations in real-time audio path (convolution, cpal callbacks)</li>
+          <li>Fixed: gstreamer::init() double-init error blocking pipeline creation</li>
+          <li>Fixed: Migration v5 crashing on fresh databases</li>
+          <li>Fixed: TPDF dither using XOR instead of ADD for triangular distribution</li>
+          <li>Fixed: Volume not applied to non-crossfade pipeline</li>
+          <li>Fixed: Float equality comparison using f64::EPSILON (effectively ==)</li>
+          <li>Fixed: SQL injection in apply_pragmas via string interpolation</li>
+          <li>Fixed: Race condition in add_track_to_playlist on position</li>
+          <li>Fixed: Last.fm partial failure counting as fully successful</li>
+          <li>Fixed: Cover art and pref DB errors silently swallowed</li>
+          <li>Fixed: Loudness smoothing coefficient applied per-buffer instead of per-sample</li>
+          <li>Fixed: O(n) block removal in loudness accumulator (now VecDeque)</li>
+          <li>Fixed: Mixer sink pads not released when crossfade entries cleared</li>
+          <li>Fixed: Preloaded gapless session missing bus watch and position timer</li>
+          <li>Fixed: Thread spawn failure silently ignored in gapless preloader</li>
+          <li>Fixed: parse_peak assuming 16-bit peak scaling only</li>
+          <li>Fixed: path_to_uri double-encoding risk</li>
+          <li>Fixed: XSPF parser not handling numeric character references</li>
+          <li>Fixed: Duration formatting for durations >= 1 hour</li>
+          <li>Fixed: reqwest::Client created per request (now reused)</li>
+          <li>Fixed: MPRIS seek() not clamped to track duration</li>
+          <li>Fixed: Preferences dialog not updating in-memory config</li>
+          <li>Fixed: Drag-and-drop bypassing file path validation</li>
+          <li>Fixed: connect_open handler creating barebones Track with no metadata</li>
+          <li>Optimized: Removed unnecessary Arc&lt;Mutex&gt; around ring buffer producer</li>
+          <li>Optimized: Mood count badge uses COUNT(*) instead of loading full Track objects</li>
+          <li>Optimized: Scrobble queue flush moved off main thread</li>
+          <li>Improved: All mutex poison recovery now logs warnings</li>
+          <li>Improved: Consistent tilde expansion across all code paths</li>
+          <li>Improved: Added click handlers to previously non-functional toolbar buttons</li>
+          <li>Improved: Lyrics highlight timer properly cleaned up on dialog close</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.8" date="2026-04-30">
+      <description>
+        <p>Version 1.8 — Bug Fix Release</p>
+        <ul>
+          <li>Fixed: Player state callback tried to access non-existent AppState.player_state field — now correctly writes through AppState.playback Mutex to PlaybackInner.player_state.</li>
+          <li>Fixed: Accumulated playback seconds timer tried to access non-existent AppState.accumulated_playback_secs field — now correctly increments through AppState.playback Mutex to PlaybackInner.scrobble.accumulated_secs.</li>
+          <li>Fixed: Database access in signal handler used .lock() on RwLock — changed to .read() for proper read lock acquisition.</li>
+          <li>Fixed: Duplicate test module in smart_playlist.rs prevented compilation — removed the redundant second module.</li>
+          <li>Fixed: "Recently Played" smart playlist showed empty results because view_resolver.rs didn't map it to the template — now correctly resolves to templates::recently_played().</li>
+          <li>Fixed: Scrobble flush tried Arc::clone on &amp;AppState instead of Arc&lt;AppState&gt; — now uses self_arc_clone() to retrieve the stored Arc.</li>
+          <li>Fixed: Unknown EQ preset logged at debug level instead of warn — now uses tracing::warn! for visibility.</li>
+          <li>Fixed: Shuffle order regeneration after set_tracks() left shuffle_order without a deterministic starting position when current_index was None — now defaults to placing index 0 at the front.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.4" date="2026-04-30">
+      <description>
+        <p>Version 1.4 — Professional-Grade Audio Improvements</p>
+        <ul>
+          <li>Fixed: GaplessPreloader now shares the engine's DspEngine instead of creating a separate instance with default settings, eliminating the brief window of wrong EQ/ReplayGain/stereo-width at track boundaries during gapless playback.</li>
+          <li>Fixed: underrun_count() is now properly wired from AudioOutput through Session to AudioEngine — no longer returns a hardcoded 0.</li>
+          <li>Added: EBU R128 / ITU-R BS.1770 loudness measurement and normalization as a complement to ReplayGain. Tracks without ReplayGain tags now receive real-time loudness normalization to a configurable target LUFS level (default -23 LUFS, adjustable).</li>
+          <li>Added: Bit-perfect / exclusive mode output path. Bypasses the system mixer entirely (ALSA direct or PipeWire exclusive on Linux) for audiophile-quality output at the hardware's native bit depth and sample rate with no kernel resampling.</li>
+          <li>Added: Parametric Mid-Side (M/S) EQ processing in the DSP chain. Up to 5 independently configurable M/S EQ bands allow per-band EQ of the Mid (centre) and Side (stereo difference) components — a mastering-grade feature previously found only in professional DAWs and high-end players.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.3" date="2026-04-30">
+      <description>
+        <p>Version 1.3.0 — Expanded Format Support</p>
+        <ul>
+          <li>Added support for all audio formats GStreamer can handle via uridecodebin, including AC-3, DTS, Opus, WebM, WavPack, MIDI, tracker modules, and many more container formats (MKV, MP4, AVI, FLV, TS, and others).</li>
+          <li>Over 50 new file extensions are now recognised by the library scanner.</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.1" date="2026-04-29">
+      <description>
+        <p>Quality improvement release: comprehensive testing, reduced lock contention, stronger credential protection, and internationalization foundation.</p>
+        <ul>
+          <li>Added: Comprehensive unit tests for DSP biquad coefficients, EQ gain accuracy, mood classifier boundaries, smart playlist edge cases, scanner symlink safety, and config roundtrip</li>
+          <li>Improved: Refactored AppState from 16 individual Mutex fields to grouped sub-structs behind fewer locks, with AtomicU64 for volume and RwLock for read-heavy fields</li>
+          <li>Improved: Added OS keyring integration for credential encryption key derivation, with fallback to dotfile mechanism</li>
+          <li>Fixed: File watcher now validates canonicalized paths against watch directories to prevent symlink escape</li>
+          <li>Fixed: Scanner deduplicates files by canonical path to avoid scanning the same file via different symlink paths</li>
+          <li>Added: i18n framework with gettext-rs integration, preparing for multi-language support</li>
+          <li>Improved: Added security documentation for MD5 usage in Last.fm signing, clarifying SHA-256 is used for all integrity checks</li>
+          <li>Improved: Added performance documentation for mood analysis dual-decode issue</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.0" date="2026-04-29">
+      <description>
+        <p>Launch-ready release with comprehensive stability, security, and packaging fixes.</p>
+        <ul>
+          <li>Fixed: Audio pipeline panic on malformed GStreamer buffers — now gracefully skips</li>
+          <li>Fixed: Deadlock when stopping playback during GLib callbacks</li>
+          <li>Fixed: MPRIS open_uri now returns proper error instead of silently accepting</li>
+          <li>Fixed: About dialog showed wrong version (0.8.0 instead of current)</li>
+          <li>Fixed: Flatpak manifest referenced non-existent meson options — now builds correctly</li>
+          <li>Fixed: Version numbers synchronized across all project files</li>
+          <li>Added: Configuration validation — dangerous values are clamped to safe ranges</li>
+          <li>Added: Confirmation dialog before library rescan</li>
+          <li>Added: AppStream screenshots for Flathub submission</li>
+          <li>Improved: Ring buffer sizes doubled for better high-latency resilience</li>
+          <li>Improved: MPRIS state changes now properly notify the UI</li>
+          <li>Improved: XML entity decoding order fixed in XSPF playlist import</li>
+          <li>Improved: HTTP client reuse for LRCLIB lyrics requests</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.10" date="2026-04-29">
+      <description>
+        <p>Release candidate with hardened error handling, panic-free audio pipeline, and
+        full mutex poison recovery across the audio engine and crossfade subsystem.</p>
+        <ul>
+          <li>Fixed: GStreamer pad lookup panics replaced with graceful error logging</li>
+          <li>Fixed: Mutex poison recovery on all audio engine lock sites</li>
+          <li>Fixed: DSP thread spawn failure now logs an error instead of crashing</li>
+          <li>Fixed: ReplayGain and mood analysis use safe fallbacks on unexpected data</li>
+          <li>Added: CHANGELOG.md with full version history</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.9" date="2026-04-28">
+      <description>
+        <p>Major feature release: hybrid GStreamer + cpal audio pipeline, 10-band parametric EQ,
+        mood-based discovery, Last.fm scrobbling, MPRIS2 D-Bus, and smart playlists.</p>
+      </description>
+    </release>
+    <release version="0.1" date="2024-01-15">
+      <description><p>Initial release with core playback, library management, and UI.</p></description>
+    </release>
+  </releases>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main window showing the track library with mood badges, sidebar navigation, and the now-playing bar</caption>
+      <image type="source" width="2688" height="1536">https://raw.githubusercontent.com/tunecraft/tunecraft/main/data/screenshots/main-window.png</image>
+    </screenshot>
+  </screenshots>
+  <update_contact>tunecraft@github.com</update_contact>
+  <content_rating type="oars-1.1"/>
+  <developer_name>Tunecraft Contributors</developer_name>
+  <developer id="org.tunecraft">
+    <name>Tunecraft Contributors</name>
+  </developer>
+</component>
