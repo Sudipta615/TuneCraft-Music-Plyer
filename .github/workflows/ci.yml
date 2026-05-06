@@ -54,6 +54,7 @@ jobs:
             pkg-config \
             libasound2-dev \
             libdbus-1-dev
+            libgtk-3-dev
 
       # ── macOS: GStreamer via Homebrew ──────────────────────────────────────
       - name: Install GStreamer (macOS)
@@ -141,7 +142,8 @@ jobs:
             libsecret-1-dev \
             pkg-config \
             libasound2-dev \
-            libdbus-1-dev
+            libdbus-1-dev \
+            libgtk-3-dev
 
       - name: Check MSRV compatibility
         run: cargo check --workspace
