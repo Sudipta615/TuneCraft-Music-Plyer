@@ -43,6 +43,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
+            libunwind-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
             gstreamer1.0-plugins-good \
@@ -65,7 +66,25 @@ jobs:
         shell: pwsh
         run: |
           $url = "https://gstreamer.freedesktop.org/data/pkg/windows/1.24.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.0.msi"
-          Invoke-WebRequest $url -OutFile gstreamer.msi
+          $maxRetries = 3
+          $retryCount = 0
+          $downloaded = $false
+          
+          while ($retryCount -lt $maxRetries -and -not $downloaded) {
+            try {
+              Invoke-WebRequest $url -OutFile gstreamer.msi -TimeoutSec 300
+              $downloaded = $true
+            } catch {
+              $retryCount++
+              if ($retryCount -lt $maxRetries) {
+                Write-Host "Download failed, retrying... (attempt $retryCount of $maxRetries)"
+                Start-Sleep -Seconds 5
+              } else {
+                throw "Failed to download GStreamer after $maxRetries attempts: $_"
+              }
+            }
+          }
+          
           Start-Process msiexec.exe -Wait -ArgumentList '/i gstreamer.msi /quiet'
           echo "GSTREAMER_1_0_ROOT_MSVC_X86_64=C:\gstreamer\1.0\msvc_x86_64" >> $env:GITHUB_ENV
           echo "C:\gstreamer\1.0\msvc_x86_64\bin" >> $env:GITHUB_PATH
@@ -111,6 +130,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
+            libunwind-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
             libsqlite3-dev \
