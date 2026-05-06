@@ -90,7 +90,9 @@ pub(crate) fn detect_mime_type(picture: &lofty::picture::Picture) -> String {
             lofty::picture::MimeType::Jpeg => return "image/jpeg".to_string(),
             lofty::picture::MimeType::Gif => return "image/gif".to_string(),
             lofty::picture::MimeType::Bmp => return "image/bmp".to_string(),
-            lofty::picture::MimeType::Unknown(ref s) if s.contains("webp") => return "image/webp".to_string(),
+            lofty::picture::MimeType::Unknown(ref s) if s.contains("webp") => {
+                return "image/webp".to_string()
+            }
             _ => {}
         }
     }

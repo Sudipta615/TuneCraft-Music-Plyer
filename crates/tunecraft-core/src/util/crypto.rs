@@ -62,7 +62,8 @@ const ENCRYPTED_PREFIX: &str = "enc:v1:";
 /// - Protected by the OS-level secret storage (login keyring, etc.)
 /// - Created with cryptographically random bytes on first use
 fn derive_key() -> Result<&'static [u8; 32], CryptoError> {
-    static CACHED_KEY: std::sync::OnceLock<Result<[u8; 32], CryptoError>> = std::sync::OnceLock::new();
+    static CACHED_KEY: std::sync::OnceLock<Result<[u8; 32], CryptoError>> =
+        std::sync::OnceLock::new();
     let cached = CACHED_KEY.get_or_init(|| {
         let fingerprint = machine_fingerprint();
         let mut ikm = fingerprint.as_bytes().to_vec();
@@ -154,31 +155,31 @@ fn load_keyring_secret() -> Option<Vec<u8>> {
         match Entry::new("org.tunecraft.Tunecraft", "encryption-key") {
             Ok(entry) => {
                 match entry.get_password() {
-                    Ok(secret_hex) => {
-                        match hex::decode(&secret_hex) {
-                            Ok(bytes) if bytes.len() >= 16 => {
-                                tracing::debug!("Loaded encryption key from OS keyring");
-                                Some(bytes)
-                            }
-                            Ok(_) => {
-                                tracing::warn!("Keyring secret too short, regenerating");
-                                let _ = entry.delete_credential();
-                                None
-                            }
-                            Err(e) => {
-                                tracing::debug!("Keyring secret hex decode failed: {}", e);
-                                let _ = entry.delete_credential();
-                                None
-                            }
+                    Ok(secret_hex) => match hex::decode(&secret_hex) {
+                        Ok(bytes) if bytes.len() >= 16 => {
+                            tracing::debug!("Loaded encryption key from OS keyring");
+                            Some(bytes)
                         }
-                    }
+                        Ok(_) => {
+                            tracing::warn!("Keyring secret too short, regenerating");
+                            let _ = entry.delete_credential();
+                            None
+                        }
+                        Err(e) => {
+                            tracing::debug!("Keyring secret hex decode failed: {}", e);
+                            let _ = entry.delete_credential();
+                            None
+                        }
+                    },
                     Err(keyring::Error::NoEntry) => {
                         // First use — generate and store a random 32-byte secret
                         let secret: [u8; 32] = rand::random();
                         let hex_str = hex::encode(secret);
                         match entry.set_password(&hex_str) {
                             Ok(()) => {
-                                tracing::info!("Generated and stored new encryption key in OS keyring");
+                                tracing::info!(
+                                    "Generated and stored new encryption key in OS keyring"
+                                );
                                 Some(secret.to_vec())
                             }
                             Err(e) => {
@@ -218,13 +219,13 @@ fn machine_fingerprint() -> String {
             // Fix M9: HOSTNAME env var is unreliable on Linux (not always set).
             // Fall back to the `hostname` command which queries the system
             // hostname directly via gethostname(2).
-            let output = std::process::Command::new("hostname")
-                .output()
-                .ok();
+            let output = std::process::Command::new("hostname").output().ok();
             output
                 .and_then(|o| {
                     if o.status.success() {
-                        String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                        String::from_utf8(o.stdout)
+                            .ok()
+                            .map(|s| s.trim().to_string())
                     } else {
                         None
                     }
@@ -235,11 +236,7 @@ fn machine_fingerprint() -> String {
 
     let username = whoami().unwrap_or_else(|| "unknown-user".to_string());
 
-    let os_info = format!(
-        "{}-{}",
-        std::env::consts::OS,
-        std::env::consts::ARCH
-    );
+    let os_info = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
 
     format!("{}:{}:{}", hostname, username, os_info)
 }
@@ -279,7 +276,8 @@ fn load_user_secret() -> Option<Vec<u8>> {
                 tracing::warn!(
                     "User secret file at {:?} is corrupted (got {} bytes, expected 32). \
                      Regenerating to avoid permanent credential loss.",
-                    path, bytes.len()
+                    path,
+                    bytes.len()
                 );
                 // Remove the corrupted file and generate a fresh one
                 let _ = std::fs::remove_file(&path);
@@ -304,7 +302,8 @@ fn load_user_secret() -> Option<Vec<u8>> {
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
-                        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+                        let _ =
+                            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
                     }
                     Some(secret.to_vec())
                 } else {
@@ -377,8 +376,8 @@ fn generate_and_store_user_secret() -> Option<Vec<u8>> {
 /// Returns an error if AES-GCM encryption fails (extremely unlikely with valid inputs).
 pub fn encrypt(plaintext: &str) -> Result<String, CryptoError> {
     let key = derive_key()?;
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| CryptoError::KeyInitFailed(e.to_string()))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|e| CryptoError::KeyInitFailed(e.to_string()))?;
 
     // Generate a random 96-bit nonce
     let nonce_bytes: [u8; 12] = rand::random();
@@ -428,8 +427,8 @@ pub fn decrypt(value: &str) -> Result<String, CryptoError> {
     let nonce = Nonce::from_slice(nonce_bytes);
 
     let key = derive_key()?;
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| CryptoError::KeyInitFailed(e.to_string()))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|e| CryptoError::KeyInitFailed(e.to_string()))?;
 
     let plaintext = cipher
         .decrypt(nonce, ciphertext)

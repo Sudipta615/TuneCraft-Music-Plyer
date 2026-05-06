@@ -42,77 +42,166 @@ impl Rule {
         match (self.operator, &self.value) {
             // Text comparisons
             (Operator::Eq, RuleValue::Text(b)) => {
-                if let FieldValue::Text(a) = self.extract_field(track) { a.to_lowercase() == b.to_lowercase() } else { false }
+                if let FieldValue::Text(a) = self.extract_field(track) {
+                    a.to_lowercase() == b.to_lowercase()
+                } else {
+                    false
+                }
             }
             (Operator::Ne, RuleValue::Text(b)) => {
-                if let FieldValue::Text(a) = self.extract_field(track) { a.to_lowercase() != b.to_lowercase() } else { false }
+                if let FieldValue::Text(a) = self.extract_field(track) {
+                    a.to_lowercase() != b.to_lowercase()
+                } else {
+                    false
+                }
             }
             (Operator::Contains, RuleValue::Text(b)) => {
-                if let FieldValue::Text(a) = self.extract_field(track) { a.to_lowercase().contains(&b.to_lowercase()) } else { false }
+                if let FieldValue::Text(a) = self.extract_field(track) {
+                    a.to_lowercase().contains(&b.to_lowercase())
+                } else {
+                    false
+                }
             }
 
             // Integer comparisons
             (Operator::Eq, RuleValue::Integer(b)) => {
-                if let FieldValue::Integer(a) = self.extract_field(track) { a == *b } else { false }
+                if let FieldValue::Integer(a) = self.extract_field(track) {
+                    a == *b
+                } else {
+                    false
+                }
             }
             (Operator::Ne, RuleValue::Integer(b)) => {
-                if let FieldValue::Integer(a) = self.extract_field(track) { a != *b } else { false }
+                if let FieldValue::Integer(a) = self.extract_field(track) {
+                    a != *b
+                } else {
+                    false
+                }
             }
             (Operator::Gt, RuleValue::Integer(b)) => {
-                if let FieldValue::Integer(a) = self.extract_field(track) { a > *b } else { false }
+                if let FieldValue::Integer(a) = self.extract_field(track) {
+                    a > *b
+                } else {
+                    false
+                }
             }
             (Operator::Ge, RuleValue::Integer(b)) => {
-                if let FieldValue::Integer(a) = self.extract_field(track) { a >= *b } else { false }
+                if let FieldValue::Integer(a) = self.extract_field(track) {
+                    a >= *b
+                } else {
+                    false
+                }
             }
             (Operator::Lt, RuleValue::Integer(b)) => {
-                if let FieldValue::Integer(a) = self.extract_field(track) { a < *b } else { false }
+                if let FieldValue::Integer(a) = self.extract_field(track) {
+                    a < *b
+                } else {
+                    false
+                }
             }
             (Operator::Le, RuleValue::Integer(b)) => {
-                if let FieldValue::Integer(a) = self.extract_field(track) { a <= *b } else { false }
+                if let FieldValue::Integer(a) = self.extract_field(track) {
+                    a <= *b
+                } else {
+                    false
+                }
             }
 
             // Float comparisons
             (Operator::Eq, RuleValue::Float(b)) => {
-                if let FieldValue::Float(a) = self.extract_field(track) { (a - b).abs() < 1e-6 } else { false }
+                if let FieldValue::Float(a) = self.extract_field(track) {
+                    (a - b).abs() < 1e-6
+                } else {
+                    false
+                }
             }
             (Operator::Ne, RuleValue::Float(b)) => {
-                if let FieldValue::Float(a) = self.extract_field(track) { (a - b).abs() >= 1e-6 } else { false }
+                if let FieldValue::Float(a) = self.extract_field(track) {
+                    (a - b).abs() >= 1e-6
+                } else {
+                    false
+                }
             }
             (Operator::Gt, RuleValue::Float(b)) => {
-                if let FieldValue::Float(a) = self.extract_field(track) { a > *b } else { false }
+                if let FieldValue::Float(a) = self.extract_field(track) {
+                    a > *b
+                } else {
+                    false
+                }
             }
             (Operator::Ge, RuleValue::Float(b)) => {
-                if let FieldValue::Float(a) = self.extract_field(track) { a >= *b } else { false }
+                if let FieldValue::Float(a) = self.extract_field(track) {
+                    a >= *b
+                } else {
+                    false
+                }
             }
             (Operator::Lt, RuleValue::Float(b)) => {
-                if let FieldValue::Float(a) = self.extract_field(track) { a < *b } else { false }
+                if let FieldValue::Float(a) = self.extract_field(track) {
+                    a < *b
+                } else {
+                    false
+                }
             }
             (Operator::Le, RuleValue::Float(b)) => {
-                if let FieldValue::Float(a) = self.extract_field(track) { a <= *b } else { false }
+                if let FieldValue::Float(a) = self.extract_field(track) {
+                    a <= *b
+                } else {
+                    false
+                }
             }
 
             // Date comparisons
             (Operator::Eq, RuleValue::Date(b)) => {
-                if let FieldValue::Date(a) = self.extract_field(track) { a == *b } else { false }
+                if let FieldValue::Date(a) = self.extract_field(track) {
+                    a == *b
+                } else {
+                    false
+                }
             }
             (Operator::Ne, RuleValue::Date(b)) => {
-                if let FieldValue::Date(a) = self.extract_field(track) { a != *b } else { false }
+                if let FieldValue::Date(a) = self.extract_field(track) {
+                    a != *b
+                } else {
+                    false
+                }
             }
             (Operator::Gt, RuleValue::Date(b)) => {
-                if let FieldValue::Date(a) = self.extract_field(track) { a > *b } else { false }
+                if let FieldValue::Date(a) = self.extract_field(track) {
+                    a > *b
+                } else {
+                    false
+                }
             }
             (Operator::Ge, RuleValue::Date(b)) => {
-                if let FieldValue::Date(a) = self.extract_field(track) { a >= *b } else { false }
+                if let FieldValue::Date(a) = self.extract_field(track) {
+                    a >= *b
+                } else {
+                    false
+                }
             }
             (Operator::Lt, RuleValue::Date(b)) => {
-                if let FieldValue::Date(a) = self.extract_field(track) { a < *b } else { false }
+                if let FieldValue::Date(a) = self.extract_field(track) {
+                    a < *b
+                } else {
+                    false
+                }
             }
             (Operator::Le, RuleValue::Date(b)) => {
-                if let FieldValue::Date(a) = self.extract_field(track) { a <= *b } else { false }
+                if let FieldValue::Date(a) = self.extract_field(track) {
+                    a <= *b
+                } else {
+                    false
+                }
             }
 
             _ => {
-                debug!("type mismatch in rule {:?}: field={:?}, value={:?}", self, self.extract_field(track), self.value);
+                debug!(
+                    "type mismatch in rule {:?}: field={:?}, value={:?}",
+                    self,
+                    self.extract_field(track),
+                    self.value
+                );
                 false
             }
         }
@@ -131,9 +220,11 @@ impl Rule {
             "skip_count" => FieldValue::Integer(track.skip_count.unwrap_or(0) as i64),
             "rating" => FieldValue::Float(track.rating.unwrap_or(0.0)),
             "date_added" => FieldValue::Date(track.date_added),
-            "last_played" => FieldValue::Date(track.last_played.unwrap_or_else(|| {
-                NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()
-            })),
+            "last_played" => FieldValue::Date(
+                track
+                    .last_played
+                    .unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()),
+            ),
             "file_path" => FieldValue::Text(track.file_path.clone()),
             "mood" => FieldValue::Text(
                 track
@@ -178,7 +269,9 @@ impl SortValue {
         match (self, other) {
             (SortValue::Text(a), SortValue::Text(b)) => a.cmp(b),
             (SortValue::Number(a), SortValue::Number(b)) => a.cmp(b),
-            (SortValue::Float(a), SortValue::Float(b)) => a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
+            (SortValue::Float(a), SortValue::Float(b)) => {
+                a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+            }
             // Cross-type: Numbers before Floats before Text
             (SortValue::Number(_), SortValue::Float(_)) => std::cmp::Ordering::Less,
             (SortValue::Float(_), SortValue::Number(_)) => std::cmp::Ordering::Greater,
@@ -207,10 +300,16 @@ fn extract_sort_value(track: &Track, field: &str) -> SortValue {
         "dynamic_range" => SortValue::Float(track.dynamic_range.unwrap_or(0.0)),
         "spectral_centroid" => SortValue::Float(track.spectral_centroid.unwrap_or(0.0)),
         "bass_ratio" => SortValue::Float(track.bass_ratio.unwrap_or(0.0)),
-        "last_played" => SortValue::Text(track.last_played.map(|d| d.to_string()).unwrap_or_default()),
+        "last_played" => {
+            SortValue::Text(track.last_played.map(|d| d.to_string()).unwrap_or_default())
+        }
         "file_path" => SortValue::Text(track.file_path.clone()),
         "mood" => SortValue::Text(
-            track.mood_override.clone().or_else(|| track.mood.clone()).unwrap_or_default(),
+            track
+                .mood_override
+                .clone()
+                .or_else(|| track.mood.clone())
+                .unwrap_or_default(),
         ),
         "mood_override" => SortValue::Text(track.mood_override.clone().unwrap_or_default()),
         _ => SortValue::Text(String::new()),
@@ -336,7 +435,9 @@ pub mod templates {
             RuleNode::Rule(Rule {
                 field: "date_added".into(),
                 operator: Operator::Gt,
-                value: RuleValue::Date(chrono::Local::now().date_naive() - chrono::Duration::days(30)),
+                value: RuleValue::Date(
+                    chrono::Local::now().date_naive() - chrono::Duration::days(30),
+                ),
             }),
         )
         .with_limit(50)
@@ -508,15 +609,24 @@ mod tests {
     #[test]
     fn test_empty_rule_group_and() {
         // An AND group with no children should match everything (vacuous truth)
-        let node = RuleNode::Group { connector: Connector::And, children: vec![] };
+        let node = RuleNode::Group {
+            connector: Connector::And,
+            children: vec![],
+        };
         let track = make_test_track();
-        assert!(node.matches(&track), "Empty AND group should match (vacuous truth)");
+        assert!(
+            node.matches(&track),
+            "Empty AND group should match (vacuous truth)"
+        );
     }
 
     #[test]
     fn test_empty_rule_group_or() {
         // An OR group with no children should match nothing
-        let node = RuleNode::Group { connector: Connector::Or, children: vec![] };
+        let node = RuleNode::Group {
+            connector: Connector::Or,
+            children: vec![],
+        };
         let track = make_test_track();
         assert!(!node.matches(&track), "Empty OR group should not match");
     }
@@ -526,24 +636,43 @@ mod tests {
         let inner_and = RuleNode::Group {
             connector: Connector::And,
             children: vec![
-                RuleNode::Rule(Rule { field: "genre".into(), operator: Operator::Eq, value: RuleValue::Text("Rock".into()) }),
-                RuleNode::Rule(Rule { field: "year".into(), operator: Operator::Ge, value: RuleValue::Integer(2020) }),
+                RuleNode::Rule(Rule {
+                    field: "genre".into(),
+                    operator: Operator::Eq,
+                    value: RuleValue::Text("Rock".into()),
+                }),
+                RuleNode::Rule(Rule {
+                    field: "year".into(),
+                    operator: Operator::Ge,
+                    value: RuleValue::Integer(2020),
+                }),
             ],
         };
         let outer_or = RuleNode::Group {
             connector: Connector::Or,
             children: vec![
                 inner_and,
-                RuleNode::Rule(Rule { field: "mood".into(), operator: Operator::Eq, value: RuleValue::Text("Dance".into()) }),
+                RuleNode::Rule(Rule {
+                    field: "mood".into(),
+                    operator: Operator::Eq,
+                    value: RuleValue::Text("Dance".into()),
+                }),
             ],
         };
         let track = make_test_track();
-        assert!(outer_or.matches(&track), "Track should match: (Rock AND year>=2020) OR mood=Dance");
+        assert!(
+            outer_or.matches(&track),
+            "Track should match: (Rock AND year>=2020) OR mood=Dance"
+        );
     }
 
     #[test]
     fn test_unknown_field_returns_empty_text() {
-        let rule = Rule { field: "nonexistent_field".into(), operator: Operator::Eq, value: RuleValue::Text("anything".into()) };
+        let rule = Rule {
+            field: "nonexistent_field".into(),
+            operator: Operator::Eq,
+            value: RuleValue::Text("anything".into()),
+        };
         let track = make_test_track();
         assert!(!rule.matches(&track), "Unknown field should not match");
     }
@@ -551,7 +680,11 @@ mod tests {
     #[test]
     fn test_type_mismatch_returns_false() {
         // Comparing a text field with an integer value should return false
-        let rule = Rule { field: "artist".into(), operator: Operator::Gt, value: RuleValue::Integer(42) };
+        let rule = Rule {
+            field: "artist".into(),
+            operator: Operator::Gt,
+            value: RuleValue::Integer(42),
+        };
         let track = make_test_track();
         assert!(!rule.matches(&track), "Type mismatch should not match");
     }
@@ -560,8 +693,13 @@ mod tests {
     fn test_smart_playlist_with_limit() {
         let playlist = SmartPlaylist::new(
             "Test",
-            RuleNode::Rule(Rule { field: "genre".into(), operator: Operator::Contains, value: RuleValue::Text("Rock".into()) }),
-        ).with_limit(1);
+            RuleNode::Rule(Rule {
+                field: "genre".into(),
+                operator: Operator::Contains,
+                value: RuleValue::Text("Rock".into()),
+            }),
+        )
+        .with_limit(1);
 
         let tracks = vec![make_test_track(), make_test_track()];
         let result = playlist.execute(&tracks);
@@ -572,8 +710,13 @@ mod tests {
     fn test_smart_playlist_with_sort() {
         let playlist = SmartPlaylist::new(
             "Test",
-            RuleNode::Rule(Rule { field: "play_count".into(), operator: Operator::Gt, value: RuleValue::Integer(0) }),
-        ).with_sort("play_count", true);
+            RuleNode::Rule(Rule {
+                field: "play_count".into(),
+                operator: Operator::Gt,
+                value: RuleValue::Integer(0),
+            }),
+        )
+        .with_sort("play_count", true);
 
         let mut t1 = make_test_track();
         t1.play_count = Some(5);
@@ -597,7 +740,10 @@ mod tests {
             value: RuleValue::Date(NaiveDate::from_ymd_opt(2023, 6, 1).unwrap()),
         };
         let track = make_test_track();
-        assert!(rule.matches(&track), "Track added 2024-01-01 should be after 2023-06-01");
+        assert!(
+            rule.matches(&track),
+            "Track added 2024-01-01 should be after 2023-06-01"
+        );
     }
 
     #[test]
@@ -605,16 +751,25 @@ mod tests {
         let mut track = make_test_track();
         track.mood = Some("Dance".into());
         track.mood_override = Some("Chill".into());
-        let rule = Rule { field: "mood".into(), operator: Operator::Eq, value: RuleValue::Text("Chill".into()) };
-        assert!(rule.matches(&track), "mood field should use mood_override when present");
+        let rule = Rule {
+            field: "mood".into(),
+            operator: Operator::Eq,
+            value: RuleValue::Text("Chill".into()),
+        };
+        assert!(
+            rule.matches(&track),
+            "mood field should use mood_override when present"
+        );
     }
 
     #[test]
     fn test_float_field_comparison() {
-        let rule = Rule { field: "bpm".into(), operator: Operator::Gt, value: RuleValue::Float(100.0) };
+        let rule = Rule {
+            field: "bpm".into(),
+            operator: Operator::Gt,
+            value: RuleValue::Float(100.0),
+        };
         let track = make_test_track();
         assert!(rule.matches(&track), "Track BPM=120 should be > 100");
     }
 }
-
-

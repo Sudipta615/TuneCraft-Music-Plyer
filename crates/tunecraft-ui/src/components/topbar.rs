@@ -20,9 +20,20 @@ pub fn TopBar() -> Element {
     // Issue #5: Subscribe to playback signal for notification badge after track change
     let _ = *signals.playback.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
-    let search_query = state.read().search_query.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let notification_count = state.read().notification_count.load(std::sync::atomic::Ordering::Relaxed);
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let search_query = state
+        .read()
+        .search_query
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let notification_count = state
+        .read()
+        .notification_count
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     let mut search_value = use_signal(|| search_query.clone());
 

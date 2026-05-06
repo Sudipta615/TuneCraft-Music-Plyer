@@ -13,32 +13,40 @@
 //! Future refactoring could merge these, but the current split keeps the
 //! public API separate from the engine's private methods.
 
+pub mod convolution;
+pub mod crossfade;
+pub mod dsp;
+pub mod dsp_thread;
 pub mod engine;
 pub mod equalizer;
-pub mod crossfade;
+pub mod exclusive;
+pub mod gapless;
+pub mod genre_preset;
+pub mod loudness;
+pub mod output;
+pub mod pcm_cache;
+pub mod pipeline;
 pub mod replaygain;
 pub mod resampler;
-pub mod dsp;
-pub mod pipeline;
-pub mod output;
-pub mod dsp_thread;
-pub mod gapless;
-pub mod loudness;
-pub mod exclusive;
-pub mod convolution;
-pub mod genre_preset;
-pub mod pcm_cache;
 
-pub use engine::{AudioEngine, PlayerState, PositionCallback, StateCallback, EndOfStreamCallback, DurationCallback};
-pub use equalizer::{EqBand, EqualizerState, OutputDeviceId, OutputPresetStore, AutoEqFilter, load_autoeq_profile};
-pub use crossfade::CrossfadeEngine;
-pub use replaygain::{ReplayGainInfo, ReplayGainMode, ReplayGainConfig, ReplayGainApplyMode};
-pub use resampler::{Resampler, ResamplerQuality, resample_once};
-pub use dsp::{DspEngine, Biquad, Limiter, EqBandParams, TpdfDither, GaplessSmoother, MAX_EQ_BANDS, MsEqBand, MAX_MS_EQ_BANDS};
-pub use dsp_thread::DspThreadConfig;
-pub use gapless::GaplessPreloader;
-pub use loudness::{EbuR128Loudness, LoudnessNormalizationConfig};
-pub use exclusive::ExclusiveAudioOutput;
 pub use convolution::ConvolutionEngine;
-pub use genre_preset::{GenrePresetManager, GenrePreset};
-pub use pcm_cache::{PcmCache, PcmBuffer};
+pub use crossfade::CrossfadeEngine;
+pub use dsp::{
+    Biquad, DspEngine, EqBandParams, GaplessSmoother, Limiter, MsEqBand, TpdfDither, MAX_EQ_BANDS,
+    MAX_MS_EQ_BANDS,
+};
+pub use dsp_thread::DspThreadConfig;
+pub use engine::{
+    AudioEngine, DurationCallback, EndOfStreamCallback, PlayerState, PositionCallback,
+    StateCallback,
+};
+pub use equalizer::{
+    load_autoeq_profile, AutoEqFilter, EqBand, EqualizerState, OutputDeviceId, OutputPresetStore,
+};
+pub use exclusive::ExclusiveAudioOutput;
+pub use gapless::GaplessPreloader;
+pub use genre_preset::{GenrePreset, GenrePresetManager};
+pub use loudness::{EbuR128Loudness, LoudnessNormalizationConfig};
+pub use pcm_cache::{PcmBuffer, PcmCache};
+pub use replaygain::{ReplayGainApplyMode, ReplayGainConfig, ReplayGainInfo, ReplayGainMode};
+pub use resampler::{resample_once, Resampler, ResamplerQuality};

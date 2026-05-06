@@ -1,7 +1,7 @@
-pub mod hash;
-pub mod validation;
 pub mod crypto;
+pub mod hash;
 pub mod i18n;
+pub mod validation;
 
 /// Reinterpret a `&[u8]` GStreamer buffer as `&[f32]`.
 ///
@@ -27,7 +27,5 @@ pub fn cast_u8_to_f32(bytes: &[u8]) -> Option<&[f32]> {
     // SAFETY: We verified alignment and length above. GStreamer guarantees
     // F32LE buffers are properly aligned and sized, but we guard against
     // malformed buffers rather than panicking in the audio callback.
-    Some(unsafe {
-        std::slice::from_raw_parts(bytes.as_ptr() as *const f32, bytes.len() / 4)
-    })
+    Some(unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f32, bytes.len() / 4) })
 }

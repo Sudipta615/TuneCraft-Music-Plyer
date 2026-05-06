@@ -13,7 +13,7 @@ const SHELF_GAIN_MAX: f64 = 12.0;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EqBand {
     pub frequency: f64,
-    pub gain: f64,      // dB, -24.0 .. 24.0
+    pub gain: f64, // dB, -24.0 .. 24.0
     pub bandwidth: f64,
 }
 
@@ -21,15 +21,21 @@ pub struct EqBand {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MsEqBandState {
     pub frequency: f64,
-    pub mid_gain_db: f64,     // dB, -24.0 .. 24.0
-    pub side_gain_db: f64,    // dB, -24.0 .. 24.0
-    pub bandwidth: f64,       // Q value
+    pub mid_gain_db: f64,  // dB, -24.0 .. 24.0
+    pub side_gain_db: f64, // dB, -24.0 .. 24.0
+    pub bandwidth: f64,    // Q value
     pub enabled: bool,
 }
 
 impl MsEqBandState {
     pub fn flat() -> Self {
-        Self { frequency: 1000.0, mid_gain_db: 0.0, side_gain_db: 0.0, bandwidth: 1.0, enabled: false }
+        Self {
+            frequency: 1000.0,
+            mid_gain_db: 0.0,
+            side_gain_db: 0.0,
+            bandwidth: 1.0,
+            enabled: false,
+        }
     }
 }
 
@@ -68,8 +74,12 @@ fn default_ms_eq_bands() -> Vec<MsEqBandState> {
     vec![MsEqBandState::flat(); 5]
 }
 
-fn default_bass_freq() -> f64 { 90.0 }
-fn default_treble_freq() -> f64 { 10_000.0 }
+fn default_bass_freq() -> f64 {
+    90.0
+}
+fn default_treble_freq() -> f64 {
+    10_000.0
+}
 
 impl Default for EqualizerState {
     fn default() -> Self {
@@ -109,8 +119,12 @@ impl EqualizerState {
         self.stereo_width = self.stereo_width.clamp(0.0, 3.0);
         self.balance = self.balance.clamp(-1.0, 1.0);
         for ms_band in &mut self.ms_eq_bands {
-            ms_band.mid_gain_db = ms_band.mid_gain_db.clamp(EQ_BAND_GAIN_MIN, EQ_BAND_GAIN_MAX);
-            ms_band.side_gain_db = ms_band.side_gain_db.clamp(EQ_BAND_GAIN_MIN, EQ_BAND_GAIN_MAX);
+            ms_band.mid_gain_db = ms_band
+                .mid_gain_db
+                .clamp(EQ_BAND_GAIN_MIN, EQ_BAND_GAIN_MAX);
+            ms_band.side_gain_db = ms_band
+                .side_gain_db
+                .clamp(EQ_BAND_GAIN_MIN, EQ_BAND_GAIN_MAX);
             ms_band.frequency = ms_band.frequency.clamp(20.0, 20_000.0);
             ms_band.bandwidth = ms_band.bandwidth.clamp(0.1, 10.0);
         }
@@ -120,10 +134,16 @@ impl EqualizerState {
 impl EqualizerState {
     /// Flat 10-band ISO frequencies.
     pub fn flat_bands() -> Vec<EqBand> {
-        [32.0, 64.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
-            .iter()
-            .map(|&f| EqBand { frequency: f, gain: 0.0, bandwidth: 1.0 })
-            .collect()
+        [
+            32.0, 64.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+        ]
+        .iter()
+        .map(|&f| EqBand {
+            frequency: f,
+            gain: 0.0,
+            bandwidth: 1.0,
+        })
+        .collect()
     }
 }
 
@@ -135,8 +155,12 @@ impl EqualizerState {
 pub struct OutputDeviceId(pub String);
 
 impl OutputDeviceId {
-    pub fn new(name: impl Into<String>) -> Self { Self(name.into()) }
-    pub fn default_output() -> Self { Self("default".into()) }
+    pub fn new(name: impl Into<String>) -> Self {
+        Self(name.into())
+    }
+    pub fn default_output() -> Self {
+        Self("default".into())
+    }
 }
 
 // ── Per-output preset store ──────────────────────────────────────────
@@ -151,7 +175,9 @@ pub struct OutputPresetStore {
 }
 
 impl OutputPresetStore {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Save the current EQ state for a given output device.
     pub fn save(&mut self, device: OutputDeviceId, state: EqualizerState) {
@@ -223,7 +249,7 @@ pub fn load_autoeq_profile(json: &str) -> Result<EqualizerState, serde_json::Err
             "PK" => {
                 if band_index < state.bands.len() {
                     state.bands[band_index].frequency = filter.frequency;
-                    state.bands[band_index].gain      = filter.gain.clamp(-24.0, 24.0);
+                    state.bands[band_index].gain = filter.gain.clamp(-24.0, 24.0);
                     state.bands[band_index].bandwidth = filter.q;
                     band_index += 1;
                 }
@@ -242,35 +268,45 @@ pub mod presets {
     pub fn rock() -> EqualizerState {
         let mut eq = EqualizerState::default();
         let gains = [-4.0, -2.0, 1.0, 3.0, 4.0, 3.0, 1.0, -1.0, -2.0, -3.0];
-        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) { b.gain = *g; }
+        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) {
+            b.gain = *g;
+        }
         eq
     }
 
     pub fn jazz() -> EqualizerState {
         let mut eq = EqualizerState::default();
         let gains = [3.0, 2.0, 0.0, 1.0, 2.0, -1.0, -1.0, 0.0, 2.0, 3.0];
-        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) { b.gain = *g; }
+        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) {
+            b.gain = *g;
+        }
         eq
     }
 
     pub fn classical() -> EqualizerState {
         let mut eq = EqualizerState::default();
         let gains = [4.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 4.0];
-        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) { b.gain = *g; }
+        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) {
+            b.gain = *g;
+        }
         eq
     }
 
     pub fn pop() -> EqualizerState {
         let mut eq = EqualizerState::default();
         let gains = [-1.0, 2.0, 4.0, 4.0, 2.0, 0.0, -1.0, -1.0, 1.0, 2.0];
-        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) { b.gain = *g; }
+        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) {
+            b.gain = *g;
+        }
         eq
     }
 
     pub fn bass_boost() -> EqualizerState {
         let mut eq = EqualizerState::default();
         let gains = [8.0, 6.0, 4.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) { b.gain = *g; }
+        for (b, g) in eq.bands.iter_mut().zip(gains.iter()) {
+            b.gain = *g;
+        }
         eq
     }
 }
@@ -283,7 +319,9 @@ mod tests {
     fn test_flat_bands() {
         let bands = EqualizerState::flat_bands();
         assert_eq!(bands.len(), 10);
-        for band in &bands { assert_eq!(band.gain, 0.0); }
+        for band in &bands {
+            assert_eq!(band.gain, 0.0);
+        }
         assert_eq!(bands[0].frequency, 32.0);
         assert_eq!(bands[9].frequency, 16000.0);
     }
@@ -321,9 +359,18 @@ mod tests {
         let state = load_autoeq_profile(json).expect("parse failed");
         assert!((state.bass_db - 3.5).abs() < 1e-9, "LSC → bass_db");
         assert!((state.treble_db - 4.0).abs() < 1e-9, "HSC → treble_db");
-        assert!((state.bands[0].gain - (-2.1)).abs() < 1e-9, "first PK band gain");
-        assert!((state.bands[0].frequency - 500.0).abs() < 1e-9, "first PK freq");
-        assert!((state.bands[1].gain - 1.8).abs() < 1e-9, "second PK band gain");
+        assert!(
+            (state.bands[0].gain - (-2.1)).abs() < 1e-9,
+            "first PK band gain"
+        );
+        assert!(
+            (state.bands[0].frequency - 500.0).abs() < 1e-9,
+            "first PK freq"
+        );
+        assert!(
+            (state.bands[1].gain - 1.8).abs() < 1e-9,
+            "second PK band gain"
+        );
     }
 
     #[test]
@@ -353,16 +400,49 @@ mod tests {
 
         state.clamp_to_valid_ranges();
 
-        assert!((state.bands[0].gain - 24.0).abs() < 1e-9, "band gain should be clamped to 24");
-        assert!((state.bands[0].frequency - 20000.0).abs() < 1e-9, "frequency should be clamped to 20k");
-        assert!((state.bands[0].bandwidth - 0.1).abs() < 1e-9, "bandwidth should be clamped to 0.1");
-        assert!((state.bass_db - 12.0).abs() < 1e-9, "bass_db should be clamped to 12");
-        assert!((state.treble_db - (-12.0)).abs() < 1e-9, "treble_db should be clamped to -12");
-        assert!((state.bass_freq_hz - 20.0).abs() < 1e-9, "bass_freq should be clamped to 20");
-        assert!((state.treble_freq_hz - 1000.0).abs() < 1e-9, "treble_freq should be clamped to 1k");
-        assert!((state.stereo_width - 3.0).abs() < 1e-9, "stereo_width should be clamped to 3");
-        assert!((state.balance - (-1.0)).abs() < 1e-9, "balance should be clamped to -1");
-        assert!((state.ms_eq_bands[0].mid_gain_db - 24.0).abs() < 1e-9, "MS mid gain clamped");
-        assert!((state.ms_eq_bands[0].side_gain_db - (-24.0)).abs() < 1e-9, "MS side gain clamped");
+        assert!(
+            (state.bands[0].gain - 24.0).abs() < 1e-9,
+            "band gain should be clamped to 24"
+        );
+        assert!(
+            (state.bands[0].frequency - 20000.0).abs() < 1e-9,
+            "frequency should be clamped to 20k"
+        );
+        assert!(
+            (state.bands[0].bandwidth - 0.1).abs() < 1e-9,
+            "bandwidth should be clamped to 0.1"
+        );
+        assert!(
+            (state.bass_db - 12.0).abs() < 1e-9,
+            "bass_db should be clamped to 12"
+        );
+        assert!(
+            (state.treble_db - (-12.0)).abs() < 1e-9,
+            "treble_db should be clamped to -12"
+        );
+        assert!(
+            (state.bass_freq_hz - 20.0).abs() < 1e-9,
+            "bass_freq should be clamped to 20"
+        );
+        assert!(
+            (state.treble_freq_hz - 1000.0).abs() < 1e-9,
+            "treble_freq should be clamped to 1k"
+        );
+        assert!(
+            (state.stereo_width - 3.0).abs() < 1e-9,
+            "stereo_width should be clamped to 3"
+        );
+        assert!(
+            (state.balance - (-1.0)).abs() < 1e-9,
+            "balance should be clamped to -1"
+        );
+        assert!(
+            (state.ms_eq_bands[0].mid_gain_db - 24.0).abs() < 1e-9,
+            "MS mid gain clamped"
+        );
+        assert!(
+            (state.ms_eq_bands[0].side_gain_db - (-24.0)).abs() < 1e-9,
+            "MS side gain clamped"
+        );
     }
 }

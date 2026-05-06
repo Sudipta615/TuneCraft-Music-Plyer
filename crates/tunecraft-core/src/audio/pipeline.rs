@@ -175,7 +175,9 @@ impl DecodePipeline {
         let audioconvert_weak = audioconvert.downgrade();
         uridecodebin.connect_pad_added(move |_src, src_pad| {
             // Only wire audio pads
-            let caps = src_pad.current_caps().or_else(|| Some(src_pad.query_caps(None)));
+            let caps = src_pad
+                .current_caps()
+                .or_else(|| Some(src_pad.query_caps(None)));
             if let Some(caps) = caps {
                 if let Some(s) = caps.structure(0) {
                     if !s.name().starts_with("audio/") {
@@ -183,7 +185,9 @@ impl DecodePipeline {
                     }
                 }
             }
-            let Some(ac) = audioconvert_weak.upgrade() else { return };
+            let Some(ac) = audioconvert_weak.upgrade() else {
+                return;
+            };
             let sink = match ac.static_pad("sink") {
                 Some(p) => p,
                 None => return,
@@ -247,7 +251,8 @@ impl DecodePipeline {
                             tracing::warn!(
                                 "Decode ring persistently full after {} yields, \
                                  dropping {} samples",
-                                yield_count, remaining.len()
+                                yield_count,
+                                remaining.len()
                             );
                             break;
                         }
@@ -279,7 +284,11 @@ impl DecodePipeline {
 
         appsink.set_callbacks(callbacks);
 
-        Ok(Self { pipeline, eos_cb, _bus_watch_guard: None })
+        Ok(Self {
+            pipeline,
+            eos_cb,
+            _bus_watch_guard: None,
+        })
     }
 
     /// Register the end-of-stream callback.

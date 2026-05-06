@@ -2,9 +2,11 @@ use chrono::NaiveDate;
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
 
-use tunecraft_core::database::Database;
 use tunecraft_core::database::models::Track;
-use tunecraft_core::library::smart_playlist::{Operator, Rule, RuleNode, RuleValue, SmartPlaylist, Connector};
+use tunecraft_core::database::Database;
+use tunecraft_core::library::smart_playlist::{
+    Connector, Operator, Rule, RuleNode, RuleValue, SmartPlaylist,
+};
 
 // Architecture #19: This test file covers core library scan and DB paths but
 // has no test for the GaplessPreloader pre-roll or crossfade engine transition.
@@ -94,7 +96,10 @@ fn test_db_concurrency() {
         })
         .collect();
 
-    let ids: Vec<i64> = handles.into_iter().map(|h| h.join().expect("join")).collect();
+    let ids: Vec<i64> = handles
+        .into_iter()
+        .map(|h| h.join().expect("join"))
+        .collect();
 
     // Verify count
     let count = db.track_count().expect("track count");
@@ -137,7 +142,10 @@ fn test_db_concurrency() {
     // Fix Bug #41: INSERT OR IGNORE never fails — it silently ignores the
     // duplicate row. The assertion should be is_ok(), not is_err().
     let result = db.insert_track(&dup);
-    assert!(result.is_ok(), "INSERT OR IGNORE should succeed even for duplicates");
+    assert!(
+        result.is_ok(),
+        "INSERT OR IGNORE should succeed even for duplicates"
+    );
 
     let _ = ids; // use ids to avoid warning
 }
@@ -256,7 +264,11 @@ fn test_smart_playlist() {
     );
     let filter = playlist.compile();
     let filtered: Vec<_> = tracks.iter().filter(|t| filter(t)).collect();
-    assert_eq!(filtered.len(), 2, "compiled filter should match 2 rock tracks");
+    assert_eq!(
+        filtered.len(),
+        2,
+        "compiled filter should match 2 rock tracks"
+    );
 }
 
 #[test]
@@ -265,63 +277,114 @@ fn test_mood_smart_playlist() {
         Track {
             id: None,
             file_path: "/dance1.flac".to_string(),
-            file_hash: None, file_size: None, file_mtime: None,
+            file_hash: None,
+            file_size: None,
+            file_mtime: None,
             title: Some("Party Song".to_string()),
             artist: Some("DJ".to_string()),
-            album: None, genre: None, year: None, track_number: None,
-            duration: Some(200), sample_rate: None, bitrate: None,
-            play_count: Some(5), skip_count: None,
-            rating: Some(4.0), love: None,
-            bpm: Some(130.0), energy: Some(0.12), bass_ratio: Some(0.50),
-            spectral_centroid: Some(3000.0), dynamic_range: Some(0.03),
-            mood: Some("Dance".to_string()), mood_override: None,
+            album: None,
+            genre: None,
+            year: None,
+            track_number: None,
+            duration: Some(200),
+            sample_rate: None,
+            bitrate: None,
+            play_count: Some(5),
+            skip_count: None,
+            rating: Some(4.0),
+            love: None,
+            bpm: Some(130.0),
+            energy: Some(0.12),
+            bass_ratio: Some(0.50),
+            spectral_centroid: Some(3000.0),
+            dynamic_range: Some(0.03),
+            mood: Some("Dance".to_string()),
+            mood_override: None,
             date_added: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             last_played: None,
         },
         Track {
             id: None,
             file_path: "/sad1.flac".to_string(),
-            file_hash: None, file_size: None, file_mtime: None,
+            file_hash: None,
+            file_size: None,
+            file_mtime: None,
             title: Some("Heartbreak".to_string()),
             artist: Some("Singer".to_string()),
-            album: None, genre: None, year: None, track_number: None,
-            duration: Some(240), sample_rate: None, bitrate: None,
-            play_count: Some(3), skip_count: None,
-            rating: Some(5.0), love: None,
-            bpm: Some(72.0), energy: Some(0.05), bass_ratio: Some(0.20),
-            spectral_centroid: Some(1200.0), dynamic_range: Some(0.08),
-            mood: Some("Sad".to_string()), mood_override: None,
+            album: None,
+            genre: None,
+            year: None,
+            track_number: None,
+            duration: Some(240),
+            sample_rate: None,
+            bitrate: None,
+            play_count: Some(3),
+            skip_count: None,
+            rating: Some(5.0),
+            love: None,
+            bpm: Some(72.0),
+            energy: Some(0.05),
+            bass_ratio: Some(0.20),
+            spectral_centroid: Some(1200.0),
+            dynamic_range: Some(0.08),
+            mood: Some("Sad".to_string()),
+            mood_override: None,
             date_added: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             last_played: None,
         },
         Track {
             id: None,
             file_path: "/romantic1.flac".to_string(),
-            file_hash: None, file_size: None, file_mtime: None,
+            file_hash: None,
+            file_size: None,
+            file_mtime: None,
             title: Some("Love Song".to_string()),
             artist: Some("Artist".to_string()),
-            album: None, genre: None, year: None, track_number: None,
-            duration: Some(210), sample_rate: None, bitrate: None,
-            play_count: Some(8), skip_count: None,
-            rating: Some(4.5), love: None,
-            bpm: Some(100.0), energy: Some(0.07), bass_ratio: Some(0.30),
-            spectral_centroid: Some(2500.0), dynamic_range: Some(0.05),
-            mood: Some("Romantic".to_string()), mood_override: None,
+            album: None,
+            genre: None,
+            year: None,
+            track_number: None,
+            duration: Some(210),
+            sample_rate: None,
+            bitrate: None,
+            play_count: Some(8),
+            skip_count: None,
+            rating: Some(4.5),
+            love: None,
+            bpm: Some(100.0),
+            energy: Some(0.07),
+            bass_ratio: Some(0.30),
+            spectral_centroid: Some(2500.0),
+            dynamic_range: Some(0.05),
+            mood: Some("Romantic".to_string()),
+            mood_override: None,
             date_added: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
             last_played: None,
         },
         Track {
             id: None,
             file_path: "/override1.flac".to_string(),
-            file_hash: None, file_size: None, file_mtime: None,
+            file_hash: None,
+            file_size: None,
+            file_mtime: None,
             title: Some("Misclassified".to_string()),
             artist: Some("Artist".to_string()),
-            album: None, genre: None, year: None, track_number: None,
-            duration: Some(190), sample_rate: None, bitrate: None,
-            play_count: Some(2), skip_count: None,
-            rating: Some(3.5), love: None,
-            bpm: Some(130.0), energy: Some(0.12), bass_ratio: Some(0.50),
-            spectral_centroid: Some(3000.0), dynamic_range: Some(0.03),
+            album: None,
+            genre: None,
+            year: None,
+            track_number: None,
+            duration: Some(190),
+            sample_rate: None,
+            bitrate: None,
+            play_count: Some(2),
+            skip_count: None,
+            rating: Some(3.5),
+            love: None,
+            bpm: Some(130.0),
+            energy: Some(0.12),
+            bass_ratio: Some(0.50),
+            spectral_centroid: Some(3000.0),
+            dynamic_range: Some(0.03),
             mood: Some("Dance".to_string()),
             mood_override: Some("Romantic".to_string()), // manual override
             date_added: NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
@@ -339,7 +402,11 @@ fn test_mood_smart_playlist() {
         }),
     );
     let result = playlist.execute(&tracks);
-    assert_eq!(result.len(), 1, "should find 1 Dance track (override takes priority)");
+    assert_eq!(
+        result.len(),
+        1,
+        "should find 1 Dance track (override takes priority)"
+    );
 
     // Test mood == "Sad"
     let playlist = SmartPlaylist::new(
@@ -363,7 +430,11 @@ fn test_mood_smart_playlist() {
         }),
     );
     let result = playlist.execute(&tracks);
-    assert_eq!(result.len(), 2, "should find 2 Romantic tracks (1 natural + 1 override)");
+    assert_eq!(
+        result.len(),
+        2,
+        "should find 2 Romantic tracks (1 natural + 1 override)"
+    );
 
     // Test BPM > 120 filter
     let playlist = SmartPlaylist::new(
@@ -380,7 +451,11 @@ fn test_mood_smart_playlist() {
     // Test mood template from templates module
     let playlist = tunecraft_core::library::smart_playlist::templates::by_mood("Dance");
     let result = playlist.execute(&tracks);
-    assert_eq!(result.len(), 1, "by_mood template should match 1 Dance track");
+    assert_eq!(
+        result.len(),
+        1,
+        "by_mood template should match 1 Dance track"
+    );
 }
 
 #[test]
@@ -395,30 +470,45 @@ fn test_mood_db_operations() {
     db.insert_track(&track).expect("insert track");
 
     // Verify it needs mood analysis
-    assert!(db.track_needs_mood_analysis("/test.flac").expect("check needs analysis"));
+    assert!(db
+        .track_needs_mood_analysis("/test.flac")
+        .expect("check needs analysis"));
 
     // Write mood data
     db.update_track_mood("/test.flac", 120.0, 0.10, 0.40, 3000.0, 0.03, "Dance")
         .expect("update mood");
 
     // Verify it no longer needs analysis
-    assert!(!db.track_needs_mood_analysis("/test.flac").expect("check needs analysis"));
+    assert!(!db
+        .track_needs_mood_analysis("/test.flac")
+        .expect("check needs analysis"));
 
     // Read back and verify mood fields
-    let loaded = db.get_track_by_path("/test.flac").expect("get track").expect("track exists");
+    let loaded = db
+        .get_track_by_path("/test.flac")
+        .expect("get track")
+        .expect("track exists");
     assert_eq!(loaded.mood.as_deref(), Some("Dance"));
     assert_eq!(loaded.bpm, Some(120.0));
     assert_eq!(loaded.energy, Some(0.10));
 
     // Test mood override
-    db.set_mood_override("/test.flac", Some("Romantic")).expect("set override");
-    let loaded = db.get_track_by_path("/test.flac").expect("get track").expect("track exists");
+    db.set_mood_override("/test.flac", Some("Romantic"))
+        .expect("set override");
+    let loaded = db
+        .get_track_by_path("/test.flac")
+        .expect("get track")
+        .expect("track exists");
     assert_eq!(loaded.mood.as_deref(), Some("Dance")); // original unchanged
     assert_eq!(loaded.mood_override.as_deref(), Some("Romantic"));
 
     // Clear override
-    db.set_mood_override("/test.flac", None).expect("clear override");
-    let loaded = db.get_track_by_path("/test.flac").expect("get track").expect("track exists");
+    db.set_mood_override("/test.flac", None)
+        .expect("clear override");
+    let loaded = db
+        .get_track_by_path("/test.flac")
+        .expect("get track")
+        .expect("track exists");
     assert!(loaded.mood_override.is_none());
 
     // Test get_tracks_by_mood
@@ -501,12 +591,27 @@ fn test_config_default_values_sensible() {
     let config = TunecraftConfig::default();
 
     // Verify sensible defaults for audio configuration
-    assert_eq!(config.audio.crossfade_duration_ms, 0, "crossfade should default to 0 (disabled)");
-    assert!(!config.audio.replaygain, "replaygain should default to disabled");
-    assert!(config.audio.decode_ring_size >= 4096, "decode ring buffer should have minimum size");
-    assert!(config.audio.output_ring_size >= 2048, "output ring buffer should have minimum size");
+    assert_eq!(
+        config.audio.crossfade_duration_ms, 0,
+        "crossfade should default to 0 (disabled)"
+    );
+    assert!(
+        !config.audio.replaygain,
+        "replaygain should default to disabled"
+    );
+    assert!(
+        config.audio.decode_ring_size >= 4096,
+        "decode ring buffer should have minimum size"
+    );
+    assert!(
+        config.audio.output_ring_size >= 2048,
+        "output ring buffer should have minimum size"
+    );
     assert_eq!(config.general.volume, 0.8, "default volume should be 0.8");
-    assert!((config.general.playback_speed - 1.0).abs() < 0.001, "default speed should be 1.0");
+    assert!(
+        (config.general.playback_speed - 1.0).abs() < 0.001,
+        "default speed should be 1.0"
+    );
 }
 
 #[test]
@@ -566,7 +671,10 @@ fn test_crypto_key_derivation_consistency() {
     // Verify different plaintexts produce different ciphertexts
     let enc1 = crypto::encrypt("credential-one").expect("encrypt");
     let enc2 = crypto::encrypt("credential-two").expect("encrypt");
-    assert_ne!(enc1, enc2, "different plaintexts should produce different ciphertexts");
+    assert_ne!(
+        enc1, enc2,
+        "different plaintexts should produce different ciphertexts"
+    );
 
     // Verify the encrypted prefix
     assert!(crypto::is_encrypted(&encrypted));
@@ -591,8 +699,8 @@ fn test_crypto_backward_compatibility() {
 
 #[test]
 fn test_validation_integration() {
-    use tunecraft_core::util::validation;
     use std::path::Path;
+    use tunecraft_core::util::validation;
 
     // Path traversal prevention — critical for the audio pipeline which
     // constructs file:// URIs from user-provided paths.
@@ -614,7 +722,7 @@ fn test_validation_integration() {
 
 #[test]
 fn test_replaygain_config_values() {
-    use tunecraft_core::audio::replaygain::{ReplayGainMode, ReplayGainApplyMode};
+    use tunecraft_core::audio::replaygain::{ReplayGainApplyMode, ReplayGainMode};
 
     // Verify ReplayGain mode variants exist and are distinct
     let modes = [ReplayGainMode::Track, ReplayGainMode::Album];

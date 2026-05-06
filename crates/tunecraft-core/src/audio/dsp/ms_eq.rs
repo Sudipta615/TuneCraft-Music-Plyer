@@ -11,68 +11,86 @@ pub const MAX_MS_EQ_BANDS: usize = 5;
 /// Parameters for a single M/S EQ band.
 #[derive(Debug, Clone, Copy)]
 pub struct MsEqBand {
-    pub freq_hz:      f32,
-    pub mid_gain_db:  f32,
+    pub freq_hz: f32,
+    pub mid_gain_db: f32,
     pub side_gain_db: f32,
-    pub q:            f32,
-    pub enabled:      bool,
+    pub q: f32,
+    pub enabled: bool,
 }
 
 impl MsEqBand {
     pub fn flat() -> Self {
-        Self { freq_hz: 1000.0, mid_gain_db: 0.0, side_gain_db: 0.0, q: 1.0, enabled: false }
+        Self {
+            freq_hz: 1000.0,
+            mid_gain_db: 0.0,
+            side_gain_db: 0.0,
+            q: 1.0,
+            enabled: false,
+        }
     }
 }
 
 /// The full M/S EQ stage: up to `MAX_MS_EQ_BANDS` smoothed biquad pairs
 /// (one for Mid, one for Side per band).
 pub struct MsEqStage {
-    pub bands:    [MsEqBand; MAX_MS_EQ_BANDS],
-    mid_filters:  [SmoothedBand; MAX_MS_EQ_BANDS],
+    pub bands: [MsEqBand; MAX_MS_EQ_BANDS],
+    mid_filters: [SmoothedBand; MAX_MS_EQ_BANDS],
     side_filters: [SmoothedBand; MAX_MS_EQ_BANDS],
-    pub enabled:  bool,
-    sample_rate:  f32,
+    pub enabled: bool,
+    sample_rate: f32,
 }
 
 impl MsEqStage {
     pub fn new(sample_rate: f32) -> Self {
         Self {
-            bands:        [MsEqBand::flat(); MAX_MS_EQ_BANDS],
-            mid_filters:  std::array::from_fn(|_| SmoothedBand::new()),
+            bands: [MsEqBand::flat(); MAX_MS_EQ_BANDS],
+            mid_filters: std::array::from_fn(|_| SmoothedBand::new()),
             side_filters: std::array::from_fn(|_| SmoothedBand::new()),
-            enabled:      false,
+            enabled: false,
             sample_rate,
         }
     }
 
     /// Update a single band's parameters and schedule coefficient smoothing.
     pub fn set_band(&mut self, index: usize, band: MsEqBand) {
-        if index >= MAX_MS_EQ_BANDS { return; }
+        if index >= MAX_MS_EQ_BANDS {
+            return;
+        }
         self.bands[index] = band;
         self.recompute(index);
     }
 
     pub fn band(&self, index: usize) -> MsEqBand {
-        if index < MAX_MS_EQ_BANDS { self.bands[index] } else { MsEqBand::flat() }
+        if index < MAX_MS_EQ_BANDS {
+            self.bands[index]
+        } else {
+            MsEqBand::flat()
+        }
     }
 
-    pub fn set_enabled(&mut self, enabled: bool) { self.enabled = enabled; }
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
-        for i in 0..MAX_MS_EQ_BANDS { self.recompute(i); }
+        for i in 0..MAX_MS_EQ_BANDS {
+            self.recompute(i);
+        }
     }
 
     /// Apply M/S EQ bands from an `EqualizerState`.
     pub fn apply_from_state(&mut self, state: &crate::audio::equalizer::EqualizerState) {
         for (i, ms) in state.ms_eq_bands.iter().enumerate() {
-            if i >= MAX_MS_EQ_BANDS { break; }
+            if i >= MAX_MS_EQ_BANDS {
+                break;
+            }
             self.bands[i] = MsEqBand {
-                freq_hz:      ms.frequency as f32,
-                mid_gain_db:  ms.mid_gain_db as f32,
+                freq_hz: ms.frequency as f32,
+                mid_gain_db: ms.mid_gain_db as f32,
                 side_gain_db: ms.side_gain_db as f32,
-                q:            ms.bandwidth as f32,
-                enabled:      ms.enabled,
+                q: ms.bandwidth as f32,
+                enabled: ms.enabled,
             };
             self.recompute(i);
         }
@@ -85,7 +103,9 @@ impl MsEqStage {
     /// Mid and Side, then re-encodes back to L/R.
     #[inline(always)]
     pub fn process_frame(&mut self, l: f32, r: f32) -> (f32, f32) {
-        if !self.enabled { return (l, r); }
+        if !self.enabled {
+            return (l, r);
+        }
 
         let mut m = (l + r) * 0.5;
         let mut s = (l - r) * 0.5;
@@ -94,7 +114,8 @@ impl MsEqStage {
             if self.bands[b].enabled {
                 let (nm, _) = self.mid_filters[b].process(m, m);
                 let (_, ns) = self.side_filters[b].process(s, s);
-                m = nm; s = ns;
+                m = nm;
+                s = ns;
             }
         }
 
@@ -138,9 +159,17 @@ impl MsEqStage {
             self.side_filters[index].set_target(id);
             return;
         }
-        self.mid_filters[index].set_target(
-            Biquad::peaking(b.freq_hz, b.mid_gain_db, b.q, self.sample_rate));
-        self.side_filters[index].set_target(
-            Biquad::peaking(b.freq_hz, b.side_gain_db, b.q, self.sample_rate));
+        self.mid_filters[index].set_target(Biquad::peaking(
+            b.freq_hz,
+            b.mid_gain_db,
+            b.q,
+            self.sample_rate,
+        ));
+        self.side_filters[index].set_target(Biquad::peaking(
+            b.freq_hz,
+            b.side_gain_db,
+            b.q,
+            self.sample_rate,
+        ));
     }
 }

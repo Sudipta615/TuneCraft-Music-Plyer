@@ -55,17 +55,17 @@
 //!   appsink's buffer queue. This is bounded by `max-buffers` on the appsink.
 
 use anyhow::Result;
-use ringbuf::{HeapRb, traits::Split};
-use std::sync::{Arc, Mutex};
+use ringbuf::{traits::Split, HeapRb};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
-use crate::audio::pipeline::DecodePipeline;
-use crate::audio::output::AudioOutput;
+use crate::audio::convolution::ConvolutionEngine;
 use crate::audio::dsp::DspEngine;
 use crate::audio::dsp_thread;
-use crate::audio::convolution::ConvolutionEngine;
 use crate::audio::engine::EngineLoudnessState;
 use crate::audio::loudness::{EbuR128Loudness, LoudnessNormalizationConfig};
+use crate::audio::output::AudioOutput;
+use crate::audio::pipeline::DecodePipeline;
 
 /// A fully-constructed, pre-rolled session ready to be handed to `AudioEngine`.
 pub struct PreloadedSession {
@@ -237,7 +237,8 @@ impl GaplessPreloader {
                     return;
                 }
 
-                match build_preloaded_session(&uri, sample_rate, decode_ring_size, output_ring_size) {
+                match build_preloaded_session(&uri, sample_rate, decode_ring_size, output_ring_size)
+                {
                     Ok(session) => {
                         let mut s = state_arc.lock().unwrap_or_else(|e| e.into_inner());
                         if cancel_clone.load(Ordering::Acquire) {
@@ -253,11 +254,13 @@ impl GaplessPreloader {
                         *state_arc.lock().unwrap_or_else(|e| e.into_inner()) = PreloadState::Idle;
                     }
                 }
-            })
-        {
-            Ok(_) => {},
+            }) {
+            Ok(_) => {}
             Err(e) => {
-                tracing::warn!("Gapless preload thread spawn failed: {}. Resetting to Idle.", e);
+                tracing::warn!(
+                    "Gapless preload thread spawn failed: {}. Resetting to Idle.",
+                    e
+                );
                 *self.state.lock().unwrap_or_else(|e| e.into_inner()) = PreloadState::Idle;
             }
         }
@@ -265,7 +268,10 @@ impl GaplessPreloader {
 
     /// Returns `true` if a pre-loaded session is waiting to be consumed.
     pub fn is_ready(&self) -> bool {
-        matches!(*self.state.lock().unwrap_or_else(|e| e.into_inner()), PreloadState::Ready(_))
+        matches!(
+            *self.state.lock().unwrap_or_else(|e| e.into_inner()),
+            PreloadState::Ready(_)
+        )
     }
 
     /// Take the pre-loaded session, if ready. Returns `None` if not ready yet.
@@ -292,7 +298,12 @@ impl GaplessPreloader {
     }
 }
 
-fn build_preloaded_session(uri: &str, sample_rate: u32, decode_ring_size: usize, output_ring_size: usize) -> Result<PreloadedSession> {
+fn build_preloaded_session(
+    uri: &str,
+    sample_rate: u32,
+    decode_ring_size: usize,
+    output_ring_size: usize,
+) -> Result<PreloadedSession> {
     // Fix Bug #4: Create a FRESH DspEngine for the preloaded session instead
     // of sharing the current session's engine. Previously, two DSP threads
     // shared the same Arc<Mutex<DspEngine>> and contended for the lock,
@@ -347,18 +358,24 @@ fn build_preloaded_session(uri: &str, sample_rate: u32, decode_ring_size: usize,
         enabled: false,
         config: LoudnessNormalizationConfig::default(),
     }));
-    let dsp_thread = dsp_thread::spawn_dsp_thread(
-        dsp_thread::DspThreadConfig {
-            decode_cons, output_prod,
-            dsp: Arc::clone(&dsp),
-            stop: Arc::clone(&dsp_stop),
-            convolution, loudness_state: Arc::clone(&loudness_state),
-            underrun_count,
-        },
-    );
+    let dsp_thread = dsp_thread::spawn_dsp_thread(dsp_thread::DspThreadConfig {
+        decode_cons,
+        output_prod,
+        dsp: Arc::clone(&dsp),
+        stop: Arc::clone(&dsp_stop),
+        convolution,
+        loudness_state: Arc::clone(&loudness_state),
+        underrun_count,
+    });
 
     Ok(PreloadedSession {
-        pipeline, audio_output, dsp_stop, dsp_thread, playing_flag, dsp,
-        convolution, loudness_state,
+        pipeline,
+        audio_output,
+        dsp_stop,
+        dsp_thread,
+        playing_flag,
+        dsp,
+        convolution,
+        loudness_state,
     })
 }

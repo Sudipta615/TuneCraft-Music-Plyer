@@ -22,7 +22,15 @@ impl Database {
              SET bpm = ?1, energy = ?2, bass_ratio = ?3,
                  spectral_centroid = ?4, dynamic_range = ?5, mood = ?6
              WHERE file_path = ?7",
-            params![bpm, energy, bass_ratio, spectral_centroid, dynamic_range, mood, file_path],
+            params![
+                bpm,
+                energy,
+                bass_ratio,
+                spectral_centroid,
+                dynamic_range,
+                mood,
+                file_path
+            ],
         )?)
     }
 
@@ -57,11 +65,7 @@ impl Database {
     /// queries to prevent a TOCTOU race. Previously, the COUNT used one
     /// pooled connection and query_map() obtained a second, allowing tracks
     /// to be added/removed between the two queries.
-    pub fn get_tracks_by_mood(
-        &self,
-        mood: &str,
-        limit: usize,
-    ) -> Result<Vec<Track>> {
+    pub fn get_tracks_by_mood(&self, mood: &str, limit: usize) -> Result<Vec<Track>> {
         let conn = self.conn()?;
 
         // Fix Bug #9: When limit == 0, return all matching tracks (no limit).
@@ -111,7 +115,10 @@ impl Database {
             TRACK_COLUMNS
         );
         let mut stmt = conn.prepare(&sql)?;
-        let rows = stmt.query_map(rusqlite::params![mood, limit as i64, offset as i64], |row| Track::from_row(row))?;
+        let rows = stmt.query_map(
+            rusqlite::params![mood, limit as i64, offset as i64],
+            |row| Track::from_row(row),
+        )?;
         let mut results = Vec::new();
         for row in rows {
             results.push(row?);
@@ -158,9 +165,7 @@ impl Database {
 
     /// Get mood distribution statistics for diagnostic purposes.
     /// Returns (mood_label, count, avg_bpm, avg_energy, avg_bass_ratio).
-    pub fn get_mood_distribution(
-        &self,
-    ) -> Result<Vec<(String, i64, f64, f64, f64)>> {
+    pub fn get_mood_distribution(&self) -> Result<Vec<(String, i64, f64, f64, f64)>> {
         let conn = self.conn()?;
         let mut stmt = conn.prepare(
             "SELECT COALESCE(mood_override, mood) AS effective_mood,
@@ -192,11 +197,10 @@ impl Database {
     /// Count tracks that still need mood analysis.
     pub fn unanalyzed_track_count(&self) -> Result<i64> {
         let conn = self.conn()?;
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM tracks WHERE mood IS NULL",
-            [],
-            |r| r.get(0),
-        )?;
+        let count: i64 =
+            conn.query_row("SELECT COUNT(*) FROM tracks WHERE mood IS NULL", [], |r| {
+                r.get(0)
+            })?;
         Ok(count)
     }
 }

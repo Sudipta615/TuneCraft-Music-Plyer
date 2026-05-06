@@ -1,13 +1,13 @@
-pub mod connection;
-pub mod models;
-pub mod migrations;
-pub mod track_repo;
-pub mod playlist_repo;
-pub mod mood_repo;
-pub mod scrobble_repo;
-pub mod pref_repo;
-pub mod cover_art_repo;
 pub mod album_repo;
+pub mod connection;
+pub mod cover_art_repo;
+pub mod migrations;
+pub mod models;
+pub mod mood_repo;
+pub mod playlist_repo;
+pub mod pref_repo;
+pub mod scrobble_repo;
+pub mod track_repo;
 
 use anyhow::{Context, Result};
 use r2d2::Pool;
@@ -80,8 +80,10 @@ impl Database {
         tokio::task::spawn_blocking(move || {
             let conn = pool.get()?;
             let mut stmt = conn.prepare(&sql)?;
-            let param_refs: Vec<&dyn rusqlite::types::ToSql> =
-                param_values.iter().map(|p| p.as_ref() as &dyn rusqlite::types::ToSql).collect();
+            let param_refs: Vec<&dyn rusqlite::types::ToSql> = param_values
+                .iter()
+                .map(|p| p.as_ref() as &dyn rusqlite::types::ToSql)
+                .collect();
             let affected = stmt.execute(rusqlite::params_from_iter(param_refs))?;
             Ok(affected)
         })
@@ -97,7 +99,9 @@ impl Database {
 
     /// Get a connection from the pool.
     pub fn conn(&self) -> Result<r2d2::PooledConnection<SqliteConnectionManager>> {
-        self.pool.get().context("failed to get connection from pool")
+        self.pool
+            .get()
+            .context("failed to get connection from pool")
     }
 
     /// Query and map rows.

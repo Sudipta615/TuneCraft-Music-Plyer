@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use anyhow::Result;
 use super::{AudioEngine, Session};
+use anyhow::Result;
 
 impl AudioEngine {
     /// Queue the next track for gapless preloading.
@@ -83,7 +83,9 @@ impl AudioEngine {
 
             {
                 let mut s = self.session.lock().unwrap_or_else(|e| e.into_inner());
-                if let Some(mut old) = s.take() { old.stop_and_join(); }
+                if let Some(mut old) = s.take() {
+                    old.stop_and_join();
+                }
                 *s = Some(session);
             }
 
@@ -99,12 +101,18 @@ impl AudioEngine {
                 // Propagate loudness state (enabled + config) — consolidated
                 // lock acquisition avoids the previous 2-lock pattern which
                 // could deadlock if another thread acquired them in reverse order.
-                let engine_state = self.loudness_state.lock().unwrap_or_else(|e| e.into_inner());
+                let engine_state = self
+                    .loudness_state
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 let engine_enabled = engine_state.enabled;
                 let engine_config = engine_state.config.clone();
                 drop(engine_state); // Release engine lock before acquiring preloaded lock
                 {
-                    let mut preload_state = preloaded.loudness_state.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut preload_state = preloaded
+                        .loudness_state
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
                     preload_state.enabled = engine_enabled;
                     preload_state.config = engine_config;
                 }
@@ -114,8 +122,12 @@ impl AudioEngine {
                 // preloaded.convolution. The old DSP thread has already been stopped via
                 // stop_and_join() above, so there is no contention on either Arc.
                 {
-                    let mut engine_conv_guard = self.convolution.lock().unwrap_or_else(|e| e.into_inner());
-                    let mut preload_conv_guard = preloaded.convolution.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut engine_conv_guard =
+                        self.convolution.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut preload_conv_guard = preloaded
+                        .convolution
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
                     // Move the ConvolutionEngine (if any) from engine into the preloaded slot.
                     *preload_conv_guard = engine_conv_guard.take();
                     tracing::debug!("Gapless: convolution state transferred to preloaded session");
@@ -138,10 +150,17 @@ impl AudioEngine {
             // mark_new_track() on the old engine.dsp before stop_and_join(),
             // so the preloaded DspEngine never received the signal, breaking
             // the GaplessSmoother's apply_to_head() blending at the boundary.
-            self.dsp_arc().lock().unwrap_or_else(|e| e.into_inner()).mark_new_track();
+            self.dsp_arc()
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .mark_new_track();
 
             // Apply ReplayGain for the new track if enabled
-            let rg = self.rg_state.lock().unwrap_or_else(|e| e.into_inner()).enabled;
+            let rg = self
+                .rg_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .enabled;
             if rg {
                 if let Some(p) = path {
                     if let Err(e) = self.apply_replaygain_for(p) {
@@ -152,10 +171,15 @@ impl AudioEngine {
 
             // Fix Bug #15: Store the current track path for ReplayGain
             // enable-apply on the currently-playing track.
-            *self.current_track_path.lock().unwrap_or_else(|e| e.into_inner()) = path.map(|p| p.to_path_buf());
+            *self
+                .current_track_path
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = path.map(|p| p.to_path_buf());
 
             self.play()?;
-            tracing::info!("Gapless: swapped to preloaded track -- zero silence, zero settings gap");
+            tracing::info!(
+                "Gapless: swapped to preloaded track -- zero silence, zero settings gap"
+            );
             Ok(true)
         } else {
             Ok(false)

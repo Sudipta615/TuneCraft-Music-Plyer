@@ -169,7 +169,10 @@ impl ScrobbleManager {
 
         let failed_count = ids.len() - successful_ids.len();
         if failed_count > 0 {
-            warn!("{} scrobble(s) failed or were ignored; entries will be retried", failed_count);
+            warn!(
+                "{} scrobble(s) failed or were ignored; entries will be retried",
+                failed_count
+            );
         }
 
         Ok(())

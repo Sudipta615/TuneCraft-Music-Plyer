@@ -28,7 +28,11 @@ pub struct PcmBuffer {
 impl PcmBuffer {
     /// Create a new PCM buffer.
     pub fn new(samples: Vec<f32>, sample_rate: u32, channels: u16) -> Self {
-        Self { samples, sample_rate, channels }
+        Self {
+            samples,
+            sample_rate,
+            channels,
+        }
     }
 
     /// Returns the duration of the cached audio in seconds.
@@ -86,7 +90,7 @@ impl PcmCache {
     pub fn new(capacity: usize) -> Self {
         Self {
             cache: Mutex::new(LruCache::new(
-                NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(5).unwrap())
+                NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(5).unwrap()),
             )),
         }
     }

@@ -5,13 +5,13 @@
 //! Arc<Mutex<>> for thread-safe access from background tasks.
 
 use std::num::NonZeroUsize;
-use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 
 use lru::LruCache;
 
-use tunecraft_core::audio::{AudioEngine, PlayerState};
 use tunecraft_core::audio::pcm_cache::PcmCache;
+use tunecraft_core::audio::{AudioEngine, PlayerState};
 use tunecraft_core::Database;
 
 /// Navigation view types.
@@ -27,7 +27,11 @@ pub enum ViewType {
     AlbumDetail(String),
     ArtistDetail(String),
     PlaylistDetail(String, Option<i64>),
-    Filter { genre: String, year_from: Option<i32>, year_to: Option<i32> },
+    Filter {
+        genre: String,
+        year_from: Option<i32>,
+        year_to: Option<i32>,
+    },
 }
 
 /// Track list layout mode.
@@ -233,7 +237,8 @@ impl PlayQueue {
             self.shuffle_order.clear();
             return;
         }
-        let current_physical = self.current_index
+        let current_physical = self
+            .current_index
             .and_then(|logical| self.effective_index(logical));
         self.shuffle_order = (0..len).collect();
         self.shuffle_order.shuffle(&mut rng);
@@ -254,7 +259,9 @@ impl PlayQueue {
     }
 
     pub fn next_index(&self) -> Option<usize> {
-        if self.tracks.is_empty() { return None; }
+        if self.tracks.is_empty() {
+            return None;
+        }
         let current = self.current_index?;
         match self.repeat_mode {
             RepeatMode::One => Some(current),
@@ -277,7 +284,9 @@ impl PlayQueue {
     /// is correct for EOS auto-advance but wrong when the user clicks "Next".
     /// This method ignores RepeatMode::One and always advances.
     pub fn manual_next_index(&self) -> Option<usize> {
-        if self.tracks.is_empty() { return None; }
+        if self.tracks.is_empty() {
+            return None;
+        }
         let current = self.current_index?;
 
         if current + 1 < self.tracks.len() {
@@ -290,7 +299,9 @@ impl PlayQueue {
     }
 
     pub fn prev_index(&self) -> Option<usize> {
-        if self.tracks.is_empty() { return None; }
+        if self.tracks.is_empty() {
+            return None;
+        }
         let current = self.current_index?;
 
         // Fix: RepeatMode::One should restart the current track
@@ -528,7 +539,10 @@ impl AppState {
         };
         let _ = engine.set_volume(vol);
 
-        let speed = *self.playback_speed.lock().unwrap_or_else(|e| e.into_inner());
+        let speed = *self
+            .playback_speed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let _ = engine.set_playback_speed(speed as f64);
 
         *self.engine.lock().unwrap_or_else(|e| e.into_inner()) = Some(engine);
@@ -568,25 +582,31 @@ impl AppState {
     }
 
     pub fn position(&self) -> Option<std::time::Duration> {
-        self.engine.lock().ok().and_then(|guard| {
-            guard.as_ref().and_then(|e| e.position())
-        })
+        self.engine
+            .lock()
+            .ok()
+            .and_then(|guard| guard.as_ref().and_then(|e| e.position()))
     }
 
     pub fn duration(&self) -> Option<std::time::Duration> {
-        self.engine.lock().ok().and_then(|guard| {
-            guard.as_ref().and_then(|e| e.duration())
-        })
+        self.engine
+            .lock()
+            .ok()
+            .and_then(|guard| guard.as_ref().and_then(|e| e.duration()))
     }
 
     pub fn is_playing(&self) -> bool {
-        matches!(*self.player_state.lock().unwrap_or_else(|e| e.into_inner()), PlayerState::Playing)
+        matches!(
+            *self.player_state.lock().unwrap_or_else(|e| e.into_inner()),
+            PlayerState::Playing
+        )
     }
 
     pub fn play_track_from_view(&self, index: usize) {
         // Fix: Reset EOS latch on manual transport change to prevent
         // the background monitor from instantly skipping the newly selected track.
-        self.eos_flag.store(false, std::sync::atomic::Ordering::Release);
+        self.eos_flag
+            .store(false, std::sync::atomic::Ordering::Release);
 
         let tracks = self.load_tracks_for_view();
         if index >= tracks.len() {
@@ -628,7 +648,9 @@ impl AppState {
             let mut engine_guard = match self.engine.lock() {
                 Ok(guard) => guard,
                 Err(poisoned) => {
-                    tracing::error!("AudioEngine mutex poisoned! C state may be corrupted. Reinitializing...");
+                    tracing::error!(
+                        "AudioEngine mutex poisoned! C state may be corrupted. Reinitializing..."
+                    );
                     let mut guard = poisoned.into_inner();
                     *guard = None;
                     return;
@@ -637,18 +659,27 @@ impl AppState {
             if let Some(ref e) = *engine_guard {
                 if let Err(err) = e.load(&path) {
                     tracing::error!("Failed to load track: {}", err);
-                    *self.playback_error.lock().unwrap_or_else(|e| e.into_inner()) =
+                    *self
+                        .playback_error
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) =
                         Some(format!("Failed to load track: {}", err));
-                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Stopped;
+                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                        PlayerState::Stopped;
                     self.next_track(); // Auto-advance past broken files
                 } else if let Err(err) = e.play() {
                     tracing::error!("Failed to play track: {}", err);
-                    *self.playback_error.lock().unwrap_or_else(|e| e.into_inner()) =
+                    *self
+                        .playback_error
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) =
                         Some(format!("Failed to play track: {}", err));
-                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Stopped;
+                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                        PlayerState::Stopped;
                     self.next_track(); // Auto-advance past broken files
                 } else {
-                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Playing;
+                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                        PlayerState::Playing;
                 }
             }
         }
@@ -656,7 +687,8 @@ impl AppState {
 
     pub fn play_track_at(&self, index: usize) {
         // Fix: Reset EOS latch on manual transport change
-        self.eos_flag.store(false, std::sync::atomic::Ordering::Release);
+        self.eos_flag
+            .store(false, std::sync::atomic::Ordering::Release);
 
         let path = {
             let mut queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
@@ -688,18 +720,27 @@ impl AppState {
                 if let Some(ref e) = *engine_guard {
                     if let Err(err) = e.load(&path) {
                         tracing::error!("Failed to load track: {}", err);
-                        *self.playback_error.lock().unwrap_or_else(|e| e.into_inner()) =
+                        *self
+                            .playback_error
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner()) =
                             Some(format!("Failed to load track: {}", err));
-                        *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Stopped;
+                        *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                            PlayerState::Stopped;
                         self.next_track(); // Auto-advance past broken files
                     } else if let Err(err) = e.play() {
                         tracing::error!("Failed to play track: {}", err);
-                        *self.playback_error.lock().unwrap_or_else(|e| e.into_inner()) =
+                        *self
+                            .playback_error
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner()) =
                             Some(format!("Failed to play track: {}", err));
-                        *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Stopped;
+                        *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                            PlayerState::Stopped;
                         self.next_track(); // Auto-advance past broken files
                     } else {
-                        *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Playing;
+                        *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                            PlayerState::Playing;
                     }
                 }
             }
@@ -720,7 +761,8 @@ impl AppState {
 
     pub fn prev_track(&self) {
         // Fix: Reset EOS latch on manual transport change
-        self.eos_flag.store(false, std::sync::atomic::Ordering::Release);
+        self.eos_flag
+            .store(false, std::sync::atomic::Ordering::Release);
 
         let prev = {
             let queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
@@ -768,11 +810,14 @@ impl AppState {
             drop(cf);
             match engine_result {
                 Ok(()) => {
-                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Playing;
+                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                        PlayerState::Playing;
                 }
                 Err(e) => {
-                    *self.playback_error.lock().unwrap_or_else(|e| e.into_inner()) =
-                        Some(format!("Play failed: {}", e));
+                    *self
+                        .playback_error
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) = Some(format!("Play failed: {}", e));
                 }
             }
         }
@@ -808,12 +853,15 @@ impl AppState {
             drop(cf);
             match engine_result {
                 Ok(()) => {
-                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Paused;
+                    *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                        PlayerState::Paused;
                     self.save_playback_state_to_config();
                 }
                 Err(e) => {
-                    *self.playback_error.lock().unwrap_or_else(|e| e.into_inner()) =
-                        Some(format!("Pause failed: {}", e));
+                    *self
+                        .playback_error
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) = Some(format!("Pause failed: {}", e));
                 }
             }
         }
@@ -821,7 +869,10 @@ impl AppState {
 
     pub fn set_playback_speed(&self, speed: f32) {
         // #20: Persist the speed value so save_playback_state_to_config works
-        *self.playback_speed.lock().unwrap_or_else(|e| e.into_inner()) = speed;
+        *self
+            .playback_speed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = speed;
         if let Ok(engine) = self.engine.lock() {
             if let Some(ref e) = *engine {
                 let _ = e.set_playback_speed(speed as f64);
@@ -833,7 +884,10 @@ impl AppState {
         // Fix: Extract all required state values BEFORE acquiring the config write lock
         // to prevent lock order inversion deadlock (config -> queue vs queue -> config).
         let current_volume = self.volume();
-        let current_speed = *self.playback_speed.lock().unwrap_or_else(|e| e.into_inner()) as f64;
+        let current_speed = *self
+            .playback_speed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) as f64;
 
         let (is_shuffle, repeat_str) = {
             let queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
@@ -894,7 +948,10 @@ impl AppState {
     ) -> Vec<tunecraft_core::Track> {
         let db = self.db.read().unwrap_or_else(|e| e.into_inner());
         db.as_ref()
-            .and_then(|db| db.search_tracks_advanced(query, genre, year_from, year_to).ok())
+            .and_then(|db| {
+                db.search_tracks_advanced(query, genre, year_from, year_to)
+                    .ok()
+            })
             .unwrap_or_default()
     }
 
@@ -956,7 +1013,10 @@ impl AppState {
         let sort = self.sort_mode.lock().unwrap_or_else(|e| e.into_inner());
         let query = self.search_query.lock().unwrap_or_else(|e| e.into_inner());
         let genre = self.filter_genre.lock().unwrap_or_else(|e| e.into_inner());
-        let year_range = self.filter_year_range.lock().unwrap_or_else(|e| e.into_inner());
+        let year_range = self
+            .filter_year_range
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         format!("{:?}|{:?}|{}|{}|{}", *view, sort, query, genre, year_range)
     }
 
@@ -979,12 +1039,24 @@ impl AppState {
             }
         }
 
-        let view = self.current_view.lock().unwrap_or_else(|e| e.into_inner()).clone();
-        let sort = self.sort_mode.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let view = self
+            .current_view
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let sort = self
+            .sort_mode
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let mut tracks = match view {
             ViewType::AllTracks => self.load_all_tracks(),
             ViewType::Search => {
-                let query = self.search_query.lock().unwrap_or_else(|e| e.into_inner()).clone();
+                let query = self
+                    .search_query
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
                 if query.is_empty() {
                     self.load_all_tracks()
                 } else {
@@ -1022,13 +1094,14 @@ impl AppState {
                     mood => self.get_tracks_by_mood(mood),
                 }
             }
-            ViewType::PlaylistDetail(ref _name, id) => {
-                id.map(|pl_id| self.get_playlist_tracks(pl_id))
-                    .unwrap_or_default()
-            }
-            ViewType::Filter { ref genre, year_from, year_to } => {
-                self.search_tracks_advanced("", genre, year_from, year_to)
-            }
+            ViewType::PlaylistDetail(ref _name, id) => id
+                .map(|pl_id| self.get_playlist_tracks(pl_id))
+                .unwrap_or_default(),
+            ViewType::Filter {
+                ref genre,
+                year_from,
+                year_to,
+            } => self.search_tracks_advanced("", genre, year_from, year_to),
             _ => self.load_all_tracks(),
         };
         self.apply_sort(&mut tracks, sort);
@@ -1042,7 +1115,7 @@ impl AppState {
 
     fn apply_sort(&self, tracks: &mut Vec<tunecraft_core::Track>, sort: SortMode) {
         match sort {
-            SortMode::Default => {},
+            SortMode::Default => {}
             SortMode::TitleAsc => tracks.sort_by(|a, b| a.title.cmp(&b.title)),
             SortMode::TitleDesc => tracks.sort_by(|a, b| b.title.cmp(&a.title)),
             SortMode::ArtistAsc => tracks.sort_by(|a, b| a.artist.cmp(&b.artist)),
@@ -1055,7 +1128,11 @@ impl AppState {
     }
 
     /// #12/#13: Avoid re-querying the DB for every row; accept a pre-loaded track list.
-    pub fn track_at_view_index(&self, idx: usize, tracks: &[tunecraft_core::Track]) -> Option<tunecraft_core::Track> {
+    pub fn track_at_view_index(
+        &self,
+        idx: usize,
+        tracks: &[tunecraft_core::Track],
+    ) -> Option<tunecraft_core::Track> {
         tracks.get(idx).cloned()
     }
 
@@ -1076,14 +1153,19 @@ impl AppState {
             self.sidebar_track_count.load(Ordering::Relaxed) as i64
         } else {
             let db = self.db.read().unwrap_or_else(|e| e.into_inner());
-            db.as_ref().map(|db| db.track_count().unwrap_or(0)).unwrap_or(0)
+            db.as_ref()
+                .map(|db| db.track_count().unwrap_or(0))
+                .unwrap_or(0)
         }
     }
 
     pub fn get_mood_track_count(&self, mood: &str) -> i64 {
         // Bug #34 fix: Use cached value when available instead of querying DB every render.
         if self.sidebar_cache_valid.load(Ordering::Relaxed) {
-            let counts = self.sidebar_mood_counts.lock().unwrap_or_else(|e| e.into_inner());
+            let counts = self
+                .sidebar_mood_counts
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             counts.get(mood).copied().unwrap_or(0) as i64
         } else {
             let db = self.db.read().unwrap_or_else(|e| e.into_inner());
@@ -1111,11 +1193,18 @@ impl AppState {
                     mood_counts.insert(mood.to_string(), count as u64);
                 }
             }
-            self.sidebar_album_count.store(album_count, Ordering::Relaxed);
-            self.sidebar_artist_count.store(artist_count, Ordering::Relaxed);
-            self.sidebar_playlist_count.store(playlist_count, Ordering::Relaxed);
-            self.sidebar_track_count.store(track_count, Ordering::Relaxed);
-            *self.sidebar_mood_counts.lock().unwrap_or_else(|e| e.into_inner()) = mood_counts;
+            self.sidebar_album_count
+                .store(album_count, Ordering::Relaxed);
+            self.sidebar_artist_count
+                .store(artist_count, Ordering::Relaxed);
+            self.sidebar_playlist_count
+                .store(playlist_count, Ordering::Relaxed);
+            self.sidebar_track_count
+                .store(track_count, Ordering::Relaxed);
+            *self
+                .sidebar_mood_counts
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = mood_counts;
             self.sidebar_cache_valid.store(true, Ordering::Relaxed);
         }
     }
@@ -1130,7 +1219,9 @@ impl AppState {
         let mut engine_guard = match self.engine.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                tracing::error!("AudioEngine mutex poisoned during tick! Dropping corrupted engine.");
+                tracing::error!(
+                    "AudioEngine mutex poisoned during tick! Dropping corrupted engine."
+                );
                 let mut guard = poisoned.into_inner();
                 *guard = None;
                 return;
@@ -1181,7 +1272,10 @@ impl AppState {
         }
         // Check for playback errors
         {
-            let mut error = self.playback_error.lock().unwrap_or_else(|e| e.into_inner());
+            let mut error = self
+                .playback_error
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some(msg) = error.take() {
                 *self.toast_message.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg);
             }
@@ -1194,7 +1288,10 @@ impl AppState {
     /// UI component. This method allows the UI to take() the message for
     /// display and automatically clear it.
     pub fn take_toast_message(&self) -> Option<String> {
-        self.toast_message.lock().unwrap_or_else(|e| e.into_inner()).take()
+        self.toast_message
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
     }
 
     /// Toggle the love status of a track and persist to database.
@@ -1243,9 +1340,14 @@ impl AppState {
         }
 
         let bands = *self.eq_bands.lock().unwrap_or_else(|e| e.into_inner());
-        let width = *self.eq_stereo_width.lock().unwrap_or_else(|e| e.into_inner());
+        let width = *self
+            .eq_stereo_width
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let balance = *self.eq_balance.lock().unwrap_or_else(|e| e.into_inner());
-        let ms_eq = self.eq_ms_enabled.load(std::sync::atomic::Ordering::Relaxed);
+        let ms_eq = self
+            .eq_ms_enabled
+            .load(std::sync::atomic::Ordering::Relaxed);
 
         if let Ok(engine_guard) = self.engine.lock() {
             if let Some(ref engine) = *engine_guard {
@@ -1270,16 +1372,22 @@ impl AppState {
 
         if currently_muted {
             // Unmute: Restore previous volume
-            let restore_vol = f64::from_bits(self.volume_before_mute.load(std::sync::atomic::Ordering::Relaxed));
-            self.volume_muted.store(false, std::sync::atomic::Ordering::Relaxed);
+            let restore_vol = f64::from_bits(
+                self.volume_before_mute
+                    .load(std::sync::atomic::Ordering::Relaxed),
+            );
+            self.volume_muted
+                .store(false, std::sync::atomic::Ordering::Relaxed);
             self.set_volume(restore_vol);
         } else {
             // Mute: Save current volume and push 0.0 to engine
             let current_vol = self.volume();
             if current_vol > 0.0 {
-                self.volume_before_mute.store(current_vol.to_bits(), std::sync::atomic::Ordering::Relaxed);
+                self.volume_before_mute
+                    .store(current_vol.to_bits(), std::sync::atomic::Ordering::Relaxed);
             }
-            self.volume_muted.store(true, std::sync::atomic::Ordering::Relaxed);
+            self.volume_muted
+                .store(true, std::sync::atomic::Ordering::Relaxed);
 
             // Push silence directly to the engine
             if let Ok(engine) = self.engine.lock() {
@@ -1296,12 +1404,14 @@ impl AppState {
     pub fn notify_track_change(&self) {
         let track_data = {
             let queue = self.queue_lock();
-            queue.current_track().map(|t| (
-                t.id,
-                t.title.clone().unwrap_or_default(),
-                t.artist.clone().unwrap_or_default(),
-                t.album.clone().unwrap_or_default(),
-            ))
+            queue.current_track().map(|t| {
+                (
+                    t.id,
+                    t.title.clone().unwrap_or_default(),
+                    t.artist.clone().unwrap_or_default(),
+                    t.album.clone().unwrap_or_default(),
+                )
+            })
         };
         // Reset scrobble state for the new track (#4)
         {

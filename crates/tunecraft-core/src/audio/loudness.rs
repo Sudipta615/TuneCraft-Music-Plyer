@@ -74,9 +74,13 @@ const RELATIVE_GATE_DB: f64 = -10.0;
 /// This is the "head-related" part of K-weighting.
 #[derive(Debug, Clone, Copy)]
 struct KWeightShelf {
-    b0: f32, b1: f32, b2: f32,
-    a1: f32, a2: f32,
-    z1: f32, z2: f32,
+    b0: f32,
+    b1: f32,
+    b2: f32,
+    a1: f32,
+    a2: f32,
+    z1: f32,
+    z2: f32,
 }
 
 impl KWeightShelf {
@@ -87,10 +91,22 @@ impl KWeightShelf {
         // For other rates, we scale the coefficients proportionally.
         let (b0, b1, b2, a1, a2) = if (sample_rate - 48000.0).abs() < 100.0 {
             // Exact 48 kHz coefficients from BS.1770-4
-            (1.530909599, -2.650391682, 1.169160636, -1.663632945, 0.612383232)
+            (
+                1.530909599,
+                -2.650391682,
+                1.169160636,
+                -1.663632945,
+                0.612383232,
+            )
         } else if (sample_rate - 44100.0).abs() < 100.0 {
             // 44.1 kHz coefficients (EBU Tech 3341)
-            (1.530909599, -2.603747892, 1.113068076, -1.634954350, 0.588016499)
+            (
+                1.530909599,
+                -2.603747892,
+                1.113068076,
+                -1.634954350,
+                0.588016499,
+            )
         } else {
             // Generic: compute high-shelf at ~1.5 kHz, +4 dB, Q ~0.7
             let freq = 1500.0_f32.min(sample_rate * 0.03125);
@@ -100,16 +116,24 @@ impl KWeightShelf {
             let (sin_w0, cos_w0) = w0.sin_cos();
             let alpha = sin_w0 * 0.5 * 2.0_f32.sqrt();
             let sq = 2.0 * a.sqrt() * alpha;
-            let _b0 =        a * ((a+1.0) + (a-1.0)*cos_w0 + sq);
-            let _b1 = -2.0 * a * ((a-1.0) + (a+1.0)*cos_w0      );
-            let _b2 =        a * ((a+1.0) + (a-1.0)*cos_w0 - sq);
-            let _a0 =             (a+1.0) - (a-1.0)*cos_w0 + sq;
-            let _a1 =  2.0 *     ((a-1.0) - (a+1.0)*cos_w0      );
-            let _a2 =             (a+1.0) - (a-1.0)*cos_w0 - sq;
-            (_b0/_a0, _b1/_a0, _b2/_a0, _a1/_a0, _a2/_a0)
+            let _b0 = a * ((a + 1.0) + (a - 1.0) * cos_w0 + sq);
+            let _b1 = -2.0 * a * ((a - 1.0) + (a + 1.0) * cos_w0);
+            let _b2 = a * ((a + 1.0) + (a - 1.0) * cos_w0 - sq);
+            let _a0 = (a + 1.0) - (a - 1.0) * cos_w0 + sq;
+            let _a1 = 2.0 * ((a - 1.0) - (a + 1.0) * cos_w0);
+            let _a2 = (a + 1.0) - (a - 1.0) * cos_w0 - sq;
+            (_b0 / _a0, _b1 / _a0, _b2 / _a0, _a1 / _a0, _a2 / _a0)
         };
 
-        Self { b0, b1, b2, a1, a2, z1: 0.0, z2: 0.0 }
+        Self {
+            b0,
+            b1,
+            b2,
+            a1,
+            a2,
+            z1: 0.0,
+            z2: 0.0,
+        }
     }
 
     #[inline(always)]
@@ -125,9 +149,13 @@ impl KWeightShelf {
 /// Removes sub-bass content that is not perceptually relevant.
 #[derive(Debug, Clone, Copy)]
 struct KWeightHPF {
-    b0: f32, b1: f32, b2: f32,
-    a1: f32, a2: f32,
-    z1: f32, z2: f32,
+    b0: f32,
+    b1: f32,
+    b2: f32,
+    a1: f32,
+    a2: f32,
+    z1: f32,
+    z2: f32,
 }
 
 impl KWeightHPF {
@@ -144,12 +172,24 @@ impl KWeightHPF {
             let w0 = 2.0 * PI * freq / sample_rate;
             let (sin_w0, cos_w0) = w0.sin_cos();
             let alpha = sin_w0 / 2.0_f32.sqrt();
-            let _b0 = (1.0 + cos_w0) / 2.0; let _b1 = -(1.0 + cos_w0); let _b2 = _b0;
-            let _a0 = 1.0 + alpha;           let _a1 = -2.0 * cos_w0;  let _a2 = 1.0 - alpha;
-            (_b0/_a0, _b1/_a0, _b2/_a0, _a1/_a0, _a2/_a0)
+            let _b0 = (1.0 + cos_w0) / 2.0;
+            let _b1 = -(1.0 + cos_w0);
+            let _b2 = _b0;
+            let _a0 = 1.0 + alpha;
+            let _a1 = -2.0 * cos_w0;
+            let _a2 = 1.0 - alpha;
+            (_b0 / _a0, _b1 / _a0, _b2 / _a0, _a1 / _a0, _a2 / _a0)
         };
 
-        Self { b0, b1, b2, a1, a2, z1: 0.0, z2: 0.0 }
+        Self {
+            b0,
+            b1,
+            b2,
+            a1,
+            a2,
+            z1: 0.0,
+            z2: 0.0,
+        }
     }
 
     #[inline(always)]
@@ -233,11 +273,18 @@ pub struct EbuR128Loudness {
 impl EbuR128Loudness {
     /// Create a new EBU R128 loudness measurer for the given sample rate.
     pub fn new(sample_rate: f32) -> Result<Self> {
-        anyhow::ensure!(sample_rate > 0.0, "EbuR128Loudness: sample_rate must be > 0, got {}", sample_rate);
+        anyhow::ensure!(
+            sample_rate > 0.0,
+            "EbuR128Loudness: sample_rate must be > 0, got {}",
+            sample_rate
+        );
         let samples_per_block = (sample_rate as f64 * BLOCK_DURATION_SECS as f64 * 2.0) as usize;
         Ok(Self {
             sample_rate,
-            shelf: [KWeightShelf::new(sample_rate), KWeightShelf::new(sample_rate)],
+            shelf: [
+                KWeightShelf::new(sample_rate),
+                KWeightShelf::new(sample_rate),
+            ],
             hpf: [KWeightHPF::new(sample_rate), KWeightHPF::new(sample_rate)],
             block_samples: 0,
             block_square_sum: 0.0,
@@ -250,7 +297,7 @@ impl EbuR128Loudness {
             scratch_pass2: Vec::with_capacity(MAX_BLOCKS),
             current_gain: 1.0,
             target_gain: 1.0,
-            smoothing_coeff: 0.999, // will be set by update_smoothing
+            smoothing_coeff: 0.999,    // will be set by update_smoothing
             last_smoothing_secs: -1.0, // sentinel: forces first computation
         })
     }
@@ -290,7 +337,8 @@ impl EbuR128Loudness {
             // The previous code applied smoothing once per buffer (~256 samples),
             // making the effective time constant ~256× longer than the configured
             // 3 seconds. Now smoothing is applied per-frame for correct timing.
-            self.current_gain += (self.target_gain - self.current_gain) * (1.0 - self.smoothing_coeff);
+            self.current_gain +=
+                (self.target_gain - self.current_gain) * (1.0 - self.smoothing_coeff);
 
             // End of block?
             if self.block_samples >= self.samples_per_block {
@@ -301,7 +349,9 @@ impl EbuR128Loudness {
 
     /// Finalize the current 400 ms block and compute loudness.
     fn finalize_block(&mut self, config: &LoudnessNormalizationConfig) {
-        if self.block_samples == 0 { return; }
+        if self.block_samples == 0 {
+            return;
+        }
 
         let mean_square = self.block_square_sum / self.block_samples as f64;
 
@@ -353,23 +403,39 @@ impl EbuR128Loudness {
 
         // Pass 1: absolute gate (blocks are already filtered above -70 LUFS)
         self.scratch_pass1.clear();
-        self.scratch_pass1.extend(self.block_loudness.iter().copied());
-        if self.scratch_pass1.is_empty() { return None; }
+        self.scratch_pass1
+            .extend(self.block_loudness.iter().copied());
+        if self.scratch_pass1.is_empty() {
+            return None;
+        }
 
         // Compute ungated loudness from pass 1
-        let sum_exp: f64 = self.scratch_pass1.iter().map(|&l| 10.0_f64.powf(l / 10.0)).sum();
+        let sum_exp: f64 = self
+            .scratch_pass1
+            .iter()
+            .map(|&l| 10.0_f64.powf(l / 10.0))
+            .sum();
         let ungated_loudness = -0.691 + 10.0 * (sum_exp / self.scratch_pass1.len() as f64).log10();
 
         // Pass 2: relative gate (-10 dB below ungated)
         let relative_gate = ungated_loudness + RELATIVE_GATE_DB;
         self.scratch_pass2.clear();
         self.scratch_pass2.extend(
-            self.scratch_pass1.iter().copied().filter(|&l| l > relative_gate)
+            self.scratch_pass1
+                .iter()
+                .copied()
+                .filter(|&l| l > relative_gate),
         );
-        if self.scratch_pass2.is_empty() { return None; }
+        if self.scratch_pass2.is_empty() {
+            return None;
+        }
 
         // Compute gated integrated loudness
-        let sum_exp: f64 = self.scratch_pass2.iter().map(|&l| 10.0_f64.powf(l / 10.0)).sum();
+        let sum_exp: f64 = self
+            .scratch_pass2
+            .iter()
+            .map(|&l| 10.0_f64.powf(l / 10.0))
+            .sum();
         Some(-0.691 + 10.0 * (sum_exp / self.scratch_pass2.len() as f64).log10())
     }
 
@@ -377,7 +443,9 @@ impl EbuR128Loudness {
     /// Fix Bug #13: Changed from &self to &mut self because compute_gated_loudness()
     /// now mutates scratch buffers instead of allocating new Vecs.
     pub fn integrated_loudness(&mut self) -> Option<f64> {
-        if self.block_loudness.len() < 3 { return None; }
+        if self.block_loudness.len() < 3 {
+            return None;
+        }
         self.compute_gated_loudness()
     }
 
@@ -400,15 +468,20 @@ impl EbuR128Loudness {
         // coefficient gets recomputed after reset (sample rate may change).
         self.last_smoothing_secs = -1.0;
         for ch in 0..2 {
-            self.shelf[ch].z1 = 0.0; self.shelf[ch].z2 = 0.0;
-            self.hpf[ch].z1 = 0.0; self.hpf[ch].z2 = 0.0;
+            self.shelf[ch].z1 = 0.0;
+            self.shelf[ch].z2 = 0.0;
+            self.hpf[ch].z1 = 0.0;
+            self.hpf[ch].z2 = 0.0;
         }
     }
 
     /// Update the sample rate (rebuilds filter coefficients).
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
-        self.shelf = [KWeightShelf::new(sample_rate), KWeightShelf::new(sample_rate)];
+        self.shelf = [
+            KWeightShelf::new(sample_rate),
+            KWeightShelf::new(sample_rate),
+        ];
         self.hpf = [KWeightHPF::new(sample_rate), KWeightHPF::new(sample_rate)];
         self.samples_per_block = (sample_rate as f64 * BLOCK_DURATION_SECS as f64 * 2.0) as usize;
         // Fix Bug #8: Invalidate cached smoothing coefficient since sample_rate
@@ -430,7 +503,10 @@ mod tests {
         // With all-silence input, integrated loudness should be None or very low
         let lufs = meter.integrated_loudness();
         // Silence should not produce a valid measurement above -70 LUFS
-        assert!(lufs.is_none() || lufs.unwrap() < -70.0, "Silence should not produce loudness above -70 LUFS");
+        assert!(
+            lufs.is_none() || lufs.unwrap() < -70.0,
+            "Silence should not produce loudness above -70 LUFS"
+        );
     }
 
     #[test]
@@ -450,7 +526,11 @@ mod tests {
         // (K-weighting adds ~4 dB above 1 kHz, so it may be slightly higher)
         assert!(lufs.is_some(), "Should have a valid loudness measurement");
         let l = lufs.unwrap();
-        assert!(l > -10.0 && l < 5.0, "Full-scale sine should produce loudness near 0 LUFS, got {}", l);
+        assert!(
+            l > -10.0 && l < 5.0,
+            "Full-scale sine should produce loudness near 0 LUFS, got {}",
+            l
+        );
     }
 
     #[test]
@@ -472,7 +552,11 @@ mod tests {
         // After 10 seconds, the gain should have been adjusted
         let gain = meter.current_gain();
         // The signal is louder than -23 LUFS, so gain should be < 1.0
-        assert!(gain < 1.0, "Gain should attenuate a loud signal, got {}", gain);
+        assert!(
+            gain < 1.0,
+            "Gain should attenuate a loud signal, got {}",
+            gain
+        );
         assert!(gain > 0.0, "Gain should be positive, got {}", gain);
     }
 
@@ -489,9 +573,15 @@ mod tests {
         meter.process_buffer(&samples, &LoudnessNormalizationConfig::default());
         meter.reset();
         // After reset, integrated loudness should be None
-        assert!(meter.integrated_loudness().is_none(), "Reset should clear loudness state");
+        assert!(
+            meter.integrated_loudness().is_none(),
+            "Reset should clear loudness state"
+        );
         // Gain should be unity
-        assert!((meter.current_gain() - 1.0).abs() < 1e-6, "Reset should reset gain to 1.0");
+        assert!(
+            (meter.current_gain() - 1.0).abs() < 1e-6,
+            "Reset should reset gain to 1.0"
+        );
     }
 
     #[test]
@@ -501,7 +591,12 @@ mod tests {
         for i in 0..100_000 {
             let x = (2.0 * PI * 1000.0 * i as f32 / 48000.0).sin();
             let y = shelf.process(x);
-            assert!(y.is_finite() && y.abs() < 10.0, "Shelf filter unstable at sample {}: {}", i, y);
+            assert!(
+                y.is_finite() && y.abs() < 10.0,
+                "Shelf filter unstable at sample {}: {}",
+                i,
+                y
+            );
         }
     }
 
@@ -511,7 +606,12 @@ mod tests {
         for i in 0..100_000 {
             let x = (2.0 * PI * 1000.0 * i as f32 / 48000.0).sin();
             let y = hpf.process(x);
-            assert!(y.is_finite() && y.abs() < 10.0, "HPF filter unstable at sample {}: {}", i, y);
+            assert!(
+                y.is_finite() && y.abs() < 10.0,
+                "HPF filter unstable at sample {}: {}",
+                i,
+                y
+            );
         }
     }
 }

@@ -12,11 +12,14 @@ use crate::error::LyricsError;
 fn http_client() -> reqwest::Client {
     use std::sync::OnceLock;
     static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-    CLIENT.get_or_init(|| reqwest::Client::builder()
-        .user_agent("Tunecraft/1.0.0")
-        .build()
-        .unwrap_or_default())
-    .clone()
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .user_agent("Tunecraft/1.0.0")
+                .build()
+                .unwrap_or_default()
+        })
+        .clone()
 }
 
 /// A lyrics entry from LRCLIB.
@@ -57,7 +60,8 @@ pub async fn search_lyrics(track: &str, artist: &str) -> Result<Vec<LyricsEntry>
         return Err(LyricsError::HttpError {
             status: response.status().as_u16(),
             body: format!("LRCLIB search returned HTTP {}", response.status()),
-        }.into());
+        }
+        .into());
     }
 
     let entries: Vec<LyricsEntry> = response
@@ -109,7 +113,8 @@ pub async fn get_lyrics(
         return Err(LyricsError::HttpError {
             status: response.status().as_u16(),
             body: format!("LRCLIB get returned HTTP {}", response.status()),
-        }.into());
+        }
+        .into());
     }
 
     let entry: LyricsEntry = response

@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 use std::sync::Arc;
 
 use crate::app::ReactivitySignals;
-use crate::app_state::{AppState, ViewType, ViewLayout, SortMode};
+use crate::app_state::{AppState, SortMode, ViewLayout, ViewType};
 use crate::i18n::tr;
 
 /// Issue #9: Height of each track row in pixels for virtual scrolling.
@@ -20,19 +20,33 @@ pub fn TrackList() -> Element {
     let _ = *signals.library.read();
     let _ = *signals.playback.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
 
-    let current_view = state.read().current_view.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let view_layout = *state.read().view_layout.lock().unwrap_or_else(|e| e.into_inner());
-    let sort_mode = *state.read().sort_mode.lock().unwrap_or_else(|e| e.into_inner());
+    let current_view = state
+        .read()
+        .current_view
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let view_layout = *state
+        .read()
+        .view_layout
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let sort_mode = *state
+        .read()
+        .sort_mode
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
 
     // Load tracks for the current view (single query, reused below)
     let tracks = state.read().load_tracks_for_view();
 
     // Calculate total duration
-    let total_duration_secs: i64 = tracks.iter()
-        .filter_map(|t| t.duration)
-        .sum();
+    let total_duration_secs: i64 = tracks.iter().filter_map(|t| t.duration).sum();
     let total_hours = total_duration_secs / 3600;
     let total_mins = (total_duration_secs % 3600) / 60;
 
@@ -52,9 +66,18 @@ pub fn TrackList() -> Element {
 
     // Issue #27: Settings view — basic functional settings panel
     if current_view == ViewType::Settings {
-        let config = state.read().config.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let config = state
+            .read()
+            .config
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let current_volume = state.read().volume();
-        let current_speed = *state.read().playback_speed.lock().unwrap_or_else(|e| e.into_inner());
+        let current_speed = *state
+            .read()
+            .playback_speed
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let crossfade_ms = config.audio.crossfade_duration_ms;
         let rescan_on_startup = config.library.rescan_on_startup;
         let watch_dirs = config.library.watch_dirs.join(", ");

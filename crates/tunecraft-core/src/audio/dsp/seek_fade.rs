@@ -6,7 +6,10 @@
 //! a hard mute/unmute produces.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SeekFadePhase { FadeOut, FadeIn }
+pub enum SeekFadePhase {
+    FadeOut,
+    FadeIn,
+}
 
 pub struct SeekFadeRamp {
     /// Final volume_gain to restore after fade-in.
@@ -21,8 +24,12 @@ impl SeekFadeRamp {
     /// Returns `None` for a zero-duration hard cut or zero base_volume
     /// (which would cause a zero step_per_sample and an infinite ramp).
     pub fn new(base_volume: f32, fade_ms: u32, sample_rate: f32) -> Option<Self> {
-        if fade_ms == 0 { return None; }
-        if base_volume == 0.0 { return None; }
+        if fade_ms == 0 {
+            return None;
+        }
+        if base_volume == 0.0 {
+            return None;
+        }
         let fade_samples = (sample_rate * fade_ms as f32 / 1000.0).max(1.0);
         Some(Self {
             target: base_volume,

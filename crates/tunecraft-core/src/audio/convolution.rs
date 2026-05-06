@@ -31,7 +31,7 @@
 
 use anyhow::{Context, Result};
 use gstreamer::prelude::*;
-use rustfft::{FftPlanner, num_complex::Complex};
+use rustfft::{num_complex::Complex, FftPlanner};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -57,14 +57,14 @@ fn fft_size_for_ir(ir_len: usize) -> usize {
 pub struct ConvolutionEngine {
     // ── IR spectrum (computed once at load time) ───────────────────────────
     /// Pre-computed DFT of the zero-padded mono IR.
-    ir_fft:  Vec<Complex<f32>>,
+    ir_fft: Vec<Complex<f32>>,
     /// Length of the original (non-padded) IR.
-    ir_len:  usize,
+    ir_len: usize,
     /// FFT size (power of two).
-    fft_sz:  usize,
+    fft_sz: usize,
 
     // ── FFT plan (shared, thread-safe) ─────────────────────────────────────
-    fft_plan:  Arc<dyn rustfft::Fft<f32>>,
+    fft_plan: Arc<dyn rustfft::Fft<f32>>,
     ifft_plan: Arc<dyn rustfft::Fft<f32>>,
 
     // ── Per-channel overlap-add state ───────────────────────────────────────
@@ -87,14 +87,14 @@ pub struct ConvolutionEngine {
     tail_buf_r: Vec<f32>,
 
     // ── Block accumulator (for the per-sample API) ──────────────────────────
-    input_l:  Vec<f32>,
-    input_r:  Vec<f32>,
+    input_l: Vec<f32>,
+    input_r: Vec<f32>,
     output_l: Vec<f32>,
     output_r: Vec<f32>,
     /// Next read position in the output queue.
     out_head: usize,
     /// Number of valid samples currently in the output queue.
-    out_len:  usize,
+    out_len: usize,
 
     // ── Metadata ────────────────────────────────────────────────────────────
     /// Number of channels in the original IR file (informational).
@@ -112,15 +112,21 @@ impl ConvolutionEngine {
     /// The IR must have at least `MIN_IR_SAMPLES` (64) samples.
     pub fn new(ir_data: Vec<f32>, ir_channels: u16, sample_rate: u32) -> Result<Self> {
         let ir_len = ir_data.len();
-        anyhow::ensure!(ir_len >= MIN_IR_SAMPLES, "IR too short: {} samples (minimum {})", ir_len, MIN_IR_SAMPLES);
+        anyhow::ensure!(
+            ir_len >= MIN_IR_SAMPLES,
+            "IR too short: {} samples (minimum {})",
+            ir_len,
+            MIN_IR_SAMPLES
+        );
 
         let fft_sz = fft_size_for_ir(ir_len);
         let mut planner = FftPlanner::<f32>::new();
-        let fft_plan  = planner.plan_fft_forward(fft_sz);
+        let fft_plan = planner.plan_fft_forward(fft_sz);
         let ifft_plan = planner.plan_fft_inverse(fft_sz);
 
         // Compute DFT of the zero-padded IR once.
-        let mut ir_buf: Vec<Complex<f32>> = ir_data.iter()
+        let mut ir_buf: Vec<Complex<f32>> = ir_data
+            .iter()
             .map(|&s| Complex { re: s, im: 0.0 })
             .chain(std::iter::repeat(Complex::default()).take(fft_sz - ir_len))
             .collect();
@@ -143,12 +149,12 @@ impl ConvolutionEngine {
             tmp_out_r: vec![0.0f32; BLOCK_SIZE],
             tail_buf_l: vec![0.0f32; tail_len],
             tail_buf_r: vec![0.0f32; tail_len],
-            input_l:  Vec::with_capacity(BLOCK_SIZE),
-            input_r:  Vec::with_capacity(BLOCK_SIZE),
+            input_l: Vec::with_capacity(BLOCK_SIZE),
+            input_r: Vec::with_capacity(BLOCK_SIZE),
             output_l: vec![0.0; BLOCK_SIZE],
             output_r: vec![0.0; BLOCK_SIZE],
             out_head: 0,
-            out_len:  0,
+            out_len: 0,
             _ir_channels: ir_channels,
             sample_rate,
             enabled: true,
@@ -168,10 +174,14 @@ impl ConvolutionEngine {
         let uri = glib::filename_to_uri(path, None)
             .with_context(|| format!("path→URI: {}", path.display()))?;
 
-        let pipeline     = gstreamer::Pipeline::new();
-        let uridecodebin = gstreamer::ElementFactory::make("uridecodebin").build().context("uridecodebin")?;
+        let pipeline = gstreamer::Pipeline::new();
+        let uridecodebin = gstreamer::ElementFactory::make("uridecodebin")
+            .build()
+            .context("uridecodebin")?;
         uridecodebin.set_property("uri", uri.as_str());
-        let audioconvert = gstreamer::ElementFactory::make("audioconvert").build().context("audioconvert")?;
+        let audioconvert = gstreamer::ElementFactory::make("audioconvert")
+            .build()
+            .context("audioconvert")?;
 
         // Fix Bug #4: Request F32LE but do NOT force stereo. Let audioconvert
         // pass through mono sources as mono instead of upmixing to stereo.
@@ -183,10 +193,14 @@ impl ConvolutionEngine {
         let caps = gstreamer::Caps::builder("audio/x-raw")
             .field("format", "F32LE")
             .build();
-        let capsfilter = gstreamer::ElementFactory::make("capsfilter").build().context("capsfilter")?;
+        let capsfilter = gstreamer::ElementFactory::make("capsfilter")
+            .build()
+            .context("capsfilter")?;
         capsfilter.set_property("caps", &caps);
 
-        let appsink_elem = gstreamer::ElementFactory::make("appsink").build().context("appsink")?;
+        let appsink_elem = gstreamer::ElementFactory::make("appsink")
+            .build()
+            .context("appsink")?;
         appsink_elem.set_property("emit-signals", true);
         appsink_elem.set_property("sync", false);
         appsink_elem.set_property("max-buffers", 100u32);
@@ -196,25 +210,36 @@ impl ConvolutionEngine {
             .map_err(|_| anyhow::anyhow!("appsink cast"))?;
 
         pipeline.add_many(&[
-            &uridecodebin, &audioconvert, &capsfilter,
+            &uridecodebin,
+            &audioconvert,
+            &capsfilter,
             appsink.upcast_ref::<gstreamer::Element>(),
         ])?;
         gstreamer::Element::link_many(&[
-            &audioconvert, &capsfilter,
+            &audioconvert,
+            &capsfilter,
             appsink.upcast_ref::<gstreamer::Element>(),
         ])?;
 
         let ac_weak = audioconvert.downgrade();
         uridecodebin.connect_pad_added(move |_, src_pad| {
-            let caps = src_pad.current_caps().or_else(|| Some(src_pad.query_caps(None)));
+            let caps = src_pad
+                .current_caps()
+                .or_else(|| Some(src_pad.query_caps(None)));
             if let Some(caps) = caps {
                 if let Some(s) = caps.structure(0) {
-                    if !s.name().starts_with("audio/") { return; }
+                    if !s.name().starts_with("audio/") {
+                        return;
+                    }
                 }
             }
             let Some(ac) = ac_weak.upgrade() else { return };
-            let Ok(sink) = ac.static_pad("sink").ok_or(()) else { return };
-            if !sink.is_linked() { src_pad.link(&sink).ok(); }
+            let Ok(sink) = ac.static_pad("sink").ok_or(()) else {
+                return;
+            };
+            if !sink.is_linked() {
+                src_pad.link(&sink).ok();
+            }
         });
 
         // Detect sample rate and channel count from the first decoded buffer's caps.
@@ -222,7 +247,8 @@ impl ConvolutionEngine {
         let rate_ref = detected_rate.clone();
         let detected_channels = std::sync::Arc::new(std::sync::Mutex::new(1u16));
         let channels_ref = detected_channels.clone();
-        let samples: std::sync::Arc<std::sync::Mutex<Vec<f32>>> = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let samples: std::sync::Arc<std::sync::Mutex<Vec<f32>>> =
+            std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let samples_ref = samples.clone();
 
         appsink.set_callbacks(
@@ -246,20 +272,26 @@ impl ConvolutionEngine {
                     }
 
                     let buffer = sample.buffer().ok_or(gstreamer::FlowError::Error)?;
-                    let map = buffer.map_readable().map_err(|_| gstreamer::FlowError::Error)?;
+                    let map = buffer
+                        .map_readable()
+                        .map_err(|_| gstreamer::FlowError::Error)?;
 
                     // Fix Bug #29: use alignment-checked cast instead of unsafe raw cast
                     let Some(raw) = crate::util::cast_u8_to_f32(&map) else {
                         return Err(gstreamer::FlowError::Error);
                     };
                     // Fix Issue #8: Use unwrap_or_else instead of .unwrap()
-                    samples_ref.lock().unwrap_or_else(|e| e.into_inner()).extend_from_slice(raw);
+                    samples_ref
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .extend_from_slice(raw);
                     Ok(gstreamer::FlowSuccess::Ok)
                 })
                 .build(),
         );
 
-        pipeline.set_state(gstreamer::State::Playing)
+        pipeline
+            .set_state(gstreamer::State::Playing)
             .context("IR pipeline play")?;
         let bus = pipeline.bus().context("pipeline bus")?;
 
@@ -300,7 +332,8 @@ impl ConvolutionEngine {
         let (mono, ir_channels) = if channels == 1 {
             (raw, 1)
         } else if channels == 2 {
-            let downmixed: Vec<f32> = raw.chunks_exact(2)
+            let downmixed: Vec<f32> = raw
+                .chunks_exact(2)
                 .map(|ch| (ch[0] + ch[1]) * 0.5)
                 .collect();
             (downmixed, 2)
@@ -310,7 +343,8 @@ impl ConvolutionEngine {
                 "IR file has {} channels — downmixing to mono by averaging",
                 channels
             );
-            let downmixed: Vec<f32> = raw.chunks_exact(channels as usize)
+            let downmixed: Vec<f32> = raw
+                .chunks_exact(channels as usize)
                 .map(|frame| frame.iter().sum::<f32>() / channels as f32)
                 .collect();
             (downmixed, channels)
@@ -319,7 +353,8 @@ impl ConvolutionEngine {
         anyhow::ensure!(
             mono.len() >= MIN_IR_SAMPLES,
             "IR too short: {} samples (minimum {})",
-            mono.len(), MIN_IR_SAMPLES,
+            mono.len(),
+            MIN_IR_SAMPLES,
         );
 
         Self::new(mono, ir_channels, rate)
@@ -331,11 +366,7 @@ impl ConvolutionEngine {
     ///
     /// `in_l` / `in_r` must both be exactly `BLOCK_SIZE` samples long.
     /// Writes `BLOCK_SIZE` output samples to `out_l` / `out_r`.
-    fn process_block(
-        &mut self,
-        in_l: &[f32], in_r: &[f32],
-        out_l: &mut [f32], out_r: &mut [f32],
-    ) {
+    fn process_block(&mut self, in_l: &[f32], in_r: &[f32], out_l: &mut [f32], out_r: &mut [f32]) {
         debug_assert_eq!(in_l.len(), BLOCK_SIZE);
         debug_assert_eq!(in_r.len(), BLOCK_SIZE);
 
@@ -461,14 +492,14 @@ impl ConvolutionEngine {
                 self.output_r.copy_from_slice(&in_r);
             }
             self.out_head = 0;
-            self.out_len  = BLOCK_SIZE;
+            self.out_len = BLOCK_SIZE;
         }
 
         // Drain one sample from the output queue.
         if self.out_len > 0 {
             let i = self.out_head;
             self.out_head += 1;
-            self.out_len  -= 1;
+            self.out_len -= 1;
             (self.output_l[i], self.output_r[i])
         } else {
             // Pre-fill latency window: output silence until first block fires.
@@ -503,20 +534,27 @@ impl ConvolutionEngine {
         self.output_l.fill(0.0);
         self.output_r.fill(0.0);
         self.out_head = 0;
-        self.out_len  = 0;
+        self.out_len = 0;
     }
 
     /// Update the sample rate (informational; IR is not resampled).
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         if sample_rate <= 0.0 {
-            tracing::warn!("ConvolutionEngine: invalid sample rate {}, ignoring", sample_rate);
+            tracing::warn!(
+                "ConvolutionEngine: invalid sample rate {}, ignoring",
+                sample_rate
+            );
             return;
         }
         self.sample_rate = sample_rate as u32;
     }
 
-    pub fn ir_length(&self)  -> usize { self.ir_len }
-    pub fn sample_rate(&self) -> u32  { self.sample_rate }
+    pub fn ir_length(&self) -> usize {
+        self.ir_len
+    }
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
+    }
 }
 
 // cast_u8_to_f32 is now in crate::util — the duplicate local definition
@@ -582,7 +620,8 @@ mod tests {
         assert!(
             (last - expected).abs() < 1e-3,
             "identity IR should reproduce input after latency: got {:.6}, expected {:.6}",
-            last, expected
+            last,
+            expected
         );
     }
 
@@ -601,7 +640,9 @@ mod tests {
 
     #[test]
     fn output_finite_for_random_input() {
-        let ir: Vec<f32> = (0..512).map(|i| ((i as f32 / 512.0) * std::f32::consts::PI).sin()).collect();
+        let ir: Vec<f32> = (0..512)
+            .map(|i| ((i as f32 / 512.0) * std::f32::consts::PI).sin())
+            .collect();
         let mut e = make_engine(ir);
         for i in 0..(BLOCK_SIZE * 4) {
             let x = (i as f32 * 0.01).sin() * 0.9;

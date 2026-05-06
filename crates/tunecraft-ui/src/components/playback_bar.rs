@@ -17,21 +17,29 @@ pub fn PlaybackBar() -> Element {
     // Issue #5: Subscribe to playback signal for position/time/play-state updates
     let _ = *signals.playback.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     // Read current track info
     let current_track = {
         let queue = state.read().queue_lock();
-        queue.current_track().map(|t| (
-            t.title.clone().unwrap_or_default(),
-            t.artist.clone().unwrap_or_default(),
-            t.album.clone().unwrap_or_default(),
-        ))
+        queue.current_track().map(|t| {
+            (
+                t.title.clone().unwrap_or_default(),
+                t.artist.clone().unwrap_or_default(),
+                t.album.clone().unwrap_or_default(),
+            )
+        })
     };
 
     let is_playing = state.read().is_playing();
     let volume = state.read().volume();
-    let is_muted = state.read().volume_muted.load(std::sync::atomic::Ordering::Relaxed);
+    let is_muted = state
+        .read()
+        .volume_muted
+        .load(std::sync::atomic::Ordering::Relaxed);
     let shuffle = state.read().queue_lock().shuffle;
     let repeat_mode = state.read().queue_lock().repeat_mode;
 
@@ -39,7 +47,11 @@ pub fn PlaybackBar() -> Element {
     let duration = state.read().duration().unwrap_or_default();
     let pos_secs = position.as_secs();
     let dur_secs = duration.as_secs();
-    let progress = if dur_secs > 0 { pos_secs as f64 / dur_secs as f64 } else { 0.0 };
+    let progress = if dur_secs > 0 {
+        pos_secs as f64 / dur_secs as f64
+    } else {
+        0.0
+    };
 
     let pos_str = format!("{}:{:02}", pos_secs / 60, pos_secs % 60);
     let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);

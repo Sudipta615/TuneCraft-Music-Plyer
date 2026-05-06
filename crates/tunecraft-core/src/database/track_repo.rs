@@ -124,33 +124,24 @@ impl Database {
     /// Get a track by its id.
     pub fn get_track(&self, id: i64) -> Result<Option<Track>> {
         let sql = format!("SELECT {} FROM tracks WHERE id = ?1", TRACK_COLUMNS);
-        let results: Vec<Track> = self.query_map(
-            &sql,
-            [id],
-            |row| Track::from_row(row),
-        )?;
+        let results: Vec<Track> = self.query_map(&sql, [id], |row| Track::from_row(row))?;
         Ok(results.into_iter().next())
     }
 
     /// Get a track by file path.
     pub fn get_track_by_path(&self, path: &str) -> Result<Option<Track>> {
         let sql = format!("SELECT {} FROM tracks WHERE file_path = ?1", TRACK_COLUMNS);
-        let results: Vec<Track> = self.query_map(
-            &sql,
-            [path],
-            |row| Track::from_row(row),
-        )?;
+        let results: Vec<Track> = self.query_map(&sql, [path], |row| Track::from_row(row))?;
         Ok(results.into_iter().next())
     }
 
     /// Get all tracks.
     pub fn get_all_tracks(&self) -> Result<Vec<Track>> {
-        let sql = format!("SELECT {} FROM tracks ORDER BY artist, album, track_number, title", TRACK_COLUMNS);
-        self.query_map(
-            &sql,
-            [],
-            |row| Track::from_row(row),
-        )
+        let sql = format!(
+            "SELECT {} FROM tracks ORDER BY artist, album, track_number, title",
+            TRACK_COLUMNS
+        );
+        self.query_map(&sql, [], |row| Track::from_row(row))
     }
 
     /// Search tracks by title, artist, or album.
@@ -173,11 +164,7 @@ impl Database {
             "SELECT {} FROM tracks WHERE title LIKE ?1 ESCAPE '\\' OR artist LIKE ?1 ESCAPE '\\' OR album LIKE ?1 ESCAPE '\\' ORDER BY artist, album, title",
             TRACK_COLUMNS
         );
-        self.query_map(
-            &sql,
-            [&pattern],
-            |row| Track::from_row(row),
-        )
+        self.query_map(&sql, [&pattern], |row| Track::from_row(row))
     }
 
     /// Search tracks by genre and/or year range, with optional text query.
@@ -248,11 +235,9 @@ impl Database {
         let param_refs: Vec<&dyn rusqlite::types::ToSql> =
             param_values.iter().map(|p| p.as_ref()).collect();
 
-        self.query_map(
-            &sql,
-            rusqlite::params_from_iter(param_refs),
-            |row| Track::from_row(row),
-        )
+        self.query_map(&sql, rusqlite::params_from_iter(param_refs), |row| {
+            Track::from_row(row)
+        })
     }
 
     /// Get track count.
@@ -280,25 +265,25 @@ impl Database {
     /// all paths into Rust memory. This avoids allocating ~8-20 MB for large libraries.
     pub fn get_stale_tracks(&self, existing_paths: &[String]) -> Result<Vec<String>> {
         let conn = self.conn()?;
-        
+
         // Create a temporary table for existing file paths
         conn.execute_batch(
             "CREATE TEMP TABLE IF NOT EXISTS _existing_paths (file_path TEXT NOT NULL);
-             DELETE FROM _existing_paths;"
+             DELETE FROM _existing_paths;",
         )?;
-        
+
         // Batch insert existing paths
         let mut stmt = conn.prepare("INSERT INTO _existing_paths (file_path) VALUES (?1)")?;
         for path in existing_paths {
             stmt.execute(rusqlite::params![path])?;
         }
         drop(stmt);
-        
+
         // SQL set difference: tracks in DB but not in existing paths
         let mut stale_stmt = conn.prepare(
             "SELECT t.file_path FROM tracks t 
              LEFT JOIN _existing_paths e ON t.file_path = e.file_path 
-             WHERE e.file_path IS NULL"
+             WHERE e.file_path IS NULL",
         )?;
         let rows = stale_stmt.query_map([], |row| row.get::<_, String>(0))?;
         let mut stale = Vec::new();
@@ -307,10 +292,10 @@ impl Database {
                 stale.push(path);
             }
         }
-        
+
         // Clean up temporary table
         conn.execute_batch("DROP TABLE IF EXISTS _existing_paths")?;
-        
+
         Ok(stale)
     }
 
@@ -354,7 +339,7 @@ impl Database {
     pub fn get_loved_tracks(&self) -> Result<Vec<String>> {
         let conn = self.conn()?;
         let mut stmt = conn.prepare(
-            "SELECT COALESCE(NULLIF(file_hash, ''), file_path) AS key FROM tracks WHERE love = 1"
+            "SELECT COALESCE(NULLIF(file_hash, ''), file_path) AS key FROM tracks WHERE love = 1",
         )?;
         let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
         let mut keys = Vec::new();
@@ -390,10 +375,7 @@ impl Database {
     /// Fix Bug #5/#7: Uses the existing 'love' column (INTEGER DEFAULT 0) instead of
     /// the in-memory HashSet, avoiding O(N) full-table scan + filter.
     pub fn get_loved_track_records(&self) -> Result<Vec<Track>> {
-        let sql = format!(
-            "SELECT {} FROM tracks WHERE love = 1",
-            TRACK_COLUMNS
-        );
+        let sql = format!("SELECT {} FROM tracks WHERE love = 1", TRACK_COLUMNS);
         self.query_map(&sql, [], |row| Track::from_row(row))
     }
 }

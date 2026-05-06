@@ -115,67 +115,56 @@ impl GenrePresetManager {
                 .with_stereo_width(1.2)
                 .with_bass(3.0)
                 .with_treble(2.0),
-
             // ── Pop: Vocal-forward, bright midrange ───────────────────
             GenrePreset::new("pop", pop_eq())
                 .with_stereo_width(1.1)
                 .with_bass(1.5)
                 .with_treble(1.5),
-
             // ── Jazz: Warm, mid-scoop, relaxed ────────────────────────
             GenrePreset::new("jazz", jazz_eq())
                 .with_stereo_width(1.1)
                 .with_bass(1.0)
                 .with_treble(0.5),
-
             // ── Classical: Flat EQ with gentle bass/treble boost ──────
             GenrePreset::new("classical", classical_eq())
                 .with_stereo_width(1.3)
                 .with_bass(1.0)
                 .with_treble(1.0),
-
             // ── Electronic: Heavy bass, bright highs, wide stereo ────
             GenrePreset::new("electronic", electronic_eq())
                 .with_stereo_width(1.5)
                 .with_bass(5.0)
                 .with_treble(3.0),
-
             // ── Hip-Hop: Deep bass, vocal presence ────────────────────
             GenrePreset::new("hip-hop", hip_hop_eq())
                 .with_stereo_width(1.1)
                 .with_bass(4.0)
                 .with_treble(1.0),
-
             // ── Metal: Scooped mids, aggressive highs ─────────────────
             GenrePreset::new("metal", metal_eq())
                 .with_stereo_width(1.2)
                 .with_bass(2.5)
                 .with_treble(3.0),
-
             // ── Acoustic: Natural, flat with warmth ───────────────────
             GenrePreset::new("acoustic", acoustic_eq())
                 .with_stereo_width(1.0)
                 .with_bass(0.5)
                 .with_treble(0.5),
-
             // ── R&B: Smooth bass, silky highs ────────────────────────
             GenrePreset::new("r&b", r_and_b_eq())
                 .with_stereo_width(1.15)
                 .with_bass(3.0)
                 .with_treble(1.5),
-
             // ── Country: Bright, present midrange ─────────────────────
             GenrePreset::new("country", country_eq())
                 .with_stereo_width(1.05)
                 .with_bass(1.0)
                 .with_treble(2.0),
-
             // ── Latin: Punchy bass, rhythmic presence ─────────────────
             GenrePreset::new("latin", latin_eq())
                 .with_stereo_width(1.2)
                 .with_bass(2.5)
                 .with_treble(2.0),
-
             // ── Bollywood: Rich mids, bright production ───────────────
             GenrePreset::new("bollywood", bollywood_eq())
                 .with_stereo_width(1.15)
@@ -223,29 +212,53 @@ impl GenrePresetManager {
     fn reset_built_in(&mut self, genre_key: &str) {
         let defaults: Vec<GenrePreset> = vec![
             GenrePreset::new("rock", rock_eq())
-                .with_stereo_width(1.2).with_bass(3.0).with_treble(2.0),
+                .with_stereo_width(1.2)
+                .with_bass(3.0)
+                .with_treble(2.0),
             GenrePreset::new("pop", pop_eq())
-                .with_stereo_width(1.1).with_bass(1.5).with_treble(1.5),
+                .with_stereo_width(1.1)
+                .with_bass(1.5)
+                .with_treble(1.5),
             GenrePreset::new("jazz", jazz_eq())
-                .with_stereo_width(1.1).with_bass(1.0).with_treble(0.5),
+                .with_stereo_width(1.1)
+                .with_bass(1.0)
+                .with_treble(0.5),
             GenrePreset::new("classical", classical_eq())
-                .with_stereo_width(1.3).with_bass(1.0).with_treble(1.0),
+                .with_stereo_width(1.3)
+                .with_bass(1.0)
+                .with_treble(1.0),
             GenrePreset::new("electronic", electronic_eq())
-                .with_stereo_width(1.5).with_bass(5.0).with_treble(3.0),
+                .with_stereo_width(1.5)
+                .with_bass(5.0)
+                .with_treble(3.0),
             GenrePreset::new("hip-hop", hip_hop_eq())
-                .with_stereo_width(1.1).with_bass(4.0).with_treble(1.0),
+                .with_stereo_width(1.1)
+                .with_bass(4.0)
+                .with_treble(1.0),
             GenrePreset::new("metal", metal_eq())
-                .with_stereo_width(1.2).with_bass(2.5).with_treble(3.0),
+                .with_stereo_width(1.2)
+                .with_bass(2.5)
+                .with_treble(3.0),
             GenrePreset::new("acoustic", acoustic_eq())
-                .with_stereo_width(1.0).with_bass(0.5).with_treble(0.5),
+                .with_stereo_width(1.0)
+                .with_bass(0.5)
+                .with_treble(0.5),
             GenrePreset::new("r&b", r_and_b_eq())
-                .with_stereo_width(1.15).with_bass(3.0).with_treble(1.5),
+                .with_stereo_width(1.15)
+                .with_bass(3.0)
+                .with_treble(1.5),
             GenrePreset::new("country", country_eq())
-                .with_stereo_width(1.05).with_bass(1.0).with_treble(2.0),
+                .with_stereo_width(1.05)
+                .with_bass(1.0)
+                .with_treble(2.0),
             GenrePreset::new("latin", latin_eq())
-                .with_stereo_width(1.2).with_bass(2.5).with_treble(2.0),
+                .with_stereo_width(1.2)
+                .with_bass(2.5)
+                .with_treble(2.0),
             GenrePreset::new("bollywood", bollywood_eq())
-                .with_stereo_width(1.15).with_bass(2.0).with_treble(2.5),
+                .with_stereo_width(1.15)
+                .with_bass(2.0)
+                .with_treble(2.5),
         ];
 
         for preset in defaults {
@@ -451,8 +464,7 @@ mod tests {
     fn test_remove_built_in_resets_to_default() {
         let mut manager = GenrePresetManager::new();
         // Override the rock preset
-        let custom = GenrePreset::new("rock", EqualizerState::default())
-            .with_bass(10.0);
+        let custom = GenrePreset::new("rock", EqualizerState::default()).with_bass(10.0);
         manager.register(custom);
         assert!((manager.get("rock").unwrap().bass_db - 10.0).abs() < 1e-9);
         // "Remove" built-in should reset it
@@ -470,8 +482,14 @@ mod tests {
         assert!((rock.treble_db - 2.0).abs() < 1e-9);
         assert!((rock.stereo_width - 1.2).abs() < 1e-9);
         // Rock EQ: scooped mids, strong mid-presence
-        assert!(rock.eq_state.bands[3].gain > 0.0, "250 Hz band should be boosted");
-        assert!(rock.eq_state.bands[0].gain < 0.0, "32 Hz band should be cut");
+        assert!(
+            rock.eq_state.bands[3].gain > 0.0,
+            "250 Hz band should be boosted"
+        );
+        assert!(
+            rock.eq_state.bands[0].gain < 0.0,
+            "32 Hz band should be cut"
+        );
     }
 
     #[test]
@@ -481,7 +499,10 @@ mod tests {
         assert!((elec.bass_db - 5.0).abs() < 1e-9);
         assert!((elec.treble_db - 3.0).abs() < 1e-9);
         assert!((elec.stereo_width - 1.5).abs() < 1e-9);
-        assert!(elec.eq_state.bands[0].gain > 4.0, "32 Hz should be heavily boosted");
+        assert!(
+            elec.eq_state.bands[0].gain > 4.0,
+            "32 Hz should be heavily boosted"
+        );
     }
 
     #[test]
@@ -490,7 +511,10 @@ mod tests {
         let classical = manager.get("classical").unwrap();
         assert!((classical.stereo_width - 1.3).abs() < 1e-9);
         // Classical has nearly flat mids
-        assert!((classical.eq_state.bands[4].gain - 0.0).abs() < 1e-9, "500 Hz should be flat");
+        assert!(
+            (classical.eq_state.bands[4].gain - 0.0).abs() < 1e-9,
+            "500 Hz should be flat"
+        );
     }
 
     #[test]
@@ -525,7 +549,10 @@ mod tests {
         assert!((preset.stereo_width - 2.0).abs() < 1e-9);
         assert!((preset.bass_db - 5.0).abs() < 1e-9);
         assert!((preset.treble_db - (-3.0)).abs() < 1e-9);
-        assert_eq!(preset.convolution_ir_path, Some("/path/to/ir.wav".to_string()));
+        assert_eq!(
+            preset.convolution_ir_path,
+            Some("/path/to/ir.wav".to_string())
+        );
     }
 
     #[test]

@@ -28,27 +28,27 @@ pub mod convolution;
 pub mod crossfade;
 pub mod eq_control;
 pub mod gapless;
+pub mod loader;
 pub mod loudness;
 pub mod presets;
 pub mod replaygain;
 pub mod seek;
 pub mod transport;
 pub mod volume;
-pub mod loader;
 
 use anyhow::{Context, Result};
 use std::path::Path;
-use std::sync::{Arc, Mutex, OnceLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::audio::crossfade::CrossfadeEngine;
 use crate::audio::dsp::DspEngine;
 use crate::audio::equalizer::{EqualizerState, OutputDeviceId, OutputPresetStore};
 use crate::audio::gapless::GaplessPreloader;
+use crate::audio::loudness::{EbuR128Loudness, LoudnessNormalizationConfig};
 use crate::audio::output::AudioOutput;
 use crate::audio::pipeline::{BusEvent, DecodePipeline};
-use crate::audio::replaygain::{ReplayGainMode, ReplayGainApplyMode};
-use crate::audio::loudness::{EbuR128Loudness, LoudnessNormalizationConfig};
+use crate::audio::replaygain::{ReplayGainApplyMode, ReplayGainMode};
 
 /// Default decode ring buffer size in f32 samples.
 /// 65536 samples ≈ 0.68 seconds of stereo audio at 48 kHz.
@@ -59,13 +59,18 @@ const DECODE_RING_DEFAULT: usize = 65_536;
 /// v3.0 Phase 4: Now configurable via `audio.output_ring_size` in config.
 const OUTPUT_RING_DEFAULT: usize = 32_768;
 
-pub type PositionCallback    = Box<dyn Fn(std::time::Duration) + Send + Sync + 'static>;
-pub type StateCallback       = Box<dyn Fn(PlayerState) + Send + Sync + 'static>;
+pub type PositionCallback = Box<dyn Fn(std::time::Duration) + Send + Sync + 'static>;
+pub type StateCallback = Box<dyn Fn(PlayerState) + Send + Sync + 'static>;
 pub type EndOfStreamCallback = Box<dyn Fn() + Send + Sync + 'static>;
-pub type DurationCallback    = Box<dyn Fn(Option<std::time::Duration>) + Send + Sync + 'static>;
+pub type DurationCallback = Box<dyn Fn(Option<std::time::Duration>) + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PlayerState { Stopped, Playing, Paused, Buffering }
+pub enum PlayerState {
+    Stopped,
+    Playing,
+    Paused,
+    Buffering,
+}
 
 pub(crate) struct Session {
     pub(crate) pipeline: DecodePipeline,
@@ -83,10 +88,16 @@ impl Session {
     pub(crate) fn stop_and_join(&mut self) {
         self.dsp_stop.store(true, Ordering::Relaxed);
         self.pipeline.stop();
-        if let Some(h)  = self.dsp_thread.take()        { let _ = h.join(); }
+        if let Some(h) = self.dsp_thread.take() {
+            let _ = h.join();
+        }
     }
 }
-impl Drop for Session { fn drop(&mut self) { self.stop_and_join(); } }
+impl Drop for Session {
+    fn drop(&mut self) {
+        self.stop_and_join();
+    }
+}
 
 // SAFETY: Session is only accessed through Arc<Mutex<Option<Session>>>,
 // which provides synchronization. On Linux, cpal::Stream inside AudioOutput
@@ -140,12 +151,12 @@ pub(crate) struct EngineLoudnessState {
 }
 
 pub struct AudioEngine {
-    pub(crate) session:   Arc<Mutex<Option<Session>>>,
+    pub(crate) session: Arc<Mutex<Option<Session>>>,
     pub(crate) crossfade: Arc<Mutex<Option<Arc<CrossfadeEngine>>>>,
 
     pub(crate) position_cb: Arc<Mutex<Option<PositionCallback>>>,
-    pub(crate) state_cb:    Arc<Mutex<Option<StateCallback>>>,
-    pub(crate) eos_cb:      Arc<Mutex<Option<EndOfStreamCallback>>>,
+    pub(crate) state_cb: Arc<Mutex<Option<StateCallback>>>,
+    pub(crate) eos_cb: Arc<Mutex<Option<EndOfStreamCallback>>>,
     pub(crate) duration_cb: Arc<Mutex<Option<DurationCallback>>>,
 
     pub(crate) dsp: Mutex<Arc<Mutex<DspEngine>>>,
@@ -166,9 +177,9 @@ pub struct AudioEngine {
 
     /// Volume, playback speed, and exclusive mode (consolidated from 3 separate Mutexes).
     pub(crate) volume_state: Mutex<EngineVolumeState>,
-    pub(crate) eq_state:     Arc<Mutex<EqualizerState>>,
+    pub(crate) eq_state: Arc<Mutex<EqualizerState>>,
     /// All ReplayGain fields consolidated (fixes Bug #33 — atomic reads).
-    pub(crate) rg_state:     Mutex<EngineReplayGainState>,
+    pub(crate) rg_state: Mutex<EngineReplayGainState>,
     /// Crossfade / seek-fade / transport controls.
     pub(crate) transport_state: Mutex<EngineTransportState>,
 
@@ -209,7 +220,9 @@ static GST_INIT_RESULT: OnceLock<Result<(), gstreamer::Error>> = OnceLock::new()
 
 pub(crate) fn ensure_gstreamer_initialized() -> Result<()> {
     let result = GST_INIT_RESULT.get_or_init(gstreamer::init);
-    result.clone().map_err(|e| anyhow::anyhow!("GStreamer init failed: {}", e))
+    result
+        .clone()
+        .map_err(|e| anyhow::anyhow!("GStreamer init failed: {}", e))
 }
 
 impl AudioEngine {
@@ -290,14 +303,16 @@ impl AudioEngine {
                 let output = config.audio.output_ring_size.clamp(2048, 131_072) as usize;
                 tracing::info!(
                     "Ring buffer sizes from config: decode={}, output={}",
-                    decode, output
+                    decode,
+                    output
                 );
                 (decode, output)
             }
             Err(_) => {
                 tracing::debug!(
                     "Config not loaded, using default ring buffer sizes: decode={}, output={}",
-                    DECODE_RING_DEFAULT, OUTPUT_RING_DEFAULT
+                    DECODE_RING_DEFAULT,
+                    OUTPUT_RING_DEFAULT
                 );
                 (DECODE_RING_DEFAULT, OUTPUT_RING_DEFAULT)
             }
@@ -358,7 +373,9 @@ impl AudioEngine {
                 }
                 BusEvent::Eos => {
                     if let Ok(cb) = self.eos_cb.lock() {
-                        if let Some(ref f) = *cb { f(); }
+                        if let Some(ref f) = *cb {
+                            f();
+                        }
                     }
                     notify_state(&self.state_cb, PlayerState::Stopped);
                 }
@@ -390,7 +407,10 @@ impl AudioEngine {
         // Invariant: session lock is NOT held when acquiring position/duration locks.
 
         let pos_changed = if current_pos.is_some() {
-            let mut last_pos = self.last_reported_position.lock().unwrap_or_else(|e| e.into_inner());
+            let mut last_pos = self
+                .last_reported_position
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if *last_pos != current_pos {
                 *last_pos = current_pos;
                 true
@@ -402,7 +422,10 @@ impl AudioEngine {
         };
 
         let dur_changed = if current_dur.is_some() {
-            let mut last_dur = self.last_reported_duration.lock().unwrap_or_else(|e| e.into_inner());
+            let mut last_dur = self
+                .last_reported_duration
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if *last_dur != current_dur {
                 *last_dur = current_dur;
                 true
@@ -416,7 +439,9 @@ impl AudioEngine {
         if pos_changed {
             if let Some(pos) = current_pos {
                 if let Ok(cb) = self.position_cb.lock() {
-                    if let Some(ref f) = *cb { f(pos); }
+                    if let Some(ref f) = *cb {
+                        f(pos);
+                    }
                 }
             }
         }
@@ -424,7 +449,9 @@ impl AudioEngine {
         if dur_changed {
             if let Some(dur) = current_dur {
                 if let Ok(cb) = self.duration_cb.lock() {
-                    if let Some(ref f) = *cb { f(Some(dur)); }
+                    if let Some(ref f) = *cb {
+                        f(Some(dur));
+                    }
                 }
             }
         }
@@ -454,7 +481,10 @@ impl AudioEngine {
     // -- Genre preset --------------------------------------------------------
 
     pub fn apply_genre_preset(&self, genre: &str) -> bool {
-        let manager = self.genre_preset_manager.lock().unwrap_or_else(|e| e.into_inner());
+        let manager = self
+            .genre_preset_manager
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let found = manager.get(genre).is_some();
         if found {
             // apply_to_engine correctly applies eq_state, stereo_width, bass_db,
@@ -467,7 +497,10 @@ impl AudioEngine {
     }
 
     pub fn register_genre_preset(&self, preset: crate::audio::genre_preset::GenrePreset) {
-        self.genre_preset_manager.lock().unwrap_or_else(|e| e.into_inner()).register(preset);
+        self.genre_preset_manager
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .register(preset);
     }
 
     // -- DSP Arc helpers (Fix Bug #9) ---------------------------------------
@@ -490,7 +523,9 @@ impl AudioEngine {
 
 fn notify_state(cb: &Arc<Mutex<Option<StateCallback>>>, state: PlayerState) {
     if let Ok(guard) = cb.lock() {
-        if let Some(ref f) = *guard { f(state); }
+        if let Some(ref f) = *guard {
+            f(state);
+        }
     }
 }
 
@@ -502,6 +537,5 @@ fn path_to_uri(path: &Path) -> Result<String> {
     // misinterpreted %AB sequences (where AB are hex digits) as percent-encoded
     // octets and passed them through, even when they were literal characters
     // in a filename like "100%AB-complete.flac".
-    glib::filename_to_uri(&abs, None)
-        .map_err(|e| anyhow::anyhow!("path_to_uri failed: {}", e))
+    glib::filename_to_uri(&abs, None).map_err(|e| anyhow::anyhow!("path_to_uri failed: {}", e))
 }

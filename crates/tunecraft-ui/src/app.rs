@@ -51,7 +51,8 @@ pub fn App() -> Element {
             match s.init_engine() {
                 Ok(()) => {
                     tracing::info!("Audio engine initialized successfully");
-                    s.engine_ready.store(true, std::sync::atomic::Ordering::Relaxed);
+                    s.engine_ready
+                        .store(true, std::sync::atomic::Ordering::Relaxed);
 
                     // Issue #14: Initialize platform media key / MPRIS / SMTC integration
                     crate::media_keys::init_media_keys(s.clone());
@@ -79,12 +80,15 @@ pub fn App() -> Element {
                             if let Some(ref engine) = *engine {
                                 let sc2 = sc.clone();
                                 engine.on_state_changed(Box::new(move |new_state| {
-                                    *sc2.player_state.lock().unwrap_or_else(|e| e.into_inner()) = new_state;
+                                    *sc2.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                                        new_state;
                                 }));
                                 let eos_state = sc.clone();
                                 engine.on_end_of_stream(Box::new(move || {
                                     tracing::debug!("End of stream - setting EOS flag");
-                                    eos_state.eos_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+                                    eos_state
+                                        .eos_flag
+                                        .store(true, std::sync::atomic::Ordering::Relaxed);
                                 }));
                             }
                         }
@@ -113,28 +117,47 @@ pub fn App() -> Element {
                         };
                         if let Some(db) = scan_db {
                             let watch_paths: Vec<std::path::PathBuf> = config
-                                .library.watch_dirs
+                                .library
+                                .watch_dirs
                                 .iter()
                                 .map(|p| expand_tilde(p))
                                 .collect();
                             if !watch_paths.is_empty() {
                                 let state_ref = s.clone();
                                 let lib_signal = signals.library;
-                                s.is_scanning.store(true, std::sync::atomic::Ordering::Relaxed);
+                                s.is_scanning
+                                    .store(true, std::sync::atomic::Ordering::Relaxed);
                                 std::thread::spawn(move || {
-                                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                        let scanner = tunecraft_core::library::scanner::LibraryScanner::new(watch_paths);
-                                        let (added, removed) = scanner.scan_and_import_with_mood(&db, state_ref.pcm_cache.clone());
-                                        tracing::info!("Startup scan: {} added, {} removed", added, removed);
-                                    }));
-                                    state_ref.is_scanning.store(false, std::sync::atomic::Ordering::Relaxed);
+                                    let result = std::panic::catch_unwind(
+                                        std::panic::AssertUnwindSafe(|| {
+                                            let scanner = tunecraft_core::library::scanner::LibraryScanner::new(watch_paths);
+                                            let (added, removed) = scanner
+                                                .scan_and_import_with_mood(
+                                                    &db,
+                                                    state_ref.pcm_cache.clone(),
+                                                );
+                                            tracing::info!(
+                                                "Startup scan: {} added, {} removed",
+                                                added,
+                                                removed
+                                            );
+                                        }),
+                                    );
+                                    state_ref
+                                        .is_scanning
+                                        .store(false, std::sync::atomic::Ordering::Relaxed);
                                     // Bug #32 fix: Invalidate sidebar cache so counts refresh after scan.
-                                    state_ref.sidebar_cache_valid.store(false, std::sync::atomic::Ordering::Relaxed);
+                                    state_ref
+                                        .sidebar_cache_valid
+                                        .store(false, std::sync::atomic::Ordering::Relaxed);
                                     // Issue #5: Bump library signal after scan completes
                                     let gen = *lib_signal.read();
                                     lib_signal.set(gen.wrapping_add(1));
                                     if let Err(panic_info) = result {
-                                        tracing::error!("Library scanner panicked: {:?}", panic_info);
+                                        tracing::error!(
+                                            "Library scanner panicked: {:?}",
+                                            panic_info
+                                        );
                                     }
                                 });
                             }
@@ -194,9 +217,7 @@ pub fn App() -> Element {
                         scrobble.accumulated_secs += 15;
                         // Check threshold: 50% of track duration or 240 seconds, whichever is less
                         let threshold = {
-                            let dur_secs = s.duration()
-                                .map(|d| d.as_secs())
-                                .unwrap_or(0);
+                            let dur_secs = s.duration().map(|d| d.as_secs()).unwrap_or(0);
                             let percent_threshold = (dur_secs as f64 * 0.5) as u64;
                             let absolute_threshold = 240u64;
                             if percent_threshold > 0 {
@@ -214,25 +235,38 @@ pub fn App() -> Element {
                     };
                     if should_scrobble {
                         // Persist scrobble to DB and increment play count
-                        let track_id = s.scrobble.lock().unwrap_or_else(|e| e.into_inner()).track_id;
+                        let track_id = s
+                            .scrobble
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .track_id;
                         let db = s.db.read().unwrap_or_else(|e| e.into_inner());
                         if let Some(ref db) = *db {
                             if let Some(track_id) = track_id {
                                 // Get track info for scrobble record
                                 let track_info = {
                                     let queue = s.queue_lock();
-                                    queue.current_track().map(|t| (
-                                        t.artist.clone().unwrap_or_default(),
-                                        t.title.clone().unwrap_or_default(),
-                                        t.album.clone(),
-                                    ))
+                                    queue.current_track().map(|t| {
+                                        (
+                                            t.artist.clone().unwrap_or_default(),
+                                            t.title.clone().unwrap_or_default(),
+                                            t.album.clone(),
+                                        )
+                                    })
                                 };
                                 if let Some((artist, title, album)) = track_info {
                                     let timestamp = std::time::SystemTime::now()
                                         .duration_since(std::time::UNIX_EPOCH)
                                         .unwrap_or_default()
-                                        .as_secs() as i64;
-                                    if let Err(e) = db.queue_scrobble(track_id, &artist, &title, album.as_deref(), timestamp) {
+                                        .as_secs()
+                                        as i64;
+                                    if let Err(e) = db.queue_scrobble(
+                                        track_id,
+                                        &artist,
+                                        &title,
+                                        album.as_deref(),
+                                        timestamp,
+                                    ) {
                                         tracing::warn!("Failed to queue scrobble: {}", e);
                                     }
                                 }
@@ -241,7 +275,8 @@ pub fn App() -> Element {
                                     tracing::warn!("Failed to increment play count: {}", e);
                                 }
                                 // Invalidate sidebar cache so play counts refresh
-                                s.sidebar_cache_valid.store(false, std::sync::atomic::Ordering::Relaxed);
+                                s.sidebar_cache_valid
+                                    .store(false, std::sync::atomic::Ordering::Relaxed);
                             }
                         }
                     }
@@ -260,15 +295,36 @@ pub fn App() -> Element {
     // so playback progress updates don't force the entire App tree to re-render.
     let _ = *signals.ui.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
-    let eq_visible = state.read().eq_visible.load(std::sync::atomic::Ordering::Relaxed);
-    let filter_visible = state.read().filter_visible.load(std::sync::atomic::Ordering::Relaxed);
-    let queue_visible = state.read().queue_visible.load(std::sync::atomic::Ordering::Relaxed);
-    let notifications_visible = state.read().notifications_visible.load(std::sync::atomic::Ordering::Relaxed);
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let eq_visible = state
+        .read()
+        .eq_visible
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let filter_visible = state
+        .read()
+        .filter_visible
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let queue_visible = state
+        .read()
+        .queue_visible
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let notifications_visible = state
+        .read()
+        .notifications_visible
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     // Issue #19: Loading state — show spinner until engine and DB are ready
-    let engine_ready = state.read().engine_ready.load(std::sync::atomic::Ordering::Relaxed);
-    let db_ready = state.read().db_ready.load(std::sync::atomic::Ordering::Relaxed);
+    let engine_ready = state
+        .read()
+        .engine_ready
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let db_ready = state
+        .read()
+        .db_ready
+        .load(std::sync::atomic::Ordering::Relaxed);
     let is_loading = !engine_ready || !db_ready;
 
     rsx! {

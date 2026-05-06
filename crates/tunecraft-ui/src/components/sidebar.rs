@@ -15,22 +15,46 @@ pub fn Sidebar() -> Element {
     let _ = *signals.library.read();
     let _ = *signals.ui.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
-    let collapsed = state.read().sidebar_collapsed.load(std::sync::atomic::Ordering::Relaxed);
-    let current_view = state.read().current_view.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let collapsed = state
+        .read()
+        .sidebar_collapsed
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let current_view = state
+        .read()
+        .current_view
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     let track_count = state.read().track_count();
 
     // #8: Use cached album and artist counts (Fix H9)
     // Previously queried the DB on every render (every 250ms).
     // The cache is refreshed when the database is opened or a scan completes.
-    if !state.read().sidebar_cache_valid.load(std::sync::atomic::Ordering::Relaxed) {
+    if !state
+        .read()
+        .sidebar_cache_valid
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         state.read().refresh_sidebar_cache();
     }
-    let album_count = state.read().sidebar_album_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
-    let artist_count = state.read().sidebar_artist_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
+    let album_count = state
+        .read()
+        .sidebar_album_count
+        .load(std::sync::atomic::Ordering::Relaxed) as i64;
+    let artist_count = state
+        .read()
+        .sidebar_artist_count
+        .load(std::sync::atomic::Ordering::Relaxed) as i64;
 
     // #16: Use cached playlist count (Fix H9)
-    let playlist_count = state.read().sidebar_playlist_count.load(std::sync::atomic::Ordering::Relaxed) as i64;
+    let playlist_count = state
+        .read()
+        .sidebar_playlist_count
+        .load(std::sync::atomic::Ordering::Relaxed) as i64;
 
     // #7: Compute active state for mood-based sidebar items
     let is_favorites_active = current_view == ViewType::Mood("favorites".into());

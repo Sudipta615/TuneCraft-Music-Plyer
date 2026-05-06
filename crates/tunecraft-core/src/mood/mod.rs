@@ -16,7 +16,7 @@
 use rustfft::{num_complex::Complex, FftPlanner};
 use std::f32::consts::PI;
 
-use crate::audio::pcm_cache::{PcmCache, PcmBuffer};
+use crate::audio::pcm_cache::{PcmBuffer, PcmCache};
 use crate::error::MoodError;
 
 // ─────────────────────────────────────────────
@@ -129,13 +129,13 @@ pub struct SongFeatures {
 /// The returned interleaved samples are suitable for caching in a `PcmBuffer` and
 /// later converting to mono for mood analysis via `interleaved_to_mono`.
 fn decode_to_interleaved(path: &str) -> Result<(Vec<f32>, u32, u16), MoodError> {
+    use std::fs::File;
     use symphonia::core::audio::SampleBuffer;
     use symphonia::core::codecs::DecoderOptions;
     use symphonia::core::formats::FormatOptions;
     use symphonia::core::io::MediaSourceStream;
     use symphonia::core::meta::MetadataOptions;
     use symphonia::core::probe::Hint;
-    use std::fs::File;
 
     let file = File::open(path).map_err(|e| MoodError::FileOpenFailed(e.to_string()))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
@@ -146,7 +146,12 @@ fn decode_to_interleaved(path: &str) -> Result<(Vec<f32>, u32, u16), MoodError> 
     }
 
     let probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
         .map_err(|e| MoodError::ProbeFailed(e.to_string()))?;
 
     let mut format = probed.format;
@@ -271,8 +276,12 @@ fn compute_dynamic_range(samples: &[f32]) -> f32 {
     // but the 95th percentile should be the 95th element (index 94).
     // Correct formula: index = ceil(percentile/100 * len) - 1
     let len = rms_frames.len();
-    let p95_idx = ((0.95 * len as f32).ceil() as usize).saturating_sub(1).min(len - 1);
-    let p05_idx = ((0.05 * len as f32).ceil() as usize).saturating_sub(1).min(len - 1);
+    let p95_idx = ((0.95 * len as f32).ceil() as usize)
+        .saturating_sub(1)
+        .min(len - 1);
+    let p05_idx = ((0.05 * len as f32).ceil() as usize)
+        .saturating_sub(1)
+        .min(len - 1);
 
     rms_frames[p95_idx] - rms_frames[p05_idx]
 }
@@ -295,7 +304,13 @@ fn compute_spectral_features(
 
     // Pre-allocate FFT buffers once — reuse across all frames to avoid
     // repeated heap allocations (previously a new Vec per frame).
-    let mut buffer = vec![Complex { re: 0.0f32, im: 0.0 }; frame_size];
+    let mut buffer = vec![
+        Complex {
+            re: 0.0f32,
+            im: 0.0
+        };
+        frame_size
+    ];
     let mut magnitudes = vec![0.0f32; frame_size / 2];
 
     let mut total_bass_ratio = 0.0f32;
@@ -421,7 +436,9 @@ fn compute_bpm(samples: &[f32], sample_rate: u32) -> f32 {
     if min_lag >= onsets.len() || max_lag > onsets.len() {
         tracing::warn!(
             "compute_bpm: lag range ({},{}) out of bounds for {} onsets, returning 0.0",
-            min_lag, max_lag, onsets.len()
+            min_lag,
+            max_lag,
+            onsets.len()
         );
         return 0.0;
     }
@@ -515,8 +532,7 @@ pub fn extract_features_with_cache(
     let bpm = compute_bpm(&samples, sample_rate);
     let energy = compute_energy(&samples);
     let dynamic_range = compute_dynamic_range(&samples);
-    let (bass_ratio, spectral_centroid) =
-        compute_spectral_features(&samples, sample_rate, planner);
+    let (bass_ratio, spectral_centroid) = compute_spectral_features(&samples, sample_rate, planner);
 
     Ok(SongFeatures {
         bpm,
@@ -607,7 +623,11 @@ pub fn classify_mood(f: &SongFeatures) -> Mood {
 #[inline]
 fn gaussian_score(value: f32, ideal: f32, sigma: f32) -> f32 {
     if sigma <= 0.0 {
-        return if (value - ideal).abs() < 1e-6 { 1.0 } else { 0.0 };
+        return if (value - ideal).abs() < 1e-6 {
+            1.0
+        } else {
+            0.0
+        };
     }
     let diff = (value - ideal) / sigma;
     (-0.5 * diff * diff).exp()
@@ -796,8 +816,11 @@ mod tests {
         // With the scoring system, this may classify as Romantic or Dance
         // depending on the score balance. Both are reasonable.
         let mood = classify_mood(&f);
-        assert!(mood == Mood::Romantic || mood == Mood::Dance,
-            "Expected Romantic or Dance for mid-tempo moderate-energy track, got {:?}", mood);
+        assert!(
+            mood == Mood::Romantic || mood == Mood::Dance,
+            "Expected Romantic or Dance for mid-tempo moderate-energy track, got {:?}",
+            mood
+        );
     }
 
     #[test]
@@ -857,8 +880,11 @@ mod tests {
         let mood = classify_mood(&western_pop);
         // With the scoring system, Dance should score higher than Romantic
         // because bass_ratio is above 0.35 and energy is above 0.08.
-        assert!(mood == Mood::Dance || mood == Mood::Romantic,
-            "Western dance-pop should classify as Dance or Romantic, got {:?}", mood);
+        assert!(
+            mood == Mood::Dance || mood == Mood::Romantic,
+            "Western dance-pop should classify as Dance or Romantic, got {:?}",
+            mood
+        );
     }
 
     // ── Boundary tests for mood classification ──
@@ -904,8 +930,11 @@ mod tests {
             dynamic_range: 0.035,
         };
         let mood = classify_mood(&f);
-        assert!(mood == Mood::Sufi || mood == Mood::Romantic,
-            "Boundary features should classify as Sufi or Romantic, got {:?}", mood);
+        assert!(
+            mood == Mood::Sufi || mood == Mood::Romantic,
+            "Boundary features should classify as Sufi or Romantic, got {:?}",
+            mood
+        );
     }
 
     #[test]
@@ -936,16 +965,49 @@ mod tests {
     fn test_all_moods_are_valid() {
         // Verify all mood labels from classify_mood are parseable
         let test_cases = vec![
-            SongFeatures { bpm: 130.0, energy: 0.12, bass_ratio: 0.50, spectral_centroid: 3000.0, dynamic_range: 0.03 },
-            SongFeatures { bpm: 72.0, energy: 0.06, bass_ratio: 0.20, spectral_centroid: 1200.0, dynamic_range: 0.08 },
-            SongFeatures { bpm: 95.0, energy: 0.07, bass_ratio: 0.32, spectral_centroid: 2000.0, dynamic_range: 0.02 },
-            SongFeatures { bpm: 80.0, energy: 0.03, bass_ratio: 0.25, spectral_centroid: 1500.0, dynamic_range: 0.02 },
-            SongFeatures { bpm: 100.0, energy: 0.07, bass_ratio: 0.30, spectral_centroid: 2500.0, dynamic_range: 0.05 },
+            SongFeatures {
+                bpm: 130.0,
+                energy: 0.12,
+                bass_ratio: 0.50,
+                spectral_centroid: 3000.0,
+                dynamic_range: 0.03,
+            },
+            SongFeatures {
+                bpm: 72.0,
+                energy: 0.06,
+                bass_ratio: 0.20,
+                spectral_centroid: 1200.0,
+                dynamic_range: 0.08,
+            },
+            SongFeatures {
+                bpm: 95.0,
+                energy: 0.07,
+                bass_ratio: 0.32,
+                spectral_centroid: 2000.0,
+                dynamic_range: 0.02,
+            },
+            SongFeatures {
+                bpm: 80.0,
+                energy: 0.03,
+                bass_ratio: 0.25,
+                spectral_centroid: 1500.0,
+                dynamic_range: 0.02,
+            },
+            SongFeatures {
+                bpm: 100.0,
+                energy: 0.07,
+                bass_ratio: 0.30,
+                spectral_centroid: 2500.0,
+                dynamic_range: 0.05,
+            },
         ];
         for f in &test_cases {
             let mood = classify_mood(f);
-            assert!(Mood::parse_label(mood.as_str()).is_some(), "Invalid mood: {}", mood.as_str());
+            assert!(
+                Mood::parse_label(mood.as_str()).is_some(),
+                "Invalid mood: {}",
+                mood.as_str()
+            );
         }
     }
-
 }

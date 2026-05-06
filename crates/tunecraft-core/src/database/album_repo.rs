@@ -44,12 +44,11 @@ impl Database {
 
     /// Get all tracks belonging to a specific album.
     pub fn get_tracks_by_album(&self, album: &str) -> Result<Vec<Track>> {
-        let sql = format!("SELECT {} FROM tracks WHERE album = ?1 ORDER BY track_number, title", TRACK_COLUMNS);
-        self.query_map(
-            &sql,
-            [album],
-            |row| Track::from_row(row),
-        )
+        let sql = format!(
+            "SELECT {} FROM tracks WHERE album = ?1 ORDER BY track_number, title",
+            TRACK_COLUMNS
+        );
+        self.query_map(&sql, [album], |row| Track::from_row(row))
     }
 
     /// Get all distinct artist names with track count.
@@ -81,11 +80,10 @@ impl Database {
 
     /// Get all tracks by a specific artist.
     pub fn get_tracks_by_artist(&self, artist: &str) -> Result<Vec<Track>> {
-        let sql = format!("SELECT {} FROM tracks WHERE artist = ?1 ORDER BY album, track_number, title", TRACK_COLUMNS);
-        self.query_map(
-            &sql,
-            [artist],
-            |row| Track::from_row(row),
-        )
+        let sql = format!(
+            "SELECT {} FROM tracks WHERE artist = ?1 ORDER BY album, track_number, title",
+            TRACK_COLUMNS
+        );
+        self.query_map(&sql, [artist], |row| Track::from_row(row))
     }
 }

@@ -13,13 +13,28 @@ pub fn NotificationsPanel() -> Element {
     // Issue #5: Subscribe to UI signal for panel state
     let _ = *signals.ui.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     let notifs: Vec<(String, String, String, String)> = {
-        let notifications = state.read().notifications.lock().unwrap_or_else(|e| e.into_inner());
-        notifications.iter().map(|n| {
-            (n.title.clone(), n.body.clone(), n.timestamp.clone(), n.unique_id.clone())
-        }).collect()
+        let notifications = state
+            .read()
+            .notifications
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        notifications
+            .iter()
+            .map(|n| {
+                (
+                    n.title.clone(),
+                    n.body.clone(),
+                    n.timestamp.clone(),
+                    n.unique_id.clone(),
+                )
+            })
+            .collect()
     };
 
     rsx! {

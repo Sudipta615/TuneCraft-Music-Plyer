@@ -33,7 +33,8 @@ impl Database {
     /// Get all EQ presets.
     pub fn get_eq_presets(&self) -> Result<Vec<(i64, String, String, f64)>> {
         let conn = self.conn()?;
-        let mut stmt = conn.prepare("SELECT id, name, bands, preamp FROM eq_presets ORDER BY name")?;
+        let mut stmt =
+            conn.prepare("SELECT id, name, bands, preamp FROM eq_presets ORDER BY name")?;
         let rows = stmt.query_map([], |row| {
             Ok((
                 row.get::<_, i64>(0)?,

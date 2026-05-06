@@ -50,10 +50,20 @@ pub use seek_fade::SeekFadeRamp;
 pub const MAX_EQ_BANDS: usize = 10;
 
 #[derive(Debug, Clone, Copy)]
-pub struct EqBandParams { pub freq_hz: f32, pub gain_db: f32, pub q: f32 }
+pub struct EqBandParams {
+    pub freq_hz: f32,
+    pub gain_db: f32,
+    pub q: f32,
+}
 
 impl EqBandParams {
-    pub fn flat(freq_hz: f32) -> Self { Self { freq_hz, gain_db: 0.0, q: 1.0 } }
+    pub fn flat(freq_hz: f32) -> Self {
+        Self {
+            freq_hz,
+            gain_db: 0.0,
+            q: 1.0,
+        }
+    }
 }
 
 // ── DspEngine ────────────────────────────────────────────────────────
@@ -65,77 +75,78 @@ pub struct DspEngine {
     lpf: [Biquad; 2],
 
     // ── Gains ───────────────────────────────────────────────────
-    pub balance:          f32,   // [-1, +1]
-    pub stereo_width:     f32,   // [0, 3]
-    preamp_gain:          f32,
-    replaygain_factor:    f32,
-    loudness_gain:        f32,
-    volume_gain:          f32,
+    pub balance: f32,      // [-1, +1]
+    pub stereo_width: f32, // [0, 3]
+    preamp_gain: f32,
+    replaygain_factor: f32,
+    loudness_gain: f32,
+    volume_gain: f32,
 
     // ── Seek-fade ramp ──────────────────────────────────────────
     seek_fade_ramp: Option<SeekFadeRamp>,
 
     // ── Bass / treble shelves ───────────────────────────────────
-    bass_shelf:       [Biquad; 2],
-    treble_shelf:     [Biquad; 2],
-    pub bass_db:      f32,
-    pub treble_db:    f32,
-    pub bass_freq_hz:   f32,
+    bass_shelf: [Biquad; 2],
+    treble_shelf: [Biquad; 2],
+    pub bass_db: f32,
+    pub treble_db: f32,
+    pub bass_freq_hz: f32,
     pub treble_freq_hz: f32,
 
     // ── Parametric EQ ───────────────────────────────────────────
-    pub num_bands:    usize,
-    band_params:      [EqBandParams; MAX_EQ_BANDS],
-    bands:            [SmoothedBand; MAX_EQ_BANDS],
+    pub num_bands: usize,
+    band_params: [EqBandParams; MAX_EQ_BANDS],
+    bands: [SmoothedBand; MAX_EQ_BANDS],
 
     // ── M/S EQ stage ────────────────────────────────────────────
     ms_eq: MsEqStage,
 
     // ── Dynamics ────────────────────────────────────────────────
-    limiter:   StereoLimiter,
+    limiter: StereoLimiter,
     pub dither: TpdfDither,
 
     // ── Gapless smoother ────────────────────────────────────────
-    gapless:           GaplessSmoother,
+    gapless: GaplessSmoother,
     pending_new_track: bool,
     /// Set by `mark_new_track()`; cleared after `capture_tail()` so subsequent
     /// buffers skip the copy until the next track boundary.
-    tail_dirty:        bool,
+    tail_dirty: bool,
 
-    pub enabled:  bool,
-    sample_rate:  f32,
+    pub enabled: bool,
+    sample_rate: f32,
 }
 
 impl DspEngine {
     pub fn new(sample_rate: f32) -> Self {
-        const ISO: [f32; 10] = [32.0, 64.0, 125.0, 250.0, 500.0,
-                                 1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
+        const ISO: [f32; 10] = [
+            32.0, 64.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+        ];
         let mut engine = Self {
             hpf: [Biquad::identity(); 2],
             lpf: [Biquad::identity(); 2],
-            balance:          0.0,
-            stereo_width:     1.0,
-            preamp_gain:      1.0,
+            balance: 0.0,
+            stereo_width: 1.0,
+            preamp_gain: 1.0,
             replaygain_factor: 1.0,
-            loudness_gain:    1.0,
-            volume_gain:      1.0,
-            seek_fade_ramp:   None,
-            bass_shelf:       [Biquad::identity(); 2],
-            treble_shelf:     [Biquad::identity(); 2],
-            bass_db:          0.0,
-            treble_db:        0.0,
-            bass_freq_hz:     90.0,
-            treble_freq_hz:   10_000.0,
-            num_bands:        10,
-            band_params:      ISO.map(EqBandParams::flat),
-            bands:            std::array::from_fn(|_| SmoothedBand::new()),
-            ms_eq:            MsEqStage::new(sample_rate),
-            limiter:          StereoLimiter::for_rate(sample_rate),
-            dither:           TpdfDither::new(),
-            gapless:          GaplessSmoother::new(),
+            loudness_gain: 1.0,
+            volume_gain: 1.0,
+            seek_fade_ramp: None,
+            bass_shelf: [Biquad::identity(); 2],
+            treble_shelf: [Biquad::identity(); 2],
+            bass_db: 0.0,
+            treble_db: 0.0,
+            bass_freq_hz: 90.0,
+            treble_freq_hz: 10_000.0,
+            num_bands: 10,
+            band_params: ISO.map(EqBandParams::flat),
+            bands: std::array::from_fn(|_| SmoothedBand::new()),
+            ms_eq: MsEqStage::new(sample_rate),
+            limiter: StereoLimiter::for_rate(sample_rate),
+            dither: TpdfDither::new(),
+            gapless: GaplessSmoother::new(),
             pending_new_track: false,
-            tail_dirty:        true,
-            enabled:           true,
+            tail_dirty: true,
+            enabled: true,
             sample_rate,
         };
         engine.rebuild_protection_filters();
@@ -145,20 +156,26 @@ impl DspEngine {
     // ── Parametric EQ setters ────────────────────────────────────
 
     pub fn set_band_gain(&mut self, index: usize, gain_db: f32) {
-        if index >= self.num_bands { return; }
+        if index >= self.num_bands {
+            return;
+        }
         self.band_params[index].gain_db = gain_db.clamp(-24.0, 24.0);
         self.recompute_band(index);
         self.update_preamp();
     }
 
     pub fn set_band_freq(&mut self, index: usize, freq_hz: f32) {
-        if index >= self.num_bands { return; }
+        if index >= self.num_bands {
+            return;
+        }
         self.band_params[index].freq_hz = freq_hz.clamp(20.0, self.sample_rate / 2.0 - 1.0);
         self.recompute_band(index);
     }
 
     pub fn set_band_q(&mut self, index: usize, q: f32) {
-        if index >= self.num_bands { return; }
+        if index >= self.num_bands {
+            return;
+        }
         self.band_params[index].q = q.clamp(0.1, 10.0);
         self.recompute_band(index);
     }
@@ -173,7 +190,9 @@ impl DspEngine {
     }
 
     pub fn band_gain(&self, index: usize) -> f32 {
-        if index >= self.num_bands { return 0.0; }
+        if index >= self.num_bands {
+            return 0.0;
+        }
         self.band_params[index].gain_db
     }
 
@@ -209,25 +228,39 @@ impl DspEngine {
 
     // ── Volume / gain setters ────────────────────────────────────
 
-    pub fn set_balance(&mut self, balance: f32) { self.balance = balance.clamp(-1.0, 1.0); }
-    pub fn set_stereo_width(&mut self, width: f32) { self.stereo_width = width.clamp(0.0, 3.0); }
-    pub fn set_dither_enabled(&mut self, enabled: bool) { self.dither.enabled = enabled; }
+    pub fn set_balance(&mut self, balance: f32) {
+        self.balance = balance.clamp(-1.0, 1.0);
+    }
+    pub fn set_stereo_width(&mut self, width: f32) {
+        self.stereo_width = width.clamp(0.0, 3.0);
+    }
+    pub fn set_dither_enabled(&mut self, enabled: bool) {
+        self.dither.enabled = enabled;
+    }
 
     pub fn set_replaygain_factor(&mut self, factor: f32) {
         self.replaygain_factor = factor.clamp(0.0, 4.0);
     }
-    pub fn replaygain_factor(&self) -> f32 { self.replaygain_factor }
+    pub fn replaygain_factor(&self) -> f32 {
+        self.replaygain_factor
+    }
 
     pub fn set_loudness_gain(&mut self, gain: f32) {
         self.loudness_gain = gain.clamp(0.0, 10.0);
     }
-    pub fn loudness_gain(&self) -> f32 { self.loudness_gain }
+    pub fn loudness_gain(&self) -> f32 {
+        self.loudness_gain
+    }
 
     pub fn set_volume_gain(&mut self, gain: f32) {
         self.volume_gain = gain.clamp(0.0, 1.0);
     }
-    pub fn volume_gain(&self) -> f32 { self.volume_gain }
-    pub fn preamp_gain(&self) -> f32 { self.preamp_gain }
+    pub fn volume_gain(&self) -> f32 {
+        self.volume_gain
+    }
+    pub fn preamp_gain(&self) -> f32 {
+        self.preamp_gain
+    }
 
     // ── Seek-fade ────────────────────────────────────────────────
 
@@ -278,8 +311,12 @@ impl DspEngine {
     pub fn set_ms_eq_band(&mut self, index: usize, band: MsEqBand) {
         self.ms_eq.set_band(index, band);
     }
-    pub fn ms_eq_band(&self, index: usize) -> MsEqBand { self.ms_eq.band(index) }
-    pub fn set_ms_eq_enabled(&mut self, enabled: bool) { self.ms_eq.set_enabled(enabled); }
+    pub fn ms_eq_band(&self, index: usize) -> MsEqBand {
+        self.ms_eq.band(index)
+    }
+    pub fn set_ms_eq_enabled(&mut self, enabled: bool) {
+        self.ms_eq.set_enabled(enabled);
+    }
 
     pub fn apply_ms_eq_from_state(&mut self, state: &crate::audio::equalizer::EqualizerState) {
         self.ms_eq.apply_from_state(state);
@@ -348,14 +385,18 @@ impl DspEngine {
 
     pub fn reset_state(&mut self) {
         for ch in 0..2 {
-            self.hpf[ch].reset(); self.lpf[ch].reset();
-            self.bass_shelf[ch].reset(); self.treble_shelf[ch].reset();
+            self.hpf[ch].reset();
+            self.lpf[ch].reset();
+            self.bass_shelf[ch].reset();
+            self.treble_shelf[ch].reset();
         }
         // Fix Bug #13: Use SmoothedBand::reset() instead of manually resetting
         // only the biquad state nodes. The old code left `steps` at its previous
         // value, so after reset_state() the smoothing counter still thought it
         // was mid-interpolation, causing stale coefficient snapshots.
-        for b in 0..self.num_bands { self.bands[b].reset(); }
+        for b in 0..self.num_bands {
+            self.bands[b].reset();
+        }
         self.ms_eq.reset();
         self.limiter.reset();
         self.seek_fade_ramp = None;
@@ -368,7 +409,9 @@ impl DspEngine {
         self.rebuild_protection_filters();
         self.set_bass(self.bass_db);
         self.set_treble(self.treble_db);
-        for i in 0..self.num_bands { self.recompute_band(i); }
+        for i in 0..self.num_bands {
+            self.recompute_band(i);
+        }
     }
 
     // ── Hot path ─────────────────────────────────────────────────
@@ -376,7 +419,9 @@ impl DspEngine {
     /// Process one interleaved stereo frame through the full signal chain.
     #[inline(always)]
     pub fn process_frame(&mut self, l: f32, r: f32) -> (f32, f32) {
-        if !self.enabled { return (l, r); }
+        if !self.enabled {
+            return (l, r);
+        }
 
         // 1. Protection filters
         let mut l = self.lpf[0].process(self.hpf[0].process(l));
@@ -405,7 +450,8 @@ impl DspEngine {
         // 7. Parametric EQ cascade
         for b in 0..self.num_bands {
             let (nl, nr) = self.bands[b].process(l, r);
-            l = nl; r = nr;
+            l = nl;
+            r = nr;
         }
 
         // 8. Treble shelf
@@ -420,7 +466,7 @@ impl DspEngine {
         r *= self.volume_gain;
 
         // 10. Mid-Side stereo widening
-        let mid  = (l + r) * 0.5;
+        let mid = (l + r) * 0.5;
         let side = (l - r) * 0.5 * self.stereo_width;
         l = mid + side;
         r = mid - side;
@@ -486,7 +532,8 @@ impl DspEngine {
                 }
             }
             let (l, r) = self.process_frame(frame[0], frame[1]);
-            frame[0] = l; frame[1] = r;
+            frame[0] = l;
+            frame[1] = r;
         }
     }
 
@@ -509,11 +556,15 @@ impl DspEngine {
 
     fn update_preamp(&mut self) {
         let mut max_boost = self.band_params[..self.num_bands]
-            .iter().map(|b| b.gain_db).fold(0.0_f32, f32::max);
+            .iter()
+            .map(|b| b.gain_db)
+            .fold(0.0_f32, f32::max);
         // Fix Bug #12: Include bass/treble shelf boosts in auto-headroom.
         // Each shelf can add up to 12 dB; ignoring them caused clipping when
         // bass_db or treble_db was positive while parametric bands were flat.
-        max_boost = max_boost.max(self.bass_db.max(0.0)).max(self.treble_db.max(0.0));
+        max_boost = max_boost
+            .max(self.bass_db.max(0.0))
+            .max(self.treble_db.max(0.0));
         self.preamp_gain = 10.0_f32.powf(-max_boost.max(0.0) / 20.0);
     }
 }
@@ -533,7 +584,9 @@ mod tests {
         for i in 0..48000 {
             let x = (2.0 * PI * 1000.0 * i as f32 / 48000.0).sin();
             let (l, _) = engine.process_frame(x, x);
-            if l.abs() > max_out { max_out = l.abs(); }
+            if l.abs() > max_out {
+                max_out = l.abs();
+            }
         }
         assert!(max_out <= 1.0, "output clipped at {}", max_out);
     }
@@ -562,11 +615,14 @@ mod tests {
         let gains = [3.0, -2.0, 4.0, 0.0, 1.0, -1.0, 2.0, 0.0, -3.0, 1.0];
         a.set_all_gains(&gains);
         b.set_all_gains(&gains);
-        let input: Vec<f32> = (0..512).map(|i| (i as f32 / 512.0 * 2.0 - 1.0) * 0.5).collect();
+        let input: Vec<f32> = (0..512)
+            .map(|i| (i as f32 / 512.0 * 2.0 - 1.0) * 0.5)
+            .collect();
         let mut frame_out = Vec::with_capacity(512);
         for chunk in input.chunks_exact(2) {
             let (l, r) = a.process_frame(chunk[0], chunk[1]);
-            frame_out.push(l); frame_out.push(r);
+            frame_out.push(l);
+            frame_out.push(r);
         }
         let mut buf = input.clone();
         b.process_buffer(&mut buf);
@@ -579,9 +635,16 @@ mod tests {
     fn mono_at_zero_width() {
         let mut engine = DspEngine::new(48000.0);
         engine.set_stereo_width(0.0);
-        for _ in 0..100 { let _ = engine.process_frame(0.8, -0.3); }
+        for _ in 0..100 {
+            let _ = engine.process_frame(0.8, -0.3);
+        }
         let (l, r) = engine.process_frame(0.6, -0.4);
-        assert!((l - r).abs() < 1e-4, "zero width should be mono: l={} r={}", l, r);
+        assert!(
+            (l - r).abs() < 1e-4,
+            "zero width should be mono: l={} r={}",
+            l,
+            r
+        );
     }
 
     #[test]
@@ -589,14 +652,21 @@ mod tests {
         let mut engine = DspEngine::new(48000.0);
         engine.set_balance(-1.0);
         let (_, r) = engine.process_frame(0.5, 0.5);
-        assert!(r.abs() < 1e-4, "full-left balance should silence right: {}", r);
+        assert!(
+            r.abs() < 1e-4,
+            "full-left balance should silence right: {}",
+            r
+        );
     }
 
     #[test]
     fn hpf_attenuates_dc() {
         let mut engine = DspEngine::new(48000.0);
         let mut out = 0.0;
-        for _ in 0..48000 { let (l, _) = engine.process_frame(1.0, 1.0); out = l; }
+        for _ in 0..48000 {
+            let (l, _) = engine.process_frame(1.0, 1.0);
+            out = l;
+        }
         assert!(out.abs() < 0.01, "HPF must attenuate DC: {}", out);
     }
 
@@ -607,8 +677,18 @@ mod tests {
         engine.set_replaygain_factor(0.5);
         engine.reset_state();
         let (l2, _) = engine.process_frame(0.8, 0.0);
-        assert!(l2 < l1 * 0.6, "RG 0.5 should halve output: l1={} l2={}", l1, l2);
-        assert!(l2 > l1 * 0.35, "RG 0.5 should not over-attenuate: l1={} l2={}", l1, l2);
+        assert!(
+            l2 < l1 * 0.6,
+            "RG 0.5 should halve output: l1={} l2={}",
+            l1,
+            l2
+        );
+        assert!(
+            l2 > l1 * 0.35,
+            "RG 0.5 should not over-attenuate: l1={} l2={}",
+            l1,
+            l2
+        );
     }
 
     #[test]
@@ -619,7 +699,11 @@ mod tests {
         engine.mark_new_track();
         let mut buf2 = vec![0.0f32; 512];
         engine.process_buffer(&mut buf2);
-        assert!(buf2[0].abs() > 0.001, "gapless should blend tail into head: buf2[0]={}", buf2[0]);
+        assert!(
+            buf2[0].abs() > 0.001,
+            "gapless should blend tail into head: buf2[0]={}",
+            buf2[0]
+        );
     }
 
     #[test]
@@ -635,16 +719,27 @@ mod tests {
         a.set_volume_gain(1.0);
         b.set_volume_gain(0.5);
         // Preamp is computed from EQ gains only — must be the same.
-        assert!((a.preamp_gain - b.preamp_gain).abs() < 1e-6,
-            "preamp_gain should not depend on volume: a={} b={}", a.preamp_gain, b.preamp_gain);
+        assert!(
+            (a.preamp_gain - b.preamp_gain).abs() < 1e-6,
+            "preamp_gain should not depend on volume: a={} b={}",
+            a.preamp_gain,
+            b.preamp_gain
+        );
         // The output of b should be exactly half of a for the same input.
         let x = 0.3_f32;
         // Warm up both engines identically (HPF/LPF transient).
-        for _ in 0..200 { a.process_frame(x, x); b.process_frame(x, x); }
+        for _ in 0..200 {
+            a.process_frame(x, x);
+            b.process_frame(x, x);
+        }
         let (al, _) = a.process_frame(x, x);
         let (bl, _) = b.process_frame(x, x);
-        assert!((bl - al * 0.5).abs() < 1e-4,
-            "vol=0.5 output should be half of vol=1.0: al={} bl={}", al, bl);
+        assert!(
+            (bl - al * 0.5).abs() < 1e-4,
+            "vol=0.5 output should be half of vol=1.0: al={} bl={}",
+            al,
+            bl
+        );
     }
 
     #[test]
@@ -657,9 +752,15 @@ mod tests {
         for i in 0..15000 {
             let x = (2.0 * PI * freq * i as f32 / sr).sin() * 0.1;
             let (l, _) = engine.process_frame(x, x);
-            if i > 10000 && l.abs() > max_val { max_val = l.abs(); }
+            if i > 10000 && l.abs() > max_val {
+                max_val = l.abs();
+            }
         }
         let gain_db = 20.0 * (max_val / 0.1).log10();
-        assert!(gain_db > 0.0, "EQ +6 dB should produce positive gain, got {:.2} dB", gain_db);
+        assert!(
+            gain_db > 0.0,
+            "EQ +6 dB should produce positive gain, got {:.2} dB",
+            gain_db
+        );
     }
 }

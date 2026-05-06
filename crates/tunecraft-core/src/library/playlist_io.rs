@@ -101,7 +101,10 @@ fn import_m3u(path: &Path) -> Result<Vec<String>> {
         // requiring file existence, which is the correct behavior for playlist
         // imports — the file may be on a removable drive or network share.
         if let Err(e) = validate_path_syntax(Path::new(&track_path)) {
-            warn!("Skipping invalid path in M3U (syntax error): {:?} — {}", track_path, e);
+            warn!(
+                "Skipping invalid path in M3U (syntax error): {:?} — {}",
+                track_path, e
+            );
             continue;
         }
 
@@ -134,8 +137,7 @@ fn export_m3u(path: &Path, tracks: &[String]) -> Result<()> {
         out.push_str(&format!("{}\n", track));
     }
 
-    std::fs::write(path, out)
-        .with_context(|| format!("Failed to write M3U playlist {:?}", path))
+    std::fs::write(path, out).with_context(|| format!("Failed to write M3U playlist {:?}", path))
 }
 
 // ── XSPF ─────────────────────────────────────────────────────────────────────
@@ -198,10 +200,7 @@ fn import_xspf(path: &Path) -> Result<Vec<String>> {
                 };
 
                 // Strip attributes and namespace prefix from the tag name
-                let tag_name = tag_name_raw
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("");
+                let tag_name = tag_name_raw.split_whitespace().next().unwrap_or("");
                 let local_name = if let Some(colon_pos) = tag_name.find(':') {
                     // Strip namespace prefix (e.g. "xspf:location" → "location")
                     &tag_name[colon_pos + 1..]
@@ -247,7 +246,10 @@ fn import_xspf(path: &Path) -> Result<Vec<String>> {
                                 match url_to_path(&raw_path) {
                                     Some(p) => p,
                                     None => {
-                                        warn!("Skipping unparseable file URI in XSPF: {}", raw_path);
+                                        warn!(
+                                            "Skipping unparseable file URI in XSPF: {}",
+                                            raw_path
+                                        );
                                         continue;
                                     }
                                 }
@@ -276,7 +278,10 @@ fn import_xspf(path: &Path) -> Result<Vec<String>> {
                             // Fix Bug #24: Use validate_path_syntax instead of
                             // validate_file_path so offline files are not dropped.
                             if let Err(e) = validate_path_syntax(Path::new(&resolved)) {
-                                warn!("Skipping invalid path in XSPF (syntax error): {:?} — {}", resolved, e);
+                                warn!(
+                                    "Skipping invalid path in XSPF (syntax error): {:?} — {}",
+                                    resolved, e
+                                );
                                 continue;
                             }
 
@@ -325,8 +330,7 @@ fn export_xspf(path: &Path, tracks: &[String]) -> Result<()> {
 
     out.push_str("\t</trackList>\n</playlist>\n");
 
-    std::fs::write(path, out)
-        .with_context(|| format!("Failed to write XSPF playlist {:?}", path))
+    std::fs::write(path, out).with_context(|| format!("Failed to write XSPF playlist {:?}", path))
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -464,7 +468,9 @@ fn url_to_path(uri: &str) -> Option<String> {
         }
     } else if let Some(path_part) = uri.strip_prefix("file://") {
         let decoded = percent_decode(path_part);
-        if decoded.is_empty() { return None; }
+        if decoded.is_empty() {
+            return None;
+        }
         Some(decoded)
     } else {
         None
@@ -583,10 +589,7 @@ mod tests {
     fn test_export_m3u() {
         let dir = TempDir::new().unwrap();
         let playlist_path = dir.path().join("out.m3u");
-        let tracks = vec![
-            "/music/a.flac".to_string(),
-            "/music/b.mp3".to_string(),
-        ];
+        let tracks = vec!["/music/a.flac".to_string(), "/music/b.mp3".to_string()];
         export_m3u(&playlist_path, &tracks).unwrap();
 
         let content = fs::read_to_string(&playlist_path).unwrap();
@@ -662,10 +665,7 @@ mod tests {
     fn test_export_xspf() {
         let dir = TempDir::new().unwrap();
         let playlist_path = dir.path().join("out.xspf");
-        let tracks = vec![
-            "/music/a.flac".to_string(),
-            "/music/b.mp3".to_string(),
-        ];
+        let tracks = vec!["/music/a.flac".to_string(), "/music/b.mp3".to_string()];
         export_xspf(&playlist_path, &tracks).unwrap();
 
         let content = fs::read_to_string(&playlist_path).unwrap();

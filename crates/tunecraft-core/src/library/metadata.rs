@@ -4,7 +4,7 @@ use lofty::tag::ItemKey;
 use std::path::Path;
 
 use crate::database::models::Track;
-use crate::library::coverart::{CoverArt, detect_mime_type as detect_cover_mime_type};
+use crate::library::coverart::{detect_mime_type as detect_cover_mime_type, CoverArt};
 
 /// Read metadata from an audio file using lofty.
 pub fn read_metadata(path: &Path) -> Result<Track> {
@@ -41,20 +41,20 @@ pub fn read_metadata_and_cover_art(path: &Path) -> Result<(Track, Option<CoverAr
 }
 
 /// Build a Track struct from an already-parsed lofty TaggedFile.
-fn build_track_from_tagged_file(path: &Path, tagged_file: &lofty::file::TaggedFile) -> Result<Track> {
+fn build_track_from_tagged_file(
+    path: &Path,
+    tagged_file: &lofty::file::TaggedFile,
+) -> Result<Track> {
     let properties = tagged_file.properties();
     let primary_tag = tagged_file
         .primary_tag()
         .or_else(|| tagged_file.first_tag());
 
-    let title = primary_tag
-        .and_then(|t| t.get_string(&ItemKey::TrackTitle).map(|s| s.to_string()));
-    let artist = primary_tag
-        .and_then(|t| t.get_string(&ItemKey::TrackArtist).map(|s| s.to_string()));
-    let album = primary_tag
-        .and_then(|t| t.get_string(&ItemKey::AlbumTitle).map(|s| s.to_string()));
-    let genre = primary_tag
-        .and_then(|t| t.get_string(&ItemKey::Genre).map(|s| s.to_string()));
+    let title = primary_tag.and_then(|t| t.get_string(&ItemKey::TrackTitle).map(|s| s.to_string()));
+    let artist =
+        primary_tag.and_then(|t| t.get_string(&ItemKey::TrackArtist).map(|s| s.to_string()));
+    let album = primary_tag.and_then(|t| t.get_string(&ItemKey::AlbumTitle).map(|s| s.to_string()));
+    let genre = primary_tag.and_then(|t| t.get_string(&ItemKey::Genre).map(|s| s.to_string()));
     let year = primary_tag
         .and_then(|t| t.get_string(&ItemKey::Year))
         .and_then(|s| s.parse::<u32>().ok())

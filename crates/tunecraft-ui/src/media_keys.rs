@@ -77,8 +77,8 @@ pub mod linux {
     /// calls (Play, Pause, PlayPause, Next, Previous, Seek, Stop) and
     /// dispatches them to `AppState`.
     async fn run_mpris_server(state: Arc<AppState>) -> Result<(), String> {
-        use mpris_server::{MprisServer, MprisServerConfig};
         use mpris_server::server::Server;
+        use mpris_server::{MprisServer, MprisServerConfig};
 
         let server = MprisServer::new("Tunecraft", MprisServerConfig::default())
             .await
@@ -87,73 +87,75 @@ pub mod linux {
         // The server event loop. Each incoming D-Bus method call is
         // handled here.
         let state_for_handler = state.clone();
-        server.run(move |event| {
-            let state = state_for_handler.clone();
-            async move {
-                match event {
-                    mpris_server::event::Event::Play => {
-                        state.play();
-                    }
-                    mpris_server::event::Event::Pause => {
-                        state.pause();
-                    }
-                    mpris_server::event::Event::PlayPause => {
-                        state.toggle_playback();
-                    }
-                    mpris_server::event::Event::Next => {
-                        state.next_track();
-                        state.notify_track_change();
-                    }
-                    mpris_server::event::Event::Previous => {
-                        state.prev_track();
-                        state.notify_track_change();
-                    }
-                    mpris_server::event::Event::Stop => {
-                        if let Ok(engine) = state.engine.lock() {
-                            if let Some(ref e) = *engine {
-                                let _ = e.stop();
-                            }
+        server
+            .run(move |event| {
+                let state = state_for_handler.clone();
+                async move {
+                    match event {
+                        mpris_server::event::Event::Play => {
+                            state.play();
                         }
-                        *state.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
-                            tunecraft_core::audio::PlayerState::Stopped;
-                    }
-                    mpris_server::event::Event::Seek { offset_us } => {
-                        if let Some(position) = state.position() {
-                            let new_pos = position + std::time::Duration::from_micros(offset_us as u64);
+                        mpris_server::event::Event::Pause => {
+                            state.pause();
+                        }
+                        mpris_server::event::Event::PlayPause => {
+                            state.toggle_playback();
+                        }
+                        mpris_server::event::Event::Next => {
+                            state.next_track();
+                            state.notify_track_change();
+                        }
+                        mpris_server::event::Event::Previous => {
+                            state.prev_track();
+                            state.notify_track_change();
+                        }
+                        mpris_server::event::Event::Stop => {
                             if let Ok(engine) = state.engine.lock() {
                                 if let Some(ref e) = *engine {
-                                    let _ = e.seek(new_pos);
+                                    let _ = e.stop();
+                                }
+                            }
+                            *state.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                                tunecraft_core::audio::PlayerState::Stopped;
+                        }
+                        mpris_server::event::Event::Seek { offset_us } => {
+                            if let Some(position) = state.position() {
+                                let new_pos =
+                                    position + std::time::Duration::from_micros(offset_us as u64);
+                                if let Ok(engine) = state.engine.lock() {
+                                    if let Some(ref e) = *engine {
+                                        let _ = e.seek(new_pos);
+                                    }
                                 }
                             }
                         }
+                        mpris_server::event::Event::SetPosition { .. } => {
+                            // Position setting not supported in this simple impl
+                        }
+                        mpris_server::event::Event::OpenUri { .. } => {
+                            // URI opening not supported
+                        }
+                        mpris_server::event::Event::Raise => {
+                            // Window raise not applicable for Dioxus webview
+                        }
+                        mpris_server::event::Event::Quit => {
+                            // Quit not handled from MPRIS
+                        }
+                        mpris_server::event::Event::SetVolume { .. } => {
+                            // Volume control via MPRIS not implemented
+                        }
+                        mpris_server::event::Event::SetLoopStatus { .. } => {
+                            // Loop status setting not implemented
+                        }
+                        mpris_server::event::Event::SetShuffle { .. } => {
+                            // Shuffle setting via MPRIS not implemented
+                        }
+                        _ => {}
                     }
-                    mpris_server::event::Event::SetPosition { .. } => {
-                        // Position setting not supported in this simple impl
-                    }
-                    mpris_server::event::Event::OpenUri { .. } => {
-                        // URI opening not supported
-                    }
-                    mpris_server::event::Event::Raise => {
-                        // Window raise not applicable for Dioxus webview
-                    }
-                    mpris_server::event::Event::Quit => {
-                        // Quit not handled from MPRIS
-                    }
-                    mpris_server::event::Event::SetVolume { .. } => {
-                        // Volume control via MPRIS not implemented
-                    }
-                    mpris_server::event::Event::SetLoopStatus { .. } => {
-                        // Loop status setting not implemented
-                    }
-                    mpris_server::event::Event::SetShuffle { .. } => {
-                        // Shuffle setting via MPRIS not implemented
-                    }
-                    _ => {}
                 }
-            }
-        })
-        .await
-        .map_err(|e| format!("MPRIS server loop error: {}", e))
+            })
+            .await
+            .map_err(|e| format!("MPRIS server loop error: {}", e))
     }
 }
 
@@ -225,17 +227,19 @@ pub mod macos {
     pub fn update_media_metadata(state: &AppState) {
         let track_data = {
             let queue = state.queue_lock();
-            queue.current_track().map(|t| (
-                t.title.clone().unwrap_or_default(),
-                t.artist.clone().unwrap_or_default(),
-                t.album.clone().unwrap_or_default(),
-                t.duration,
-            ))
+            queue.current_track().map(|t| {
+                (
+                    t.title.clone().unwrap_or_default(),
+                    t.artist.clone().unwrap_or_default(),
+                    t.album.clone().unwrap_or_default(),
+                    t.duration,
+                )
+            })
         };
 
         if let Some((title, artist, album, duration)) = track_data {
             unsafe {
-                use objc2_foundation::{NSString, NSDictionary, NSNumber};
+                use objc2_foundation::{NSDictionary, NSNumber, NSString};
                 use objc2_media_player::MPNowPlayingInfoCenter;
 
                 let center = MPNowPlayingInfoCenter::default();
@@ -243,29 +247,17 @@ pub mod macos {
                 let mut info: Vec<(id, id)> = Vec::new();
 
                 let title_ns = NSString::from_str(&title);
-                info.push((
-                    objc2_foundation::NSString::from_str("title"),
-                    title_ns,
-                ));
+                info.push((objc2_foundation::NSString::from_str("title"), title_ns));
 
                 let artist_ns = NSString::from_str(&artist);
-                info.push((
-                    objc2_foundation::NSString::from_str("artist"),
-                    artist_ns,
-                ));
+                info.push((objc2_foundation::NSString::from_str("artist"), artist_ns));
 
                 let album_ns = NSString::from_str(&album);
-                info.push((
-                    objc2_foundation::NSString::from_str("album"),
-                    album_ns,
-                ));
+                info.push((objc2_foundation::NSString::from_str("album"), album_ns));
 
                 if let Some(dur_secs) = duration {
                     let dur_ms = NSNumber::new_f64(dur_secs as f64 * 1000.0);
-                    info.push((
-                        objc2_foundation::NSString::from_str("duration"),
-                        dur_ms,
-                    ));
+                    info.push((objc2_foundation::NSString::from_str("duration"), dur_ms));
                 }
 
                 let dict = NSDictionary::from_vec(&info);
@@ -315,12 +307,14 @@ pub mod windows_smtc {
     pub fn update_media_metadata(state: &AppState) {
         let track_data = {
             let queue = state.queue_lock();
-            queue.current_track().map(|t| (
-                t.title.clone().unwrap_or_default(),
-                t.artist.clone().unwrap_or_default(),
-                t.album.clone().unwrap_or_default(),
-                t.duration,
-            ))
+            queue.current_track().map(|t| {
+                (
+                    t.title.clone().unwrap_or_default(),
+                    t.artist.clone().unwrap_or_default(),
+                    t.album.clone().unwrap_or_default(),
+                    t.duration,
+                )
+            })
         };
 
         if let Some((title, artist, album, duration)) = track_data {
@@ -335,8 +329,8 @@ pub mod windows_smtc {
     }
 
     fn setup_smtc(state: Arc<AppState>) {
-        use windows::Media::Playback::MediaPlayer;
         use windows::Foundation::TypedEventHandler;
+        use windows::Media::Playback::MediaPlayer;
 
         // Create a MediaPlayer instance to get the SystemMediaTransportControls
         let player = match MediaPlayer::new() {
@@ -419,14 +413,19 @@ pub mod windows_smtc {
 
     fn update_smtc_playback_status(is_playing: bool) {
         use windows::Media::MediaPlaybackStatus;
-        tracing::debug!("SMTC playback status: {}", if is_playing { "Playing" } else { "Paused" });
+        tracing::debug!(
+            "SMTC playback status: {}",
+            if is_playing { "Playing" } else { "Paused" }
+        );
     }
 }
 
 // ── Re-exports for each platform ─────────────────────────────────────
 
 #[cfg(target_os = "linux")]
-pub use linux::{init_media_keys, update_media_metadata, update_playback_status, send_track_notification};
+pub use linux::{
+    init_media_keys, send_track_notification, update_media_metadata, update_playback_status,
+};
 
 #[cfg(target_os = "macos")]
 pub use macos::{init_media_keys, update_media_metadata, update_playback_status};

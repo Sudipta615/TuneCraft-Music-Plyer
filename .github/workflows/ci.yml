@@ -70,9 +70,13 @@ jobs:
           $retryCount = 0
           $downloaded = $false
           
+          $headers = @{
+            'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+          
           while ($retryCount -lt $maxRetries -and -not $downloaded) {
             try {
-              Invoke-WebRequest $url -OutFile gstreamer.msi -TimeoutSec 300
+              Invoke-WebRequest $url -OutFile gstreamer.msi -TimeoutSec 300 -Headers $headers
               $downloaded = $true
             } catch {
               $retryCount++
@@ -108,13 +112,13 @@ jobs:
 
   # ── MSRV Check ──────────────────────────────────────────────────────────────
   msrv:
-    name: MSRV (1.75.0)
+    name: MSRV (1.79.0)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust 1.75.0
-        uses: dtolnay/rust-toolchain@1.75.0
+      - name: Install Rust 1.79.0
+        uses: dtolnay/rust-toolchain@1.79.0
 
       - name: Cache cargo registry
         uses: actions/cache@v4

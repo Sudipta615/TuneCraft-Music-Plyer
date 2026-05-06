@@ -49,7 +49,10 @@ impl Track {
         let date_added = NaiveDate::parse_from_str(&date_added_str, "%Y-%m-%d")
             .or_else(|_| NaiveDate::parse_from_str(&date_added_str, "%Y-%m-%d %H:%M:%S"))
             .unwrap_or_else(|_| {
-                tracing::warn!("Unparseable date_added '{}', falling back to 1970-01-01", date_added_str);
+                tracing::warn!(
+                    "Unparseable date_added '{}', falling back to 1970-01-01",
+                    date_added_str
+                );
                 NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()
             });
 
@@ -85,7 +88,10 @@ impl Track {
             genre: try_col!("genre", String),
             year: try_col!("year", i32),
             track_number: try_col!("track_number", i32),
-            duration: row.get("duration").ok().and_then(|d: i64| if d > 0 { Some(d as u64) } else { None }),
+            duration: row
+                .get("duration")
+                .ok()
+                .and_then(|d: i64| if d > 0 { Some(d as u64) } else { None }),
             sample_rate: try_col!("sample_rate", i32),
             bitrate: try_col!("bitrate", i32),
             play_count: try_col!("play_count", i64),

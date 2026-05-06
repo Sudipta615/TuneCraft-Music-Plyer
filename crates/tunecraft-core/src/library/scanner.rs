@@ -37,76 +37,73 @@ pub enum ScanEvent {
 /// enables the `scan_extended_formats` config option.
 const AUDIO_EXTENSIONS: &[&str] = &[
     // ── Lossy compressed ──────────────────────────────────────────────
-    "mp3",          // MPEG-1/2 Audio Layer III
-    "mp2",          // MPEG-1/2 Audio Layer II
-    "mp1",          // MPEG-1 Audio Layer I
-    "aac",          // Advanced Audio Coding (raw AAC)
-    "m4a",          // AAC in MPEG-4 container
-    "m4b",          // AAC audiobook in MPEG-4 container
-    "m4p",          // AAC (FairPlay DRM — may not decode without key)
-    "m4r",          // AAC ringtone container
-    "ogg",          // Ogg container (Vorbis, Opus, FLAC, Speex)
-    "oga",          // Ogg Audio
-    "opus",         // Opus in Ogg container
-    "wma",          // Windows Media Audio
-    "ac3",          // Dolby Digital / AC-3
-    "eac3",         // Enhanced AC-3 / Dolby Digital Plus
-    "dts",          // DTS Coherent Acoustics
-    "mka",          // Matroska Audio container
-    "spx",          // Speex in Ogg container
-    "tta",          // TTA (True Audio) lossless
-
+    "mp3",  // MPEG-1/2 Audio Layer III
+    "mp2",  // MPEG-1/2 Audio Layer II
+    "mp1",  // MPEG-1 Audio Layer I
+    "aac",  // Advanced Audio Coding (raw AAC)
+    "m4a",  // AAC in MPEG-4 container
+    "m4b",  // AAC audiobook in MPEG-4 container
+    "m4p",  // AAC (FairPlay DRM — may not decode without key)
+    "m4r",  // AAC ringtone container
+    "ogg",  // Ogg container (Vorbis, Opus, FLAC, Speex)
+    "oga",  // Ogg Audio
+    "opus", // Opus in Ogg container
+    "wma",  // Windows Media Audio
+    "ac3",  // Dolby Digital / AC-3
+    "eac3", // Enhanced AC-3 / Dolby Digital Plus
+    "dts",  // DTS Coherent Acoustics
+    "mka",  // Matroska Audio container
+    "spx",  // Speex in Ogg container
+    "tta",  // TTA (True Audio) lossless
     // ── Lossless compressed ───────────────────────────────────────────
-    "flac",         // Free Lossless Audio Codec
-    "ape",          // Monkey's Audio
-    "wv",           // WavPack lossless / hybrid
-    "wvp",          // WavPack correction file
-    "ofr",          // OptimFROG lossless
-    "ofs",          // OptimFROG DualStream
-
+    "flac", // Free Lossless Audio Codec
+    "ape",  // Monkey's Audio
+    "wv",   // WavPack lossless / hybrid
+    "wvp",  // WavPack correction file
+    "ofr",  // OptimFROG lossless
+    "ofs",  // OptimFROG DualStream
     // ── PCM / uncompressed ────────────────────────────────────────────
-    "wav",          // RIFF/WAVE PCM
-    "aiff",         // Audio Interchange File Format (Apple)
-    "aif",          // AIFF alias
-    "aifc",         // AIFF-C (compressed AIFF)
-    "au",           // Sun/NeXT μ-law PCM
-    "snd",          // Alias for .au
-    "w64",          // Sony Wave64 (>4 GB PCM)
-    "rf64",         // EBU RF64 broadcast wave
-
+    "wav",  // RIFF/WAVE PCM
+    "aiff", // Audio Interchange File Format (Apple)
+    "aif",  // AIFF alias
+    "aifc", // AIFF-C (compressed AIFF)
+    "au",   // Sun/NeXT μ-law PCM
+    "snd",  // Alias for .au
+    "w64",  // Sony Wave64 (>4 GB PCM)
+    "rf64", // EBU RF64 broadcast wave
     // ── Streaming / playlist containers (audio-primary) ────────────
-    "3gp",          // 3GPP container (AMR / AAC)
-    "3g2",          // 3GPP2 container
-    "webm",         // WebM container (Opus / Vorbis)
+    "3gp",  // 3GPP container (AMR / AAC)
+    "3g2",  // 3GPP2 container
+    "webm", // WebM container (Opus / Vorbis)
 ];
 
 /// Extended audio format list — video containers, MIDI, tracker modules,
 /// and metafile formats that may produce audio but waste time probing when
 /// the user only has standard music files. Enabled via config option.
 const AUDIO_EXTENSIONS_EXTENDED: &[&str] = &[
-    "asf",          // Advanced Systems Format (WMA/WMV container)
-    "amr",          // Adaptive Multi-Rate (narrowband)
-    "awb",          // Adaptive Multi-Rate Wideband
-    "gsm",          // GSM 06.10 raw frames
-    "ra",           // RealAudio
-    "rm",           // RealMedia container
-    "ram",          // RealAudio metafile (URI list)
-    "vqf",          // TwinVQ / VQF (Yamaha)
-    "mid",          // Standard MIDI File
-    "midi",         // Standard MIDI File (alias)
-    "kar",          // Karaoke MIDI with lyrics
-    "mod",          // ProTracker / Amiga MOD
-    "s3m",          // Scream Tracker 3 module
-    "xm",           // FastTracker 2 Extended Module
-    "it",           // Impulse Tracker module
-    "mp4",          // MPEG-4 container (may contain AAC/ALAC audio)
-    "m4v",          // MPEG-4 video container
-    "ts",           // MPEG Transport Stream
-    "mts",          // AVCHD Transport Stream
-    "m2ts",         // Blu-ray Transport Stream
-    "mkv",          // Matroska video container
-    "flv",          // Flash Video container
-    "avi",          // AVI container
+    "asf",  // Advanced Systems Format (WMA/WMV container)
+    "amr",  // Adaptive Multi-Rate (narrowband)
+    "awb",  // Adaptive Multi-Rate Wideband
+    "gsm",  // GSM 06.10 raw frames
+    "ra",   // RealAudio
+    "rm",   // RealMedia container
+    "ram",  // RealAudio metafile (URI list)
+    "vqf",  // TwinVQ / VQF (Yamaha)
+    "mid",  // Standard MIDI File
+    "midi", // Standard MIDI File (alias)
+    "kar",  // Karaoke MIDI with lyrics
+    "mod",  // ProTracker / Amiga MOD
+    "s3m",  // Scream Tracker 3 module
+    "xm",   // FastTracker 2 Extended Module
+    "it",   // Impulse Tracker module
+    "mp4",  // MPEG-4 container (may contain AAC/ALAC audio)
+    "m4v",  // MPEG-4 video container
+    "ts",   // MPEG Transport Stream
+    "mts",  // AVCHD Transport Stream
+    "m2ts", // Blu-ray Transport Stream
+    "mkv",  // Matroska video container
+    "flv",  // Flash Video container
+    "avi",  // AVI container
 ];
 
 /// Library scanner that watches directories for changes.
@@ -250,7 +247,11 @@ impl LibraryScanner {
     /// The shared `PcmCache` avoids dual-decode overhead: tracks decoded by
     /// Symphonia for mood analysis are cached so subsequent lookups reuse the
     /// already-decoded F32 samples instead of reading from disk again.
-    pub fn scan_and_import_with_mood(&self, db: &Arc<Database>, pcm_cache: Arc<PcmCache>) -> (usize, usize) {
+    pub fn scan_and_import_with_mood(
+        &self,
+        db: &Arc<Database>,
+        pcm_cache: Arc<PcmCache>,
+    ) -> (usize, usize) {
         self.scan_and_import_inner(db, true, Some(pcm_cache))
     }
 
@@ -259,7 +260,12 @@ impl LibraryScanner {
     /// newly added tracks and existing tracks lacking mood data.
     /// An optional `PcmCache` is passed through to mood analysis to avoid
     /// redundant Symphonia decoding.
-    fn scan_and_import_inner(&self, db: &Arc<Database>, enable_mood: bool, pcm_cache: Option<Arc<PcmCache>>) -> (usize, usize) {
+    fn scan_and_import_inner(
+        &self,
+        db: &Arc<Database>,
+        enable_mood: bool,
+        pcm_cache: Option<Arc<PcmCache>>,
+    ) -> (usize, usize) {
         let discovered = self.scan();
         let discovered_paths: Vec<String> = discovered
             .iter()
@@ -382,7 +388,10 @@ impl LibraryScanner {
 
         // Spawn mood analysis tasks for newly added / unanalyzed tracks
         if enable_mood && !newly_added_paths.is_empty() {
-            info!("Queuing mood analysis for {} tracks", newly_added_paths.len());
+            info!(
+                "Queuing mood analysis for {} tracks",
+                newly_added_paths.len()
+            );
             // Fix Bug #39: Process in batches of 3 (not 4) to match the
             // connection pool size (max_connections: 3 in connection.rs).
             // Previously chunks of 4 could exhaust the pool, causing mood
@@ -547,7 +556,10 @@ mod tests {
         let watch_dir = tmp.path().to_path_buf();
         let outside = PathBuf::from("/etc/passwd");
         // /etc/passwd is not inside the temp watch dir
-        assert!(!LibraryScanner::is_path_in_watch_dirs(&outside, &[watch_dir]));
+        assert!(!LibraryScanner::is_path_in_watch_dirs(
+            &outside,
+            &[watch_dir]
+        ));
     }
 
     #[test]
@@ -568,7 +580,10 @@ mod tests {
         fs::write(&inside, b"fake audio").unwrap();
         // Even with a relative path, canonicalization should work
         let canonical = fs::canonicalize(&inside).unwrap();
-        assert!(LibraryScanner::is_path_in_watch_dirs(&canonical, &[watch_dir.clone()]));
+        assert!(LibraryScanner::is_path_in_watch_dirs(
+            &canonical,
+            &[watch_dir.clone()]
+        ));
     }
 
     #[test]
@@ -580,16 +595,29 @@ mod tests {
         fs::write(&txt, b"readme").unwrap();
         let scanner = LibraryScanner::new(vec![tmp.path().to_path_buf()]);
         let files = scanner.scan();
-        let paths: Vec<String> = files.iter().map(|p| p.to_string_lossy().to_string()).collect();
-        assert!(paths.iter().any(|p| p.contains("song.mp3")), "Should find mp3 file");
-        assert!(!paths.iter().any(|p| p.contains("readme.txt")), "Should not find txt file");
+        let paths: Vec<String> = files
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
+        assert!(
+            paths.iter().any(|p| p.contains("song.mp3")),
+            "Should find mp3 file"
+        );
+        assert!(
+            !paths.iter().any(|p| p.contains("readme.txt")),
+            "Should not find txt file"
+        );
     }
 
     #[test]
     fn test_add_watch_path_dedup() {
         let mut scanner = LibraryScanner::new(vec![PathBuf::from("/music")]);
         scanner.add_watch_path(PathBuf::from("/music")); // duplicate
-        assert_eq!(scanner.watch_paths().len(), 1, "Should not add duplicate watch path");
+        assert_eq!(
+            scanner.watch_paths().len(),
+            1,
+            "Should not add duplicate watch path"
+        );
         scanner.add_watch_path(PathBuf::from("/more-music"));
         assert_eq!(scanner.watch_paths().len(), 2);
     }

@@ -1,6 +1,6 @@
 use ringbuf::traits::{Consumer, Observer, Producer};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::audio::convolution::ConvolutionEngine;
@@ -42,18 +42,18 @@ pub struct DspThreadConfig {
 /// of an absolute counter. Previously, even a single underrun permanently
 /// increased latency until the next track load. Now the read-ahead scale
 /// decays over time, returning to baseline when underruns stop occurring.
-pub fn spawn_dsp_thread(
-    config: DspThreadConfig,
-) -> Option<std::thread::JoinHandle<()>> {
+pub fn spawn_dsp_thread(config: DspThreadConfig) -> Option<std::thread::JoinHandle<()>> {
     match std::thread::Builder::new()
         .name("tunecraft-dsp".into())
         .spawn(move || {
             dsp_thread_main(config);
-        })
-    {
+        }) {
         Ok(handle) => Some(handle),
         Err(e) => {
-            tracing::error!("Failed to spawn DSP thread: {} — audio processing will be unavailable", e);
+            tracing::error!(
+                "Failed to spawn DSP thread: {} — audio processing will be unavailable",
+                e
+            );
             None
         }
     }
@@ -94,9 +94,7 @@ const PROCESS_YIELD_SLEEP: Duration = Duration::from_micros(500);
 /// but the read-ahead returns to baseline once conditions improve.
 const UNDERRUN_DECAY: f64 = 0.99;
 
-fn dsp_thread_main(
-    config: DspThreadConfig,
-) {
+fn dsp_thread_main(config: DspThreadConfig) {
     let DspThreadConfig {
         mut decode_cons,
         mut output_prod,
@@ -201,10 +199,14 @@ fn dsp_thread_main(
                 // bypassing the limiter. A repeated buffer is less audible
                 // than a sudden loud burst of unprocessed audio.
                 buf[..SAMPLE_COUNT].copy_from_slice(&last_good_buf[..SAMPLE_COUNT]);
-                static SKIP_COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                static SKIP_COUNT: std::sync::atomic::AtomicU64 =
+                    std::sync::atomic::AtomicU64::new(0);
                 let count = SKIP_COUNT.fetch_add(1, Ordering::Relaxed);
                 if count % 10_000 == 0 {
-                    tracing::warn!("DSP lock contended {} times — replayed previous buffer", count);
+                    tracing::warn!(
+                        "DSP lock contended {} times — replayed previous buffer",
+                        count
+                    );
                 }
             }
             Err(std::sync::TryLockError::Poisoned(e)) => {

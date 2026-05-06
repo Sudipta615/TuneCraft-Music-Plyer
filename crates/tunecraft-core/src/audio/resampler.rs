@@ -42,7 +42,10 @@
 //! No heap allocation occurs after construction.
 
 use anyhow::{Context, Result};
-use rubato::{FftFixedIn, Resampler as RubatoResampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction};
+use rubato::{
+    FftFixedIn, Resampler as RubatoResampler, SincFixedIn, SincInterpolationParameters,
+    SincInterpolationType, WindowFunction,
+};
 
 /// Quality level for the resampler — maps to rubato converter types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -156,9 +159,21 @@ impl Resampler {
 
         // Fix H2: Validate that rates and channels are positive to prevent
         // division by zero which would produce infinity/NaN in the resample ratio.
-        anyhow::ensure!(from_rate > 0, "Resampler: from_rate must be > 0, got {}", from_rate);
-        anyhow::ensure!(to_rate > 0, "Resampler: to_rate must be > 0, got {}", to_rate);
-        anyhow::ensure!(channels > 0, "Resampler: channels must be > 0, got {}", channels);
+        anyhow::ensure!(
+            from_rate > 0,
+            "Resampler: from_rate must be > 0, got {}",
+            from_rate
+        );
+        anyhow::ensure!(
+            to_rate > 0,
+            "Resampler: to_rate must be > 0, got {}",
+            to_rate
+        );
+        anyhow::ensure!(
+            channels > 0,
+            "Resampler: channels must be > 0, got {}",
+            channels
+        );
 
         let resample_ratio = to_rate as f64 / from_rate as f64;
 
@@ -174,14 +189,8 @@ impl Resampler {
                 oversampling_factor: 160,
                 window: WindowFunction::BlackmanHarris2,
             };
-            let sinc = SincFixedIn::<f32>::new(
-                resample_ratio,
-                10.0,
-                params,
-                chunk_size,
-                channels,
-            )
-            .context("failed to create rubato SincFixedIn resampler")?;
+            let sinc = SincFixedIn::<f32>::new(resample_ratio, 10.0, params, chunk_size, channels)
+                .context("failed to create rubato SincFixedIn resampler")?;
             InnerResampler::Sinc(sinc)
         } else {
             // FFT-based fast path for Linear / ZeroOrderHold
@@ -196,7 +205,13 @@ impl Resampler {
             InnerResampler::Fft(fft)
         };
 
-        Ok(Self { inner, from_rate, to_rate, cutoff_ratio, channels })
+        Ok(Self {
+            inner,
+            from_rate,
+            to_rate,
+            cutoff_ratio,
+            channels,
+        })
     }
 
     /// Returns `true` if the source and target rates are identical (no conversion needed).
@@ -225,7 +240,9 @@ impl Resampler {
             tracing::warn!(
                 "Resampler: input length ({}) is not a multiple of channels ({}), \
                  dropping {} trailing samples",
-                input.len(), channels, input.len() % channels
+                input.len(),
+                channels,
+                input.len() % channels
             );
         }
 
@@ -242,7 +259,10 @@ impl Resampler {
         // Determine output buffer size
         let output_frames = self.inner.output_frames_next();
         let mut output_buffers: Vec<Vec<f32>> = vec![vec![0.0f32; output_frames]; channels];
-        let mut output_slices: Vec<&mut [f32]> = output_buffers.iter_mut().map(|b| b.as_mut_slice()).collect();
+        let mut output_slices: Vec<&mut [f32]> = output_buffers
+            .iter_mut()
+            .map(|b| b.as_mut_slice())
+            .collect();
 
         // Process
         let (_frames_read, frames_written) = self
@@ -269,9 +289,15 @@ impl Resampler {
         Ok(())
     }
 
-    pub fn from_rate(&self) -> u32 { self.from_rate }
-    pub fn to_rate(&self)   -> u32 { self.to_rate }
-    pub fn cutoff_ratio(&self) -> f64 { self.cutoff_ratio }
+    pub fn from_rate(&self) -> u32 {
+        self.from_rate
+    }
+    pub fn to_rate(&self) -> u32 {
+        self.to_rate
+    }
+    pub fn cutoff_ratio(&self) -> f64 {
+        self.cutoff_ratio
+    }
 
     /// Update the cutoff ratio at runtime without rebuilding the converter.
     ///
@@ -335,7 +361,12 @@ mod tests {
         // Expected ≈ 4800 stereo frames = 9600 samples, allow ±5%
         let expected = (4410.0 * 48_000.0 / 44_100.0 * 2.0) as usize;
         let diff = (output.len() as isize - expected as isize).unsigned_abs();
-        assert!(diff < expected / 20, "output len {} far from expected {}", output.len(), expected);
+        assert!(
+            diff < expected / 20,
+            "output len {} far from expected {}",
+            output.len(),
+            expected
+        );
     }
 
     #[test]
@@ -346,7 +377,12 @@ mod tests {
         let output = r.process(&input).unwrap();
         let expected = 4800 * 2;
         let diff = (output.len() as isize - expected as isize).unsigned_abs();
-        assert!(diff < expected / 10, "output len {} far from expected {}", output.len(), expected);
+        assert!(
+            diff < expected / 10,
+            "output len {} far from expected {}",
+            output.len(),
+            expected
+        );
     }
 
     #[test]
@@ -360,7 +396,8 @@ mod tests {
     #[test]
     fn resample_once_passthrough() {
         let input = vec![0.1f32, 0.2, 0.3, 0.4];
-        let out = resample_once(&input, 48_000, 48_000, 2, ResamplerQuality::SincBest, 0.95).unwrap();
+        let out =
+            resample_once(&input, 48_000, 48_000, 2, ResamplerQuality::SincBest, 0.95).unwrap();
         assert_eq!(input, out);
     }
 

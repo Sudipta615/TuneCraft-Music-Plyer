@@ -15,7 +15,7 @@
 //! let label = tr!("Search songs, artists, albums...");
 //! ```
 
-use gettextrs::{gettext, bindtextdomain, bind_textdomain_codeset, textdomain};
+use gettextrs::{bind_textdomain_codeset, bindtextdomain, gettext, textdomain};
 use std::path::PathBuf;
 
 /// Initialize the i18n system.
@@ -52,7 +52,12 @@ pub fn init_i18n() {
                 // Typical macOS app bundle: .../Tunecraft.app/Contents/MacOS/
                 // Locale data lives in .../Tunecraft.app/Contents/Resources/share/locale/
                 if let Some(resources) = exe_dir.parent() {
-                    locale_dirs.push(resources.join("Resources/share/locale").to_string_lossy().to_string());
+                    locale_dirs.push(
+                        resources
+                            .join("Resources/share/locale")
+                            .to_string_lossy()
+                            .to_string(),
+                    );
                 }
             }
         }
@@ -76,7 +81,10 @@ pub fn init_i18n() {
     }
 
     // Development/build directory (CARGO_MANIFEST_DIR/po)
-    locale_dirs.push(format!("{}/po", std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default()));
+    locale_dirs.push(format!(
+        "{}/po",
+        std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default()
+    ));
 
     // Add the po/ directory relative to the running executable.
     // This ensures that development builds (where the po/ folder lives

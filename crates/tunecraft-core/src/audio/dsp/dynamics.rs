@@ -52,11 +52,11 @@ const MAX_LOOKAHEAD_SAMPLES: usize = 384;
 const TP_TAPS: usize = 4;
 const TP_PHASES: [[f32; TP_TAPS]; 3] = [
     // Phase 1 (t = 0.25)
-    [ 0.0,  0.43388,  0.70711, -0.13529],
+    [0.0, 0.43388, 0.70711, -0.13529],
     // Phase 2 (t = 0.50)
-    [-0.10251,  0.60263,  0.60263, -0.10251],
+    [-0.10251, 0.60263, 0.60263, -0.10251],
     // Phase 3 (t = 0.75)
-    [-0.13529,  0.70711,  0.43388,  0.0],
+    [-0.13529, 0.70711, 0.43388, 0.0],
 ];
 
 /// Estimate the maximum inter-sample peak for one channel using a 4-tap
@@ -66,8 +66,8 @@ const TP_PHASES: [[f32; TP_TAPS]; 3] = [
 fn true_peak_estimate(hist: &[f32; TP_TAPS]) -> f32 {
     let mut tp = 0.0_f32;
     for phase in &TP_PHASES {
-        let interp = phase[0]*hist[0] + phase[1]*hist[1]
-                   + phase[2]*hist[2] + phase[3]*hist[3];
+        let interp =
+            phase[0] * hist[0] + phase[1] * hist[1] + phase[2] * hist[2] + phase[3] * hist[3];
         tp = tp.max(interp.abs());
     }
     tp
@@ -77,29 +77,45 @@ fn true_peak_estimate(hist: &[f32; TP_TAPS]) -> f32 {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Limiter {
-    threshold: f32, attack_coeff: f32, release_coeff: f32, envelope: f32,
+    threshold: f32,
+    attack_coeff: f32,
+    release_coeff: f32,
+    envelope: f32,
 }
 
 impl Limiter {
     pub fn new(attack_ms: f32, release_ms: f32, threshold: f32, sample_rate: f32) -> Self {
         Self {
             threshold,
-            attack_coeff:  (-1.0 / (sample_rate * attack_ms  / 1000.0)).exp(),
+            attack_coeff: (-1.0 / (sample_rate * attack_ms / 1000.0)).exp(),
             release_coeff: (-1.0 / (sample_rate * release_ms / 1000.0)).exp(),
             envelope: 0.0,
         }
     }
-    pub fn default_48k() -> Self { Self::new(1.0, 50.0, 0.95, 48000.0) }
+    pub fn default_48k() -> Self {
+        Self::new(1.0, 50.0, 0.95, 48000.0)
+    }
 
     #[inline(always)]
     pub fn process(&mut self, x: f32) -> f32 {
         let level = x.abs();
-        let coeff = if level > self.envelope { self.attack_coeff } else { self.release_coeff };
+        let coeff = if level > self.envelope {
+            self.attack_coeff
+        } else {
+            self.release_coeff
+        };
         self.envelope = level + coeff * (self.envelope - level);
-        if self.envelope > self.threshold { x * (self.threshold / self.envelope) } else { x }
+        if self.envelope > self.threshold {
+            x * (self.threshold / self.envelope)
+        } else {
+            x
+        }
     }
 
-    #[inline] pub fn reset(&mut self) { self.envelope = 0.0; }
+    #[inline]
+    pub fn reset(&mut self) {
+        self.envelope = 0.0;
+    }
 }
 
 // ── Coupled stereo limiter with lookahead + true-peak detection ───────
@@ -116,35 +132,35 @@ impl Limiter {
 /// EBU R128 / ITU-R BS.1770 brick-wall requirement.
 #[derive(Debug, Clone, Copy)]
 pub struct StereoLimiter {
-    threshold:    f32,
+    threshold: f32,
     attack_coeff: f32,
     release_coeff: f32,
-    envelope:     f32,
+    envelope: f32,
 
     // Lookahead ring buffer (interleaved L/R).
-    delay_buf:    [f32; MAX_LOOKAHEAD_SAMPLES * 2],
-    delay_len:    usize,  // actual delay in samples (≤ MAX_LOOKAHEAD_SAMPLES)
-    delay_head:   usize,  // write position into delay_buf (in frames, not samples)
+    delay_buf: [f32; MAX_LOOKAHEAD_SAMPLES * 2],
+    delay_len: usize,  // actual delay in samples (≤ MAX_LOOKAHEAD_SAMPLES)
+    delay_head: usize, // write position into delay_buf (in frames, not samples)
 
     // Per-channel 4-tap history for true-peak estimation.
-    tp_hist_l:    [f32; TP_TAPS],
-    tp_hist_r:    [f32; TP_TAPS],
+    tp_hist_l: [f32; TP_TAPS],
+    tp_hist_r: [f32; TP_TAPS],
 }
 
 impl StereoLimiter {
     pub fn new(attack_ms: f32, release_ms: f32, threshold: f32, sample_rate: f32) -> Self {
-        let delay_len = ((sample_rate * LOOKAHEAD_MS / 1000.0).round() as usize)
-            .min(MAX_LOOKAHEAD_SAMPLES);
+        let delay_len =
+            ((sample_rate * LOOKAHEAD_MS / 1000.0).round() as usize).min(MAX_LOOKAHEAD_SAMPLES);
         Self {
             threshold,
-            attack_coeff:  (-1.0 / (sample_rate * attack_ms  / 1000.0)).exp(),
+            attack_coeff: (-1.0 / (sample_rate * attack_ms / 1000.0)).exp(),
             release_coeff: (-1.0 / (sample_rate * release_ms / 1000.0)).exp(),
-            envelope:      0.0,
-            delay_buf:     [0.0; MAX_LOOKAHEAD_SAMPLES * 2],
+            envelope: 0.0,
+            delay_buf: [0.0; MAX_LOOKAHEAD_SAMPLES * 2],
             delay_len,
-            delay_head:    0,
-            tp_hist_l:     [0.0; TP_TAPS],
-            tp_hist_r:     [0.0; TP_TAPS],
+            delay_head: 0,
+            tp_hist_l: [0.0; TP_TAPS],
+            tp_hist_r: [0.0; TP_TAPS],
         }
     }
 
@@ -155,7 +171,10 @@ impl StereoLimiter {
     /// Update per-channel true-peak history ring (oldest sample falls off).
     #[inline(always)]
     fn push_hist(hist: &mut [f32; TP_TAPS], x: f32) {
-        hist[0] = hist[1]; hist[1] = hist[2]; hist[2] = hist[3]; hist[3] = x;
+        hist[0] = hist[1];
+        hist[1] = hist[2];
+        hist[2] = hist[3];
+        hist[3] = x;
     }
 
     /// Process one stereo frame.
@@ -174,7 +193,11 @@ impl StereoLimiter {
         let peak = tp_l.max(tp_r);
 
         // 3. Envelope follower on the ahead-of-time peak signal.
-        let coeff = if peak > self.envelope { self.attack_coeff } else { self.release_coeff };
+        let coeff = if peak > self.envelope {
+            self.attack_coeff
+        } else {
+            self.release_coeff
+        };
         self.envelope = peak + coeff * (self.envelope - peak);
 
         // 4. Compute gain to apply to the *delayed* signal.
@@ -191,7 +214,7 @@ impl StereoLimiter {
 
         // 6. Write current frame into ring buffer at the same position (it
         //    will be read LOOKAHEAD_MS later).
-        self.delay_buf[read_idx]     = l;
+        self.delay_buf[read_idx] = l;
         self.delay_buf[read_idx + 1] = r;
 
         // 7. Advance ring head.
@@ -202,20 +225,20 @@ impl StereoLimiter {
 
     #[inline]
     pub fn reset(&mut self) {
-        self.envelope   = 0.0;
-        self.delay_buf  = [0.0; MAX_LOOKAHEAD_SAMPLES * 2];
+        self.envelope = 0.0;
+        self.delay_buf = [0.0; MAX_LOOKAHEAD_SAMPLES * 2];
         self.delay_head = 0;
-        self.tp_hist_l  = [0.0; TP_TAPS];
-        self.tp_hist_r  = [0.0; TP_TAPS];
+        self.tp_hist_l = [0.0; TP_TAPS];
+        self.tp_hist_r = [0.0; TP_TAPS];
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
-        self.attack_coeff  = (-1.0 / (sample_rate * 1.0  / 1000.0)).exp();
+        self.attack_coeff = (-1.0 / (sample_rate * 1.0 / 1000.0)).exp();
         self.release_coeff = (-1.0 / (sample_rate * 50.0 / 1000.0)).exp();
-        self.delay_len = ((sample_rate * LOOKAHEAD_MS / 1000.0).round() as usize)
-            .min(MAX_LOOKAHEAD_SAMPLES);
+        self.delay_len =
+            ((sample_rate * LOOKAHEAD_MS / 1000.0).round() as usize).min(MAX_LOOKAHEAD_SAMPLES);
         self.delay_head = 0;
-        self.delay_buf  = [0.0; MAX_LOOKAHEAD_SAMPLES * 2];
+        self.delay_buf = [0.0; MAX_LOOKAHEAD_SAMPLES * 2];
     }
 }
 
@@ -234,11 +257,19 @@ pub struct TpdfDither {
 }
 
 impl TpdfDither {
-    pub fn new() -> Self { Self { enabled: false, lcg1: 0xDEAD_BEEF, lcg2: 0xCAFE_BABE } }
+    pub fn new() -> Self {
+        Self {
+            enabled: false,
+            lcg1: 0xDEAD_BEEF,
+            lcg2: 0xCAFE_BABE,
+        }
+    }
 
     #[inline(always)]
     pub fn process(&mut self, x: f32) -> f32 {
-        if !self.enabled { return x; }
+        if !self.enabled {
+            return x;
+        }
         self.lcg1 = self.lcg1.wrapping_mul(1664525).wrapping_add(1013904223);
         self.lcg2 = self.lcg2.wrapping_mul(22695477).wrapping_add(1);
         let r1 = (self.lcg1 as i32) as f32 * (1.0 / (i32::MAX as f32 + 1.0));
@@ -265,8 +296,12 @@ mod tests {
         // both the lookahead delay and attack envelope to settle.
         for _ in 0..4800 {
             let (l, r) = lim.process(2.0, 2.0);
-            if l > max_out { max_out = l; }
-            if r > max_out { max_out = r; }
+            if l > max_out {
+                max_out = l;
+            }
+            if r > max_out {
+                max_out = r;
+            }
         }
         assert!(max_out <= 1.0, "limiter output {} > 1.0", max_out);
     }
@@ -278,8 +313,7 @@ mod tests {
         let threshold = 0.95_f32;
         let sample_rate = 48000.0;
         let mut lim = StereoLimiter::new(1.0, 50.0, threshold, sample_rate);
-        let lookahead_samples =
-            (sample_rate * LOOKAHEAD_MS / 1000.0).round() as usize;
+        let lookahead_samples = (sample_rate * LOOKAHEAD_MS / 1000.0).round() as usize;
 
         // Pre-run silence to flush delay buffer to steady state.
         for _ in 0..lookahead_samples * 2 {
@@ -296,8 +330,11 @@ mod tests {
                 violation_count += 1;
             }
         }
-        assert_eq!(violation_count, 0,
-            "lookahead limiter had {} frames above threshold", violation_count);
+        assert_eq!(
+            violation_count, 0,
+            "lookahead limiter had {} frames above threshold",
+            violation_count
+        );
     }
 
     /// True-peak detection must flag inter-sample peaks that exceed the
@@ -315,10 +352,14 @@ mod tests {
             let _ = lim.process(x, x);
             // Envelope should exceed 0.9 (the sample peak) because the
             // true-peak estimate will see inter-sample values > 0.9.
-            if lim.envelope > 0.92 { envelope_saw_above_sample_peak = true; }
+            if lim.envelope > 0.92 {
+                envelope_saw_above_sample_peak = true;
+            }
         }
-        assert!(envelope_saw_above_sample_peak,
-            "true-peak detector should see envelope > sample peak for near-Nyquist tone");
+        assert!(
+            envelope_saw_above_sample_peak,
+            "true-peak detector should see envelope > sample peak for near-Nyquist tone"
+        );
     }
 
     #[test]

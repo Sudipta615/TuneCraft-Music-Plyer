@@ -27,7 +27,10 @@ use std::path::{Component, Path, PathBuf};
 /// - Path components that could escape the allowed directory
 ///
 /// Returns the canonicalized path if valid, or an error describing why it was rejected.
-pub fn validate_file_path(path: &Path, allowed_dirs: &[PathBuf]) -> Result<PathBuf, PathValidationError> {
+pub fn validate_file_path(
+    path: &Path,
+    allowed_dirs: &[PathBuf],
+) -> Result<PathBuf, PathValidationError> {
     // Check for null bytes (could cause truncation in C APIs)
     let path_str = path.to_string_lossy();
     if path_str.contains('\0') {
@@ -38,7 +41,9 @@ pub fn validate_file_path(path: &Path, allowed_dirs: &[PathBuf]) -> Result<PathB
     for component in path.components() {
         match component {
             Component::ParentDir => {
-                return Err(PathValidationError::DirectoryTraversal(path_str.into_owned()));
+                return Err(PathValidationError::DirectoryTraversal(
+                    path_str.into_owned(),
+                ));
             }
             Component::Prefix(_) => {
                 // Fix L6 + Bug #3: On Windows, prefix components (drive letters
@@ -57,12 +62,12 @@ pub fn validate_file_path(path: &Path, allowed_dirs: &[PathBuf]) -> Result<PathB
     }
 
     // Canonicalize the path to resolve any remaining symlinks/relative components
-    let canonical = path.canonicalize().map_err(|e| {
-        PathValidationError::CanonicalizationFailed {
-            path: path_str.into_owned(),
-            source: e,
-        }
-    })?;
+    let canonical =
+        path.canonicalize()
+            .map_err(|e| PathValidationError::CanonicalizationFailed {
+                path: path_str.into_owned(),
+                source: e,
+            })?;
 
     // If allowed directories are specified, verify the path is within one of them
     if !allowed_dirs.is_empty() {
@@ -110,7 +115,9 @@ pub fn validate_path_syntax(path: &Path) -> Result<(), PathValidationError> {
     for component in path.components() {
         match component {
             Component::ParentDir => {
-                return Err(PathValidationError::DirectoryTraversal(path_str.into_owned()));
+                return Err(PathValidationError::DirectoryTraversal(
+                    path_str.into_owned(),
+                ));
             }
             Component::Prefix(_) => {
                 #[cfg(not(target_family = "windows"))]

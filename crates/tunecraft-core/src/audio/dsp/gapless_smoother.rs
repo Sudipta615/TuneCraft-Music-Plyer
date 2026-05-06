@@ -8,17 +8,25 @@
 pub const GAPLESS_SAMPLES: usize = 960;
 
 pub struct GaplessSmoother {
-    tail:     [f32; GAPLESS_SAMPLES],
+    tail: [f32; GAPLESS_SAMPLES],
     tail_len: usize,
     pub enabled: bool,
 }
 
 impl GaplessSmoother {
-    pub fn new() -> Self { Self { tail: [0.0; GAPLESS_SAMPLES], tail_len: 0, enabled: true } }
+    pub fn new() -> Self {
+        Self {
+            tail: [0.0; GAPLESS_SAMPLES],
+            tail_len: 0,
+            enabled: true,
+        }
+    }
 
     /// Capture the tail of the current track for the upcoming transition.
     pub fn capture_tail(&mut self, buf: &[f32]) {
-        if !self.enabled { return; }
+        if !self.enabled {
+            return;
+        }
         let take = buf.len().min(GAPLESS_SAMPLES);
         let start = buf.len() - take;
         self.tail[..take].copy_from_slice(&buf[start..]);
@@ -27,7 +35,9 @@ impl GaplessSmoother {
 
     /// Blend the stored tail into the head of the next track.
     pub fn apply_to_head(&mut self, buf: &mut [f32]) {
-        if !self.enabled || self.tail_len == 0 { return; }
+        if !self.enabled || self.tail_len == 0 {
+            return;
+        }
         let n = self.tail_len.min(buf.len());
         for i in 0..n {
             let fade_in = i as f32 / n as f32;
@@ -50,8 +60,16 @@ mod tests {
         gs.capture_tail(&tail);
         let mut head = vec![0.0f32; GAPLESS_SAMPLES];
         gs.apply_to_head(&mut head);
-        assert!(head[0] > 0.9, "first sample should be mostly tail: {}", head[0]);
-        assert!(head[GAPLESS_SAMPLES-1] < 0.1, "last sample should be mostly new head: {}", head[GAPLESS_SAMPLES-1]);
+        assert!(
+            head[0] > 0.9,
+            "first sample should be mostly tail: {}",
+            head[0]
+        );
+        assert!(
+            head[GAPLESS_SAMPLES - 1] < 0.1,
+            "last sample should be mostly new head: {}",
+            head[GAPLESS_SAMPLES - 1]
+        );
     }
 
     #[test]

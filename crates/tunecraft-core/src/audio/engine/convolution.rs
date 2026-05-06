@@ -24,7 +24,10 @@ impl AudioEngine {
 
     /// Returns whether room correction convolution is currently enabled.
     pub fn convolution_enabled(&self) -> bool {
-        self.convolution.lock().unwrap_or_else(|e| e.into_inner())
-            .as_ref().map_or(false, |e| e.enabled)
+        self.convolution
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map_or(false, |e| e.enabled)
     }
 }

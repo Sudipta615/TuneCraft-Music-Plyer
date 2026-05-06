@@ -14,9 +14,22 @@ pub fn FilterPanel() -> Element {
     // Issue #5: Subscribe to UI signal for panel state
     let _ = *signals.ui.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
-    let filter_genre = state.read().filter_genre.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let filter_year_range = state.read().filter_year_range.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let filter_genre = state
+        .read()
+        .filter_genre
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let filter_year_range = state
+        .read()
+        .filter_year_range
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
 
     let mut genre_value = use_signal(|| filter_genre.clone());
     let mut year_value = use_signal(|| filter_year_range.clone());

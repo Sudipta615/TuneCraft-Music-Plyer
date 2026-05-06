@@ -26,7 +26,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     // Fix Bug #18: Wrap migration in an explicit transaction so partial failure
     // doesn't leave the DB in a half-migrated state.
     if current_version < 1 {
-        let tx = conn.unchecked_transaction()
+        let tx = conn
+            .unchecked_transaction()
             .context("failed to begin transaction for v1 migration")?;
         tx.execute_batch(
             "
@@ -115,7 +116,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     // Version 2: Add eq_presets, user_prefs, waveforms tables
     // Fix Bug #18: Wrap migration in an explicit transaction.
     if current_version < 2 {
-        let tx = conn.unchecked_transaction()
+        let tx = conn
+            .unchecked_transaction()
             .context("failed to begin transaction for v2 migration")?;
         tx.execute_batch(
             "
@@ -149,7 +151,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     // Version 3: Add mood analysis columns to tracks
     // Fix Bug #18: Wrap migration in an explicit transaction.
     if current_version < 3 {
-        let tx = conn.unchecked_transaction()
+        let tx = conn
+            .unchecked_transaction()
             .context("failed to begin transaction for v3 migration")?;
         tx.execute_batch(
             "
@@ -174,7 +177,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     // Version 4: Add track_number column to tracks (for databases created before v1 included it)
     // Fix Bug #18: Wrap migration in an explicit transaction.
     if current_version < 4 {
-        let tx = conn.unchecked_transaction()
+        let tx = conn
+            .unchecked_transaction()
             .context("failed to begin transaction for v4 migration")?;
 
         // Check if track_number column already exists (it may have been added in v1 for fresh DBs)
@@ -211,7 +215,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     // Fix Bug #37: Wrap multi-step migrations in a transaction so partial failure
     // doesn't leave the DB in a half-migrated state.
     if current_version < 5 {
-        let tx = conn.unchecked_transaction()
+        let tx = conn
+            .unchecked_transaction()
             .context("failed to begin transaction for v5 migration")?;
 
         // Create the cover_art_cache table if it doesn't exist (idempotent)
@@ -224,7 +229,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 created_at  TEXT DEFAULT (datetime('now'))
             );
             ",
-        ).context("failed to create cover_art_cache table")?;
+        )
+        .context("failed to create cover_art_cache table")?;
 
         // Only attempt to migrate cover_art from tracks if the column exists.
         // On fresh installs (v1 → v5 in one pass), the `cover_art` column
@@ -246,7 +252,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 FROM tracks
                 WHERE cover_art IS NOT NULL AND file_hash != '';
                 ",
-            ).context("failed to migrate cover_art data")?;
+            )
+            .context("failed to migrate cover_art data")?;
 
             // SQLite 3.35.0+ (released 2021-03-12) is required for DROP COLUMN.
             // Older SQLite versions (e.g. on older Linux distros or bundled
@@ -254,18 +261,14 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             // and skip the column drop if unsupported — the data has already
             // been migrated above, so leaving the column in-place is harmless.
             let sqlite_version: i64 = tx
-                .query_row(
-                    "SELECT sqlite_version()",
-                    [],
-                    |row| {
-                        let v: String = row.get(0)?;
-                        // Parse "3.35.0" → 3_035_000 (major*1_000_000 + minor*1_000 + patch)
-                        let parts: Vec<i64> = v.split('.').filter_map(|p| p.parse().ok()).collect();
-                        Ok(parts.get(0).unwrap_or(&3) * 1_000_000
-                            + parts.get(1).unwrap_or(&0) * 1_000
-                            + parts.get(2).unwrap_or(&0))
-                    },
-                )
+                .query_row("SELECT sqlite_version()", [], |row| {
+                    let v: String = row.get(0)?;
+                    // Parse "3.35.0" → 3_035_000 (major*1_000_000 + minor*1_000 + patch)
+                    let parts: Vec<i64> = v.split('.').filter_map(|p| p.parse().ok()).collect();
+                    Ok(parts.get(0).unwrap_or(&3) * 1_000_000
+                        + parts.get(1).unwrap_or(&0) * 1_000
+                        + parts.get(2).unwrap_or(&0))
+                })
                 .unwrap_or(0);
 
             if sqlite_version >= 3_035_000 {
@@ -295,15 +298,12 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     if current_version < 6 {
         // Fix H6: Wrap the V6 credential encryption migration in a transaction
         // to prevent partial migration on failure (e.g. encrypt fails midway).
-        let tx = conn.unchecked_transaction()
+        let tx = conn
+            .unchecked_transaction()
             .context("failed to begin transaction for v6 migration")?;
 
         // Migrate credentials from plaintext to encrypted storage
-        let credential_keys = [
-            "lastfm_api_key",
-            "lastfm_api_secret",
-            "lastfm_session_key",
-        ];
+        let credential_keys = ["lastfm_api_key", "lastfm_api_secret", "lastfm_session_key"];
 
         for key in &credential_keys {
             // Read the current value

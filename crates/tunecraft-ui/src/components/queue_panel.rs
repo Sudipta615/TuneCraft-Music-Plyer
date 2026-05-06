@@ -15,18 +15,27 @@ pub fn QueuePanel() -> Element {
     let _ = *signals.queue.read();
     let _ = *signals.playback.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     let queue_tracks: Vec<(usize, String, String, String)> = {
         let queue = state.read().queue_lock();
-        queue.tracks.iter().enumerate().map(|(i, t)| {
-            let title = t.title.clone().unwrap_or_else(|| "Unknown".into());
-            let artist = t.artist.clone().unwrap_or_else(|| "Unknown".into());
-            let duration = t.duration
-                .map(|d| format!("{}:{:02}", d / 60, d % 60))
-                .unwrap_or_else(|| "--:--".into());
-            (i, title, artist, duration)
-        }).collect()
+        queue
+            .tracks
+            .iter()
+            .enumerate()
+            .map(|(i, t)| {
+                let title = t.title.clone().unwrap_or_else(|| "Unknown".into());
+                let artist = t.artist.clone().unwrap_or_else(|| "Unknown".into());
+                let duration = t
+                    .duration
+                    .map(|d| format!("{}:{:02}", d / 60, d % 60))
+                    .unwrap_or_else(|| "--:--".into());
+                (i, title, artist, duration)
+            })
+            .collect()
     };
     let current_index = state.read().queue_lock().current_index;
     // Bug #33 fix: When shuffle is enabled, current_index is a logical index

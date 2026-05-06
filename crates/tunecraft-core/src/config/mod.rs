@@ -8,7 +8,9 @@ use tracing::info;
 /// config format so that `load()` can detect stale files and rewrite them.
 const CURRENT_CONFIG_VERSION: u32 = 5;
 
-fn default_config_version() -> u32 { CURRENT_CONFIG_VERSION }
+fn default_config_version() -> u32 {
+    CURRENT_CONFIG_VERSION
+}
 
 /// Top-level configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,11 +47,21 @@ pub struct GeneralConfig {
     pub volume_before_mute: f64,
 }
 
-fn default_theme() -> String { "dark".into() }
-fn default_volume() -> f64 { 0.8 }
-fn default_playback_speed() -> f64 { 1.0 }
-fn default_repeat_mode() -> String { "none".into() }
-fn default_volume_before_mute() -> f64 { 1.0 }
+fn default_theme() -> String {
+    "dark".into()
+}
+fn default_volume() -> f64 {
+    0.8
+}
+fn default_playback_speed() -> f64 {
+    1.0
+}
+fn default_repeat_mode() -> String {
+    "none".into()
+}
+fn default_volume_before_mute() -> f64 {
+    1.0
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LibraryConfig {
@@ -61,7 +73,9 @@ pub struct LibraryConfig {
     pub rescan_on_startup: bool,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioConfig {
@@ -125,15 +139,33 @@ pub struct AudioConfig {
     pub loudness_target_lufs: f64,
 }
 
-fn default_backend() -> String { "gstreamer".into() }
-fn default_buffer_size() -> u32 { 4096 }
-fn default_decode_ring_size() -> u32 { 65_536 }
-fn default_output_ring_size() -> u32 { 32_768 }
-fn default_visualization_mode() -> String { "deferred".into() }
-fn default_resampler_cutoff() -> f64 { 0.95 }
-fn default_seek_fade_ms() -> u32 { 20 }
-fn default_replaygain_mode_str() -> String { "track".into() }
-fn default_loudness_target_lufs() -> f64 { -23.0 }
+fn default_backend() -> String {
+    "gstreamer".into()
+}
+fn default_buffer_size() -> u32 {
+    4096
+}
+fn default_decode_ring_size() -> u32 {
+    65_536
+}
+fn default_output_ring_size() -> u32 {
+    32_768
+}
+fn default_visualization_mode() -> String {
+    "deferred".into()
+}
+fn default_resampler_cutoff() -> f64 {
+    0.95
+}
+fn default_seek_fade_ms() -> u32 {
+    20
+}
+fn default_replaygain_mode_str() -> String {
+    "track".into()
+}
+fn default_loudness_target_lufs() -> f64 {
+    -23.0
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScrobbleConfig {
@@ -155,8 +187,12 @@ impl Default for ScrobbleConfig {
     }
 }
 
-fn default_min_duration() -> u32 { 30 }
-fn default_min_percent() -> u32 { 50 }
+fn default_min_duration() -> u32 {
+    30
+}
+fn default_min_percent() -> u32 {
+    50
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EqConfig {
@@ -203,9 +239,15 @@ impl Default for EqConfig {
     }
 }
 
-fn default_stereo_width() -> f64 { 1.0 }
-fn default_bass_freq() -> f64 { 90.0 }
-fn default_treble_freq() -> f64 { 10_000.0 }
+fn default_stereo_width() -> f64 {
+    1.0
+}
+fn default_bass_freq() -> f64 {
+    90.0
+}
+fn default_treble_freq() -> f64 {
+    10_000.0
+}
 
 /// Helper: if `val` is NaN, log a warning and replace with `default_val`.
 /// NaN comparisons always return false, so `clamp()` is a no-op for NaN —
@@ -215,7 +257,8 @@ fn sanitize_f64(val: f64, field_name: &str, default_val: f64) -> f64 {
     if val.is_nan() {
         tracing::warn!(
             "Config field '{}' is NaN — resetting to default {}",
-            field_name, default_val
+            field_name,
+            default_val
         );
         default_val
     } else {
@@ -232,9 +275,17 @@ impl TunecraftConfig {
     /// values. Now we check for NaN first and replace with a sensible
     /// default before clamping.
     pub fn validate(&mut self) {
-        self.general.volume = sanitize_f64(self.general.volume, "general.volume", 0.8).clamp(0.0, 1.0);
-        self.general.playback_speed = sanitize_f64(self.general.playback_speed, "general.playback_speed", 1.0).clamp(0.25, 4.0);
-        self.general.volume_before_mute = sanitize_f64(self.general.volume_before_mute, "general.volume_before_mute", 1.0).clamp(0.0, 1.0);
+        self.general.volume =
+            sanitize_f64(self.general.volume, "general.volume", 0.8).clamp(0.0, 1.0);
+        self.general.playback_speed =
+            sanitize_f64(self.general.playback_speed, "general.playback_speed", 1.0)
+                .clamp(0.25, 4.0);
+        self.general.volume_before_mute = sanitize_f64(
+            self.general.volume_before_mute,
+            "general.volume_before_mute",
+            1.0,
+        )
+        .clamp(0.0, 1.0);
         // Validate repeat_mode against known values
         if !["none", "all", "one"].contains(&self.general.repeat_mode.as_str()) {
             tracing::warn!(
@@ -251,13 +302,31 @@ impl TunecraftConfig {
             self.audio.visualization_mode = "deferred".to_string();
         }
         self.audio.crossfade_duration_ms = self.audio.crossfade_duration_ms.clamp(0, 10000);
-        self.audio.resampler_cutoff = sanitize_f64(self.audio.resampler_cutoff, "audio.resampler_cutoff", 0.95).clamp(0.5, 1.0);
+        self.audio.resampler_cutoff =
+            sanitize_f64(self.audio.resampler_cutoff, "audio.resampler_cutoff", 0.95)
+                .clamp(0.5, 1.0);
         self.audio.seek_fade_ms = self.audio.seek_fade_ms.clamp(0, 200);
-        self.audio.replaygain_preamp_db = sanitize_f64(self.audio.replaygain_preamp_db, "audio.replaygain_preamp_db", 0.0).clamp(-15.0, 15.0);
-        self.audio.replaygain_fallback_db = sanitize_f64(self.audio.replaygain_fallback_db, "audio.replaygain_fallback_db", 0.0).clamp(-15.0, 15.0);
+        self.audio.replaygain_preamp_db = sanitize_f64(
+            self.audio.replaygain_preamp_db,
+            "audio.replaygain_preamp_db",
+            0.0,
+        )
+        .clamp(-15.0, 15.0);
+        self.audio.replaygain_fallback_db = sanitize_f64(
+            self.audio.replaygain_fallback_db,
+            "audio.replaygain_fallback_db",
+            0.0,
+        )
+        .clamp(-15.0, 15.0);
         // Validate replaygain_mode against known values
-        if !["off", "track", "album", "track_prevent_clip", "album_prevent_clip"]
-            .contains(&self.audio.replaygain_mode.as_str())
+        if ![
+            "off",
+            "track",
+            "album",
+            "track_prevent_clip",
+            "album_prevent_clip",
+        ]
+        .contains(&self.audio.replaygain_mode.as_str())
         {
             tracing::warn!(
                 "Invalid replaygain_mode '{}', resetting to 'track'",
@@ -265,7 +334,12 @@ impl TunecraftConfig {
             );
             self.audio.replaygain_mode = "track".to_string();
         }
-        self.audio.loudness_target_lufs = sanitize_f64(self.audio.loudness_target_lufs, "audio.loudness_target_lufs", -23.0).clamp(-30.0, 0.0);
+        self.audio.loudness_target_lufs = sanitize_f64(
+            self.audio.loudness_target_lufs,
+            "audio.loudness_target_lufs",
+            -23.0,
+        )
+        .clamp(-30.0, 0.0);
         // Validate backend against known values
         if self.audio.backend != "gstreamer" {
             tracing::warn!(
@@ -274,12 +348,24 @@ impl TunecraftConfig {
             );
             self.audio.backend = "gstreamer".to_string();
         }
-        self.equalizer.bass_db = sanitize_f64(self.equalizer.bass_db, "equalizer.bass_db", 0.0).clamp(-12.0, 12.0);
-        self.equalizer.treble_db = sanitize_f64(self.equalizer.treble_db, "equalizer.treble_db", 0.0).clamp(-12.0, 12.0);
-        self.equalizer.stereo_width = sanitize_f64(self.equalizer.stereo_width, "equalizer.stereo_width", 1.0).clamp(0.0, 3.0);
-        self.equalizer.balance = sanitize_f64(self.equalizer.balance, "equalizer.balance", 0.0).clamp(-1.0, 1.0);
-        self.equalizer.bass_freq_hz = sanitize_f64(self.equalizer.bass_freq_hz, "equalizer.bass_freq_hz", 90.0).clamp(20.0, 500.0);
-        self.equalizer.treble_freq_hz = sanitize_f64(self.equalizer.treble_freq_hz, "equalizer.treble_freq_hz", 10_000.0).clamp(1000.0, 20_000.0);
+        self.equalizer.bass_db =
+            sanitize_f64(self.equalizer.bass_db, "equalizer.bass_db", 0.0).clamp(-12.0, 12.0);
+        self.equalizer.treble_db =
+            sanitize_f64(self.equalizer.treble_db, "equalizer.treble_db", 0.0).clamp(-12.0, 12.0);
+        self.equalizer.stereo_width =
+            sanitize_f64(self.equalizer.stereo_width, "equalizer.stereo_width", 1.0)
+                .clamp(0.0, 3.0);
+        self.equalizer.balance =
+            sanitize_f64(self.equalizer.balance, "equalizer.balance", 0.0).clamp(-1.0, 1.0);
+        self.equalizer.bass_freq_hz =
+            sanitize_f64(self.equalizer.bass_freq_hz, "equalizer.bass_freq_hz", 90.0)
+                .clamp(20.0, 500.0);
+        self.equalizer.treble_freq_hz = sanitize_f64(
+            self.equalizer.treble_freq_hz,
+            "equalizer.treble_freq_hz",
+            10_000.0,
+        )
+        .clamp(1000.0, 20_000.0);
         self.scrobble.min_duration_secs = self.scrobble.min_duration_secs.clamp(10, 300);
         self.scrobble.min_percent = self.scrobble.min_percent.clamp(10, 100);
     }
@@ -357,14 +443,12 @@ pub fn load() -> Result<TunecraftConfig> {
         let default_config = TunecraftConfig::default();
         let toml_str =
             toml::to_string_pretty(&default_config).context("failed to serialize config")?;
-        std::fs::write(&config_path, &toml_str)
-            .context("failed to write default config")?;
+        std::fs::write(&config_path, &toml_str).context("failed to write default config")?;
         info!("Created default config at {:?}", config_path);
         return Ok(default_config);
     }
 
-    let content =
-        std::fs::read_to_string(&config_path).context("failed to read config file")?;
+    let content = std::fs::read_to_string(&config_path).context("failed to read config file")?;
     let mut config: TunecraftConfig =
         toml::from_str(&content).context("failed to parse config file")?;
 
@@ -437,8 +521,14 @@ mod tests {
         let parsed: TunecraftConfig = toml::from_str(&toml_str).expect("deserialize");
         assert_eq!(parsed.general.theme, config.general.theme);
         assert_eq!(parsed.general.volume, config.general.volume);
-        assert_eq!(parsed.audio.crossfade_duration_ms, config.audio.crossfade_duration_ms);
-        assert_eq!(parsed.scrobble.min_duration_secs, config.scrobble.min_duration_secs);
+        assert_eq!(
+            parsed.audio.crossfade_duration_ms,
+            config.audio.crossfade_duration_ms
+        );
+        assert_eq!(
+            parsed.scrobble.min_duration_secs,
+            config.scrobble.min_duration_secs
+        );
     }
 
     #[test]
@@ -500,11 +590,17 @@ dither_enabled = true
         let parsed: TunecraftConfig = toml::from_str(&toml_str).expect("deserialize config");
         assert_eq!(config.general.theme, parsed.general.theme);
         assert_eq!(config.general.volume, parsed.general.volume);
-        assert_eq!(config.audio.crossfade_duration_ms, parsed.audio.crossfade_duration_ms);
+        assert_eq!(
+            config.audio.crossfade_duration_ms,
+            parsed.audio.crossfade_duration_ms
+        );
         assert_eq!(config.audio.replaygain, parsed.audio.replaygain);
         assert_eq!(config.equalizer.enabled, parsed.equalizer.enabled);
         assert_eq!(config.scrobble.enabled, parsed.scrobble.enabled);
-        assert_eq!(config.scrobble.min_duration_secs, parsed.scrobble.min_duration_secs);
+        assert_eq!(
+            config.scrobble.min_duration_secs,
+            parsed.scrobble.min_duration_secs
+        );
         assert_eq!(config.library.watch_dirs, parsed.library.watch_dirs);
     }
 }

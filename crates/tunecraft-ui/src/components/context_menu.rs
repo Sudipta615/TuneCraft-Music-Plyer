@@ -13,12 +13,24 @@ pub fn ContextMenuOverlay() -> Element {
     // Issue #5: Subscribe to UI signal for context menu state
     let _ = *signals.ui.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
 
-    let context_target = *state.read().context_menu_target.lock().unwrap_or_else(|e| e.into_inner());
+    let context_target = *state
+        .read()
+        .context_menu_target
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
 
     // Bug #17 fix: Compute cursor position for dynamic context menu placement
-    let menu_pos = state.read().context_menu_position.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let menu_pos = state
+        .read()
+        .context_menu_position
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     let menu_style = format!("top: {}px; left: {}px;", menu_pos.1, menu_pos.0);
 
     // If no context menu is open, render nothing
@@ -37,7 +49,9 @@ pub fn ContextMenuOverlay() -> Element {
 
     let close_menu = move || {
         let s = state.read().clone();
-        *s.context_menu_target.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *s.context_menu_target
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
         playlist_picker.set(Vec::new());
         // Issue #5: Bump UI signal after menu close
         let gen = *signals.ui.read();

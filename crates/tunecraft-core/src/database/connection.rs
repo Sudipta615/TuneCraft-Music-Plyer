@@ -49,11 +49,14 @@ struct PragmaCustomizer {
     synchronous: String,
 }
 
-impl r2d2::CustomizeConnection<rusqlite::Connection, rusqlite::Error>
-    for PragmaCustomizer
-{
+impl r2d2::CustomizeConnection<rusqlite::Connection, rusqlite::Error> for PragmaCustomizer {
     fn on_acquire(&self, conn: &mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
-        apply_pragmas(conn, self.busy_timeout_ms, &self.journal_mode, &self.synchronous)
+        apply_pragmas(
+            conn,
+            self.busy_timeout_ms,
+            &self.journal_mode,
+            &self.synchronous,
+        )
     }
 }
 
@@ -68,10 +71,12 @@ pub fn apply_pragmas(
     synchronous: &str,
 ) -> Result<(), rusqlite::Error> {
     // Whitelist allowed values to prevent SQL injection
-    const ALLOWED_JOURNAL_MODES: &[&str] = &["DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"];
+    const ALLOWED_JOURNAL_MODES: &[&str] =
+        &["DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"];
     const ALLOWED_SYNCHRONOUS: &[&str] = &["OFF", "NORMAL", "FULL", "EXTRA"];
 
-    let safe_journal_mode = match ALLOWED_JOURNAL_MODES.iter()
+    let safe_journal_mode = match ALLOWED_JOURNAL_MODES
+        .iter()
         .find(|&&m| m.eq_ignore_ascii_case(journal_mode))
     {
         Some(&m) => m,
@@ -84,7 +89,8 @@ pub fn apply_pragmas(
             "WAL"
         }
     };
-    let safe_synchronous = match ALLOWED_SYNCHRONOUS.iter()
+    let safe_synchronous = match ALLOWED_SYNCHRONOUS
+        .iter()
         .find(|&&m| m.eq_ignore_ascii_case(synchronous))
     {
         Some(&m) => m,

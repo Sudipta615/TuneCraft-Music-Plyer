@@ -82,8 +82,8 @@ use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use ringbuf::traits::Consumer;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 
 /// A running cpal output stream opened in exclusive / bit-perfect mode.
 ///
@@ -106,10 +106,7 @@ impl ExclusiveAudioOutput {
     ///
     /// `dsp_cons` is the read-end of the DSP->output ring buffer.
     /// `playing` signals whether audio should be output.
-    pub fn new(
-        mut dsp_cons: ringbuf::HeapCons<f32>,
-        playing: Arc<AtomicBool>,
-    ) -> Result<Self> {
+    pub fn new(mut dsp_cons: ringbuf::HeapCons<f32>, playing: Arc<AtomicBool>) -> Result<Self> {
         let host = cpal::default_host();
 
         // Try PipeWire exclusive access first (recommended for modern Linux).
@@ -118,7 +115,10 @@ impl ExclusiveAudioOutput {
         // stop mixing other audio streams.
         let device = if let Some(pw_device) = try_pipewire_exclusive() {
             let name = pw_device.name().unwrap_or_else(|_| "unknown".into());
-            tracing::info!("PipeWire exclusive: requesting exclusive access via PipeWire device '{}'", name);
+            tracing::info!(
+                "PipeWire exclusive: requesting exclusive access via PipeWire device '{}'",
+                name
+            );
             Some(pw_device)
         } else {
             // Fall back to ALSA direct hardware device search.
@@ -140,7 +140,9 @@ impl ExclusiveAudioOutput {
 
         tracing::info!(
             "Exclusive mode: {} Hz, {} channels, {:?} format",
-            sample_rate, channels, format
+            sample_rate,
+            channels,
+            format
         );
 
         let underrun_count = Arc::new(AtomicU64::new(0));
@@ -227,7 +229,8 @@ impl ExclusiveAudioOutput {
                             underrun_cb.fetch_add(1, Ordering::Relaxed);
                         }
                         for (out, &inp) in output.iter_mut().zip(f32_buf.iter()) {
-                            *out = ((inp.clamp(-1.0, 1.0) + 1.0) * 0.5 * u16::MAX as f32).round() as u16;
+                            *out = ((inp.clamp(-1.0, 1.0) + 1.0) * 0.5 * u16::MAX as f32).round()
+                                as u16;
                         }
                     },
                     |err| {
@@ -236,10 +239,7 @@ impl ExclusiveAudioOutput {
                     None,
                 )
             }
-            _ => anyhow::bail!(
-                "Exclusive mode: unsupported sample format {:?}",
-                format
-            ),
+            _ => anyhow::bail!("Exclusive mode: unsupported sample format {:?}", format),
         }
         .context("exclusive output stream build failed")?;
 
@@ -369,7 +369,10 @@ fn try_pipewire_exclusive() -> Option<cpal::Device> {
     let devices: Vec<cpal::Device> = match host.output_devices() {
         Ok(d) => d.collect(),
         Err(e) => {
-            tracing::warn!("Failed to enumerate output devices for PipeWire search: {}", e);
+            tracing::warn!(
+                "Failed to enumerate output devices for PipeWire search: {}",
+                e
+            );
             return None;
         }
     };
@@ -533,7 +536,10 @@ mod tests {
         if let Some(device) = host.default_output_device() {
             if let Ok((config, fmt)) = ExclusiveAudioOutput::find_exclusive_config(&device) {
                 assert_eq!(fmt, cpal::SampleFormat::F32, "Should prefer F32 format");
-                assert!(config.sample_rate().0 >= 44100, "Sample rate should be at least 44.1 kHz");
+                assert!(
+                    config.sample_rate().0 >= 44100,
+                    "Sample rate should be at least 44.1 kHz"
+                );
             }
         }
     }

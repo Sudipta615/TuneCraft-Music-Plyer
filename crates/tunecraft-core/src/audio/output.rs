@@ -36,8 +36,8 @@
 use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use ringbuf::traits::Consumer;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 
 /// Callback invoked when the output device changes or disconnects.
 pub type DeviceChangeCallback = Box<dyn Fn() + Send + Sync + 'static>;
@@ -64,10 +64,7 @@ impl AudioOutput {
     ///
     /// `on_device_change` (optional) fires when the device disconnects so the
     /// engine can re-open on the new default device.
-    pub fn new(
-        dsp_cons: ringbuf::HeapCons<f32>,
-        playing: Arc<AtomicBool>,
-    ) -> Result<Self> {
+    pub fn new(dsp_cons: ringbuf::HeapCons<f32>, playing: Arc<AtomicBool>) -> Result<Self> {
         Self::new_with_callback(dsp_cons, playing, None)
     }
 
@@ -132,7 +129,8 @@ impl AudioOutput {
                             if count % 12_000 == 0 {
                                 tracing::warn!(
                                     "Audio underrun #{} — consider increasing DECODE_RING \
-                                     or reducing DSP load", count
+                                     or reducing DSP load",
+                                    count
                                 );
                             }
                         }
@@ -141,14 +139,18 @@ impl AudioOutput {
                         tracing::error!("cpal output error: {}", err);
                         if is_device_change_error(&err) {
                             tracing::info!("Output device changed — signalling engine to re-open");
-                            if let Some(ref cb) = on_change_err { cb(); }
+                            if let Some(ref cb) = on_change_err {
+                                cb();
+                            }
                         }
                     },
                     None,
                 )
             }
             cpal::SampleFormat::I16 => {
-                tracing::warn!("Output device does not support F32; using I16 with format conversion");
+                tracing::warn!(
+                    "Output device does not support F32; using I16 with format conversion"
+                );
                 // Fix Bug #6: pre-allocate conversion buffer, moved into closure for reuse
                 let mut f32_buf = vec![0.0f32; f32_buf_capacity];
                 device.build_output_stream(
@@ -166,7 +168,8 @@ impl AudioOutput {
                             tracing::warn!(
                                 "Audio output buffer ({}) exceeds pre-allocated capacity ({}) — \
                                  growing dynamically. Consider increasing the default buffer size.",
-                                output.len(), f32_buf.capacity()
+                                output.len(),
+                                f32_buf.capacity()
                             );
                         }
                         f32_buf.resize(output.len(), 0.0);
@@ -183,14 +186,19 @@ impl AudioOutput {
                     move |err| {
                         tracing::error!("cpal output error (i16): {}", err);
                         if is_device_change_error(&err) {
-                            if let Some(ref cb) = on_change_err { cb(); }
+                            if let Some(ref cb) = on_change_err {
+                                cb();
+                            }
                         }
                     },
                     None,
                 )
             }
             _ => {
-                tracing::warn!("Output device format {:?}: using U16 with conversion", format);
+                tracing::warn!(
+                    "Output device format {:?}: using U16 with conversion",
+                    format
+                );
                 // Fix Bug #6: pre-allocate conversion buffer, moved into closure for reuse
                 let mut f32_buf = vec![0.0f32; f32_buf_capacity];
                 device.build_output_stream(
@@ -208,7 +216,8 @@ impl AudioOutput {
                             tracing::warn!(
                                 "Audio output buffer ({}) exceeds pre-allocated capacity ({}) — \
                                  growing dynamically. Consider increasing the default buffer size.",
-                                output.len(), f32_buf.capacity()
+                                output.len(),
+                                f32_buf.capacity()
                             );
                         }
                         f32_buf.resize(output.len(), 0.0);
@@ -220,13 +229,16 @@ impl AudioOutput {
                         // DC bias (similar to the I16 fix L3). Use rounding instead
                         // for proper float-to-integer conversion.
                         for (out, &inp) in output.iter_mut().zip(f32_buf.iter()) {
-                            *out = ((inp.clamp(-1.0, 1.0) + 1.0) * 0.5 * u16::MAX as f32).round() as u16;
+                            *out = ((inp.clamp(-1.0, 1.0) + 1.0) * 0.5 * u16::MAX as f32).round()
+                                as u16;
                         }
                     },
                     move |err| {
                         tracing::error!("cpal output error (u16): {}", err);
                         if is_device_change_error(&err) {
-                            if let Some(ref cb) = on_change_err { cb(); }
+                            if let Some(ref cb) = on_change_err {
+                                cb();
+                            }
                         }
                     },
                     None,
@@ -237,7 +249,12 @@ impl AudioOutput {
 
         stream.play().context("stream play")?;
 
-        Ok(Self { _stream: stream, sample_rate, channels, underrun_count })
+        Ok(Self {
+            _stream: stream,
+            sample_rate,
+            channels,
+            underrun_count,
+        })
     }
 
     /// Number of buffer underruns since the stream was opened.
@@ -274,7 +291,8 @@ impl AudioOutput {
             Ok(exclusive) => {
                 tracing::info!(
                     "Exclusive mode active: {} Hz, {} ch",
-                    exclusive.sample_rate, exclusive.channels
+                    exclusive.sample_rate,
+                    exclusive.channels
                 );
                 Ok(Self {
                     _stream: exclusive._stream,
@@ -308,7 +326,9 @@ impl AudioOutput {
     /// to 3 times (F32 stereo at specific rates → any F32 stereo → I16 stereo).
     /// Now uses a single pass with priority scoring — cleaner and marginally
     /// faster, especially on devices that report many supported configs.
-    fn find_config(device: &cpal::Device) -> Result<(cpal::SupportedStreamConfig, cpal::SampleFormat)> {
+    fn find_config(
+        device: &cpal::Device,
+    ) -> Result<(cpal::SupportedStreamConfig, cpal::SampleFormat)> {
         let supported: Vec<_> = device
             .supported_output_configs()
             .context("query output configs")?
@@ -318,7 +338,9 @@ impl AudioOutput {
         let mut best: Option<(cpal::SupportedStreamConfig, cpal::SampleFormat, u32)> = None;
 
         for cfg in &supported {
-            if cfg.channels() != 2 { continue; }
+            if cfg.channels() != 2 {
+                continue;
+            }
 
             let fmt = cfg.sample_format();
             let score = match fmt {
@@ -326,7 +348,8 @@ impl AudioOutput {
                     // F32 is strongly preferred
                     if cfg.min_sample_rate().0 <= 48_000 && cfg.max_sample_rate().0 >= 48_000 {
                         100 // F32 stereo 48 kHz — best
-                    } else if cfg.min_sample_rate().0 <= 44_100 && cfg.max_sample_rate().0 >= 44_100 {
+                    } else if cfg.min_sample_rate().0 <= 44_100 && cfg.max_sample_rate().0 >= 44_100
+                    {
                         90 // F32 stereo 44.1 kHz
                     } else {
                         50 // F32 stereo any rate
@@ -349,7 +372,9 @@ impl AudioOutput {
                     let rate = if fmt == cpal::SampleFormat::F32 {
                         if cfg.min_sample_rate().0 <= 48_000 && cfg.max_sample_rate().0 >= 48_000 {
                             cpal::SampleRate(48_000)
-                        } else if cfg.min_sample_rate().0 <= 44_100 && cfg.max_sample_rate().0 >= 44_100 {
+                        } else if cfg.min_sample_rate().0 <= 44_100
+                            && cfg.max_sample_rate().0 >= 44_100
+                        {
                             cpal::SampleRate(44_100)
                         } else {
                             cfg.max_sample_rate()
@@ -371,7 +396,9 @@ impl AudioOutput {
         }
 
         // No stereo config found — fall back to device default
-        let default = device.default_output_config().context("default output config")?;
+        let default = device
+            .default_output_config()
+            .context("default output config")?;
         let fmt = default.sample_format();
         Ok((default, fmt))
     }
@@ -382,8 +409,10 @@ fn is_device_change_error(err: &cpal::StreamError) -> bool {
         cpal::StreamError::DeviceNotAvailable => true,
         cpal::StreamError::BackendSpecific { err } => {
             let msg = err.description.to_lowercase();
-            msg.contains("disconnect") || msg.contains("unavailable")
-                || msg.contains("removed") || msg.contains("unplugged")
+            msg.contains("disconnect")
+                || msg.contains("unavailable")
+                || msg.contains("removed")
+                || msg.contains("unplugged")
         }
     }
 }

@@ -14,19 +14,61 @@ pub fn EqPanel() -> Element {
     // Issue #5: Subscribe to UI signal for panel state
     let _ = *signals.ui.read();
 
-    let dark = state.read().dark_mode.load(std::sync::atomic::Ordering::Relaxed);
-    let eq_enabled = state.read().eq_enabled.load(std::sync::atomic::Ordering::Relaxed);
-    let bands = *state.read().eq_bands.lock().unwrap_or_else(|e| e.into_inner());
-    let current_preset = *state.read().eq_preset.lock().unwrap_or_else(|e| e.into_inner());
-    let bass_db = *state.read().eq_bass_db.lock().unwrap_or_else(|e| e.into_inner());
-    let treble_db = *state.read().eq_treble_db.lock().unwrap_or_else(|e| e.into_inner());
-    let stereo_width = *state.read().eq_stereo_width.lock().unwrap_or_else(|e| e.into_inner());
-    let balance = *state.read().eq_balance.lock().unwrap_or_else(|e| e.into_inner());
-    let dither_enabled = state.read().eq_dither_enabled.load(std::sync::atomic::Ordering::Relaxed);
-    let ms_enabled = state.read().eq_ms_enabled.load(std::sync::atomic::Ordering::Relaxed);
-    let preamp = *state.read().eq_preamp.lock().unwrap_or_else(|e| e.into_inner());
+    let dark = state
+        .read()
+        .dark_mode
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let eq_enabled = state
+        .read()
+        .eq_enabled
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let bands = *state
+        .read()
+        .eq_bands
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let current_preset = *state
+        .read()
+        .eq_preset
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let bass_db = *state
+        .read()
+        .eq_bass_db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let treble_db = *state
+        .read()
+        .eq_treble_db
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let stereo_width = *state
+        .read()
+        .eq_stereo_width
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let balance = *state
+        .read()
+        .eq_balance
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let dither_enabled = state
+        .read()
+        .eq_dither_enabled
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let ms_enabled = state
+        .read()
+        .eq_ms_enabled
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let preamp = *state
+        .read()
+        .eq_preamp
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
 
-    let freq_labels = ["32", "64", "125", "250", "500", "1K", "2K", "4K", "8K", "16K"];
+    let freq_labels = [
+        "32", "64", "125", "250", "500", "1K", "2K", "4K", "8K", "16K",
+    ];
     let preset_options = EqPreset::all();
 
     rsx! {
