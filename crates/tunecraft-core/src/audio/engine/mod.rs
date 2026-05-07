@@ -216,7 +216,7 @@ pub struct AudioEngine {
 /// with 3 different error-handling strategies. This centralized init uses
 /// std::sync::OnceLock for single initialization and properly propagates
 /// the init result so failed inits are reported to all callers.
-static GST_INIT_RESULT: OnceLock<Result<(), gstreamer::Error>> = OnceLock::new();
+static GST_INIT_RESULT: OnceLock<Result<(), glib::Error>> = OnceLock::new();
 
 pub(crate) fn ensure_gstreamer_initialized() -> Result<()> {
     let result = GST_INIT_RESULT.get_or_init(gstreamer::init);
@@ -537,5 +537,7 @@ fn path_to_uri(path: &Path) -> Result<String> {
     // misinterpreted %AB sequences (where AB are hex digits) as percent-encoded
     // octets and passed them through, even when they were literal characters
     // in a filename like "100%AB-complete.flac".
-    glib::filename_to_uri(&abs, None).map_err(|e| anyhow::anyhow!("path_to_uri failed: {}", e))
+    glib::filename_to_uri(&abs, None)
+        .map(|s| s.to_string())
+        .map_err(|e| anyhow::anyhow!("path_to_uri failed: {}", e))
 }

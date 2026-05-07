@@ -37,7 +37,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      # ── Linux: GStreamer + audio libs ──────────────────────────────────────
+      # -- Linux: GStreamer + audio libs ----------------------------------------
       - name: Install GStreamer (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -58,27 +58,33 @@ jobs:
             libsoup-3.0-dev \
             libwebkit2gtk-4.1-dev
 
-      # ── macOS: GStreamer via Homebrew ──────────────────────────────────────
+      # -- macOS: GStreamer via Homebrew ----------------------------------------
       - name: Install GStreamer (macOS)
         if: runner.os == 'macOS'
         run: brew install gstreamer gst-plugins-base gst-plugins-good
 
-      # ── Windows: GStreamer via Chocolatey ─────────────────────────────────
+      # -- Windows: GStreamer via Chocolatey -----------------------------------
       # freedesktop.org blocks CI runner IPs with bot-protection; choco
       # pulls from a CDN mirror that is not rate-limited.
-      # IMPORTANT: PKG_CONFIG_PATH must use forward slashes. pkgconfiglite
-      # treats `:` as a path-list separator on all platforms; the colon in
-      # `C:\...` would be misread as a separator, splitting the path into
-      # `C` and `\gstreamer\...`, leaving glib-2.0.pc unfindable.
+      #
+      # pkg-config: pkgconfiglite splits PKG_CONFIG_PATH on ':' on ALL
+      # platforms, so drive-letter paths like C:/... are always broken
+      # (the colon after the drive letter is parsed as a list separator).
+      # MSYS2's pkgconf (pre-installed on the runner) uses ';' as the
+      # separator on Windows, handling drive letters correctly.  We set
+      # PKG_CONFIG to the exact binary to avoid polluting PATH with the
+      # entire mingw64/bin directory (which could shadow MSVC tools).
       - name: Install GStreamer (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          choco install gstreamer gstreamer-devel pkgconfiglite --no-progress -y
-          $gstRoot = "C:/gstreamer/1.0/msvc_x86_64"
+          choco install gstreamer gstreamer-devel --no-progress -y
+          C:\msys64\usr\bin\pacman -S --noconfirm mingw-w64-x86_64-pkgconf
+          echo "PKG_CONFIG=C:\msys64\mingw64\bin\pkgconf.exe" >> $env:GITHUB_ENV
+          $gstRoot = "C:\gstreamer\1.0\msvc_x86_64"
           echo "GSTREAMER_1_0_ROOT_MSVC_X86_64=$gstRoot" >> $env:GITHUB_ENV
-          echo "C:/gstreamer/1.0/msvc_x86_64/bin" >> $env:GITHUB_PATH
-          echo "PKG_CONFIG_PATH=$gstRoot/lib/pkgconfig" >> $env:GITHUB_ENV
+          echo "$gstRoot\bin" >> $env:GITHUB_PATH
+          echo "PKG_CONFIG_PATH=$gstRoot\lib\pkgconfig" >> $env:GITHUB_ENV
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -97,11 +103,11 @@ jobs:
           cargo install cargo-audit
           cargo audit
 
-  # ── MSRV Check ──────────────────────────────────────────────────────────────
+  # -- MSRV Check --------------------------------------------------------------
   # Floor is 1.89.0, driven by transitive deps:
-  #   time-core 0.1.8 / time-macros 0.2.27 → rustc 1.88+
-  #   zbus 5.15.0 / zvariant 5.x           → rustc 1.87
-  #   icu_collections 2.0                  → rustc 1.88
+  #   time-core 0.1.8 / time-macros 0.2.27  -> rustc 1.88+
+  #   zbus 5.15.0 / zvariant 5.x            -> rustc 1.87
+  #   icu_collections 2.0                   -> rustc 1.88
   # The union of all floors gives 1.89 as the effective MSRV.
   msrv:
     name: MSRV (1.89.0)

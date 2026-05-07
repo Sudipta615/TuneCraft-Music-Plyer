@@ -17,7 +17,8 @@ impl AudioEngine {
     /// Apply a full `EqualizerState` — pushes all parameters to `DspEngine`.
     pub fn set_eq_state(&self, state: EqualizerState) {
         *self.eq_state.lock().unwrap_or_else(|e| e.into_inner()) = state.clone();
-        let mut dsp = self.dsp_arc().lock().unwrap_or_else(|e| e.into_inner());
+        let dsp_arc = self.dsp_arc();
+        let mut dsp = dsp_arc.lock().unwrap_or_else(|e| e.into_inner());
         let gains: Vec<f32> = state.bands.iter().map(|b| b.gain as f32).collect();
         dsp.set_all_gains(&gains);
         dsp.enabled = state.enabled;

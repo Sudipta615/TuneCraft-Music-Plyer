@@ -44,7 +44,8 @@ impl AudioEngine {
             // start_seek_fade and reset_state under the same lock acquisition.
             // Previously these were two separate lock acquisitions, allowing the
             // DSP thread to process samples between the two calls with stale state.
-            let mut dsp = self.dsp_arc().lock().unwrap_or_else(|e| e.into_inner());
+            let dsp_arc = self.dsp_arc();
+            let mut dsp = dsp_arc.lock().unwrap_or_else(|e| e.into_inner());
             // Fix C1: Reset DSP state BEFORE starting the seek fade.
             // Previously, start_seek_fade() set up a volume ramp, then reset_state()
             // immediately cleared it — making the seek fade inaudible.

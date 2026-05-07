@@ -54,7 +54,7 @@ pub type PipelineEosCallback = Box<dyn Fn() + Send + Sync + 'static>;
 pub struct DecodePipeline {
     pipeline: gstreamer::Pipeline,
     eos_cb: Arc<Mutex<Option<PipelineEosCallback>>>,
-    _bus_watch_guard: Option<gstreamer::BusWatchGuard>,
+    _bus_watch_guard: Option<gstreamer::bus::BusWatchGuard>,
 }
 
 impl DecodePipeline {
@@ -413,26 +413,6 @@ impl DecodePipeline {
         );
     }
 
-    /// Legacy GLib-based bus watch. **Deprecated** in v3.0 — use `poll_bus()`
-    /// instead for cross-platform compatibility.
-    ///
-    /// This method is kept for backward compatibility with the GTK4 UI but
-    /// should not be used in the Dioxus UI. It requires a running GLib main
-    /// context, which is only available when GTK4 is driving the event loop.
-    #[cfg(feature = "glib-bus-watch")]
-    pub fn watch_bus<F>(&mut self, handler: F) -> Option<glib::SourceId>
-    where
-        F: Fn(&gstreamer::Bus, &gstreamer::Message) -> glib::ControlFlow + Send + 'static,
-    {
-        let bus = self.pipeline.bus()?;
-        // Store the BusWatchGuard on the struct so it is not immediately dropped.
-        // The guard keeps the bus watch alive; dropping it would remove the watch.
-        // Previously, assigning to a local `_guard` caused immediate drop, making
-        // the watch ineffective.
-        let guard = bus.add_watch(handler).ok()?;
-        self._bus_watch_guard = Some(guard);
-        None
-    }
 }
 
 impl Drop for DecodePipeline {

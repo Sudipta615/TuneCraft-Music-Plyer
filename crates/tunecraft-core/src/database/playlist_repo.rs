@@ -61,7 +61,7 @@ impl Database {
     // of a stuck transaction if the code path between BEGIN and COMMIT panics
     // or returns early.
     pub fn add_track_to_playlist(&self, playlist_id: i64, track_id: i64) -> Result<()> {
-        let conn = self.conn()?;
+        let mut conn = self.conn()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         tx.execute(
             "INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id, position) \

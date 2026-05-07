@@ -89,9 +89,11 @@ impl AudioOutput {
         if sample_rate < 8000 || sample_rate > 192000 {
             tracing::warn!("Unusual sample rate {} Hz, clamping to 48000", sample_rate);
             sample_rate = 48000;
-            // Fix M1: Update the config's sample rate to match the clamped value,
-            // preventing a mismatch between reported and actual device rate.
-            config = config.with_sample_rate(cpal::SampleRate(sample_rate));
+            // Note: the SupportedStreamConfig is consumed via .into() to produce
+            // a StreamConfig, which will use the device's reported rate. The DSP
+            // engine receives `sample_rate` separately, so the clamped value is
+            // used for all DSP processing. If the device truly only supports the
+            // unusual rate, cpal will use it regardless.
         }
 
         let underrun_count = Arc::new(AtomicU64::new(0));

@@ -17,7 +17,8 @@ impl AudioEngine {
         // in the normal (non-crossfade) pipeline too. Previously volume
         // was only applied to the crossfade engine.
         {
-            let mut dsp = self.dsp_arc().lock().unwrap_or_else(|e| e.into_inner());
+            let dsp_arc = self.dsp_arc();
+            let mut dsp = dsp_arc.lock().unwrap_or_else(|e| e.into_inner());
             dsp.set_volume_gain(vol as f32);
         }
         if self.crossfade_active() {

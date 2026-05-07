@@ -49,7 +49,8 @@ pub fn load_internal(
     // by the gapless logic, and also reset filter state that the gapless
     // smoother's apply_to_head() depended on.
     {
-        let mut dsp = engine.dsp_arc().lock().unwrap_or_else(|e| e.into_inner());
+        let dsp_arc = engine.dsp_arc();
+        let mut dsp = dsp_arc.lock().unwrap_or_else(|e| e.into_inner());
         dsp.reset_state();
         dsp.mark_new_track();
     }
@@ -87,7 +88,8 @@ pub fn load_internal(
     let pipeline = DecodePipeline::new(&uri, decode_prod, device_rate)?;
 
     {
-        let mut dsp = engine.dsp_arc().lock().unwrap_or_else(|e| e.into_inner());
+        let dsp_arc = engine.dsp_arc();
+        let mut dsp = dsp_arc.lock().unwrap_or_else(|e| e.into_inner());
         dsp.set_sample_rate(device_rate as f32);
     }
 
@@ -147,7 +149,7 @@ pub fn load_internal(
         .unwrap_or_else(|e| e.into_inner())
         .enabled;
     if rg {
-        if let Some(p) = path {
+        if let Some(ref p) = path {
             if let Err(e) = engine.apply_replaygain_for(&p) {
                 tracing::warn!("ReplayGain: {}", e);
             }

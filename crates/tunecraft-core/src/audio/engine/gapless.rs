@@ -71,12 +71,17 @@ impl AudioEngine {
             // fields (those were GLib-dependent, removed in v3.0 migration).
             // Fix C3: Don't call pipeline.watch_bus() or glib::timeout_add_local()
             // — the tick() method handles bus polling and position updates.
+            // Fix E0509: PreloadedSession implements Drop, so we can't move fields
+            // out directly. Use ManuallyDrop + ptr::read to take ownership of each
+            // field without running Drop. This is safe because we consume ALL fields
+            // — there's nothing left for Drop to clean up.
+            let mut preloaded = std::mem::ManuallyDrop::new(preloaded);
             let session = Session {
-                pipeline: preloaded.pipeline,
-                _audio_output: preloaded.audio_output,
-                dsp_stop: preloaded.dsp_stop,
-                dsp_thread: preloaded.dsp_thread,
-                playing: preloaded.playing_flag,
+                pipeline: unsafe { std::ptr::read(&preloaded.pipeline) },
+                _audio_output: unsafe { std::ptr::read(&preloaded.audio_output) },
+                dsp_stop: unsafe { std::ptr::read(&preloaded.dsp_stop) },
+                dsp_thread: unsafe { std::ptr::read(&preloaded.dsp_thread) },
+                playing: unsafe { std::ptr::read(&preloaded.playing_flag) },
                 is_playing: false,
                 underrun_count,
             };

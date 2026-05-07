@@ -132,7 +132,7 @@ fn derive_key() -> Result<&'static [u8; 32], CryptoError> {
 
     match cached {
         Ok(key) => Ok(key),
-        Err(e) => Err(e.clone()),
+        Err(e) => Err(CryptoError::KeyDerivationFailed(format!("{}", e))),
     }
 }
 

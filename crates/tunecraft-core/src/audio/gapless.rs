@@ -363,7 +363,7 @@ fn build_preloaded_session(
         output_prod,
         dsp: Arc::clone(&dsp),
         stop: Arc::clone(&dsp_stop),
-        convolution,
+        convolution: Arc::clone(&convolution),
         loudness_state: Arc::clone(&loudness_state),
         underrun_count,
     });
