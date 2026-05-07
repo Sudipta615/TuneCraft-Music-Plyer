@@ -55,7 +55,8 @@ jobs:
             libasound2-dev \
             libdbus-1-dev \
             libgtk-3-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libwebkit2gtk-4.1-dev
 
       # ── macOS: GStreamer via Homebrew ──────────────────────────────────────
       - name: Install GStreamer (macOS)
@@ -65,18 +66,19 @@ jobs:
       # ── Windows: GStreamer via Chocolatey ─────────────────────────────────
       # freedesktop.org blocks CI runner IPs with bot-protection; choco
       # pulls from a CDN mirror that is not rate-limited.
-      # pkgconfiglite provides the pkg-config binary; PKG_CONFIG_PATH
-      # must point at GStreamer's .pc files so glib-sys/gstreamer-sys
-      # can locate them at build time.
+      # IMPORTANT: PKG_CONFIG_PATH must use forward slashes. pkgconfiglite
+      # treats `:` as a path-list separator on all platforms; the colon in
+      # `C:\...` would be misread as a separator, splitting the path into
+      # `C` and `\gstreamer\...`, leaving glib-2.0.pc unfindable.
       - name: Install GStreamer (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           choco install gstreamer gstreamer-devel pkgconfiglite --no-progress -y
-          $gstRoot = "C:\gstreamer\1.0\msvc_x86_64"
+          $gstRoot = "C:/gstreamer/1.0/msvc_x86_64"
           echo "GSTREAMER_1_0_ROOT_MSVC_X86_64=$gstRoot" >> $env:GITHUB_ENV
-          echo "$gstRoot\bin" >> $env:GITHUB_PATH
-          echo "PKG_CONFIG_PATH=$gstRoot\lib\pkgconfig" >> $env:GITHUB_ENV
+          echo "C:/gstreamer/1.0/msvc_x86_64/bin" >> $env:GITHUB_PATH
+          echo "PKG_CONFIG_PATH=$gstRoot/lib/pkgconfig" >> $env:GITHUB_ENV
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -133,7 +135,8 @@ jobs:
             libasound2-dev \
             libdbus-1-dev \
             libgtk-3-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            libwebkit2gtk-4.1-dev
 
       - name: Check MSRV compatibility
         run: cargo check --workspace
