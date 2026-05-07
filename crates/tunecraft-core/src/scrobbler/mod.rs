@@ -154,7 +154,6 @@ impl ScrobbleManager {
 
         let results = client.process_queue(entries).await?;
 
-        // Fix M5: Only mark entries that were successfully scrobbled as done.
         let successful_ids: Vec<i64> = ids
             .iter()
             .zip(results.iter())

@@ -42,10 +42,6 @@ impl Track {
     /// so that data issues are diagnosable from logs.
     pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
         let date_added_str: String = row.get("date_added").unwrap_or_default();
-        // Fix Bug #40: Use 1970-01-01 as fallback instead of today's date.
-        // Using today's date silently masks data corruption — a track added
-        // "today" is indistinguishable from a corrupted date that fell back.
-        // The epoch date clearly signals "unknown/corrupt" data.
         let date_added = NaiveDate::parse_from_str(&date_added_str, "%Y-%m-%d")
             .or_else(|_| NaiveDate::parse_from_str(&date_added_str, "%Y-%m-%d %H:%M:%S"))
             .unwrap_or_else(|_| {
@@ -63,7 +59,6 @@ impl Track {
                 .ok()
         });
 
-        // Helper macro: try to read a column, log a warning on failure.
         macro_rules! try_col {
             ($col:expr, $ty:ty) => {
                 match row.get::<_, $ty>($col) {

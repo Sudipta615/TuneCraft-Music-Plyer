@@ -204,7 +204,6 @@ impl PlayQueue {
             self.shuffle = true;
             self.regenerate_shuffle_order_preserving_current();
         } else {
-            // Map current logical index to physical before turning shuffle off
             if let Some(logical) = self.current_index {
                 if logical < self.shuffle_order.len() {
                     self.current_index = Some(self.shuffle_order[logical]);
@@ -304,8 +303,6 @@ impl PlayQueue {
         }
         let current = self.current_index?;
 
-        // Fix: RepeatMode::One should restart the current track
-        // (standard behavior for "Previous" on the first track during Repeat-One)
         if self.repeat_mode == RepeatMode::One {
             return Some(current);
         }
@@ -362,9 +359,6 @@ impl PlayQueue {
 /// Scrobble state.
 pub(crate) struct ScrobbleState {
     pub track_id: Option<i64>,
-    // Note: start_time removed — accumulated_secs is incremented by the scrobble
-    // tick timer (15s intervals) only while is_playing(), so it correctly freezes
-    // during pause. A wall-clock field would diverge from this count.
     pub accumulated_secs: u64,
     pub submitted: bool,
 }
@@ -428,23 +422,17 @@ pub struct AppState {
     pub eos_flag: AtomicBool,
     pub playback_error: Mutex<Option<String>>,
 
-    // Fix H9: Cached sidebar counts to avoid querying the DB on every render (every 250ms).
     pub sidebar_album_count: AtomicU64,
     pub sidebar_artist_count: AtomicU64,
     pub sidebar_playlist_count: AtomicU64,
     pub sidebar_cache_valid: AtomicBool,
 
-    // Bug #34 fix: Cached track count and per-mood counts to avoid querying
-    // the DB on every render cycle (every 250ms).
     pub sidebar_track_count: AtomicU64,
     pub sidebar_mood_counts: Mutex<std::collections::HashMap<String, u64>>,
 
-    // Issue #19: Ready flags for loading state UI.
     pub engine_ready: AtomicBool,
     pub db_ready: AtomicBool,
 
-    // Issue #18: Cached track list to avoid re-querying DB on every render.
-    // Key is a composite of view + sort + search + filter state.
     pub cached_tracks: Mutex<Option<(String, Vec<tunecraft_core::Track>)>>,
 }
 
@@ -453,11 +441,8 @@ impl AppState {
         let loaded_config = tunecraft_core::config::load().unwrap_or_default();
         let is_dark = loaded_config.general.theme != "light";
         let speed = loaded_config.general.playback_speed as f32;
-        // Cache volume bits before moving loaded_config into RwLock (#1: use-after-move fix)
         let initial_volume_bits = loaded_config.general.volume.to_bits();
-        // Bug #35 fix: Restore volume_muted and volume_before_mute from config
         let initial_muted = loaded_config.general.volume_muted;
-        // Use volume_before_mute from config if available, otherwise derive from volume
         let initial_mute_restore = if loaded_config.general.volume_before_mute > 0.0 {
             loaded_config.general.volume_before_mute.to_bits()
         } else if loaded_config.general.volume > 0.0 {
@@ -475,7 +460,6 @@ impl AppState {
             current_view: Mutex::new(ViewType::AllTracks),
             search_query: Mutex::new(String::new()),
             config: RwLock::new(loaded_config),
-            // Issue #29: Increased from 20 to 100 for better cover art retention.
             cover_art_cache: Mutex::new(LruCache::new(NonZeroUsize::new(100).unwrap())),
             is_scanning: AtomicBool::new(false),
             dark_mode: AtomicBool::new(is_dark),
@@ -531,7 +515,6 @@ impl AppState {
     pub fn init_engine(&self) -> Result<(), String> {
         let engine = AudioEngine::new().map_err(|e| e.to_string())?;
 
-        // Push synchronized state from AppState to the new engine
         let vol = if self.volume_muted.load(Ordering::Relaxed) {
             0.0
         } else {
@@ -547,7 +530,6 @@ impl AppState {
 
         *self.engine.lock().unwrap_or_else(|e| e.into_inner()) = Some(engine);
 
-        // Push EQ parameters to the engine
         self.push_eq_to_engine();
 
         tracing::info!("Audio engine initialized (state synced)");
@@ -570,8 +552,6 @@ impl AppState {
     }
 
     pub fn set_volume(&self, vol: f64) {
-        // Fix M15: Clamp volume to [0.0, 1.0] to prevent out-of-range values
-        // that could cause undefined behavior in audio backends.
         let vol = vol.clamp(0.0, 1.0);
         self.volume.store(vol.to_bits(), Ordering::Relaxed);
         if let Ok(engine) = self.engine.lock() {
@@ -603,8 +583,6 @@ impl AppState {
     }
 
     pub fn play_track_from_view(&self, index: usize) {
-        // Fix: Reset EOS latch on manual transport change to prevent
-        // the background monitor from instantly skipping the newly selected track.
         self.eos_flag
             .store(false, std::sync::atomic::Ordering::Release);
 
@@ -618,10 +596,6 @@ impl AppState {
             queue.tracks = tracks;
 
             if queue.shuffle {
-                // Fix: When jumping to a specific track with shuffle enabled,
-                // the selected track must become the first logical track in the
-                // shuffle order. Otherwise current_index is treated as a logical
-                // index and maps to a random physical track.
                 queue.regenerate_shuffle_order();
                 if let Some(pos) = queue.shuffle_order.iter().position(|&p| p == index) {
                     queue.shuffle_order.swap(0, pos);
@@ -633,18 +607,14 @@ impl AppState {
         }
         let path = std::path::PathBuf::from(&path_str);
 
-        // Fix: Acquire crossfade lock to prevent TOCTOU race and route
-        // manual track changes through the crossfade manager if active.
         let cf_guard = self.crossfade.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(ref cf_engine) = *cf_guard {
-            // Route through crossfade engine for seamless transitions
             let _ = cf_engine.load_track_with_crossfade(path.to_string_lossy().as_ref());
             cf_engine.play();
             drop(cf_guard);
             *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Playing;
         } else {
             drop(cf_guard);
-            // Fix: Use safe FFI lock recovery — drop corrupted engine on poison
             let mut engine_guard = match self.engine.lock() {
                 Ok(guard) => guard,
                 Err(poisoned) => {
@@ -686,7 +656,6 @@ impl AppState {
     }
 
     pub fn play_track_at(&self, index: usize) {
-        // Fix: Reset EOS latch on manual transport change
         self.eos_flag
             .store(false, std::sync::atomic::Ordering::Release);
 
@@ -699,7 +668,6 @@ impl AppState {
         if let Some(path_str) = path {
             let path = std::path::PathBuf::from(&path_str);
 
-            // Fix: Acquire crossfade lock to prevent TOCTOU race
             let cf_guard = self.crossfade.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(ref cf_engine) = *cf_guard {
                 let _ = cf_engine.load_track_with_crossfade(path.to_string_lossy().as_ref());
@@ -748,8 +716,6 @@ impl AppState {
     }
 
     pub fn next_track(&self) {
-        // Fix: Use manual_next_index for user-initiated skips to bypass
-        // RepeatMode::One — users expect "Next" to advance past the current track.
         let next = {
             let queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
             queue.manual_next_index()
@@ -760,7 +726,6 @@ impl AppState {
     }
 
     pub fn prev_track(&self) {
-        // Fix: Reset EOS latch on manual transport change
         self.eos_flag
             .store(false, std::sync::atomic::Ordering::Release);
 
@@ -782,18 +747,12 @@ impl AppState {
     }
 
     pub fn play(&self) {
-        // Bug #30 fix: Hold the crossfade lock for the entire critical section
-        // to prevent TOCTOU race where another thread sets up a crossfade engine
-        // between the check and the engine operation.
-        // Bug #31 fix: Only update player_state on Ok from engine; on error, set playback_error.
         let cf = self.crossfade.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(ref cf_engine) = *cf {
             cf_engine.play();
             drop(cf);
             *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Playing;
         } else {
-            // Hold cf lock while acquiring engine lock to prevent TOCTOU gap.
-            // Safe because engine_tick acquires engine then crossfade sequentially (not nested).
             let engine_result = {
                 if let Ok(engine) = self.engine.lock() {
                     if let Some(ref e) = *engine {
@@ -824,11 +783,6 @@ impl AppState {
     }
 
     pub fn pause(&self) {
-        // Bug #30 fix: Hold the crossfade lock for the entire critical section
-        // to prevent TOCTOU race where another thread sets up a crossfade engine
-        // between the check and the engine operation.
-        // Bug #31 fix: Only update player_state on Ok from engine; on error, set playback_error.
-        // Fix Bug #11: Persist playback state on pause so settings survive exit/crash.
         let cf = self.crossfade.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(ref cf_engine) = *cf {
             cf_engine.pause();
@@ -836,7 +790,6 @@ impl AppState {
             *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Paused;
             self.save_playback_state_to_config();
         } else {
-            // Hold cf lock while acquiring engine lock to prevent TOCTOU gap.
             let engine_result = {
                 if let Ok(engine) = self.engine.lock() {
                     if let Some(ref e) = *engine {
@@ -868,7 +821,6 @@ impl AppState {
     }
 
     pub fn set_playback_speed(&self, speed: f32) {
-        // #20: Persist the speed value so save_playback_state_to_config works
         *self
             .playback_speed
             .lock()
@@ -881,8 +833,6 @@ impl AppState {
     }
 
     pub fn save_playback_state_to_config(&self) {
-        // Fix: Extract all required state values BEFORE acquiring the config write lock
-        // to prevent lock order inversion deadlock (config -> queue vs queue -> config).
         let current_volume = self.volume();
         let current_speed = *self
             .playback_speed
@@ -897,7 +847,6 @@ impl AppState {
         let is_muted = self.volume_muted.load(Ordering::Relaxed);
         let vol_before_mute = f64::from_bits(self.volume_before_mute.load(Ordering::Relaxed));
 
-        // Now acquire config write lock as the final step
         let mut config = self.config.write().unwrap_or_else(|e| e.into_inner());
         config.general.volume = current_volume;
         config.general.playback_speed = current_speed;
@@ -1028,7 +977,6 @@ impl AppState {
     }
 
     pub fn load_tracks_for_view(&self) -> Vec<tunecraft_core::Track> {
-        // Issue #18: Check cache first to avoid re-querying the database.
         let cache_key = self.track_cache_key();
         {
             let cache = self.cached_tracks.lock().unwrap_or_else(|e| e.into_inner());
@@ -1065,35 +1013,27 @@ impl AppState {
             }
             ViewType::AlbumDetail(ref album) => self.get_tracks_by_album(album),
             ViewType::ArtistDetail(ref artist) => self.get_tracks_by_artist(artist),
-            ViewType::Mood(ref m) => {
-                match m.as_str() {
-                    "favorites" => {
-                        // Fix: Use the database love column instead of loading
-                        // all tracks and filtering in memory (O(N) bottleneck).
-                        let db = self.db.read().unwrap_or_else(|e| e.into_inner());
-                        db.as_ref()
-                            .and_then(|d| d.get_loved_track_records().ok())
-                            .unwrap_or_default()
-                    }
-                    "recent" => {
-                        // Fix Bug #5: Use SQL push-down query instead of loading all
-                        // tracks into memory and sorting in Rust.
-                        let db = self.db.read().unwrap_or_else(|e| e.into_inner());
-                        db.as_ref()
-                            .and_then(|d| d.get_recent_tracks(50).ok())
-                            .unwrap_or_default()
-                    }
-                    "most" => {
-                        // Fix Bug #5: Use SQL push-down query instead of loading all
-                        // tracks into memory and sorting in Rust.
-                        let db = self.db.read().unwrap_or_else(|e| e.into_inner());
-                        db.as_ref()
-                            .and_then(|d| d.get_most_played_tracks(50).ok())
-                            .unwrap_or_default()
-                    }
-                    mood => self.get_tracks_by_mood(mood),
+            ViewType::Mood(ref m) => match m.as_str() {
+                "favorites" => {
+                    let db = self.db.read().unwrap_or_else(|e| e.into_inner());
+                    db.as_ref()
+                        .and_then(|d| d.get_loved_track_records().ok())
+                        .unwrap_or_default()
                 }
-            }
+                "recent" => {
+                    let db = self.db.read().unwrap_or_else(|e| e.into_inner());
+                    db.as_ref()
+                        .and_then(|d| d.get_recent_tracks(50).ok())
+                        .unwrap_or_default()
+                }
+                "most" => {
+                    let db = self.db.read().unwrap_or_else(|e| e.into_inner());
+                    db.as_ref()
+                        .and_then(|d| d.get_most_played_tracks(50).ok())
+                        .unwrap_or_default()
+                }
+                mood => self.get_tracks_by_mood(mood),
+            },
             ViewType::PlaylistDetail(ref _name, id) => id
                 .map(|pl_id| self.get_playlist_tracks(pl_id))
                 .unwrap_or_default(),
@@ -1105,7 +1045,6 @@ impl AppState {
             _ => self.load_all_tracks(),
         };
         self.apply_sort(&mut tracks, sort);
-        // Issue #18: Store result in cache for subsequent calls.
         {
             let mut cache = self.cached_tracks.lock().unwrap_or_else(|e| e.into_inner());
             *cache = Some((cache_key, tracks.clone()));
@@ -1148,7 +1087,6 @@ impl AppState {
     }
 
     pub fn track_count(&self) -> i64 {
-        // Bug #34 fix: Use cached value when available instead of querying DB every render.
         if self.sidebar_cache_valid.load(Ordering::Relaxed) {
             self.sidebar_track_count.load(Ordering::Relaxed) as i64
         } else {
@@ -1160,7 +1098,6 @@ impl AppState {
     }
 
     pub fn get_mood_track_count(&self, mood: &str) -> i64 {
-        // Bug #34 fix: Use cached value when available instead of querying DB every render.
         if self.sidebar_cache_valid.load(Ordering::Relaxed) {
             let counts = self
                 .sidebar_mood_counts
@@ -1185,7 +1122,6 @@ impl AppState {
             let album_count = db.get_all_albums().map(|a| a.len() as u64).unwrap_or(0);
             let artist_count = db.get_all_artists().map(|a| a.len() as u64).unwrap_or(0);
             let playlist_count = db.get_all_playlists().map(|p| p.len() as u64).unwrap_or(0);
-            // Bug #34 fix: Cache track count and per-mood counts
             let track_count = db.track_count().unwrap_or(0) as u64;
             let mut mood_counts = std::collections::HashMap::new();
             for mood in &["dance", "romantic", "sad", "sufi", "chill"] {
@@ -1215,7 +1151,6 @@ impl AppState {
 
     /// Tick the engine (called periodically from the UI).
     pub fn engine_tick(&self) {
-        // Fix: Do not recover poisoned FFI locks — drop corrupted engine instead
         let mut engine_guard = match self.engine.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -1235,7 +1170,6 @@ impl AppState {
                 cf_engine.poll_and_dispatch();
             }
         }
-        // Check EOS flag
         if self.eos_flag.swap(false, Ordering::Relaxed) {
             let has_next = {
                 let queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
@@ -1243,9 +1177,6 @@ impl AppState {
             };
             if has_next {
                 self.next_track();
-                // Fix C5: Reset scrobble state for the new track after EOS.
-                // Without this, scrobble accumulated time from the previous track
-                // carries over, potentially causing premature/incorrect scrobble submissions.
                 self.notify_track_change();
             } else {
                 {
@@ -1270,7 +1201,6 @@ impl AppState {
                 }
             }
         }
-        // Check for playback errors
         {
             let mut error = self
                 .playback_error
@@ -1307,7 +1237,6 @@ impl AppState {
             true
         };
         drop(loved);
-        // Persist to database
         let db = self.db.read().unwrap_or_else(|e| e.into_inner());
         if let Some(ref db) = *db {
             if let Err(e) = db.set_track_loved(track_key, is_now_loved) {
@@ -1351,14 +1280,11 @@ impl AppState {
 
         if let Ok(engine_guard) = self.engine.lock() {
             if let Some(ref engine) = *engine_guard {
-                // Push each band gain individually
                 for (i, &gain) in bands.iter().enumerate() {
                     let _ = engine.set_eq_band_gain(i, gain as f64);
                 }
                 let _ = engine.set_stereo_width(width as f64);
                 let _ = engine.set_balance(balance as f64);
-                // MS EQ is applied via set_eq_state which is handled by the
-                // eq_panel when toggling; the enabled flag is already checked above.
                 let _ = ms_eq; // Used by future MS EQ integration
             }
         }
@@ -1371,7 +1297,6 @@ impl AppState {
         let currently_muted = self.volume_muted.load(std::sync::atomic::Ordering::Relaxed);
 
         if currently_muted {
-            // Unmute: Restore previous volume
             let restore_vol = f64::from_bits(
                 self.volume_before_mute
                     .load(std::sync::atomic::Ordering::Relaxed),
@@ -1380,7 +1305,6 @@ impl AppState {
                 .store(false, std::sync::atomic::Ordering::Relaxed);
             self.set_volume(restore_vol);
         } else {
-            // Mute: Save current volume and push 0.0 to engine
             let current_vol = self.volume();
             if current_vol > 0.0 {
                 self.volume_before_mute
@@ -1389,7 +1313,6 @@ impl AppState {
             self.volume_muted
                 .store(true, std::sync::atomic::Ordering::Relaxed);
 
-            // Push silence directly to the engine
             if let Ok(engine) = self.engine.lock() {
                 if let Some(ref e) = *engine {
                     let _ = e.set_volume(0.0);
@@ -1413,7 +1336,6 @@ impl AppState {
                 )
             })
         };
-        // Reset scrobble state for the new track (#4)
         {
             let mut scrobble = self.scrobble.lock().unwrap_or_else(|e| e.into_inner());
             scrobble.track_id = track_data.as_ref().and_then(|d| d.0);
@@ -1421,9 +1343,6 @@ impl AppState {
             scrobble.submitted = false;
         }
         if let Some((_id, title, artist, _album)) = track_data {
-            // Fix Bug #10: Include track id (or random suffix) in the unique_id
-            // to prevent key collisions when two tracks with the same title
-            // are played within the same minute.
             let unique_id = format!(
                 "{}-{}",
                 _id.map(|i| i.to_string()).unwrap_or_default(),
@@ -1443,10 +1362,6 @@ impl AppState {
             if notifs.len() > 20 {
                 notifs.truncate(20);
             }
-            // Bug #1 fix: Increment unread count by 1 (not total history length).
-            // The topbar resets notification_count to 0 when the bell is clicked,
-            // so storing notifs.len() caused the badge to show e.g. "21" after
-            // 20 songs even if the user had already opened the panel.
             let prev = self.notification_count.load(Ordering::Relaxed);
             self.notification_count.store(prev + 1, Ordering::Relaxed);
         }

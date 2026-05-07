@@ -11,7 +11,6 @@ use crate::i18n::tr;
 pub fn FilterPanel() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
     let signals: ReactivitySignals = use_context();
-    // Issue #5: Subscribe to UI signal for panel state
     let _ = *signals.ui.read();
 
     let dark = state
@@ -44,13 +43,11 @@ pub fn FilterPanel() -> Element {
                 h3 { "{tr(\"Filter\")}" }
                 button {
                     class: "panel-close-btn",
-                    // Issue #6: Accessibility
                     aria_label: "Close filter panel",
                     tabindex: "0",
                     onclick: move |_| {
                         let s = state.read().clone();
                         s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
-                        // Issue #5: Bump UI signal after panel close
                         let gen = *signals.ui.read();
                         signals.ui.set(gen.wrapping_add(1));
                     },
@@ -72,7 +69,6 @@ pub fn FilterPanel() -> Element {
                     input {
                         r#type: "text",
                         class: "filter-input",
-                        // Issue #6: Accessibility
                         aria_label: "Genre filter",
                         placeholder: "e.g. Rock, Pop, Jazz...",
                         value: "{genre_value}",
@@ -89,7 +85,6 @@ pub fn FilterPanel() -> Element {
                     input {
                         r#type: "text",
                         class: "filter-input",
-                        // Issue #6: Accessibility
                         aria_label: "Year range filter",
                         placeholder: "e.g. 2020-2024 or 2023",
                         value: "{year_value}",
@@ -104,7 +99,6 @@ pub fn FilterPanel() -> Element {
                 div { class: "filter-actions",
                     button {
                         class: "filter-apply-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Apply filter",
                         tabindex: "0",
                         onclick: move |_| {
@@ -112,22 +106,16 @@ pub fn FilterPanel() -> Element {
                             let genre = s.filter_genre.lock().unwrap_or_else(|e| e.into_inner()).clone();
                             let year_range = s.filter_year_range.lock().unwrap_or_else(|e| e.into_inner()).clone();
                             let (year_from, year_to) = if !year_range.is_empty() {
-                                // #11: Use rfind('-') for year ranges so "2020-2024" works correctly.
-                                // Also handle edge cases like spaces and missing upper bound.
                                 let trimmed = year_range.trim();
                                 if let Some(dash) = trimmed.rfind('-') {
                                     let from_str = trimmed[..dash].trim();
                                     let to_str = trimmed[dash + 1..].trim();
-                                    // If the part before '-' is empty (e.g. "-2024"), treat as no lower bound
                                     let from: Option<i32> = if from_str.is_empty() {
                                         None
                                     } else {
                                         match from_str.parse() {
                                             Ok(v) => Some(v),
                                             Err(_) => {
-                                                // Bug #6 fix: Malformed lower bound — warn the user
-                                                // instead of silently dropping it (e.g. "1990-2000-2010"
-                                                // would previously parse as (None, 2010)).
                                                 let s2 = state.read().clone();
                                                 *s2.toast_message.lock().unwrap_or_else(|e| e.into_inner()) =
                                                     Some(format!("Invalid year range: '{}' is not a valid year", from_str));
@@ -135,7 +123,6 @@ pub fn FilterPanel() -> Element {
                                             }
                                         }
                                     };
-                                    // If the part after '-' is empty (e.g. "2020-"), treat as no upper bound
                                     let to: Option<i32> = if to_str.is_empty() {
                                         None
                                     } else {
@@ -168,7 +155,6 @@ pub fn FilterPanel() -> Element {
                                 *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) =
                                     ViewType::Filter { genre, year_from, year_to };
                             }
-                            // Issue #5: Bump signals after filter apply
                             let gen = *signals.library.read();
                             signals.library.set(gen.wrapping_add(1));
                             let gen = *signals.ui.read();
@@ -176,7 +162,6 @@ pub fn FilterPanel() -> Element {
                         },
                         onkeydown: move |e: KeyboardEvent| {
                             if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
-                                // Same as onclick — trigger filter apply
                             }
                         },
                         "{tr(\"Apply\")}"
@@ -184,7 +169,6 @@ pub fn FilterPanel() -> Element {
 
                     button {
                         class: "filter-clear-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Clear filter",
                         tabindex: "0",
                         onclick: move |_| {
@@ -193,10 +177,7 @@ pub fn FilterPanel() -> Element {
                             let s = state.read().clone();
                             *s.filter_genre.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
                             *s.filter_year_range.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
-                            // Fix Bug #9: Also reset the current view back to AllTracks
-                            // so the filtered view is cleared when Clear is pressed.
                             *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) = ViewType::AllTracks;
-                            // Issue #5: Bump signals after filter clear
                             let gen = *signals.library.read();
                             signals.library.set(gen.wrapping_add(1));
                             let gen = *signals.ui.read();

@@ -22,8 +22,6 @@ use std::time::Duration;
 /// Callback type for end-of-stream events from the crossfade pipeline.
 pub type CrossfadeEosCallback = Box<dyn Fn() + Send + Sync + 'static>;
 
-// ── Per-sample gain ramp ──────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Copy)]
 struct GainRamp {
     gain: f32,
@@ -73,12 +71,6 @@ impl GainRamp {
     }
 }
 
-// ── CrossfadeEntry ────────────────────────────────────────────────────────────
-
-// Fix Bug #30: Track the mixer sink pad so it can be released when the
-// entry is cleared in load_track_with_crossfade(). Previously, entries.clear()
-// dropped the CrossfadeEntry but never released the requested mixer sink pad,
-// leaking pads in the audiomixer element.
 struct CrossfadeEntry {
     _uridecodebin: Element,
     volume: Element,
@@ -105,8 +97,6 @@ impl CrossfadeEntry {
             .context("failed to create volume element")?;
         volume.set_property("volume", 0.0f64);
 
-        // Fix Bug #30: Shared holder for the mixer sink pad, so the
-        // connect_pad_added callback can store it and we can release it later.
         let mixer_sink_pad: Arc<Mutex<Option<gstreamer::Pad>>> = Arc::new(Mutex::new(None));
         let mixer_sink_holder_cb = Arc::clone(&mixer_sink_pad);
 
@@ -139,7 +129,6 @@ impl CrossfadeEntry {
                     return;
                 };
                 src_pad.link(&mixer_sink).ok();
-                // Fix Bug #30: Store the mixer sink pad so it can be released later
                 if let Ok(mut h) = mixer_sink_holder_cb.lock() {
                     *h = Some(mixer_sink);
                 }
@@ -159,7 +148,6 @@ impl CrossfadeEntry {
         })
     }
 
-    // Fix Bug #30: Release the mixer sink pad back to the audiomixer element.
     fn release_mixer_pad(&self, mixer: &Element) {
         if let Ok(mut h) = self.mixer_sink_pad.lock() {
             if let Some(pad) = h.take() {
@@ -199,7 +187,6 @@ impl CrossfadeEntry {
 
         src_pad.add_probe(gstreamer::PadProbeType::BUFFER, move |_pad, info| {
             if let Some(gstreamer::PadProbeData::Buffer(ref buf)) = info.data {
-                // F32LE stereo → 2 f32 per frame → 8 bytes per frame
                 let n_samples = buf.size() / (2 * std::mem::size_of::<f32>());
                 let mut ramp = ramp_arc.lock().unwrap_or_else(|e| e.into_inner());
                 let mut last = ramp.gain;
@@ -212,8 +199,6 @@ impl CrossfadeEntry {
         });
     }
 }
-
-// ── CrossfadeEngine ───────────────────────────────────────────────────────────
 
 pub struct CrossfadeEngine {
     pipeline: Pipeline,
@@ -234,8 +219,6 @@ pub struct CrossfadeEngine {
 
 impl CrossfadeEngine {
     pub fn new(fade_duration_ms: u32) -> Result<Self> {
-        // Fix C10: Use centralized GStreamer init instead of calling gstreamer::init()
-        // directly, which fails on second call. The centralized init uses std::sync::Once.
         super::engine::ensure_gstreamer_initialized()?;
 
         let pipeline = Pipeline::with_name("crossfade-pipeline");
@@ -254,10 +237,6 @@ impl CrossfadeEngine {
 
         let eos_cb: Arc<Mutex<Option<CrossfadeEosCallback>>> = Arc::new(Mutex::new(None));
 
-        // v3.0: No longer install a GLib bus watch by default.
-        // The iced UI uses poll_bus() driven by tick() instead.
-        // The GLib bus watch is only installed when the glib-bus-watch feature
-        // is enabled (for backward compatibility with the GTK4 UI).
         let bus_watch_id = Mutex::new(None);
 
         Ok(Self {
@@ -313,14 +292,9 @@ impl CrossfadeEngine {
     }
 
     pub fn load_track(&self, uri: &str) -> Result<()> {
-        // Fix Bug #1: Release previous entries' mixer pads before loading a new
-        // track, matching the cleanup in load_track_with_crossfade(). Previously,
-        // load_track() only pushed new entries without releasing old ones, leaking
-        // mixer sink pads and accumulating entries indefinitely.
         {
             let mut entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
             for e in entries.iter() {
-                // Unlink the volume src pad from mixer sink pad before releasing
                 if let Ok(pad_holder) = e.mixer_sink_pad.lock() {
                     if let Some(ref mixer_sink) = *pad_holder {
                         if let Some(src_pad) = e.volume.static_pad("src") {
@@ -345,7 +319,6 @@ impl CrossfadeEngine {
         let sr = *self.sample_rate.lock().unwrap_or_else(|e| e.into_inner());
         entry.fade_in(fade_ms, vol, sr);
         entry.install_gain_probe();
-        // Fix H11: Recover from poisoned mutex instead of propagating error
         self.entries
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -364,17 +337,10 @@ impl CrossfadeEngine {
             .unwrap_or_else(|e| e.into_inner());
         let sr = *self.sample_rate.lock().unwrap_or_else(|e| e.into_inner());
 
-        // Fix H3: Unlink volume src pad from mixer sink pad BEFORE releasing
-        // the pad back to audiomixer. Previously, release_mixer_pad() was called
-        // while the volume element was still linked, causing GStreamer warnings
-        // or silence on the new entry. Now we unlink first, then release.
-        // Fix H11: Use unwrap_or_else(e.into_inner()) to recover from poisoned
-        // mutex instead of propagating the error, which permanently disabled crossfade.
         {
             let mut entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
             for e in entries.iter() {
                 e.fade_out(fade_ms, sr);
-                // Unlink the volume src pad from mixer sink pad before releasing
                 if let Ok(pad_holder) = e.mixer_sink_pad.lock() {
                     if let Some(ref mixer_sink) = *pad_holder {
                         if let Some(src_pad) = e.volume.static_pad("src") {
@@ -396,8 +362,6 @@ impl CrossfadeEngine {
             .push(entry);
         Ok(())
     }
-
-    // ── Playback controls ─────────────────────────────────────────────────────
 
     pub fn play(&self) {
         let _ = self.pipeline.set_state(gstreamer::State::Playing);
@@ -524,15 +488,12 @@ impl CrossfadeEngine {
 
 impl Drop for CrossfadeEngine {
     fn drop(&mut self) {
-        // v3.0: bus_watch_id may be None if not using the glib-bus-watch feature
         if let Some(id) = self.bus_watch_id.lock().ok().and_then(|mut id| id.take()) {
             id.remove();
         }
         let _ = self.pipeline.set_state(gstreamer::State::Null);
     }
 }
-
-// ── Unit tests (no GStreamer required) ────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

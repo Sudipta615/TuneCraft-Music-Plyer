@@ -70,7 +70,6 @@ pub fn apply_pragmas(
     journal_mode: &str,
     synchronous: &str,
 ) -> Result<(), rusqlite::Error> {
-    // Whitelist allowed values to prevent SQL injection
     const ALLOWED_JOURNAL_MODES: &[&str] =
         &["DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"];
     const ALLOWED_SYNCHRONOUS: &[&str] = &["OFF", "NORMAL", "FULL", "EXTRA"];

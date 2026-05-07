@@ -109,10 +109,6 @@ impl ExclusiveAudioOutput {
     pub fn new(mut dsp_cons: ringbuf::HeapCons<f32>, playing: Arc<AtomicBool>) -> Result<Self> {
         let host = cpal::default_host();
 
-        // Try PipeWire exclusive access first (recommended for modern Linux).
-        // PipeWire exclusive mode works by opening the PipeWire ALSA plugin
-        // device in exclusive mode — PipeWire will grant exclusive access and
-        // stop mixing other audio streams.
         let device = if let Some(pw_device) = try_pipewire_exclusive() {
             let name = pw_device.name().unwrap_or_else(|_| "unknown".into());
             tracing::info!(
@@ -121,9 +117,6 @@ impl ExclusiveAudioOutput {
             );
             Some(pw_device)
         } else {
-            // Fall back to ALSA direct hardware device search.
-            // When PipeWire is not available, this opens the ALSA hw: device
-            // directly, bypassing all intermediate layers.
             find_hardware_device(&host)
         }
         .or_else(|| host.default_output_device())
@@ -132,8 +125,6 @@ impl ExclusiveAudioOutput {
         let device_name = device.name().unwrap_or_else(|_| "unknown".into());
         tracing::info!("Exclusive mode: opening device '{}'", device_name);
 
-        // Find the best exclusive config: prefer the hardware's native rate
-        // and format with no resampling.
         let (config, format) = Self::find_exclusive_config(&device)?;
         let sample_rate = config.sample_rate().0;
         let channels = config.channels();
@@ -149,10 +140,6 @@ impl ExclusiveAudioOutput {
         let underrun_cb = Arc::clone(&underrun_count);
         let playing_cb = Arc::clone(&playing);
 
-        // Fix Bug #6: Pre-allocate f32 conversion buffer to avoid per-callback heap allocations
-        // in I16/U16 audio callback paths. The buffer is sized to the max reported buffer size
-        // (or 4096 if unknown) and reused across calls via .resize() which is allocation-free
-        // when capacity is sufficient.
         let f32_buf_capacity: usize = match config.buffer_size() {
             cpal::SupportedBufferSize::Range { max, .. } => *max as usize,
             cpal::SupportedBufferSize::Unknown => 4096,
@@ -183,7 +170,6 @@ impl ExclusiveAudioOutput {
             cpal::SampleFormat::I16 => {
                 let config = config.clone();
                 tracing::warn!("Exclusive mode: device only supports I16 — converting from F32");
-                // Fix Bug #6: pre-allocate conversion buffer, moved into closure for reuse
                 let mut f32_buf = vec![0.0f32; f32_buf_capacity];
                 device.build_output_stream(
                     &config.config(),
@@ -192,7 +178,6 @@ impl ExclusiveAudioOutput {
                             output.fill(0);
                             return;
                         }
-                        // Fix Bug #6: reuse pre-allocated buffer instead of heap-allocating per callback
                         f32_buf.clear();
                         f32_buf.resize(output.len(), 0.0);
                         let filled = dsp_cons.pop_slice(&mut f32_buf);
@@ -212,7 +197,6 @@ impl ExclusiveAudioOutput {
             cpal::SampleFormat::U16 => {
                 let config = config.clone();
                 tracing::warn!("Exclusive mode: device only supports U16 — converting from F32");
-                // Fix Bug #6: pre-allocate conversion buffer, moved into closure for reuse
                 let mut f32_buf = vec![0.0f32; f32_buf_capacity];
                 device.build_output_stream(
                     &config.config(),
@@ -221,7 +205,6 @@ impl ExclusiveAudioOutput {
                             output.fill(u16::MAX / 2);
                             return;
                         }
-                        // Fix Bug #6: reuse pre-allocated buffer instead of heap-allocating per callback
                         f32_buf.clear();
                         f32_buf.resize(output.len(), 0.0);
                         let filled = dsp_cons.pop_slice(&mut f32_buf);
@@ -294,7 +277,6 @@ impl ExclusiveAudioOutput {
         /// CPU/memory on resampling.
         const MAX_EXCLUSIVE_RATE: u32 = 192_000;
 
-        // Prefer F32 stereo at the highest available rate (capped)
         let mut best_f32: Option<&cpal::SupportedStreamConfigRange> = None;
         let mut best_f32_rate: u32 = 0;
 
@@ -302,7 +284,6 @@ impl ExclusiveAudioOutput {
             if cfg.channels() == 2 && cfg.sample_format() == cpal::SampleFormat::F32 {
                 let min_rate = cfg.min_sample_rate().0;
                 let max_rate = cfg.max_sample_rate().0.min(MAX_EXCLUSIVE_RATE);
-                // Only consider configs that support a rate within our cap
                 if min_rate <= MAX_EXCLUSIVE_RATE && max_rate > best_f32_rate {
                     best_f32_rate = max_rate;
                     best_f32 = Some(cfg);
@@ -315,7 +296,6 @@ impl ExclusiveAudioOutput {
             return Ok((cfg.with_sample_rate(rate), cpal::SampleFormat::F32));
         }
 
-        // Fallback: any format at highest rate (capped)
         let mut best: Option<&cpal::SupportedStreamConfigRange> = None;
         let mut best_rate: u32 = 0;
         let mut best_fmt = cpal::SampleFormat::F32;
@@ -353,8 +333,6 @@ impl ExclusiveAudioOutput {
 /// When PipeWire is not available, returns `None` and the caller should
 /// fall back to ALSA direct `hw:` access.
 fn try_pipewire_exclusive() -> Option<cpal::Device> {
-    // Check if PipeWire is running by looking for the PIPEWIRE_RUNTIME_DIR
-    // environment variable or the pipewire socket at /run/user/{uid}/pipewire-0.
     if !is_pipewire_running() {
         tracing::debug!("PipeWire not detected as running; skipping PipeWire exclusive");
         return None;
@@ -362,9 +340,6 @@ fn try_pipewire_exclusive() -> Option<cpal::Device> {
 
     tracing::debug!("PipeWire detected; searching for PipeWire device for exclusive access");
 
-    // Try to enumerate cpal output devices and find one with "pipewire" in
-    // the name. This gives us the PipeWire ALSA plugin device, which we can
-    // then open in exclusive mode.
     let host = cpal::default_host();
     let devices: Vec<cpal::Device> = match host.output_devices() {
         Ok(d) => d.collect(),
@@ -398,13 +373,11 @@ fn try_pipewire_exclusive() -> Option<cpal::Device> {
 /// 2. The PipeWire socket file at `/run/user/{uid}/pipewire-0` (the default
 ///    socket created by the PipeWire daemon).
 fn is_pipewire_running() -> bool {
-    // Check the PIPEWIRE_RUNTIME_DIR environment variable.
     if std::env::var("PIPEWIRE_RUNTIME_DIR").is_ok() {
         tracing::debug!("PipeWire detected via PIPEWIRE_RUNTIME_DIR env var");
         return true;
     }
 
-    // Check for the PipeWire socket at /run/user/{uid}/pipewire-0.
     if let Some(uid) = get_current_uid() {
         let socket_path = PathBuf::from(format!("/run/user/{}/pipewire-0", uid));
         if socket_path.exists() {
@@ -434,10 +407,7 @@ fn is_pipewire_running() -> bool {
 ///
 /// On non-Linux platforms, returns `None`.
 fn get_current_uid() -> Option<u32> {
-    // Try the XDG_RUNTIME_DIR path pattern first — if it contains a UID
-    // we can extract it.
     if let Ok(xdg) = std::env::var("XDG_RUNTIME_DIR") {
-        // XDG_RUNTIME_DIR is typically /run/user/{uid}
         if let Some(uid_str) = xdg.split('/').last() {
             if let Ok(uid) = uid_str.parse::<u32>() {
                 return Some(uid);
@@ -445,23 +415,14 @@ fn get_current_uid() -> Option<u32> {
         }
     }
 
-    // Try the UID environment variable (set in some containers)
     if let Ok(uid_str) = std::env::var("UID") {
         if let Ok(uid) = uid_str.parse::<u32>() {
             return Some(uid);
         }
     }
 
-    // Fallback: use nix::unistd::getuid if available, otherwise
-    // use uid 1000 (common default for the first desktop user on Linux).
     #[cfg(target_os = "linux")]
     {
-        // Fix Bug #59: Add SAFETY comment for undocumented unsafe block.
-        // SAFETY: libc::getuid() is a simple POSIX system call that reads the
-        // real user ID of the calling process. It performs no heap allocations,
-        // has no side effects, cannot panic, and requires no invariants from
-        // the caller. The returned uid_t is always a valid non-negative integer.
-        // This is safe to call from any thread and at any time.
         Some(unsafe { libc::getuid() })
     }
 
@@ -482,10 +443,8 @@ fn get_current_uid() -> Option<u32> {
 /// 2. Devices with "ALSA" in the name that are not PulseAudio-routed
 /// 3. Devices with "pipewire" in the name (PipeWire ALSA plugin)
 fn find_hardware_device(host: &cpal::Host) -> Option<cpal::Device> {
-    // On Linux, try to enumerate devices and find an ALSA hardware one
     let devices: Vec<cpal::Device> = host.output_devices().ok()?.collect();
 
-    // Prefer devices with "hw:" or "plughw:" in the name (ALSA direct)
     for device in &devices {
         if let Ok(name) = device.name() {
             let name_lower = name.to_lowercase();
@@ -496,7 +455,6 @@ fn find_hardware_device(host: &cpal::Host) -> Option<cpal::Device> {
         }
     }
 
-    // Try to find a device with "ALSA" in the name that's not PulseAudio
     for device in &devices {
         if let Ok(name) = device.name() {
             let name_lower = name.to_lowercase();
@@ -507,10 +465,6 @@ fn find_hardware_device(host: &cpal::Host) -> Option<cpal::Device> {
         }
     }
 
-    // Third pass: look for PipeWire devices (PipeWire ALSA plugin).
-    // On systems running PipeWire, the ALSA plugin exposes a device whose
-    // name contains "pipewire". This can be used for exclusive access when
-    // no direct ALSA hw: device is available.
     for device in &devices {
         if let Ok(name) = device.name() {
             let name_lower = name.to_lowercase();
@@ -531,7 +485,6 @@ mod tests {
 
     #[test]
     fn find_exclusive_config_returns_f32_preferred() {
-        // This test requires an audio device to be present
         let host = cpal::default_host();
         if let Some(device) = host.default_output_device() {
             if let Ok((config, fmt)) = ExclusiveAudioOutput::find_exclusive_config(&device) {
@@ -551,25 +504,17 @@ mod tests {
     /// not exist, it should return false.
     #[test]
     fn pipewire_detection_checks_env() {
-        // Save the original env var state so we can restore it
         let original = std::env::var("PIPEWIRE_RUNTIME_DIR").ok();
 
-        // Case 1: PIPEWIRE_RUNTIME_DIR is set → should detect PipeWire
         std::env::set_var("PIPEWIRE_RUNTIME_DIR", "/tmp/pipewire-test-runtime");
         assert!(
             is_pipewire_running(),
             "is_pipewire_running() should return true when PIPEWIRE_RUNTIME_DIR is set"
         );
 
-        // Case 2: Remove the env var → detection depends on the socket file.
-        // We remove it and check that the function does not panic and returns
-        // a valid bool (we cannot guarantee the socket exists in CI).
         std::env::remove_var("PIPEWIRE_RUNTIME_DIR");
-        // Just verify it doesn't panic — the return value depends on the
-        // system state (whether /run/user/{uid}/pipewire-0 exists).
         let _result = is_pipewire_running();
 
-        // Restore the original env var state
         if let Some(val) = original {
             std::env::set_var("PIPEWIRE_RUNTIME_DIR", val);
         }

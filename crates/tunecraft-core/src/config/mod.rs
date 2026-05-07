@@ -40,7 +40,6 @@ pub struct GeneralConfig {
     pub repeat_mode: String,
     #[serde(default)]
     pub shuffle: bool,
-    // Bug #35 fix: Persist mute state so it survives restarts.
     #[serde(default)]
     pub volume_muted: bool,
     #[serde(default = "default_volume_before_mute")]
@@ -286,7 +285,6 @@ impl TunecraftConfig {
             1.0,
         )
         .clamp(0.0, 1.0);
-        // Validate repeat_mode against known values
         if !["none", "all", "one"].contains(&self.general.repeat_mode.as_str()) {
             tracing::warn!(
                 "Invalid repeat_mode '{}', resetting to 'none'",
@@ -297,7 +295,6 @@ impl TunecraftConfig {
         self.audio.buffer_size = self.audio.buffer_size.clamp(512, 16384);
         self.audio.decode_ring_size = self.audio.decode_ring_size.clamp(4096, 262_144);
         self.audio.output_ring_size = self.audio.output_ring_size.clamp(2048, 131_072);
-        // Validate visualization_mode against known values
         if !["always", "deferred", "disabled"].contains(&self.audio.visualization_mode.as_str()) {
             self.audio.visualization_mode = "deferred".to_string();
         }
@@ -318,7 +315,6 @@ impl TunecraftConfig {
             0.0,
         )
         .clamp(-15.0, 15.0);
-        // Validate replaygain_mode against known values
         if ![
             "off",
             "track",
@@ -340,7 +336,6 @@ impl TunecraftConfig {
             -23.0,
         )
         .clamp(-30.0, 0.0);
-        // Validate backend against known values
         if self.audio.backend != "gstreamer" {
             tracing::warn!(
                 "Invalid backend '{}', resetting to 'gstreamer'",
@@ -452,12 +447,6 @@ pub fn load() -> Result<TunecraftConfig> {
     let mut config: TunecraftConfig =
         toml::from_str(&content).context("failed to parse config file")?;
 
-    // Fix Bug #38: Config migration detection now uses the parsed
-    // `config_version` field instead of searching for field names in the raw
-    // TOML content. Previously the field was never serialized, so
-    // `!content.contains("config_version")` was always true and the config
-    // file was rewritten on every application start. Now `config_version` is
-    // a proper serialized field; we compare it to `CURRENT_CONFIG_VERSION`.
     let needs_migration = config.config_version < CURRENT_CONFIG_VERSION;
 
     config.validate();
@@ -584,7 +573,6 @@ dither_enabled = true
 
     #[test]
     fn test_config_roundtrip() {
-        // Verify that a config can be serialized to TOML and deserialized back
         let config = TunecraftConfig::default();
         let toml_str = toml::to_string_pretty(&config).expect("serialize config");
         let parsed: TunecraftConfig = toml::from_str(&toml_str).expect("deserialize config");

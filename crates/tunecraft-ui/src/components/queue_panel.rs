@@ -11,7 +11,6 @@ use crate::i18n::tr;
 pub fn QueuePanel() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
     let signals: ReactivitySignals = use_context();
-    // Issue #5: Subscribe to queue signal for queue state changes
     let _ = *signals.queue.read();
     let _ = *signals.playback.read();
 
@@ -38,9 +37,6 @@ pub fn QueuePanel() -> Element {
             .collect()
     };
     let current_index = state.read().queue_lock().current_index;
-    // Bug #33 fix: When shuffle is enabled, current_index is a logical index
-    // that maps to a physical index via shuffle_order. Comparing it directly
-    // with the physical index from enumerate() highlights the wrong track.
     let shuffle_on = state.read().queue_lock().shuffle;
     let shuffle_order = state.read().queue_lock().shuffle_order.clone();
     let physical_current = current_index.and_then(|logical| {
@@ -62,14 +58,10 @@ pub fn QueuePanel() -> Element {
                 div { class: "panel-header-actions",
                     button {
                         class: "panel-action-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Clear all tracks from queue",
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
-                            // Fix H13: Stop the audio engine when clearing the queue.
-                            // Previously, clearing the queue left the engine playing
-                            // with no corresponding queue entry, causing stale playback.
                             if let Ok(engine) = s.engine.lock() {
                                 if let Some(ref e) = *engine {
                                     let _ = e.stop();
@@ -80,7 +72,6 @@ pub fn QueuePanel() -> Element {
                             queue.tracks.clear();
                             queue.current_index = None;
                             queue.shuffle_order.clear();
-                            // Issue #5: Bump signals after queue clear
                             drop(queue);
                             let gen = *signals.queue.read();
                             signals.queue.set(gen.wrapping_add(1));
@@ -111,13 +102,11 @@ pub fn QueuePanel() -> Element {
                     }
                     button {
                         class: "panel-close-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Close queue panel",
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
                             s.queue_visible.store(false, std::sync::atomic::Ordering::Relaxed);
-                            // Issue #5: Bump UI signal after panel close
                             let gen = *signals.ui.read();
                             signals.ui.set(gen.wrapping_add(1));
                         },
@@ -147,7 +136,6 @@ pub fn QueuePanel() -> Element {
                             div {
                                 class: if is_current { "queue-item current" } else { "queue-item" },
                                 key: "{idx}",
-                                // Issue #6: Accessibility
                                 role: "listitem",
                                 tabindex: "0",
                                 aria_label: "{title} by {artist}, {duration}",
@@ -162,7 +150,6 @@ pub fn QueuePanel() -> Element {
                                 span { class: "queue-item-duration", "{duration}" }
                                 button {
                                     class: "queue-item-remove",
-                                    // Issue #6: Accessibility
                                     aria_label: "Remove {title} from queue",
                                     tabindex: "-1",
                                     onclick: move |_| {
@@ -170,16 +157,13 @@ pub fn QueuePanel() -> Element {
                                         let mut queue = s.queue.lock().unwrap_or_else(|e| e.into_inner());
                                         if idx_for_closure < queue.tracks.len() {
                                             queue.tracks.remove(idx_for_closure);
-                                            // #5: Use preserving variant so we don't jump to a random track
                                             if queue.shuffle {
                                                 queue.regenerate_shuffle_order_preserving_current();
                                             }
-                                            // Adjust current_index
                                             if let Some(cur) = queue.current_index {
                                                 if idx_for_closure < cur {
                                                     queue.current_index = Some(cur - 1);
                                                 } else if idx_for_closure == cur {
-                                                    // Current track was removed: advance or stop
                                                     if queue.tracks.is_empty() {
                                                         queue.current_index = None;
                                                     } else if cur < queue.tracks.len() {
@@ -188,7 +172,6 @@ pub fn QueuePanel() -> Element {
                                                         queue.current_index = Some(0);
                                                     }
                                                     drop(queue);
-                                                    // Reload and play next track or stop
                                                     let queue2 = s.queue.lock().unwrap_or_else(|e| e.into_inner());
                                                     if let Some(idx) = queue2.current_index {
                                                         if let Some(effective) = queue2.effective_index(idx) {
@@ -211,7 +194,6 @@ pub fn QueuePanel() -> Element {
                                                 }
                                             }
                                         }
-                                        // Issue #5: Bump signals after queue removal
                                         let gen = *signals.queue.read();
                                         signals.queue.set(gen.wrapping_add(1));
                                         let gen = *signals.playback.read();

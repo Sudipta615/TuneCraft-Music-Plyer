@@ -58,16 +58,11 @@ impl AudioEngine {
             prev
         };
         if !enabled {
-            // Release rg_state lock before acquiring dsp lock (avoid nested lock ordering)
             self.dsp_arc()
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .set_replaygain_factor(1.0);
         } else if !was_enabled {
-            // Fix Bug #15: When enabling ReplayGain on a playing track, compute
-            // and apply the RG factor immediately. Previously, setting enabled=true
-            // had no effect until the next track load, because no factor was
-            // computed for the currently-loaded track.
             let path = self
                 .current_track_path
                 .lock()

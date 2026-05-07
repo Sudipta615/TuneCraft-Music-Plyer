@@ -68,7 +68,6 @@ impl Database {
     pub fn get_tracks_by_mood(&self, mood: &str, limit: usize) -> Result<Vec<Track>> {
         let conn = self.conn()?;
 
-        // Fix Bug #9: When limit == 0, return all matching tracks (no limit).
         if limit == 0 {
             let sql = format!(
                 "SELECT {} FROM tracks
@@ -85,7 +84,6 @@ impl Database {
             return Ok(results);
         }
 
-        // Count total matching tracks using the same connection
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM tracks WHERE COALESCE(mood_override, mood) = ?1",
             rusqlite::params![mood],
@@ -96,7 +94,6 @@ impl Database {
             return Ok(Vec::new());
         }
 
-        // Generate a random offset that still allows us to fetch `limit` rows
         let max_offset = (count as usize).saturating_sub(limit);
         let offset = if max_offset == 0 {
             0
@@ -106,7 +103,6 @@ impl Database {
             rng.random_range(0..max_offset)
         };
 
-        // Use the same connection for SELECT to avoid TOCTOU race
         let sql = format!(
             "SELECT {} FROM tracks
              WHERE COALESCE(mood_override, mood) = ?1
@@ -126,9 +122,6 @@ impl Database {
         Ok(results)
     }
 
-    // Fix Bug #50: Mood count badge loads up to 500 full Track objects per
-    // mood just to get the count. This method returns just the count without
-    // loading any Track objects, making sidebar badge rendering O(1) per mood.
     /// Count tracks for a given mood without loading full Track objects.
     /// Uses COALESCE so mood_override takes priority.
     pub fn count_tracks_for_mood(&self, mood: &str) -> Result<i64> {

@@ -15,9 +15,7 @@ const SEARCH_DEBOUNCE_MS: u64 = 300;
 pub fn TopBar() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
     let signals: ReactivitySignals = use_context();
-    // Issue #5: Subscribe to UI signal for notification count, theme changes
     let _ = *signals.ui.read();
-    // Issue #5: Subscribe to playback signal for notification badge after track change
     let _ = *signals.playback.read();
 
     let dark = state
@@ -37,9 +35,6 @@ pub fn TopBar() -> Element {
 
     let mut search_value = use_signal(|| search_query.clone());
 
-    // Fix M14: Debounce timer for search queries. Stores the Instant when the
-    // last keystroke occurred, and a spawned future checks if enough time has
-    // elapsed before actually updating the search query in AppState.
     let mut last_keystroke: Signal<Option<std::time::Instant>> = use_signal(|| None);
 
     rsx! {
@@ -47,21 +42,17 @@ pub fn TopBar() -> Element {
             role: "banner",
             aria_label: "Top bar",
 
-            // Search bar
             div { class: "search-bar",
                 span { class: "search-icon", "🔍" }
                 input {
                     r#type: "text",
                     class: "search-input",
-                    // Issue #6: Accessibility
                     aria_label: "{tr(\"Search songs, artists, albums\")}",
                     placeholder: "{tr(\"Search songs, artists, albums...\")}",
                     value: "{search_value}",
                     oninput: move |e| {
                         let new_value = e.value().clone();
                         search_value.set(new_value.clone());
-                        // Fix M14: Record the time of this keystroke and spawn a
-                        // debounced update that only fires after 300ms of inactivity.
                         last_keystroke.set(Some(std::time::Instant::now()));
                         let s = state.read().clone();
                         let keystroke_time = std::time::Instant::now();
@@ -69,7 +60,6 @@ pub fn TopBar() -> Element {
                         let ui_signal = signals.ui;
                         spawn(async move {
                             tokio::time::sleep(std::time::Duration::from_millis(SEARCH_DEBOUNCE_MS)).await;
-                            // Only apply if no newer keystroke has occurred
                             let elapsed = keystroke_time.elapsed();
                             if elapsed >= std::time::Duration::from_millis(SEARCH_DEBOUNCE_MS) {
                                 *s.search_query.lock().unwrap_or_else(|e| e.into_inner()) = new_value.clone();
@@ -77,7 +67,6 @@ pub fn TopBar() -> Element {
                                 if current_view != ViewType::Search {
                                     *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) = ViewType::Search;
                                 }
-                                // Issue #5: Bump signals after search
                                 let gen = *lib_signal.read();
                                 lib_signal.set(gen.wrapping_add(1));
                                 let gen = *ui_signal.read();
@@ -86,12 +75,10 @@ pub fn TopBar() -> Element {
                         });
                     },
                     onsubmit: move |_| {
-                        // Immediate submit — apply the search right away
                         let s = state.read().clone();
                         let val = search_value.read().clone();
                         *s.search_query.lock().unwrap_or_else(|e| e.into_inner()) = val;
                         *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) = ViewType::Search;
-                        // Issue #5: Bump signals after search submit
                         let gen = *signals.library.read();
                         signals.library.set(gen.wrapping_add(1));
                         let gen = *signals.ui.read();
@@ -100,13 +87,10 @@ pub fn TopBar() -> Element {
                 }
             }
 
-            // Spacer
             div { class: "topbar-spacer" }
 
-            // Notification bell
             button {
                 class: "topbar-icon-btn",
-                // Issue #6: Accessibility
                 aria_label: "{tr(\"Notifications\")}, {notification_count} unread",
                 tabindex: "0",
                 onclick: move |_| {
@@ -116,7 +100,6 @@ pub fn TopBar() -> Element {
                     if !visible {
                         s.notification_count.store(0, std::sync::atomic::Ordering::Relaxed);
                     }
-                    // Issue #5: Bump UI signal after notification toggle
                     let gen = *signals.ui.read();
                     signals.ui.set(gen.wrapping_add(1));
                 },
@@ -138,10 +121,8 @@ pub fn TopBar() -> Element {
                 }
             }
 
-            // Theme toggle
             button {
                 class: "topbar-icon-btn",
-                // Issue #6: Accessibility
                 aria_label: if dark { tr("Switch to light theme") } else { tr("Switch to dark theme") },
                 tabindex: "0",
                 onclick: move |_| {
@@ -153,7 +134,6 @@ pub fn TopBar() -> Element {
                     if let Err(e) = tunecraft_core::config::save(&config) {
                         tracing::warn!("Failed to persist theme: {}", e);
                     }
-                    // Issue #5: Bump UI signal after theme toggle
                     let gen = *signals.ui.read();
                     signals.ui.set(gen.wrapping_add(1));
                 },
@@ -174,10 +154,8 @@ pub fn TopBar() -> Element {
                 span { if dark { "☀️" } else { "🌙" } }
             }
 
-            // Add Music button
             button {
                 class: "add-music-btn",
-                // Issue #6: Accessibility
                 aria_label: "{tr(\"Add music files\")}",
                 tabindex: "0",
                 onclick: move |_| {
@@ -212,10 +190,8 @@ pub fn TopBar() -> Element {
                                     }
                                 }
                                 tracing::info!("Added {} tracks from file dialog", added);
-                                // Bug #2 fix: Invalidate sidebar cache so counts refresh after adding tracks.
                                 if added > 0 {
                                     s.sidebar_cache_valid.store(false, std::sync::atomic::Ordering::Relaxed);
-                                    // Issue #5: Bump library signal after adding tracks
                                     let gen = *lib_signal.read();
                                     lib_signal.set(gen.wrapping_add(1));
                                 }
@@ -225,8 +201,6 @@ pub fn TopBar() -> Element {
                 },
                 onkeydown: move |e: KeyboardEvent| {
                     if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
-                        // Trigger the same file dialog via click simulation
-                        // (file dialogs can only be opened from user gesture)
                     }
                 },
                 span { "＋" }

@@ -22,13 +22,10 @@ pub struct ReactivitySignals {
 
 /// The root TuneCraft application component.
 pub fn App() -> Element {
-    // Initialize shared state as a global signal
     use_context_provider(|| Signal::new(Arc::new(AppState::new())));
 
     let state: Signal<Arc<AppState>> = use_context();
 
-    // Issue #5: Domain-specific reactivity signals replace the single global
-    // `reactivity` signal and its 250ms bump timer.
     let playback_signal: Signal<u64> = use_signal(|| 0);
     let queue_signal: Signal<u64> = use_signal(|| 0);
     let library_signal: Signal<u64> = use_signal(|| 0);
@@ -42,7 +39,6 @@ pub fn App() -> Element {
     };
     use_context_provider(|| signals);
 
-    // #19: Replace deprecated use_future with spawn for async init
     {
         let state = state;
         let signals = signals;
@@ -54,13 +50,11 @@ pub fn App() -> Element {
                     s.engine_ready
                         .store(true, std::sync::atomic::Ordering::Relaxed);
 
-                    // Issue #14: Initialize platform media key / MPRIS / SMTC integration
                     crate::media_keys::init_media_keys(s.clone());
 
                     let config = s.config.read().unwrap_or_else(|e| e.into_inner()).clone();
                     s.set_volume(config.general.volume);
                     s.set_playback_speed(config.general.playback_speed as f32);
-                    // Restore shuffle and repeat mode
                     {
                         let mut queue = s.queue.lock().unwrap_or_else(|e| e.into_inner());
                         queue.shuffle = config.general.shuffle;
@@ -73,7 +67,6 @@ pub fn App() -> Element {
                             _ => crate::app_state::RepeatMode::None,
                         };
                     }
-                    // Set up callbacks
                     {
                         let sc = s.clone();
                         if let Ok(mut engine) = s.engine.lock() {
@@ -93,7 +86,6 @@ pub fn App() -> Element {
                             }
                         }
                     }
-                    // Bump playback and UI signals after engine init
                     let gen = *signals.playback.read();
                     signals.playback.set(gen.wrapping_add(1));
                     let gen = *signals.ui.read();
@@ -105,7 +97,6 @@ pub fn App() -> Element {
                 Ok(()) => {
                     tracing::info!("Database opened successfully");
                     s.db_ready.store(true, std::sync::atomic::Ordering::Relaxed);
-                    // Bug #27 fix: Load loved tracks from DB so they survive restarts.
                     s.load_loved_tracks_from_db();
                     let config = s.config.read().unwrap_or_else(|e| e.into_inner()).clone();
                     if config.library.rescan_on_startup
@@ -165,7 +156,6 @@ pub fn App() -> Element {
                             }
                         }
                     }
-                    // Issue #5: Bump library and UI signals after DB init
                     let gen = *signals.library.read();
                     signals.library.set(gen.wrapping_add(1));
                     let gen = *signals.ui.read();
@@ -176,9 +166,6 @@ pub fn App() -> Element {
         });
     }
 
-    // Issue #5: Engine tick timer — polls GStreamer every 250ms but only bumps
-    // the playback_signal (not a global re-render). When EOS causes a track
-    // change, also bumps the queue_signal.
     {
         let state = state;
         let signals = signals;
@@ -186,18 +173,14 @@ pub fn App() -> Element {
             loop {
                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;
                 let s = state.read().clone();
-                // Capture current queue index before tick to detect track changes
                 let prev_index = s.queue_lock().current_index;
                 s.engine_tick();
-                // Always bump playback signal (position/time changes during playback)
                 let gen = *signals.playback.read();
                 signals.playback.set(gen.wrapping_add(1));
-                // If engine_tick triggered a track change (e.g. from EOS), bump queue signal
                 let new_index = s.queue_lock().current_index;
                 if prev_index != new_index {
                     let gen = *signals.queue.read();
                     signals.queue.set(gen.wrapping_add(1));
-                    // Issue #14: Update OS media session on track change
                     crate::media_keys::update_media_metadata(&s);
                     crate::media_keys::update_playback_status(&s);
                 }
@@ -205,8 +188,6 @@ pub fn App() -> Element {
         });
     }
 
-    // Scrobble tick timer (#19: spawn instead of use_future)
-    // Bug #36 fix: Check scrobble threshold and persist when met.
     {
         let state = state;
         spawn(async move {
@@ -217,7 +198,6 @@ pub fn App() -> Element {
                     let should_scrobble = {
                         let mut scrobble = s.scrobble.lock().unwrap_or_else(|e| e.into_inner());
                         scrobble.accumulated_secs += 15;
-                        // Check threshold: 50% of track duration or 240 seconds, whichever is less
                         let threshold = {
                             let dur_secs = s.duration().map(|d| d.as_secs()).unwrap_or(0);
                             let percent_threshold = (dur_secs as f64 * 0.5) as u64;
@@ -236,7 +216,6 @@ pub fn App() -> Element {
                         }
                     };
                     if should_scrobble {
-                        // Persist scrobble to DB and increment play count
                         let track_id = s
                             .scrobble
                             .lock()
@@ -245,7 +224,6 @@ pub fn App() -> Element {
                         let db = s.db.read().unwrap_or_else(|e| e.into_inner());
                         if let Some(ref db) = *db {
                             if let Some(track_id) = track_id {
-                                // Get track info for scrobble record
                                 let track_info = {
                                     let queue = s.queue_lock();
                                     queue.current_track().map(|t| {
@@ -272,11 +250,9 @@ pub fn App() -> Element {
                                         tracing::warn!("Failed to queue scrobble: {}", e);
                                     }
                                 }
-                                // Increment play count
                                 if let Err(e) = db.increment_play_count(track_id) {
                                     tracing::warn!("Failed to increment play count: {}", e);
                                 }
-                                // Invalidate sidebar cache so play counts refresh
                                 s.sidebar_cache_valid
                                     .store(false, std::sync::atomic::Ordering::Relaxed);
                             }
@@ -287,14 +263,6 @@ pub fn App() -> Element {
         });
     }
 
-    // Issue #5: Removed the global reactivity bump timer.
-    // Previously, a 250ms timer bumped a single `reactivity` signal forcing
-    // ALL components to re-render. Now, domain-specific signals are bumped
-    // only when their data actually changes.
-
-    // Issue #5: App subscribes to ui_signal for its own rendering
-    // (dark mode, panel visibility). It does NOT subscribe to playback_signal,
-    // so playback progress updates don't force the entire App tree to re-render.
     let _ = *signals.ui.read();
 
     let dark = state
@@ -318,7 +286,6 @@ pub fn App() -> Element {
         .notifications_visible
         .load(std::sync::atomic::Ordering::Relaxed);
 
-    // Issue #19: Loading state — show spinner until engine and DB are ready
     let engine_ready = state
         .read()
         .engine_ready
@@ -334,7 +301,6 @@ pub fn App() -> Element {
         div {
             class: if dark { "app-container dark" } else { "app-container light" },
 
-            // Issue #19: Loading overlay
             if is_loading {
                 div { class: "loading-overlay",
                     div { class: "loading-spinner" }
@@ -342,7 +308,6 @@ pub fn App() -> Element {
                 }
             }
 
-            // Main layout
             div { class: "main-layout",
                 sidebar::Sidebar {}
                 div { class: "content-area",
@@ -352,7 +317,6 @@ pub fn App() -> Element {
             }
             playback_bar::PlaybackBar {}
 
-            // Overlay panels
             if eq_visible {
                 eq_panel::EqPanel {}
             }
@@ -366,7 +330,6 @@ pub fn App() -> Element {
                 notifications_panel::NotificationsPanel {}
             }
 
-            // Context menu
             context_menu::ContextMenuOverlay {}
         }
     }
@@ -379,7 +342,6 @@ pub fn App() -> Element {
 /// be treated as a relative path literal.
 fn expand_tilde(path: &str) -> std::path::PathBuf {
     if path == "~" {
-        // Fix L20: Bare tilde expands to the home directory
         if let Some(home) = directories::UserDirs::new().map(|d| d.home_dir().to_path_buf()) {
             return home;
         }

@@ -60,10 +60,8 @@ impl Database {
         )?;
         let rows_changed = conn.changes();
         if rows_changed > 0 {
-            // The INSERT was performed; return the new rowid
             Ok(conn.last_insert_rowid())
         } else {
-            // ON CONFLICT DO UPDATE took effect but no rows changed — look up the existing row
             let existing_id: i64 = conn.query_row(
                 "SELECT id FROM tracks WHERE file_path = ?1",
                 params![track.file_path],
@@ -153,8 +151,6 @@ impl Database {
     /// (full-text search) with a dedicated virtual table and triggers to keep
     /// it in sync. For now, this remains a known performance limitation.
     pub fn search_tracks(&self, query: &str) -> Result<Vec<Track>> {
-        // Escape SQL LIKE wildcards and backslash by prepending with escape char
-        // Order matters: escape backslash first to prevent double-escaping
         let escaped = query
             .replace('\\', "\\\\")
             .replace('%', "\\%")
@@ -188,7 +184,6 @@ impl Database {
         let mut param_idx = 1u32;
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
-        // Text search filter (title, artist, or album)
         if !query.is_empty() {
             let escaped = query
                 .replace('\\', "\\\\")
@@ -203,14 +198,12 @@ impl Database {
             param_idx += 1;
         }
 
-        // Genre filter (exact match on genre column)
         if !genre.is_empty() {
             conditions.push(format!("genre = ?{}", param_idx));
             param_values.push(Box::new(genre.to_string()));
             param_idx += 1;
         }
 
-        // Year range filter
         if let Some(yf) = year_from {
             conditions.push(format!("year >= ?{}", param_idx));
             param_values.push(Box::new(yf));
@@ -266,20 +259,17 @@ impl Database {
     pub fn get_stale_tracks(&self, existing_paths: &[String]) -> Result<Vec<String>> {
         let conn = self.conn()?;
 
-        // Create a temporary table for existing file paths
         conn.execute_batch(
             "CREATE TEMP TABLE IF NOT EXISTS _existing_paths (file_path TEXT NOT NULL);
              DELETE FROM _existing_paths;",
         )?;
 
-        // Batch insert existing paths
         let mut stmt = conn.prepare("INSERT INTO _existing_paths (file_path) VALUES (?1)")?;
         for path in existing_paths {
             stmt.execute(rusqlite::params![path])?;
         }
         drop(stmt);
 
-        // SQL set difference: tracks in DB but not in existing paths
         let mut stale_stmt = conn.prepare(
             "SELECT t.file_path FROM tracks t 
              LEFT JOIN _existing_paths e ON t.file_path = e.file_path 
@@ -293,7 +283,6 @@ impl Database {
             }
         }
 
-        // Clean up temporary table
         conn.execute_batch("DROP TABLE IF EXISTS _existing_paths")?;
 
         Ok(stale)

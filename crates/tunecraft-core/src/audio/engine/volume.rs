@@ -5,17 +5,12 @@ use anyhow::Result;
 use super::AudioEngine;
 
 impl AudioEngine {
-    // -- Volume --------------------------------------------------------------
-
     pub fn set_volume(&self, volume: f64) -> Result<()> {
         let vol = volume.clamp(0.0, 1.0);
         self.volume_state
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .volume = vol;
-        // Fix Bug #26: Apply volume to the DspEngine so it takes effect
-        // in the normal (non-crossfade) pipeline too. Previously volume
-        // was only applied to the crossfade engine.
         {
             let dsp_arc = self.dsp_arc();
             let mut dsp = dsp_arc.lock().unwrap_or_else(|e| e.into_inner());
@@ -37,8 +32,6 @@ impl AudioEngine {
             .volume
     }
 
-    // -- Playback speed ------------------------------------------------------
-
     pub fn set_playback_speed(&self, speed: f64) -> Result<()> {
         let speed = speed.clamp(0.25, 4.0);
         self.volume_state
@@ -49,9 +42,6 @@ impl AudioEngine {
         if let Some(ref sess) = *s {
             sess.pipeline.set_rate(speed);
         }
-        // Fix Bug #14: Propagate playback speed to the crossfade engine.
-        // Previously, speed changes were only applied to the normal pipeline,
-        // so crossfade playback continued at 1.0× after a speed change.
         if self.crossfade_active() {
             let cf = self.crossfade.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(ref e) = *cf {
@@ -67,8 +57,6 @@ impl AudioEngine {
             .unwrap_or_else(|e| e.into_inner())
             .playback_speed
     }
-
-    // -- Bit-perfect / exclusive mode ----------------------------------------
 
     /// Enable or disable bit-perfect / exclusive mode.
     ///

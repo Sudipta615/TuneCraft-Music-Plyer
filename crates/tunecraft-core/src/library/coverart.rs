@@ -23,13 +23,10 @@ pub fn extract_cover_art(path: &Path) -> Result<Option<CoverArt>> {
         .or_else(|| tagged_file.first_tag());
 
     if let Some(tag) = tag {
-        // Try front cover first, then fall back to any available picture.
-        // Many files use PictureType::Other or don't set the type correctly.
         let mut fallback: Option<&lofty::picture::Picture> = None;
 
         for picture in tag.pictures() {
             if picture.pic_type() == lofty::picture::PictureType::CoverFront {
-                // Best case: explicit front cover
                 if picture.data().len() > MAX_COVER_ART_BYTES {
                     tracing::warn!(
                         "Cover art for {:?} is {} bytes (exceeds {} MB limit), skipping",
@@ -47,13 +44,11 @@ pub fn extract_cover_art(path: &Path) -> Result<Option<CoverArt>> {
                     height: None,
                 }));
             }
-            // Keep the first picture of any type as a fallback
             if fallback.is_none() {
                 fallback = Some(picture);
             }
         }
 
-        // No CoverFront found — use whatever picture is available
         if let Some(picture) = fallback {
             if picture.data().len() > MAX_COVER_ART_BYTES {
                 tracing::warn!(
@@ -83,7 +78,6 @@ pub fn extract_cover_art(path: &Path) -> Result<Option<CoverArt>> {
 /// Made pub(crate) so the combined `read_metadata_and_cover_art` function
 /// in metadata.rs can reuse this without a second file open (Bug #26 fix).
 pub(crate) fn detect_mime_type(picture: &lofty::picture::Picture) -> String {
-    // Try the tag's declared MIME type first
     if let Some(mime) = picture.mime_type() {
         match mime {
             lofty::picture::MimeType::Png => return "image/png".to_string(),
@@ -97,33 +91,25 @@ pub(crate) fn detect_mime_type(picture: &lofty::picture::Picture) -> String {
         }
     }
 
-    // Fallback: sniff magic bytes from the image data
     let data = picture.data();
     if data.len() >= 8 {
-        // PNG: 89 50 4E 47
         if data[..4] == [0x89, 0x50, 0x4E, 0x47] {
             return "image/png".to_string();
         }
-        // JPEG: FF D8 FF
         if data[..3] == [0xFF, 0xD8, 0xFF] {
             return "image/jpeg".to_string();
         }
-        // GIF: "GIF87a" or "GIF89a"
         if data[..3] == [b'G', b'I', b'F'] {
             return "image/gif".to_string();
         }
-        // WebP: "RIFF....WEBP"
         if data.len() >= 12 && &data[8..12] == b"WEBP" {
             return "image/webp".to_string();
         }
-        // BMP: "BM"
         if data[..2] == [b'B', b'M'] {
             return "image/bmp".to_string();
         }
     }
 
-    // Ultimate fallback
-    // Unknown image format — use generic MIME type instead of assuming JPEG
     "application/octet-stream".to_string()
 }
 

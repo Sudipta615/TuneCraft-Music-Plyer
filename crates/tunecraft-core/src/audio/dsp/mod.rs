@@ -38,14 +38,11 @@ pub mod gapless_smoother;
 pub mod ms_eq;
 pub mod seek_fade;
 
-// Re-export the types callers need without forcing them to dig into submodules.
 pub use biquad::{Biquad, SmoothedBand};
 pub use dynamics::{Limiter, StereoLimiter, TpdfDither};
 pub use gapless_smoother::GaplessSmoother;
 pub use ms_eq::{MsEqBand, MsEqStage, MAX_MS_EQ_BANDS};
 pub use seek_fade::SeekFadeRamp;
-
-// ── EQ band descriptor ────────────────────────────────────────────────
 
 pub const MAX_EQ_BANDS: usize = 10;
 
@@ -66,15 +63,11 @@ impl EqBandParams {
     }
 }
 
-// ── DspEngine ────────────────────────────────────────────────────────
-
 /// Stereo DSP engine. All state is stack-allocated; no dynamic dispatch.
 pub struct DspEngine {
-    // ── Protection filters (always-on) ──────────────────────────
     hpf: [Biquad; 2],
     lpf: [Biquad; 2],
 
-    // ── Gains ───────────────────────────────────────────────────
     pub balance: f32,      // [-1, +1]
     pub stereo_width: f32, // [0, 3]
     preamp_gain: f32,
@@ -82,10 +75,8 @@ pub struct DspEngine {
     loudness_gain: f32,
     volume_gain: f32,
 
-    // ── Seek-fade ramp ──────────────────────────────────────────
     seek_fade_ramp: Option<SeekFadeRamp>,
 
-    // ── Bass / treble shelves ───────────────────────────────────
     bass_shelf: [Biquad; 2],
     treble_shelf: [Biquad; 2],
     pub bass_db: f32,
@@ -93,19 +84,15 @@ pub struct DspEngine {
     pub bass_freq_hz: f32,
     pub treble_freq_hz: f32,
 
-    // ── Parametric EQ ───────────────────────────────────────────
     pub num_bands: usize,
     band_params: [EqBandParams; MAX_EQ_BANDS],
     bands: [SmoothedBand; MAX_EQ_BANDS],
 
-    // ── M/S EQ stage ────────────────────────────────────────────
     ms_eq: MsEqStage,
 
-    // ── Dynamics ────────────────────────────────────────────────
     limiter: StereoLimiter,
     pub dither: TpdfDither,
 
-    // ── Gapless smoother ────────────────────────────────────────
     gapless: GaplessSmoother,
     pending_new_track: bool,
     /// Set by `mark_new_track()`; cleared after `capture_tail()` so subsequent
@@ -153,8 +140,6 @@ impl DspEngine {
         engine
     }
 
-    // ── Parametric EQ setters ────────────────────────────────────
-
     pub fn set_band_gain(&mut self, index: usize, gain_db: f32) {
         if index >= self.num_bands {
             return;
@@ -196,14 +181,11 @@ impl DspEngine {
         self.band_params[index].gain_db
     }
 
-    // ── Shelf setters ────────────────────────────────────────────
-
     pub fn set_bass(&mut self, gain_db: f32) {
         self.bass_db = gain_db.clamp(-12.0, 12.0);
         let bq = Biquad::low_shelf(self.bass_freq_hz, self.bass_db, self.sample_rate);
         self.bass_shelf[0].copy_coeffs_from(&bq);
         self.bass_shelf[1].copy_coeffs_from(&bq);
-        // Fix Bug #12: Bass shelf gain affects auto-headroom compensation.
         self.update_preamp();
     }
 
@@ -217,7 +199,6 @@ impl DspEngine {
         let bq = Biquad::high_shelf(self.treble_freq_hz, self.treble_db, self.sample_rate);
         self.treble_shelf[0].copy_coeffs_from(&bq);
         self.treble_shelf[1].copy_coeffs_from(&bq);
-        // Fix Bug #12: Treble shelf gain affects auto-headroom compensation.
         self.update_preamp();
     }
 
@@ -225,8 +206,6 @@ impl DspEngine {
         self.treble_freq_hz = freq_hz.clamp(1000.0, 20_000.0);
         self.set_treble(self.treble_db);
     }
-
-    // ── Volume / gain setters ────────────────────────────────────
 
     pub fn set_balance(&mut self, balance: f32) {
         self.balance = balance.clamp(-1.0, 1.0);
@@ -262,8 +241,6 @@ impl DspEngine {
         self.preamp_gain
     }
 
-    // ── Seek-fade ────────────────────────────────────────────────
-
     /// Initiate a smooth seek-fade cycle (fade-out → fade-in) on the volume.
     /// `fade_ms == 0` performs a hard mute/unmute (backward compatible).
     pub fn start_seek_fade(&mut self, base_volume: f32, fade_ms: u32) {
@@ -295,18 +272,7 @@ impl DspEngine {
     /// returns `true`, the ramp is complete and `process_buffer()` clears it.
     /// `tick_seek_fade()` should only handle the phase transition notification
     /// and should NOT interfere with the ongoing fade-in.
-    pub fn tick_seek_fade(&mut self) {
-        // The seek-fade ramp is now fully driven by `advance()` inside
-        // `process_buffer()`. When the ramp completes (advance returns true),
-        // process_buffer clears it. We no longer prematurely complete the
-        // fade-in here.
-        //
-        // This method is kept as a no-op hook for potential future use
-        // (e.g., signalling the UI thread that the seek-fade transition
-        // point has been reached, so the actual seek can be performed).
-    }
-
-    // ── M/S EQ passthrough ───────────────────────────────────────
+    pub fn tick_seek_fade(&mut self) {}
 
     pub fn set_ms_eq_band(&mut self, index: usize, band: MsEqBand) {
         self.ms_eq.set_band(index, band);
@@ -321,8 +287,6 @@ impl DspEngine {
     pub fn apply_ms_eq_from_state(&mut self, state: &crate::audio::equalizer::EqualizerState) {
         self.ms_eq.apply_from_state(state);
     }
-
-    // ── Gapless ─────────────────────────────────────────────────
 
     /// Signal that a new track is about to begin.
     pub fn mark_new_track(&mut self) {
@@ -342,7 +306,6 @@ impl DspEngine {
     /// Does NOT copy runtime state (biquad delay lines, limiter envelope,
     /// gapless smoother, seek-fade ramp) — those are session-specific.
     pub fn copy_settings_from(&mut self, other: &DspEngine) {
-        // Gains
         self.balance = other.balance;
         self.stereo_width = other.stereo_width;
         self.replaygain_factor = other.replaygain_factor;
@@ -351,7 +314,6 @@ impl DspEngine {
         self.enabled = other.enabled;
         self.dither.enabled = other.dither.enabled;
 
-        // Bass/treble shelves (coefficients + gain values)
         self.bass_db = other.bass_db;
         self.bass_freq_hz = other.bass_freq_hz;
         self.treble_db = other.treble_db;
@@ -361,12 +323,9 @@ impl DspEngine {
             self.treble_shelf[ch].copy_coeffs_from(&other.treble_shelf[ch]);
         }
 
-        // Parametric EQ (band parameters + smoothed coefficients)
         self.num_bands = other.num_bands;
         for i in 0..self.num_bands {
             self.band_params[i] = other.band_params[i];
-            // Snap current to target so the preloaded engine starts with
-            // the correct coefficients immediately (no smoothing ramp).
             self.bands[i].target[0].copy_coeffs_from(&other.bands[i].target[0]);
             self.bands[i].target[1].copy_coeffs_from(&other.bands[i].target[1]);
             self.bands[i].current[0].copy_coeffs_from(&other.bands[i].target[0]);
@@ -374,14 +333,10 @@ impl DspEngine {
             self.bands[i].steps = 0;
         }
 
-        // Preamp (auto-headroom compensation)
         self.preamp_gain = other.preamp_gain;
 
-        // M/S EQ
         self.ms_eq.copy_settings_from(&other.ms_eq);
     }
-
-    // ── State management ─────────────────────────────────────────
 
     pub fn reset_state(&mut self) {
         for ch in 0..2 {
@@ -390,10 +345,6 @@ impl DspEngine {
             self.bass_shelf[ch].reset();
             self.treble_shelf[ch].reset();
         }
-        // Fix Bug #13: Use SmoothedBand::reset() instead of manually resetting
-        // only the biquad state nodes. The old code left `steps` at its previous
-        // value, so after reset_state() the smoothing counter still thought it
-        // was mid-interpolation, causing stale coefficient snapshots.
         for b in 0..self.num_bands {
             self.bands[b].reset();
         }
@@ -414,8 +365,6 @@ impl DspEngine {
         }
     }
 
-    // ── Hot path ─────────────────────────────────────────────────
-
     /// Process one interleaved stereo frame through the full signal chain.
     #[inline(always)]
     pub fn process_frame(&mut self, l: f32, r: f32) -> (f32, f32) {
@@ -423,61 +372,45 @@ impl DspEngine {
             return (l, r);
         }
 
-        // 1. Protection filters
         let mut l = self.lpf[0].process(self.hpf[0].process(l));
         let mut r = self.lpf[1].process(self.hpf[1].process(r));
 
-        // 2. Channel balance
         l *= 1.0 - self.balance.max(0.0);
         r *= 1.0 + self.balance.min(0.0);
 
-        // 3. ReplayGain
         l *= self.replaygain_factor;
         r *= self.replaygain_factor;
 
-        // 4. EBU R128 loudness
         l *= self.loudness_gain;
         r *= self.loudness_gain;
 
-        // 5. Preamp
         l *= self.preamp_gain;
         r *= self.preamp_gain;
 
-        // 6. Bass shelf  (EQ before the master fader — tone shaping first)
         l = self.bass_shelf[0].process(l);
         r = self.bass_shelf[1].process(r);
 
-        // 7. Parametric EQ cascade
         for b in 0..self.num_bands {
             let (nl, nr) = self.bands[b].process(l, r);
             l = nl;
             r = nr;
         }
 
-        // 8. Treble shelf
         l = self.treble_shelf[0].process(l);
         r = self.treble_shelf[1].process(r);
 
-        // 9. Master volume POST-EQ (seek-fade ramp runs sample-by-sample in
-        //    process_buffer). The fader is placed after tone shaping so that
-        //    the EQ always sees the same input level regardless of volume,
-        //    preserving the intended tonal balance at all listening levels.
         l *= self.volume_gain;
         r *= self.volume_gain;
 
-        // 10. Mid-Side stereo widening
         let mid = (l + r) * 0.5;
         let side = (l - r) * 0.5 * self.stereo_width;
         l = mid + side;
         r = mid - side;
 
-        // 11. M/S EQ
         let (l, r) = self.ms_eq.process_frame(l, r);
 
-        // 12. Coupled stereo limiter (lookahead + true-peak)
         let (l, r) = self.limiter.process(l, r);
 
-        // 13. TPDF dither
         let l = self.dither.process(l);
         let r = self.dither.process(r);
 
@@ -494,11 +427,6 @@ impl DspEngine {
             return;
         }
 
-        // Fix M4: Pad odd-length buffers with a zero sample instead of silently
-        // dropping the last sample. chunks_exact_mut(2) below silently drops
-        // the final sample when the buffer has odd length, causing a one-sample
-        // click at the end of every buffer if the upstream source produces
-        // odd-length buffers.
         if buf.len() % 2 != 0 {
             tracing::warn!(
                 "process_buffer: odd-length buffer ({}), padding with one zero sample",
@@ -507,13 +435,6 @@ impl DspEngine {
             buf.push(0.0);
         }
 
-        // Capture gapless tail BEFORE mark_new_track processing.
-        // Fix M2: Previously tail capture happened after apply_to_head, which
-        // meant the first buffer of the new track was stored as the tail for
-        // the next transition. For subsequent non-gapless track loads, the
-        // gapless tail would be from the first buffer of the current track
-        // rather than the last buffer of the outgoing track. Now we capture
-        // the tail from the raw input BEFORE any gapless blending.
         if self.tail_dirty {
             self.gapless.capture_tail(buf);
             self.tail_dirty = false;
@@ -525,7 +446,6 @@ impl DspEngine {
         }
 
         for frame in buf.chunks_exact_mut(2) {
-            // Advance seek-fade ramp one sample at a time (smooth, click-free).
             if let Some(ref mut ramp) = self.seek_fade_ramp {
                 if seek_fade::advance(ramp, &mut self.volume_gain) {
                     self.seek_fade_ramp = None;
@@ -536,8 +456,6 @@ impl DspEngine {
             frame[1] = r;
         }
     }
-
-    // ── Private helpers ──────────────────────────────────────────
 
     fn rebuild_protection_filters(&mut self) {
         let hpf = Biquad::high_pass(20.0, self.sample_rate);
@@ -559,17 +477,12 @@ impl DspEngine {
             .iter()
             .map(|b| b.gain_db)
             .fold(0.0_f32, f32::max);
-        // Fix Bug #12: Include bass/treble shelf boosts in auto-headroom.
-        // Each shelf can add up to 12 dB; ignoring them caused clipping when
-        // bass_db or treble_db was positive while parametric bands were flat.
         max_boost = max_boost
             .max(self.bass_db.max(0.0))
             .max(self.treble_db.max(0.0));
         self.preamp_gain = 10.0_f32.powf(-max_boost.max(0.0) / 20.0);
     }
 }
-
-// ── Integration tests ─────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -708,26 +621,19 @@ mod tests {
 
     #[test]
     fn volume_is_applied_post_eq() {
-        // With volume pre-EQ the EQ sees a lower signal level when volume < 1,
-        // which would affect the preamp compensation logic. With volume post-EQ
-        // the preamp_gain must be identical regardless of volume setting.
         let mut a = DspEngine::new(48000.0);
         let mut b = DspEngine::new(48000.0);
         a.set_band_gain(3, 12.0);
         b.set_band_gain(3, 12.0);
-        // Same EQ, different volumes.
         a.set_volume_gain(1.0);
         b.set_volume_gain(0.5);
-        // Preamp is computed from EQ gains only — must be the same.
         assert!(
             (a.preamp_gain - b.preamp_gain).abs() < 1e-6,
             "preamp_gain should not depend on volume: a={} b={}",
             a.preamp_gain,
             b.preamp_gain
         );
-        // The output of b should be exactly half of a for the same input.
         let x = 0.3_f32;
-        // Warm up both engines identically (HPF/LPF transient).
         for _ in 0..200 {
             a.process_frame(x, x);
             b.process_frame(x, x);

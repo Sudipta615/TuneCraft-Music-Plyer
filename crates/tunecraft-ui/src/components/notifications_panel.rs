@@ -10,7 +10,6 @@ use crate::app_state::AppState;
 pub fn NotificationsPanel() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
     let signals: ReactivitySignals = use_context();
-    // Issue #5: Subscribe to UI signal for panel state
     let _ = *signals.ui.read();
 
     let dark = state
@@ -47,13 +46,11 @@ pub fn NotificationsPanel() -> Element {
                 h3 { "Notifications" }
                 button {
                     class: "panel-close-btn",
-                    // Issue #6: Accessibility
                     aria_label: "Close notifications panel",
                     tabindex: "0",
                     onclick: move |_| {
                         let s = state.read().clone();
                         s.notifications_visible.store(false, std::sync::atomic::Ordering::Relaxed);
-                        // Issue #5: Bump UI signal after panel close
                         let gen = *signals.ui.read();
                         signals.ui.set(gen.wrapping_add(1));
                     },
@@ -81,7 +78,6 @@ pub fn NotificationsPanel() -> Element {
                     div {
                         class: "notification-item",
                         key: "{unique_id}",
-                        // Issue #6: Accessibility
                         role: "listitem",
                         aria_label: "{title}: {body} at {timestamp}",
                         div { class: "notification-title", "{title}" }

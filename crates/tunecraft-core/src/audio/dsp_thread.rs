@@ -7,11 +7,6 @@ use crate::audio::convolution::ConvolutionEngine;
 use crate::audio::dsp::DspEngine;
 use crate::audio::engine::EngineLoudnessState;
 
-// ── DspThreadConfig (Optimization #12) ──────────────────────────────────
-// Refactored from 9 separate parameters into a single struct. Easier to
-// extend, reduces chance of argument-order bugs, and documents the
-// contract between the spawner and the DSP thread.
-
 /// Configuration bundle for the DSP thread.
 /// All fields are Arc-wrapped shared state between the audio engine
 /// and the DSP thread.
@@ -105,24 +100,10 @@ fn dsp_thread_main(config: DspThreadConfig) {
         underrun_count,
     } = config;
 
-    // Fix M4: Use a Vec instead of a fixed array so that DspEngine::process_buffer
-    // can pad odd-length buffers. The Vec is pre-allocated to SAMPLE_COUNT and
-    // resized each iteration, which is allocation-free after the first iteration
-    // since the capacity is already sufficient.
     let mut buf = vec![0.0f32; SAMPLE_COUNT];
 
-    // Fix Bug #3: Store the last successfully processed buffer. When the DSP
-    // lock is contended, we output the previous buffer rather than passing
-    // through unprocessed audio. This avoids sudden volume jumps or clipping
-    // artifacts when the UI thread holds the lock briefly (e.g. changing EQ).
-    // On the very first iteration, `last_good_buf` is silence.
     let mut last_good_buf = vec![0.0f32; SAMPLE_COUNT];
 
-    // Fix Bug #1: Track the last-seen underrun count and a decaying
-    // "effective underrun" value. When the underrun counter increases
-    // (new underruns happening), the effective value jumps up. When the
-    // counter is stable (no new underruns), the effective value decays
-    // exponentially, returning the read-ahead to baseline.
     let mut last_underrun: u64 = 0;
     let mut effective_underrun: f64 = 0.0;
 
@@ -131,29 +112,13 @@ fn dsp_thread_main(config: DspThreadConfig) {
             break;
         }
 
-        // Fix Bug #1: Adaptive read-ahead with exponential decay.
-        //
-        // Previously, the DSP thread checked `underrun_count > 0` using
-        // the absolute counter. Since the caller only resets the counter
-        // on track load, even a single underrun permanently increased
-        // latency until the next track load. There was no decay/cooldown:
-        // once read-ahead was scaled up 8×, it stayed at max for the rest
-        // of the session.
-        //
-        // Now we track the *delta* in underrun count (new underruns since
-        // last check) and maintain an exponentially-decaying "effective
-        // underrun" score. When new underruns occur, the score jumps up.
-        // When no new underruns occur, the score decays toward zero,
-        // reducing the read-ahead back to baseline over ~2 seconds.
         let current_underrun = underrun_count.load(Ordering::Relaxed);
         let new_underruns = current_underrun.saturating_sub(last_underrun);
         last_underrun = current_underrun;
 
-        // Add new underruns to the effective score, then apply decay.
         effective_underrun = effective_underrun * UNDERRUN_DECAY + new_underruns as f64;
 
         let min_readahead = if effective_underrun > 0.5 {
-            // Scale up read-ahead proportionally to effective underrun score (capped)
             let scale = ((effective_underrun / 100.0).floor() as usize + 1).min(8);
             (MIN_READAHEAD_BASE * scale).min(MIN_READAHEAD_MAX)
         } else {
@@ -165,39 +130,20 @@ fn dsp_thread_main(config: DspThreadConfig) {
             continue;
         }
 
-        // Pull exactly SAMPLE_COUNT samples from the decode ring.
-        // Fix M4: Resize buf to SAMPLE_COUNT each iteration in case process_buffer
-        // padded it with an extra zero sample on the previous iteration.
         buf.resize(SAMPLE_COUNT, 0.0);
         let read = decode_cons.pop_slice(&mut buf[..SAMPLE_COUNT]);
         if read < SAMPLE_COUNT {
-            // Partial read (shouldn't happen but guard anyway)
             buf[read..SAMPLE_COUNT].fill(0.0);
         }
 
-        // Apply DSP — take the lock once per buffer, not per sample.
-        // The DspEngine processes the buffer in-place with no allocation.
-        // Fix H6: When the DSP lock is contended, we must NOT skip processing
-        // entirely — that bypasses the limiter and causes clipping on loud
-        // material. Instead, we use try_lock and fall back to processing without
-        // EQ if the lock is briefly unavailable. The limiter must always run.
         let dsp_result = dsp.try_lock();
         match dsp_result {
             Ok(mut engine) => {
                 engine.process_buffer(&mut buf);
-                // Fix H1/H2: Check for pending seek fade restoration
                 engine.tick_seek_fade();
-                // Fix Bug #3: Save the successfully processed buffer so we can
-                // reuse it on the next lock contention instead of outputting
-                // unprocessed audio.
                 last_good_buf[..SAMPLE_COUNT].copy_from_slice(&buf[..SAMPLE_COUNT]);
             }
             Err(std::sync::TryLockError::WouldBlock) => {
-                // Fix Bug #3: Lock is contended — output the previous buffer
-                // (already processed with EQ/limiter) rather than the raw
-                // unprocessed audio. This avoids volume jumps, clipping, and
-                // bypassing the limiter. A repeated buffer is less audible
-                // than a sudden loud burst of unprocessed audio.
                 buf[..SAMPLE_COUNT].copy_from_slice(&last_good_buf[..SAMPLE_COUNT]);
                 static SKIP_COUNT: std::sync::atomic::AtomicU64 =
                     std::sync::atomic::AtomicU64::new(0);
@@ -210,7 +156,6 @@ fn dsp_thread_main(config: DspThreadConfig) {
                 }
             }
             Err(std::sync::TryLockError::Poisoned(e)) => {
-                // Recover from poisoned lock and process anyway
                 let mut engine = e.into_inner();
                 engine.process_buffer(&mut buf);
                 engine.tick_seek_fade();
@@ -218,21 +163,6 @@ fn dsp_thread_main(config: DspThreadConfig) {
             }
         }
 
-        // Fix #6 + Optimization #11: Apply room correction convolution.
-        //
-        // Previously the convolution lock was held for the entire 512-sample
-        // buffer (~5 ms at 48 kHz), blocking the UI thread if it tried to
-        // load/unload an IR simultaneously. Now we use try_lock and skip
-        // convolution for this buffer if the lock is contended (the UI thread
-        // is swapping the IR). The IR data itself is managed via Arc::swap
-        // in the engine's convolution module, so contention only lasts during
-        // the actual swap — typically a single buffer period at most.
-        //
-        // This is a "good enough" approach: skipping one buffer of convolution
-        // is inaudible (5 ms of bypass) compared to blocking the UI thread
-        // or causing priority inversion. A full double-buffer / Arc::swap
-        // pattern for the ConvolutionEngine could be implemented in a future
-        // iteration for zero-contention convolution.
         if let Ok(mut conv_guard) = convolution.try_lock() {
             if let Some(ref mut conv) = *conv_guard {
                 if conv.enabled {
@@ -245,13 +175,6 @@ fn dsp_thread_main(config: DspThreadConfig) {
             }
         }
 
-        // Fix #7: Accumulate EBU R128 loudness measurement and apply gain.
-        // Called on every processed buffer so the running loudness estimate
-        // stays current and the normalization gain is applied next buffer.
-        // Fix M3: Always apply loudness gain, even when config lock is contended.
-        // Fix Issue #15: Consolidated loudness_state lock replaces the previous
-        // 2-lock pattern (loudness_enabled + loudness_config), eliminating a
-        // potential deadlock when two threads acquired them in different orders.
         {
             let state_guard = loudness_state.try_lock();
             match state_guard {
@@ -266,14 +189,10 @@ fn dsp_thread_main(config: DspThreadConfig) {
                         }
                     }
                 }
-                Err(_) => {
-                    // Loudness state lock contended — can't read current gain.
-                    // Previous gain remains applied (safe but potentially stale).
-                }
+                Err(_) => {}
             }
         }
 
-        // Push to output ring. If full, sleep briefly rather than spinning.
         let mut remaining = &buf[..SAMPLE_COUNT];
         while !remaining.is_empty() {
             let written = output_prod.push_slice(remaining);
@@ -283,12 +202,6 @@ fn dsp_thread_main(config: DspThreadConfig) {
             }
         }
 
-        // Fix Bug #7: Yield the CPU after processing a buffer to prevent the
-        // DSP thread from spinning at 100% when the decode ring is consistently
-        // full. Without this, the tight loop (check → read → process → push →
-        // repeat) never yields, consuming an entire core even during normal
-        // playback. The 500 µs sleep is ~10% of one buffer period at 48 kHz
-        // and is inaudible, but reduces CPU from ~100% to ~10%.
         std::thread::sleep(PROCESS_YIELD_SLEEP);
     }
 }

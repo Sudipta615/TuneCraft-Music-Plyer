@@ -51,7 +51,6 @@ impl Database {
             return Ok(());
         }
         let conn = self.conn()?;
-        // Build a single UPDATE with parameterized IN clause
         let placeholders: Vec<String> = ids
             .iter()
             .enumerate()

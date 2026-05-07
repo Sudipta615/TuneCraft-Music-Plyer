@@ -27,8 +27,6 @@
 //! is 96 samples. The ring buffer is sized to the maximum supported sample rate
 //! (192 kHz → 384 samples) so no heap allocation is needed.
 
-// ── Constants ─────────────────────────────────────────────────────────
-
 /// Lookahead delay in milliseconds. Must be ≥ attack_ms so that the
 /// gain reduction is fully established before the peak arrives at the output.
 pub const LOOKAHEAD_MS: f32 = 2.0;
@@ -37,25 +35,10 @@ pub const LOOKAHEAD_MS: f32 = 2.0;
 /// 192000 * 0.002 = 384. Used to size the stack ring buffer.
 const MAX_LOOKAHEAD_SAMPLES: usize = 384;
 
-// ── 4× True-peak oversampler (polyphase FIR) ─────────────────────────
-//
-// Coefficients from a linear-phase 4×-oversampling FIR, tuned to the
-// ITU-R BS.1770-4 true-peak measurement filter. Each row is one polyphase
-// arm (phase 0 is the identity; phases 1-3 estimate the three sub-samples
-// between each digital sample pair).
-//
-// We only need the *magnitude* of the inter-sample peak, not the sample
-// values themselves, so we apply only the 3 interpolating arms (phases 1-3).
-// The history buffer holds the last 4 input samples per channel.
-//
-// Reference: ITU-R BS.1770-4 Annex 2, Table 1 (4× FIR coefficients).
 const TP_TAPS: usize = 4;
 const TP_PHASES: [[f32; TP_TAPS]; 3] = [
-    // Phase 1 (t = 0.25)
     [0.0, 0.43388, 0.70711, -0.13529],
-    // Phase 2 (t = 0.50)
     [-0.10251, 0.60263, 0.60263, -0.10251],
-    // Phase 3 (t = 0.75)
     [-0.13529, 0.70711, 0.43388, 0.0],
 ];
 
@@ -72,8 +55,6 @@ fn true_peak_estimate(hist: &[f32; TP_TAPS]) -> f32 {
     }
     tp
 }
-
-// ── Envelope follower (single-channel, kept for internal use) ─────────
 
 #[derive(Debug, Clone, Copy)]
 pub struct Limiter {
@@ -118,8 +99,6 @@ impl Limiter {
     }
 }
 
-// ── Coupled stereo limiter with lookahead + true-peak detection ───────
-
 /// One shared envelope driven by the true-peak estimate of max(|L|, |R|).
 ///
 /// Signal path:
@@ -137,12 +116,10 @@ pub struct StereoLimiter {
     release_coeff: f32,
     envelope: f32,
 
-    // Lookahead ring buffer (interleaved L/R).
     delay_buf: [f32; MAX_LOOKAHEAD_SAMPLES * 2],
     delay_len: usize,  // actual delay in samples (≤ MAX_LOOKAHEAD_SAMPLES)
     delay_head: usize, // write position into delay_buf (in frames, not samples)
 
-    // Per-channel 4-tap history for true-peak estimation.
     tp_hist_l: [f32; TP_TAPS],
     tp_hist_r: [f32; TP_TAPS],
 }
@@ -183,16 +160,13 @@ impl StereoLimiter {
     /// `delay_len` samples (2 ms at 48 kHz), which is the lookahead window.
     #[inline(always)]
     pub fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
-        // 1. Update true-peak history.
         Self::push_hist(&mut self.tp_hist_l, l);
         Self::push_hist(&mut self.tp_hist_r, r);
 
-        // 2. True-peak estimate: max(sample level, inter-sample peaks).
         let tp_l = l.abs().max(true_peak_estimate(&self.tp_hist_l));
         let tp_r = r.abs().max(true_peak_estimate(&self.tp_hist_r));
         let peak = tp_l.max(tp_r);
 
-        // 3. Envelope follower on the ahead-of-time peak signal.
         let coeff = if peak > self.envelope {
             self.attack_coeff
         } else {
@@ -200,24 +174,19 @@ impl StereoLimiter {
         };
         self.envelope = peak + coeff * (self.envelope - peak);
 
-        // 4. Compute gain to apply to the *delayed* signal.
         let gain = if self.envelope > self.threshold {
             self.threshold / self.envelope
         } else {
             1.0
         };
 
-        // 5. Read delayed frame from ring buffer (this is the signal LOOKAHEAD_MS ago).
         let read_idx = self.delay_head * 2;
         let out_l = self.delay_buf[read_idx];
         let out_r = self.delay_buf[read_idx + 1];
 
-        // 6. Write current frame into ring buffer at the same position (it
-        //    will be read LOOKAHEAD_MS later).
         self.delay_buf[read_idx] = l;
         self.delay_buf[read_idx + 1] = r;
 
-        // 7. Advance ring head.
         self.delay_head = (self.delay_head + 1) % self.delay_len.max(1);
 
         (out_l * gain, out_r * gain)
@@ -241,8 +210,6 @@ impl StereoLimiter {
         self.delay_buf = [0.0; MAX_LOOKAHEAD_SAMPLES * 2];
     }
 }
-
-// ── TPDF Dither ───────────────────────────────────────────────────────
 
 /// Two-LCG TPDF dither for 32→16-bit conversion.
 ///
@@ -279,8 +246,6 @@ impl TpdfDither {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -292,8 +257,6 @@ mod tests {
     fn limiter_clamps_below_threshold() {
         let mut lim = StereoLimiter::new(1.0, 50.0, 0.95, 48000.0);
         let mut max_out = 0.0_f32;
-        // Drive with a sustained 2.0 amplitude signal for long enough for
-        // both the lookahead delay and attack envelope to settle.
         for _ in 0..4800 {
             let (l, r) = lim.process(2.0, 2.0);
             if l > max_out {
@@ -315,17 +278,13 @@ mod tests {
         let mut lim = StereoLimiter::new(1.0, 50.0, threshold, sample_rate);
         let lookahead_samples = (sample_rate * LOOKAHEAD_MS / 1000.0).round() as usize;
 
-        // Pre-run silence to flush delay buffer to steady state.
         for _ in 0..lookahead_samples * 2 {
             lim.process(0.0, 0.0);
         }
 
-        // Now inject a sustained over-threshold signal and check that after
-        // the very first lookahead window, output stays clamped.
         let mut violation_count = 0;
         for i in 0..4800 {
             let (l, _r) = lim.process(2.0, 2.0);
-            // Allow the first lookahead_samples frames for initial ramp-up.
             if i >= lookahead_samples && l > threshold + 0.02 {
                 violation_count += 1;
             }
@@ -342,16 +301,11 @@ mod tests {
     /// reconstructed waveform can briefly exceed 0 dBFS.
     #[test]
     fn true_peak_detection_constrains_intersample_peaks() {
-        // Near-Nyquist 0.9 amplitude tone. The true peak (after DAC
-        // reconstruction) of an alternating +0.9/-0.9 sequence at 23 kHz
-        // can reach ~1.0 due to sinc interpolation overshoot.
         let mut lim = StereoLimiter::new(1.0, 50.0, 0.95, 48000.0);
         let mut envelope_saw_above_sample_peak = false;
         for i in 0..4800 {
             let x = if i % 2 == 0 { 0.9_f32 } else { -0.9_f32 };
             let _ = lim.process(x, x);
-            // Envelope should exceed 0.9 (the sample peak) because the
-            // true-peak estimate will see inter-sample values > 0.9.
             if lim.envelope > 0.92 {
                 envelope_saw_above_sample_peak = true;
             }

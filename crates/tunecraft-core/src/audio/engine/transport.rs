@@ -157,8 +157,6 @@ impl AudioEngine {
         }
     }
 
-    // -- Helper (used by multiple submodules) --------------------------------
-
     pub(crate) fn crossfade_active(&self) -> bool {
         let use_crossfade = {
             let ts = self
@@ -167,8 +165,6 @@ impl AudioEngine {
                 .unwrap_or_else(|e| e.into_inner());
             ts.use_crossfade
         };
-        // Drop the transport_state lock before acquiring the crossfade lock
-        // to prevent potential deadlock from nested lock acquisition.
         if !use_crossfade {
             return false;
         }

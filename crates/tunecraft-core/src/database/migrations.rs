@@ -3,7 +3,6 @@ use rusqlite::Connection;
 
 /// Run all database migrations.
 pub fn run_migrations(conn: &Connection) -> Result<()> {
-    // Create schema_version tracking table first
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS schema_version (
@@ -22,9 +21,6 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         )
         .context("failed to query schema version")?;
 
-    // Version 1: Core tables (tracks, playlists, playlist_tracks, scrobble_queue)
-    // Fix Bug #18: Wrap migration in an explicit transaction so partial failure
-    // doesn't leave the DB in a half-migrated state.
     if current_version < 1 {
         let tx = conn
             .unchecked_transaction()
@@ -113,8 +109,6 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         tx.commit().context("failed to commit v1 migration")?;
     }
 
-    // Version 2: Add eq_presets, user_prefs, waveforms tables
-    // Fix Bug #18: Wrap migration in an explicit transaction.
     if current_version < 2 {
         let tx = conn
             .unchecked_transaction()
@@ -148,8 +142,6 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         tx.commit().context("failed to commit v2 migration")?;
     }
 
-    // Version 3: Add mood analysis columns to tracks
-    // Fix Bug #18: Wrap migration in an explicit transaction.
     if current_version < 3 {
         let tx = conn
             .unchecked_transaction()
@@ -174,14 +166,11 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         tx.commit().context("failed to commit v3 migration")?;
     }
 
-    // Version 4: Add track_number column to tracks (for databases created before v1 included it)
-    // Fix Bug #18: Wrap migration in an explicit transaction.
     if current_version < 4 {
         let tx = conn
             .unchecked_transaction()
             .context("failed to begin transaction for v4 migration")?;
 
-        // Check if track_number column already exists (it may have been added in v1 for fresh DBs)
         let has_track_number: bool = tx
             .query_row(
                 "SELECT COUNT(*) > 0 FROM pragma_table_info('tracks') WHERE name = 'track_number'",
@@ -205,21 +194,11 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         tx.commit().context("failed to commit v4 migration")?;
     }
 
-    // Version 5: Migrate cover art out of the tracks table into a separate
-    // cover_art_cache table keyed by file_hash. This prevents large BLOBs from
-    // being loaded on every SELECT * and allows lazy loading with an LRU cache.
-    //
-    // Fix Bug #9: On fresh installs, the `cover_art` column doesn't exist in the
-    // v1 CREATE TABLE, so `SELECT cover_art FROM tracks` crashes. We now check
-    // whether the column exists before attempting the migration.
-    // Fix Bug #37: Wrap multi-step migrations in a transaction so partial failure
-    // doesn't leave the DB in a half-migrated state.
     if current_version < 5 {
         let tx = conn
             .unchecked_transaction()
             .context("failed to begin transaction for v5 migration")?;
 
-        // Create the cover_art_cache table if it doesn't exist (idempotent)
         tx.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS cover_art_cache (
@@ -232,9 +211,6 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         )
         .context("failed to create cover_art_cache table")?;
 
-        // Only attempt to migrate cover_art from tracks if the column exists.
-        // On fresh installs (v1 → v5 in one pass), the `cover_art` column
-        // was never added, so this SELECT would crash.
         let has_cover_art_col: bool = tx
             .query_row(
                 "SELECT COUNT(*) > 0 FROM pragma_table_info('tracks') WHERE name = 'cover_art'",
@@ -255,15 +231,9 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             )
             .context("failed to migrate cover_art data")?;
 
-            // SQLite 3.35.0+ (released 2021-03-12) is required for DROP COLUMN.
-            // Older SQLite versions (e.g. on older Linux distros or bundled
-            // SQLite builds) will fail with a syntax error. Check the version
-            // and skip the column drop if unsupported — the data has already
-            // been migrated above, so leaving the column in-place is harmless.
             let sqlite_version: i64 = tx
                 .query_row("SELECT sqlite_version()", [], |row| {
                     let v: String = row.get(0)?;
-                    // Parse "3.35.0" → 3_035_000 (major*1_000_000 + minor*1_000 + patch)
                     let parts: Vec<i64> = v.split('.').filter_map(|p| p.parse().ok()).collect();
                     Ok(parts.get(0).unwrap_or(&3) * 1_000_000
                         + parts.get(1).unwrap_or(&0) * 1_000
@@ -289,24 +259,14 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         tx.commit().context("failed to commit v5 migration")?;
     }
 
-    // Version 6: Encrypt sensitive credentials in user_prefs.
-    // Last.fm API keys, API secrets, and session keys that were previously
-    // stored as plaintext are now encrypted with AES-256-GCM using a
-    // machine-derived key. This prevents credential extraction from stolen
-    // database files. The `enc:v1:` prefix identifies encrypted values.
-    // Unencrypted values (no prefix) are still readable for backward compat.
     if current_version < 6 {
-        // Fix H6: Wrap the V6 credential encryption migration in a transaction
-        // to prevent partial migration on failure (e.g. encrypt fails midway).
         let tx = conn
             .unchecked_transaction()
             .context("failed to begin transaction for v6 migration")?;
 
-        // Migrate credentials from plaintext to encrypted storage
         let credential_keys = ["lastfm_api_key", "lastfm_api_secret", "lastfm_session_key"];
 
         for key in &credential_keys {
-            // Read the current value
             let value: Option<String> = tx
                 .query_row(
                     "SELECT value FROM user_prefs WHERE key = ?1",
@@ -316,7 +276,6 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 .ok();
 
             if let Some(plain_value) = value {
-                // Only encrypt if not already encrypted
                 if !crate::util::crypto::is_encrypted(&plain_value) {
                     match crate::util::crypto::encrypt(&plain_value) {
                         Ok(encrypted) => {
@@ -327,9 +286,6 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                             .context(format!("failed to encrypt credential '{}'", key))?;
                         }
                         Err(e) => {
-                            // Log but don't fail the migration — the credential
-                            // will still work unencrypted, and will be encrypted
-                            // on the next save
                             tracing::warn!(
                                 "Failed to encrypt credential '{}' during migration (will encrypt on next save): {}",
                                 key, e

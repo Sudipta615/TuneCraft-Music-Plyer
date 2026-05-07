@@ -19,10 +19,6 @@ use std::f32::consts::PI;
 use crate::audio::pcm_cache::{PcmBuffer, PcmCache};
 use crate::error::MoodError;
 
-// ─────────────────────────────────────────────
-// Public Types
-// ─────────────────────────────────────────────
-
 /// Mood categories tuned for Bollywood/Hindi music libraries.
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Mood {
@@ -119,10 +115,6 @@ pub struct SongFeatures {
     pub dynamic_range: f32,
 }
 
-// ─────────────────────────────────────────────
-// Audio Decoding
-// ─────────────────────────────────────────────
-
 /// Decode any supported audio file to interleaved f32 samples at original sample rate.
 /// Returns `(interleaved_samples, sample_rate, channels)`. Returns `MoodError` on failure.
 ///
@@ -168,9 +160,6 @@ fn decode_to_interleaved(path: &str) -> Result<(Vec<f32>, u32, u16), MoodError> 
     let mut interleaved: Vec<f32> = Vec::new();
     let mut channels: u16 = 2; // default, will be updated from first decoded packet
 
-    // Cap analysis to the first 90 seconds of audio. The intro establishes
-    // the mood; bridges and outros don't change classification. This also
-    // caps RAM usage at ~16 MB per track (44100 Hz × 90 s × 4 bytes).
     const MAX_ANALYSIS_SECONDS: usize = 90;
 
     loop {
@@ -188,11 +177,8 @@ fn decode_to_interleaved(path: &str) -> Result<(Vec<f32>, u32, u16), MoodError> 
         let mut buf = SampleBuffer::<f32>::new(decoded.capacity() as u64, spec);
         buf.copy_interleaved_ref(decoded);
 
-        // Store the interleaved samples (not yet mixed to mono).
         interleaved.extend_from_slice(buf.samples());
 
-        // Stop after 90 seconds worth of mono-equivalent samples
-        // (interleaved count / channels = number of mono frames)
         if interleaved.len() / ch >= MAX_ANALYSIS_SECONDS * sample_rate as usize {
             break;
         }
@@ -219,11 +205,7 @@ fn interleaved_to_mono(interleaved: &[f32], channels: u16) -> Vec<f32> {
     }
     interleaved
         .chunks(ch)
-        .map(|chunk| {
-            // For a full frame, average all channels. For a trailing
-            // partial chunk, average only the channels present.
-            chunk.iter().sum::<f32>() / chunk.len() as f32
-        })
+        .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
         .collect()
 }
 
@@ -236,10 +218,6 @@ pub fn decode_to_mono(path: &str) -> Result<(Vec<f32>, u32), MoodError> {
     let mono = interleaved_to_mono(&interleaved, channels);
     Ok((mono, sample_rate))
 }
-
-// ─────────────────────────────────────────────
-// Feature Extraction (private helpers)
-// ─────────────────────────────────────────────
 
 /// Compute RMS energy of entire signal.
 fn compute_energy(samples: &[f32]) -> f32 {
@@ -270,11 +248,6 @@ fn compute_dynamic_range(samples: &[f32]) -> f32 {
 
     rms_frames.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    // Fix: Use proper nearest-rank percentile calculation.
-    // Previously used `(len * p) as usize` which is off-by-one:
-    // for 100 frames at p95, index 95 is the 96th element (0-indexed),
-    // but the 95th percentile should be the 95th element (index 94).
-    // Correct formula: index = ceil(percentile/100 * len) - 1
     let len = rms_frames.len();
     let p95_idx = ((0.95 * len as f32).ceil() as usize)
         .saturating_sub(1)
@@ -299,11 +272,8 @@ fn compute_spectral_features(
     let fft = planner.plan_fft_forward(frame_size);
     let freq_resolution = sample_rate as f32 / frame_size as f32;
 
-    // Bollywood bass: 20-250 Hz
     let bass_bin_max = (250.0 / freq_resolution) as usize;
 
-    // Pre-allocate FFT buffers once — reuse across all frames to avoid
-    // repeated heap allocations (previously a new Vec per frame).
     let mut buffer = vec![
         Complex {
             re: 0.0f32,
@@ -321,7 +291,6 @@ fn compute_spectral_features(
     while i + frame_size <= samples.len() {
         let frame = &samples[i..i + frame_size];
 
-        // Fill buffer with Hann-windowed samples (clear imaginary part)
         for (n, (&s, c)) in frame.iter().zip(buffer.iter_mut()).enumerate() {
             let w = 0.5 * (1.0 - (2.0 * PI * n as f32 / frame_size as f32).cos());
             c.re = s * w;
@@ -330,7 +299,6 @@ fn compute_spectral_features(
 
         fft.process(&mut buffer);
 
-        // Compute magnitudes in-place into pre-allocated vec
         for (c, m) in buffer[..frame_size / 2].iter().zip(magnitudes.iter_mut()) {
             *m = c.norm();
         }
@@ -341,13 +309,11 @@ fn compute_spectral_features(
             continue;
         }
 
-        // Bass ratio
         let bass_energy: f32 = magnitudes[..bass_bin_max.min(magnitudes.len())]
             .iter()
             .sum();
         total_bass_ratio += bass_energy / total_energy;
 
-        // Spectral centroid
         let centroid = magnitudes
             .iter()
             .enumerate()
@@ -376,18 +342,10 @@ fn compute_spectral_features(
 fn compute_bpm(samples: &[f32], sample_rate: u32) -> f32 {
     let frame = 1024usize;
 
-    // Simple IIR low-pass at 200 Hz to isolate bass percussion band
     let rc = 1.0 / (2.0 * PI * 200.0);
     let dt = 1.0 / sample_rate as f32;
     let alpha = dt / (rc + dt);
 
-    // Fix: Stream the IIR filter and compute energy per frame in a single
-    // pass, without copying the entire ~16 MB sample buffer. Previously,
-    // `samples.to_vec()` created a full copy just for the IIR filter.
-    // Now we apply the filter on-the-fly and accumulate frame energies.
-    // Non-overlapping windows (hop = frame) are used since BPM detection
-    // doesn't require fine-grained overlap — the autocorrelation on onset
-    // flux is robust enough without it.
     let mut filtered_prev = 0.0f32;
     let mut energies: Vec<f32> = Vec::new();
     let mut frame_energy = 0.0f32;
@@ -405,21 +363,15 @@ fn compute_bpm(samples: &[f32], sample_rate: u32) -> f32 {
             count = 0;
         }
     }
-    // Handle partial last frame
     if count > 0 {
         energies.push(frame_energy / count as f32);
     }
 
-    // Positive onset flux
     let onsets: Vec<f32> = energies
         .windows(2)
         .map(|w| (w[1] - w[0]).max(0.0))
         .collect();
 
-    // Fix Bug #74: compute_bpm returns fixed 120.0 BPM for short/quiet files.
-    // Returning a misleading 120.0 BPM can cause incorrect mood classification.
-    // Now returns 0.0 to indicate that BPM could not be reliably determined,
-    // and logs a warning so the developer knows the file was too short/quiet.
     if onsets.len() < 2 {
         tracing::warn!(
             "compute_bpm: too few onset frames ({}) for reliable BPM detection, returning 0.0",
@@ -428,8 +380,6 @@ fn compute_bpm(samples: &[f32], sample_rate: u32) -> f32 {
         return 0.0;
     }
 
-    // Lag range covering 60-180 BPM
-    // Non-overlapping windows: hop = frame, so each onset frame spans `frame` samples.
     let min_lag = ((sample_rate as f32 * 60.0) / (180.0 * frame as f32)) as usize;
     let max_lag = ((sample_rate as f32 * 60.0) / (60.0 * frame as f32)) as usize;
 
@@ -475,10 +425,6 @@ fn compute_bpm(samples: &[f32], sample_rate: u32) -> f32 {
     (60.0 / seconds_per_beat).clamp(60.0, 180.0)
 }
 
-// ─────────────────────────────────────────────
-// Main Public API
-// ─────────────────────────────────────────────
-
 /// Extract all acoustic features from an audio file, with optional PCM cache support.
 /// Pass an existing `FftPlanner` instance to reuse the one from the spectrum analyzer.
 /// Pass a `PcmCache` reference to enable cache lookups and storage.
@@ -503,7 +449,6 @@ pub fn extract_features_with_cache(
 ) -> Result<SongFeatures, MoodError> {
     let (samples, sample_rate) = match cache {
         Some(cache) => {
-            // Try to get cached PCM data for this file path
             if let Some(buf) = cache.get(path) {
                 tracing::debug!(
                     "PCM cache hit for {}, reusing {}s of decoded audio",
@@ -514,7 +459,6 @@ pub fn extract_features_with_cache(
                 (mono, buf.sample_rate)
             } else {
                 tracing::debug!("PCM cache miss for {}, decoding with Symphonia", path);
-                // Decode to interleaved, cache the result, then convert to mono
                 let (interleaved, sample_rate, channels) = decode_to_interleaved(path)?;
                 let mut buf = PcmBuffer::new(interleaved.clone(), sample_rate, channels);
                 buf.truncate_to_duration(90);
@@ -523,10 +467,7 @@ pub fn extract_features_with_cache(
                 (mono, sample_rate)
             }
         }
-        None => {
-            // No cache provided — decode directly to mono as before
-            decode_to_mono(path)?
-        }
+        None => decode_to_mono(path)?,
     };
 
     let bpm = compute_bpm(&samples, sample_rate);
@@ -579,11 +520,6 @@ pub fn extract_features(
 /// - If too many songs land in Romantic: increase `min_confidence` from 0.15 → 0.20
 /// - If Sufi bucket is too narrow: widen the `bass_ratio` range in the Sufi scorer
 pub fn classify_mood(f: &SongFeatures) -> Mood {
-    // Score each mood using Gaussian-like proximity functions.
-    // Each feature contributes a partial score in [0, 1] based on how close
-    // the value is to the ideal for that mood. The total score is the weighted
-    // sum. This avoids the "all-or-nothing" problem of rigid thresholds.
-
     let dance_score = score_dance(f);
     let sad_score = score_sad(f);
     let sufi_score = score_sufi(f);
@@ -598,17 +534,11 @@ pub fn classify_mood(f: &SongFeatures) -> Mood {
         (Mood::Romantic, romantic_score),
     ];
 
-    // Pick the mood with the highest score, but only if it exceeds a minimum
-    // confidence threshold. Below this threshold the track is truly ambiguous
-    // and defaults to Romantic (the intended largest bucket).
     let (best_mood, best_score) = scores
         .iter()
         .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
         .expect("scores is non-empty");
 
-    // Minimum confidence: if the best score is very low, the track doesn't
-    // strongly match any category. Romantic is the safest default for
-    // melodic mid-tempo music.
     const MIN_CONFIDENCE: f32 = 0.15;
     if *best_score >= MIN_CONFIDENCE {
         best_mood.clone()
@@ -657,8 +587,6 @@ fn score_dance(f: &SongFeatures) -> f32 {
     let energy_score = above_score(f.energy, 0.08, 0.02);
     let centroid_score = above_score(f.spectral_centroid, 2000.0, 300.0);
 
-    // Weighted sum: BPM and bass are the strongest Dance indicators.
-    // Total weight = 3.0 + 3.0 + 2.0 + 1.0 = 9.0; normalize to ~[0, 1].
     (3.0 * bpm_score + 3.0 * bass_score + 2.0 * energy_score + 1.0 * centroid_score) / 9.0
 }
 
@@ -671,8 +599,6 @@ fn score_sad(f: &SongFeatures) -> f32 {
     let bass_score = below_score(f.bass_ratio, 0.30, 0.04);
     let centroid_score = below_score(f.spectral_centroid, 1800.0, 300.0);
 
-    // Weighted sum: BPM and spectral darkness are strongest Sad indicators.
-    // Total weight = 3.0 + 2.0 + 2.0 + 2.5 = 9.5; normalize.
     (3.0 * bpm_score + 2.0 * dynamic_score + 2.0 * bass_score + 2.5 * centroid_score) / 9.5
 }
 
@@ -684,8 +610,6 @@ fn score_sufi(f: &SongFeatures) -> f32 {
     let dynamic_score = below_score(f.dynamic_range, 0.035, 0.01);
     let bass_score = gaussian_score(f.bass_ratio, 0.32, 0.06);
 
-    // Sufi is the most specific category: all three features must align.
-    // Total weight = 3.0 + 3.0 + 3.0 = 9.0; normalize.
     (3.0 * bpm_score + 3.0 * dynamic_score + 3.0 * bass_score) / 9.0
 }
 
@@ -697,8 +621,6 @@ fn score_chill(f: &SongFeatures) -> f32 {
     let bpm_score = below_score(f.bpm, 95.0, 10.0);
     let centroid_score = below_score(f.spectral_centroid, 2000.0, 400.0);
 
-    // Weighted sum: energy is the strongest Chill indicator.
-    // Total weight = 3.0 + 2.0 + 1.5 = 6.5; normalize.
     (3.0 * energy_score + 2.0 * bpm_score + 1.5 * centroid_score) / 6.5
 }
 
@@ -715,8 +637,6 @@ fn score_romantic(f: &SongFeatures) -> f32 {
     let centroid_score = gaussian_score(f.spectral_centroid, 2500.0, 500.0);
     let dynamic_score = gaussian_score(f.dynamic_range, 0.04, 0.02);
 
-    // Weighted sum: BPM and energy are primary indicators.
-    // Total weight = 2.5 + 2.5 + 1.5 + 1.0 = 7.5; normalize.
     (2.5 * bpm_score + 2.5 * energy_score + 1.5 * centroid_score + 1.0 * dynamic_score) / 7.5
 }
 
@@ -727,12 +647,8 @@ mod tests {
     #[test]
     fn test_mood_from_str_roundtrip() {
         for label in Mood::all() {
-            let mood = Mood::parse_label(label).unwrap_or_else(|| {
-                // In test code, panicking is acceptable since Mood::all() is
-                // under our control. In production code, Mood::parse_label()
-                // returns Option and should never panic.
-                panic!("failed to parse {}", label)
-            });
+            let mood =
+                Mood::parse_label(label).unwrap_or_else(|| panic!("failed to parse {}", label));
             assert_eq!(mood.as_str(), *label);
         }
     }
@@ -805,7 +721,6 @@ mod tests {
 
     #[test]
     fn test_classify_romantic_mid_tempo() {
-        // Mid-tempo, moderate energy, no strong match to other categories
         let f = SongFeatures {
             bpm: 105.0,
             energy: 0.10,
@@ -813,8 +728,6 @@ mod tests {
             spectral_centroid: 2800.0,
             dynamic_range: 0.06,
         };
-        // With the scoring system, this may classify as Romantic or Dance
-        // depending on the score balance. Both are reasonable.
         let mood = classify_mood(&f);
         assert!(
             mood == Mood::Romantic || mood == Mood::Dance,
@@ -825,7 +738,6 @@ mod tests {
 
     #[test]
     fn test_bpm_clamp() {
-        // Very slow, very quiet → Chill
         let slow = SongFeatures {
             bpm: 55.0,
             energy: 0.03,
@@ -835,7 +747,6 @@ mod tests {
         };
         assert_eq!(classify_mood(&slow), Mood::Chill);
 
-        // Very fast, very loud, heavy bass → Dance
         let fast = SongFeatures {
             bpm: 200.0,
             energy: 0.15,
@@ -848,28 +759,19 @@ mod tests {
 
     #[test]
     fn test_scoring_gaussian_peak() {
-        // At the ideal value, score should be 1.0
         assert!((gaussian_score(130.0, 130.0, 25.0) - 1.0).abs() < 1e-6);
-        // One sigma away, score should be ~0.607
         assert!((gaussian_score(155.0, 130.0, 25.0) - (-0.5f32).exp()).abs() < 1e-4);
     }
 
     #[test]
     fn test_scoring_above_below() {
-        // Well above threshold → 1.0
         assert!((above_score(0.50, 0.35, 0.05) - 1.0).abs() < 1e-6);
-        // Well below threshold → 0.0
         assert!((above_score(0.20, 0.35, 0.05) - 0.0).abs() < 1e-6);
-        // At threshold → 0.5 (soft transition midpoint)
         assert!((above_score(0.35, 0.35, 0.05) - 0.5).abs() < 1e-6);
     }
 
     #[test]
     fn test_western_pop_not_all_romantic() {
-        // A Western pop track with moderate-high BPM and energy should
-        // classify as Dance rather than Romantic (the old system would
-        // have made this Romantic because it didn't strictly hit all
-        // Dance thresholds).
         let western_pop = SongFeatures {
             bpm: 118.0,
             energy: 0.09,
@@ -878,8 +780,6 @@ mod tests {
             dynamic_range: 0.05,
         };
         let mood = classify_mood(&western_pop);
-        // With the scoring system, Dance should score higher than Romantic
-        // because bass_ratio is above 0.35 and energy is above 0.08.
         assert!(
             mood == Mood::Dance || mood == Mood::Romantic,
             "Western dance-pop should classify as Dance or Romantic, got {:?}",
@@ -887,12 +787,8 @@ mod tests {
         );
     }
 
-    // ── Boundary tests for mood classification ──
-
     #[test]
     fn test_boundary_dance_sad() {
-        // At the BPM boundary between Dance and Sad (~90 BPM),
-        // the classifier should produce a deterministic result.
         let f = SongFeatures {
             bpm: 90.0,
             energy: 0.07,
@@ -901,13 +797,11 @@ mod tests {
             dynamic_range: 0.04,
         };
         let mood = classify_mood(&f);
-        // Should not panic; should be a valid mood
         assert!(Mood::all().contains(&mood.as_str()));
     }
 
     #[test]
     fn test_boundary_chill_dance() {
-        // Very low energy but high BPM — edge case
         let f = SongFeatures {
             bpm: 130.0,
             energy: 0.02,
@@ -921,7 +815,6 @@ mod tests {
 
     #[test]
     fn test_boundary_sufi_romantic() {
-        // Features at the Sufi/Romantic boundary (BPM ~95, moderate energy)
         let f = SongFeatures {
             bpm: 95.0,
             energy: 0.065,
@@ -963,7 +856,6 @@ mod tests {
 
     #[test]
     fn test_all_moods_are_valid() {
-        // Verify all mood labels from classify_mood are parseable
         let test_cases = vec![
             SongFeatures {
                 bpm: 130.0,

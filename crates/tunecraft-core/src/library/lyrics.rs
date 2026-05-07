@@ -92,10 +92,6 @@ pub async fn get_lyrics(
     }
 
     if let Some(dur) = duration {
-        // Fix Bug #72: Duration parameter passed as unrounded float.
-        // The LRCLIB API expects an integer number of seconds. Passing a float
-        // like "215.376" causes mismatches because the server matches by integer
-        // duration. Now rounded to the nearest integer before appending.
         url.push_str(&format!("&duration={}", dur.round() as u64));
     }
 
@@ -141,8 +137,6 @@ pub fn parse_lrc(lrc: &str) -> Vec<(f64, String)> {
     for line in lrc.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
-            // If there were pending timestamps with no text on their line,
-            // associate them with an empty string before discarding.
             for ts in pending_timestamps.drain(..) {
                 lines.push((ts, String::new()));
             }
@@ -150,13 +144,10 @@ pub fn parse_lrc(lrc: &str) -> Vec<(f64, String)> {
         }
 
         if line.starts_with('[') {
-            // Flush any pending timestamps before processing a new bracketed line
             for ts in pending_timestamps.drain(..) {
                 lines.push((ts, String::new()));
             }
 
-            // Parse timestamp tags like [00:12.34] or [01:23.45]
-            // A line can have multiple timestamps
             let mut timestamps = Vec::new();
             let mut text_start = 0;
 
@@ -174,12 +165,9 @@ pub fn parse_lrc(lrc: &str) -> Vec<(f64, String)> {
                     }
 
                     let tag = &line[tag_start..tag_end];
-                    // Try to parse as timestamp (mm:ss.xx)
                     if let Some(secs) = parse_lrc_timestamp(tag) {
                         timestamps.push(secs);
                     }
-                    // Non-timestamp tags (e.g. [ti:...], [ar:...]) are silently skipped
-                    // Continue to find more timestamps or the text
                     text_start = tag_end + 1;
                 } else {
                     break;
@@ -193,12 +181,9 @@ pub fn parse_lrc(lrc: &str) -> Vec<(f64, String)> {
             };
 
             if timestamps.is_empty() {
-                // This was a metadata-only line with no valid timestamps; skip it
                 continue;
             }
 
-            // If the text is empty after all timestamps, save timestamps as pending
-            // in case a continuation line follows
             if text.is_empty() {
                 pending_timestamps = timestamps;
             } else {
@@ -207,25 +192,19 @@ pub fn parse_lrc(lrc: &str) -> Vec<(f64, String)> {
                 }
             }
         } else {
-            // Non-bracketed line: this is a continuation/lyrics text line.
-            // Associate it with any pending timestamps from the previous line.
             if !pending_timestamps.is_empty() {
                 let text = line.to_string();
                 for ts in pending_timestamps.drain(..) {
                     lines.push((ts, text.clone()));
                 }
             }
-            // If no pending timestamps, this is orphaned text with no timing;
-            // we can't meaningfully display it, so we skip it.
         }
     }
 
-    // Flush any remaining pending timestamps
     for ts in pending_timestamps.drain(..) {
         lines.push((ts, String::new()));
     }
 
-    // Sort by timestamp
     lines.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
     lines
 }
@@ -236,7 +215,6 @@ pub fn parse_lrc(lrc: &str) -> Vec<(f64, String)> {
 /// seconds >= 60. Also clamps the total timestamp to 24 hours (86400s)
 /// to prevent unreasonably large values from malformed LRC files.
 fn parse_lrc_timestamp(tag: &str) -> Option<f64> {
-    // Format: mm:ss.xx or mm:ss.xxx
     let parts: Vec<&str> = tag.split(':').collect();
     if parts.len() != 2 {
         return None;
@@ -245,19 +223,16 @@ fn parse_lrc_timestamp(tag: &str) -> Option<f64> {
     let minutes: f64 = parts[0].parse().ok()?;
     let seconds: f64 = parts[1].parse().ok()?;
 
-    // Fix M7: Reject negative values
     if minutes < 0.0 || seconds < 0.0 {
         return None;
     }
 
-    // Fix M7: Reject seconds >= 60 (invalid timestamp)
     if seconds >= 60.0 {
         return None;
     }
 
     let total = minutes * 60.0 + seconds;
 
-    // Fix M7: Clamp to 24 hours maximum
     if total > 86400.0 {
         return None;
     }

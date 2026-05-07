@@ -157,8 +157,6 @@ impl Resampler {
     ) -> Result<Self> {
         let cutoff_ratio = cutoff_ratio.clamp(0.5, 1.0);
 
-        // Fix H2: Validate that rates and channels are positive to prevent
-        // division by zero which would produce infinity/NaN in the resample ratio.
         anyhow::ensure!(
             from_rate > 0,
             "Resampler: from_rate must be > 0, got {}",
@@ -177,7 +175,6 @@ impl Resampler {
 
         let resample_ratio = to_rate as f64 / from_rate as f64;
 
-        // Chunk size: process in blocks of ~1024 frames for reasonable latency
         let chunk_size = 1024;
 
         let inner = if quality.uses_sinc() {
@@ -193,7 +190,6 @@ impl Resampler {
                 .context("failed to create rubato SincFixedIn resampler")?;
             InnerResampler::Sinc(sinc)
         } else {
-            // FFT-based fast path for Linear / ZeroOrderHold
             let fft = FftFixedIn::<f32>::new(
                 from_rate as usize,
                 to_rate as usize,
@@ -234,8 +230,6 @@ impl Resampler {
         let channels = self.channels;
         let frames_in = input.len() / channels;
 
-        // Warn when input length is not a multiple of channels — partial
-        // frames are silently dropped by the integer division above.
         if input.len() % channels != 0 {
             tracing::warn!(
                 "Resampler: input length ({}) is not a multiple of channels ({}), \
@@ -246,7 +240,6 @@ impl Resampler {
             );
         }
 
-        // De-interleave: interleaved [L0,R0,L1,R1,...] → [[L0,L1,...], [R0,R1,...]]
         let mut channel_buffers: Vec<Vec<f32>> = vec![Vec::with_capacity(frames_in); channels];
         for frame in 0..frames_in {
             for ch in 0..channels {
@@ -256,7 +249,6 @@ impl Resampler {
 
         let input_slices: Vec<&[f32]> = channel_buffers.iter().map(|b| b.as_slice()).collect();
 
-        // Determine output buffer size
         let output_frames = self.inner.output_frames_next();
         let mut output_buffers: Vec<Vec<f32>> = vec![vec![0.0f32; output_frames]; channels];
         let mut output_slices: Vec<&mut [f32]> = output_buffers
@@ -264,12 +256,10 @@ impl Resampler {
             .map(|b| b.as_mut_slice())
             .collect();
 
-        // Process
         let (_frames_read, frames_written) = self
             .inner
             .process_into_buffer(&input_slices, &mut output_slices)?;
 
-        // Re-interleave: [[L0,L1,...], [R0,R1,...]] → [L0,R0,L1,R1,...]
         let actual_output_frames = frames_written;
         let mut result = Vec::with_capacity(actual_output_frames * channels);
         for frame in 0..actual_output_frames {
@@ -315,9 +305,6 @@ impl Resampler {
     /// drop this `Resampler` and create a new one via [`Resampler::new`].
     pub fn set_cutoff_ratio(&mut self, ratio: f64) {
         self.cutoff_ratio = ratio.clamp(0.5, 1.0);
-        // Note: rubato doesn't support changing the cutoff ratio after
-        // construction. A full rebuild would be needed. Store the value
-        // for future resampler recreation.
     }
 }
 
@@ -354,11 +341,9 @@ mod tests {
 
     #[test]
     fn upsample_produces_more_samples() {
-        // 44.1 kHz → 48 kHz: expect ~8.8% more output samples
         let mut r = Resampler::new(44_100, 48_000, 2, ResamplerQuality::SincBest, 0.95).unwrap();
         let input: Vec<f32> = vec![0.0f32; 4410 * 2]; // 0.1 s stereo at 44.1 kHz
         let output = r.process(&input).unwrap();
-        // Expected ≈ 4800 stereo frames = 9600 samples, allow ±5%
         let expected = (4410.0 * 48_000.0 / 44_100.0 * 2.0) as usize;
         let diff = (output.len() as isize - expected as isize).unsigned_abs();
         assert!(
@@ -371,7 +356,6 @@ mod tests {
 
     #[test]
     fn downsample_produces_fewer_samples() {
-        // 96 kHz → 48 kHz: expect 50% fewer samples
         let mut r = Resampler::new(96_000, 48_000, 2, ResamplerQuality::SincFastest, 0.95).unwrap();
         let input: Vec<f32> = vec![0.5f32; 9600 * 2]; // 0.1 s stereo at 96 kHz
         let output = r.process(&input).unwrap();
@@ -403,7 +387,6 @@ mod tests {
 
     #[test]
     fn output_samples_are_finite() {
-        // Ensure no NaN/Inf in resampler output for a sine wave input
         let sr_in = 44_100u32;
         let frames = sr_in as usize / 10; // 0.1 s
         let input: Vec<f32> = (0..frames * 2)

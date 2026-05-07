@@ -24,8 +24,5 @@ pub fn cast_u8_to_f32(bytes: &[u8]) -> Option<&[f32]> {
         tracing::warn!("F32LE buffer is not 4-byte aligned, skipping sample");
         return None;
     }
-    // SAFETY: We verified alignment and length above. GStreamer guarantees
-    // F32LE buffers are properly aligned and sized, but we guard against
-    // malformed buffers rather than panicking in the audio callback.
     Some(unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f32, bytes.len() / 4) })
 }

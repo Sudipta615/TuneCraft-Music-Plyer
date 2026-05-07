@@ -39,7 +39,6 @@ impl Database {
         let pool = init_pool(path, &config)?;
         let db = Self { pool };
 
-        // Run migrations
         let conn = db
             .pool
             .get()

@@ -30,27 +30,18 @@ use std::path::PathBuf;
 pub fn init_i18n() {
     let domain = "tunecraft";
 
-    // Fix M10: Build platform-appropriate locale search paths.
-    // Previously hardcoded to Linux paths only; now we include macOS and
-    // Windows paths, and use `directories::ProjectDirs` for a portable
-    // data directory.
     let mut locale_dirs: Vec<String> = Vec::new();
 
-    // Platform-specific data dir from directories crate
     if let Some(proj_dirs) = directories::ProjectDirs::from("org", "Tunecraft", "Tunecraft") {
         let data_dir = proj_dirs.data_dir().join("locale");
         locale_dirs.push(data_dir.to_string_lossy().to_string());
     }
 
-    // macOS: Homebrew and local installs
     #[cfg(target_os = "macos")]
     {
         locale_dirs.push("/usr/local/share/locale".to_string());
-        // App bundle Resources path
         if let Ok(exe) = std::env::current_exe() {
             if let Some(exe_dir) = exe.parent() {
-                // Typical macOS app bundle: .../Tunecraft.app/Contents/MacOS/
-                // Locale data lives in .../Tunecraft.app/Contents/Resources/share/locale/
                 if let Some(resources) = exe_dir.parent() {
                     locale_dirs.push(
                         resources
@@ -63,7 +54,6 @@ pub fn init_i18n() {
         }
     }
 
-    // Windows: executable directory's share/locale
     #[cfg(target_os = "windows")]
     {
         if let Ok(exe) = std::env::current_exe() {
@@ -73,23 +63,17 @@ pub fn init_i18n() {
         }
     }
 
-    // Linux: standard system locale paths
     #[cfg(target_os = "linux")]
     {
         locale_dirs.push("/usr/share/locale".to_string());
         locale_dirs.push("/usr/local/share/locale".to_string());
     }
 
-    // Development/build directory (CARGO_MANIFEST_DIR/po)
     locale_dirs.push(format!(
         "{}/po",
         std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default()
     ));
 
-    // Add the po/ directory relative to the running executable.
-    // This ensures that development builds (where the po/ folder lives
-    // alongside the binary in the target directory) find translations
-    // without requiring a system-wide installation.
     if let Ok(exe) = std::env::current_exe() {
         if let Some(exe_dir) = exe.parent() {
             locale_dirs.push(exe_dir.join("po").to_string_lossy().to_string());
@@ -158,7 +142,6 @@ mod tests {
 
     #[test]
     fn test_tr_returns_original_for_english() {
-        // Without any translation catalogs, gettext returns the original string
         let result = tr("Hello, World!");
         assert_eq!(result, "Hello, World!");
     }
@@ -172,7 +155,6 @@ mod tests {
     #[test]
     fn test_tr_n_english_plural() {
         let result = tr_n("1 track", "{} tracks", 5);
-        // English plural for n != 1 returns the plural form
         assert!(!result.is_empty());
     }
 
@@ -183,7 +165,6 @@ mod tests {
 
     #[test]
     fn test_init_i18n_does_not_panic() {
-        // Should be safe to call multiple times
         init_i18n();
         init_i18n();
     }

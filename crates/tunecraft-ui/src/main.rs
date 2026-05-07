@@ -12,10 +12,6 @@ mod styles;
 
 use dioxus::prelude::*;
 
-// Fix: Set GStreamer environment variables at runtime for Windows instead of
-// polluting the user's global environment via the installer. This ensures
-// TuneCraft's bundled plugins don't interfere with other GStreamer software
-// like OBS Studio.
 #[cfg(target_os = "windows")]
 fn setup_gstreamer_env() {
     if let Ok(mut exe_path) = std::env::current_exe() {
@@ -37,7 +33,6 @@ fn main() {
         .with_env_filter(std::env::var("TUNECRAFT_LOG_LEVEL").unwrap_or("info".into()))
         .init();
 
-    // Issue #17: Initialize i18n before any UI code runs
     crate::i18n::init_i18n();
 
     tracing::info!("TuneCraft v5.0 starting (Dioxus UI)");

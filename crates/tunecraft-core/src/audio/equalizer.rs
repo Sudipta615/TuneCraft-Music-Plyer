@@ -147,8 +147,6 @@ impl EqualizerState {
     }
 }
 
-// ── Output device ID ─────────────────────────────────────────────────
-
 /// Identifies an output device for per-output preset storage.
 /// Use the cpal device name or a stable identifier string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -162,8 +160,6 @@ impl OutputDeviceId {
         Self("default".into())
     }
 }
-
-// ── Per-output preset store ──────────────────────────────────────────
 
 /// Stores a separate `EqualizerState` per output device.
 ///
@@ -203,8 +199,6 @@ impl OutputPresetStore {
         self.presets.keys()
     }
 }
-
-// ── AutoEQ integration ───────────────────────────────────────────────
 
 /// One filter entry from an AutoEQ parametric EQ profile.
 ///
@@ -383,7 +377,6 @@ mod tests {
     #[test]
     fn test_clamp_to_valid_ranges_clamps_out_of_range() {
         let mut state = EqualizerState::default();
-        // Set out-of-range values
         state.bands[0].gain = 50.0;
         state.bands[0].frequency = 50000.0;
         state.bands[0].bandwidth = 0.01;

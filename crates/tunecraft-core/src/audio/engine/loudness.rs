@@ -14,8 +14,6 @@ impl AudioEngine {
             .unwrap_or_else(|e| e.into_inner());
         state.enabled = enabled;
         if !enabled {
-            // Reset loudness gain to unity — drop the loudness_state lock first
-            // to avoid holding it while acquiring the DSP lock (deadlock prevention).
             drop(state);
             self.dsp_arc()
                 .lock()
@@ -57,11 +55,7 @@ impl AudioEngine {
         since = "5.1.0",
         note = "process_loudness corrupts DSP thread measurement; the DSP thread handles this internally"
     )]
-    pub fn process_loudness(&self, _buf: &[f32]) {
-        // No-op: the DSP thread already processes loudness and applies gain.
-        // Calling this from the UI thread would contend with the DSP thread's
-        // lock on the loudness state, corrupting the measurement.
-    }
+    pub fn process_loudness(&self, _buf: &[f32]) {}
 
     /// Reset the loudness measurement state (call at track boundaries).
     pub fn reset_loudness(&self) {

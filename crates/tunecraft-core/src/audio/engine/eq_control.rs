@@ -5,8 +5,6 @@ use crate::audio::equalizer::EqualizerState;
 use super::AudioEngine;
 
 impl AudioEngine {
-    // -- Equalizer -----------------------------------------------------------
-
     pub fn eq_state(&self) -> EqualizerState {
         self.eq_state
             .lock()
@@ -22,7 +20,6 @@ impl AudioEngine {
         let gains: Vec<f32> = state.bands.iter().map(|b| b.gain as f32).collect();
         dsp.set_all_gains(&gains);
         dsp.enabled = state.enabled;
-        // Apply shelf frequencies before gains so the biquads are built at the right freq.
         dsp.set_bass_freq(state.bass_freq_hz as f32);
         dsp.set_treble_freq(state.treble_freq_hz as f32);
         dsp.set_bass(state.bass_db as f32);
@@ -30,7 +27,6 @@ impl AudioEngine {
         dsp.set_stereo_width(state.stereo_width as f32);
         dsp.set_balance(state.balance as f32);
         dsp.set_dither_enabled(state.dither_enabled);
-        // Apply MS EQ bands if present
         dsp.apply_ms_eq_from_state(&state);
     }
 
@@ -57,8 +53,6 @@ impl AudioEngine {
             .unwrap_or_else(|e| e.into_inner())
             .enabled = enabled;
     }
-
-    // -- Bass / Treble (Tier 1 #1) ------------------------------------------
 
     pub fn set_bass(&self, gain_db: f64) {
         let g = gain_db.clamp(-12.0, 12.0);
@@ -134,8 +128,6 @@ impl AudioEngine {
             .treble_freq_hz
     }
 
-    // -- Stereo width (Tier 2 #5) --------------------------------------------
-
     pub fn set_stereo_width(&self, width: f64) {
         let w = width.clamp(0.0, 3.0);
         self.eq_state
@@ -154,8 +146,6 @@ impl AudioEngine {
             .stereo_width
     }
 
-    // -- Balance (Tier 2 #6) -------------------------------------------------
-
     pub fn set_balance(&self, balance: f64) {
         let b = balance.clamp(-1.0, 1.0);
         self.eq_state
@@ -173,8 +163,6 @@ impl AudioEngine {
             .unwrap_or_else(|e| e.into_inner())
             .balance
     }
-
-    // -- Dither (Tier 1 #4) --------------------------------------------------
 
     pub fn set_dither_enabled(&self, enabled: bool) {
         self.eq_state

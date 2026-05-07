@@ -137,7 +137,6 @@ impl MsEqStage {
         self.sample_rate = other.sample_rate;
         for i in 0..MAX_MS_EQ_BANDS {
             self.bands[i] = other.bands[i];
-            // Snap current to target immediately (no smoothing ramp).
             self.mid_filters[i].target[0].copy_coeffs_from(&other.mid_filters[i].target[0]);
             self.mid_filters[i].target[1].copy_coeffs_from(&other.mid_filters[i].target[1]);
             self.mid_filters[i].current[0].copy_coeffs_from(&other.mid_filters[i].target[0]);

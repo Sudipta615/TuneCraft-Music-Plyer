@@ -4,8 +4,6 @@ use tracing::debug;
 
 use crate::database::models::Track;
 
-// ─── Rule system ───────────────────────────────────────────────────
-
 /// Comparison operator for smart playlist rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Operator {
@@ -40,7 +38,6 @@ impl Rule {
     /// Evaluate this rule against a track.
     pub fn matches(&self, track: &Track) -> bool {
         match (self.operator, &self.value) {
-            // Text comparisons
             (Operator::Eq, RuleValue::Text(b)) => {
                 if let FieldValue::Text(a) = self.extract_field(track) {
                     a.to_lowercase() == b.to_lowercase()
@@ -63,7 +60,6 @@ impl Rule {
                 }
             }
 
-            // Integer comparisons
             (Operator::Eq, RuleValue::Integer(b)) => {
                 if let FieldValue::Integer(a) = self.extract_field(track) {
                     a == *b
@@ -107,7 +103,6 @@ impl Rule {
                 }
             }
 
-            // Float comparisons
             (Operator::Eq, RuleValue::Float(b)) => {
                 if let FieldValue::Float(a) = self.extract_field(track) {
                     (a - b).abs() < 1e-6
@@ -151,7 +146,6 @@ impl Rule {
                 }
             }
 
-            // Date comparisons
             (Operator::Eq, RuleValue::Date(b)) => {
                 if let FieldValue::Date(a) = self.extract_field(track) {
                     a == *b
@@ -272,7 +266,6 @@ impl SortValue {
             (SortValue::Float(a), SortValue::Float(b)) => {
                 a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
             }
-            // Cross-type: Numbers before Floats before Text
             (SortValue::Number(_), SortValue::Float(_)) => std::cmp::Ordering::Less,
             (SortValue::Float(_), SortValue::Number(_)) => std::cmp::Ordering::Greater,
             (SortValue::Number(_), SortValue::Text(_)) => std::cmp::Ordering::Less,
@@ -316,8 +309,6 @@ fn extract_sort_value(track: &Track, field: &str) -> SortValue {
     }
 }
 
-// ─── Rule node tree ───────────────────────────────────────────────
-
 /// Logical connector for combining rule nodes.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Connector {
@@ -352,8 +343,6 @@ impl RuleNode {
     }
 }
 
-// ─── Smart Playlist ───────────────────────────────────────────────
-
 /// A smart playlist that auto-populates based on rules.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SmartPlaylist {
@@ -386,7 +375,6 @@ impl SmartPlaylist {
         let filter = self.compile();
         let mut result: Vec<_> = tracks.iter().filter(|t| filter(t)).collect();
 
-        // Sort using proper numeric comparisons
         if let Some(ref sort_field) = self.sort_by {
             let sort_desc = self.sort_desc;
             result.sort_by(|a, b| {
@@ -400,7 +388,6 @@ impl SmartPlaylist {
             });
         }
 
-        // Apply limit
         if let Some(limit) = self.limit {
             result.truncate(limit);
         }
@@ -421,8 +408,6 @@ impl SmartPlaylist {
         self
     }
 }
-
-// ─── Templates ────────────────────────────────────────────────────
 
 /// Pre-built smart playlist templates.
 pub mod templates {
@@ -512,8 +497,6 @@ pub mod templates {
         .with_limit(30)
         .with_sort("last_played", true)
     }
-
-    // ── Mood-based templates ────────────────────────────────────────
 
     /// Filter tracks by a specific mood category.
     pub fn by_mood(mood: &str) -> SmartPlaylist {
@@ -608,7 +591,6 @@ mod tests {
 
     #[test]
     fn test_empty_rule_group_and() {
-        // An AND group with no children should match everything (vacuous truth)
         let node = RuleNode::Group {
             connector: Connector::And,
             children: vec![],
@@ -622,7 +604,6 @@ mod tests {
 
     #[test]
     fn test_empty_rule_group_or() {
-        // An OR group with no children should match nothing
         let node = RuleNode::Group {
             connector: Connector::Or,
             children: vec![],
@@ -679,7 +660,6 @@ mod tests {
 
     #[test]
     fn test_type_mismatch_returns_false() {
-        // Comparing a text field with an integer value should return false
         let rule = Rule {
             field: "artist".into(),
             operator: Operator::Gt,
@@ -727,7 +707,6 @@ mod tests {
 
         let result = playlist.execute(&[t1, t2]);
         assert_eq!(result.len(), 2);
-        // Descending sort by play_count: 20 first, then 5
         assert_eq!(result[0].play_count, Some(20));
         assert_eq!(result[1].play_count, Some(5));
     }

@@ -115,12 +115,10 @@ impl ReplayGainInfo {
     /// 3. Otherwise → pick gain by `source` (track/album), add `preamp_db`,
     ///    convert to linear, optionally clamp by peak (`ApplyAndClip`).
     pub fn scaling_factor_full(&self, cfg: &ReplayGainConfig) -> f64 {
-        // DontApply: skip gain, apply fallback preamp only.
         if cfg.apply_mode == ReplayGainApplyMode::DontApply {
             return db_to_scaling(cfg.fallback_preamp_db);
         }
 
-        // No RG tags: apply fallback preamp.
         if self.has_no_tags() {
             debug!(
                 "No RG tags — applying fallback preamp {:.1} dB",
@@ -129,7 +127,6 @@ impl ReplayGainInfo {
             return db_to_scaling(cfg.fallback_preamp_db);
         }
 
-        // Select gain and peak by source preference.
         let (gain, peak) = match cfg.source {
             ReplayGainMode::Album => (
                 self.album_gain.or(self.track_gain),
@@ -149,7 +146,6 @@ impl ReplayGainInfo {
         let total_db = gain_db + cfg.preamp_db;
         let mut factor = db_to_scaling(total_db);
 
-        // Peak clamping: factor * peak must not exceed 1.0.
         if cfg.apply_mode == ReplayGainApplyMode::ApplyAndClip {
             if let Some(peak) = peak {
                 if peak > 0.0 && factor * peak > 1.0 {
@@ -162,12 +158,6 @@ impl ReplayGainInfo {
                     factor = 1.0 / peak;
                 }
             }
-            // Fix Bug #7: Cap maximum amplification to prevent extreme volume
-            // from very small peak values. When peak is tiny (e.g., 0.001),
-            // 1.0 / peak = 1000 which is +60 dB of amplification — enough to
-            // damage hearing and speakers. A hard cap of +30 dB (factor ≈ 31.6)
-            // prevents this while still allowing reasonable headroom for quiet
-            // tracks.
             const MAX_AMPLIFICATION_DB: f64 = 30.0;
             let max_factor = db_to_scaling(MAX_AMPLIFICATION_DB);
             if factor > max_factor {
@@ -230,14 +220,8 @@ fn parse_peak(tag: &lofty::tag::Tag, key: &ItemKey) -> Option<f64> {
     let raw = tag.get_string(key)?;
     let cleaned = raw.trim();
 
-    // Fix Bug #6: Detect dB-encoded peak values. Some non-conformant taggers
-    // store peak values in dB rather than as a linear ratio. A dB-encoded peak
-    // is always ≤ 0.0 (since peak amplitude in a properly mastered file is ≤ 1.0,
-    // which is ≤ 0 dB). If the value is negative and its absolute value is in
-    // a reasonable dB range (say -100 to 0), convert it from dB to linear.
     let val = cleaned.parse::<f64>().ok()?;
     if val < 0.0 && val >= -100.0 {
-        // Likely a dB-encoded peak: convert to linear
         let linear = 10f64.powf(val / 20.0);
         tracing::debug!(
             "ReplayGain peak appears to be in dB ({:.2}), converting to linear ({:.6})",
@@ -248,30 +232,18 @@ fn parse_peak(tag: &lofty::tag::Tag, key: &ItemKey) -> Option<f64> {
     }
 
     if val <= 1.0 {
-        // Already normalized (float peak) or zero
         Some(val)
     } else if val <= 2.0 {
-        // Fix Bug #6: Values between 1.0 and 2.0 are float peaks that indicate
-        // inter-sample clipping in the source. They should NOT be treated as 8-bit
-        // integer values. The old code classified 1.5 as "8-bit" (1.5 / 255 = 0.006),
-        // which caused incorrect peak clamping and excessive volume reduction.
-        // ReplayGain spec: "peak is the maximum absolute sample value, expressed
-        // as a fraction of full scale (1.0)." Values > 1.0 = true peaks.
         Some(val)
     } else if val <= 255.0 {
-        // 8-bit peak: divide by 255
         Some(val / 255.0)
     } else if val <= 65535.0 {
-        // 16-bit peak: divide by 65535
         Some(val / 65535.0)
     } else if val <= 8_388_607.0 {
-        // 24-bit peak: divide by 8388607
         Some(val / 8_388_607.0)
     } else if val <= 2_147_483_647.0 {
-        // 32-bit integer peak: divide by 2147483647
         Some(val / 2_147_483_647.0)
     } else {
-        // Value exceeds 32-bit range — treat as invalid
         tracing::warn!(
             "ReplayGain peak value {} exceeds 32-bit range, ignoring",
             val
@@ -286,16 +258,12 @@ mod tests {
 
     #[test]
     fn test_db_to_scaling() {
-        // 0 dB -> scaling of 1.0
         assert!((db_to_scaling(0.0) - 1.0).abs() < 1e-9);
 
-        // -6 dB -> roughly 0.5
         assert!((db_to_scaling(-6.0) - 0.501187).abs() < 1e-4);
 
-        // +6 dB -> roughly 2.0
         assert!((db_to_scaling(6.0) - 1.995262).abs() < 1e-4);
 
-        // -10 dB -> roughly 0.316
         assert!((db_to_scaling(-10.0) - 0.316227).abs() < 1e-3);
     }
 
@@ -309,7 +277,6 @@ mod tests {
         };
 
         let factor = info.scaling_factor(ReplayGainMode::Track).unwrap();
-        // -6 dB scaling ≈ 0.501, and 0.501 * 0.9 = 0.45 < 1.0 so no clamping
         assert!((factor - 0.501187).abs() < 1e-3);
     }
 
@@ -323,8 +290,6 @@ mod tests {
         };
 
         let factor = info.scaling_factor(ReplayGainMode::Album).unwrap();
-        // Album gain: -3 dB -> scaling ≈ 0.708
-        // 0.708 * 0.8 = 0.566 < 1.0 so no clamping
         assert!((factor - 0.707945).abs() < 1e-3);
     }
 
@@ -338,7 +303,6 @@ mod tests {
         };
 
         let factor = info.scaling_factor(ReplayGainMode::Track).unwrap();
-        // Should be clamped to 1.0 / 0.9 ≈ 1.111
         assert!((factor - (1.0 / 0.9)).abs() < 1e-4);
     }
 
@@ -356,7 +320,6 @@ mod tests {
 
     #[test]
     fn test_scaling_factor_fallback() {
-        // Album mode but no album gain -> falls back to track gain
         let info = ReplayGainInfo {
             track_gain: Some(-6.0),
             track_peak: Some(0.9),
@@ -387,7 +350,6 @@ mod tests {
             preamp_db: 3.0,
             fallback_preamp_db: 0.0,
         };
-        // -6 dB + 3 dB = -3 dB → factor ≈ 0.7079
         let factor = info.scaling_factor_full(&cfg);
         assert!(
             (factor - db_to_scaling(-3.0)).abs() < 1e-4,
@@ -427,7 +389,6 @@ mod tests {
             preamp_db: 5.0, // should be ignored
             fallback_preamp_db: -2.0,
         };
-        // DontApply: fallback preamp only, even though tags exist
         let factor = info.scaling_factor_full(&cfg);
         assert!(
             (factor - db_to_scaling(-2.0)).abs() < 1e-4,
@@ -451,7 +412,6 @@ mod tests {
             fallback_preamp_db: 0.0,
         };
         let factor = info.scaling_factor_full(&cfg);
-        // ApplyGain: no clamping, raw +6 dB ≈ 1.9953
         assert!(
             (factor - db_to_scaling(6.0)).abs() < 1e-4,
             "ApplyGain should not clamp, got {:.5}",
@@ -474,7 +434,6 @@ mod tests {
             fallback_preamp_db: 0.0,
         };
         let factor = info.scaling_factor_full(&cfg);
-        // 1.9953 * 0.9 = 1.796 > 1.0, so clamp to 1/0.9 ≈ 1.111
         assert!(
             (factor - (1.0 / 0.9)).abs() < 1e-4,
             "ApplyAndClip should clamp by peak, got {:.5}",

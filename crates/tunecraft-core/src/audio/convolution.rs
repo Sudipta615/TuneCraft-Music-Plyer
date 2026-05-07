@@ -51,11 +51,8 @@ fn fft_size_for_ir(ir_len: usize) -> usize {
     min.next_power_of_two()
 }
 
-// ── ConvolutionEngine ─────────────────────────────────────────────────────────
-
 /// Room correction convolution engine using overlap-add FFT convolution.
 pub struct ConvolutionEngine {
-    // ── IR spectrum (computed once at load time) ───────────────────────────
     /// Pre-computed DFT of the zero-padded mono IR.
     ir_fft: Vec<Complex<f32>>,
     /// Length of the original (non-padded) IR.
@@ -63,16 +60,13 @@ pub struct ConvolutionEngine {
     /// FFT size (power of two).
     fft_sz: usize,
 
-    // ── FFT plan (shared, thread-safe) ─────────────────────────────────────
     fft_plan: Arc<dyn rustfft::Fft<f32>>,
     ifft_plan: Arc<dyn rustfft::Fft<f32>>,
 
-    // ── Per-channel overlap-add state ───────────────────────────────────────
     /// Overlap tail from the previous block — length = ir_len − 1.
     overlap_l: Vec<f32>,
     overlap_r: Vec<f32>,
 
-    // ── Pre-allocated work buffers (Fix Bug #5: avoid heap allocs on DSP thread) ─
     /// Reusable FFT buffer for left channel.
     fft_buf_l: Vec<Complex<f32>>,
     /// Reusable FFT buffer for right channel.
@@ -86,7 +80,6 @@ pub struct ConvolutionEngine {
     /// Reusable buffer for overlap tail copy (right).
     tail_buf_r: Vec<f32>,
 
-    // ── Block accumulator (for the per-sample API) ──────────────────────────
     input_l: Vec<f32>,
     input_r: Vec<f32>,
     output_l: Vec<f32>,
@@ -96,7 +89,6 @@ pub struct ConvolutionEngine {
     /// Number of valid samples currently in the output queue.
     out_len: usize,
 
-    // ── Metadata ────────────────────────────────────────────────────────────
     /// Number of channels in the original IR file (informational).
     _ir_channels: u16,
     /// IR sample rate.
@@ -124,7 +116,6 @@ impl ConvolutionEngine {
         let fft_plan = planner.plan_fft_forward(fft_sz);
         let ifft_plan = planner.plan_fft_inverse(fft_sz);
 
-        // Compute DFT of the zero-padded IR once.
         let mut ir_buf: Vec<Complex<f32>> = ir_data
             .iter()
             .map(|&s| Complex { re: s, im: 0.0 })
@@ -142,7 +133,6 @@ impl ConvolutionEngine {
             ifft_plan,
             overlap_l: vec![0.0; tail_len],
             overlap_r: vec![0.0; tail_len],
-            // Fix Bug #5: pre-allocate work buffers to avoid heap allocs on DSP thread
             fft_buf_l: vec![Complex::default(); fft_sz],
             fft_buf_r: vec![Complex::default(); fft_sz],
             tmp_out_l: vec![0.0f32; BLOCK_SIZE],
@@ -167,8 +157,6 @@ impl ConvolutionEngine {
     /// stereo IR files are downmixed to mono by averaging channels. The number
     /// of channels is detected from the decoded audio caps rather than assumed.
     pub fn load_from_wav(path: &Path) -> Result<Self> {
-        // Fix: Use centralized GStreamer init instead of bare gstreamer::init().ok()
-        // which bypasses the Once-guarded initialization and error reporting.
         super::engine::ensure_gstreamer_initialized()?;
 
         let uri = glib::filename_to_uri(path, None)
@@ -183,13 +171,6 @@ impl ConvolutionEngine {
             .build()
             .context("audioconvert")?;
 
-        // Fix Bug #4: Request F32LE but do NOT force stereo. Let audioconvert
-        // pass through mono sources as mono instead of upmixing to stereo.
-        // We detect the actual channel count from the decoded caps and handle
-        // mono→mono or stereo→mono downmix accordingly. Forcing stereo caps
-        // caused mono IR files to be silently upmixed and then downmixed,
-        // which is wasteful and could introduce subtle phase artifacts with
-        // certain GStreamer audioconvert implementations.
         let caps = gstreamer::Caps::builder("audio/x-raw")
             .field("format", "F32LE")
             .build();
@@ -242,7 +223,6 @@ impl ConvolutionEngine {
             }
         });
 
-        // Detect sample rate and channel count from the first decoded buffer's caps.
         let detected_rate = std::sync::Arc::new(std::sync::Mutex::new(44_100u32));
         let rate_ref = detected_rate.clone();
         let detected_channels = std::sync::Arc::new(std::sync::Mutex::new(1u16));
@@ -256,13 +236,9 @@ impl ConvolutionEngine {
                 .new_sample(move |sink| {
                     let sample = sink.pull_sample().map_err(|_| gstreamer::FlowError::Eos)?;
 
-                    // Capture sample rate and channels from caps on the first buffer.
                     if let Some(caps) = sample.caps() {
                         if let Some(s) = caps.structure(0) {
                             if let Ok(rate) = s.get::<i32>("rate") {
-                                // Fix Issue #8: Use unwrap_or_else instead of .unwrap()
-                                // in GStreamer streaming thread callback where panics
-                                // cannot be caught and would abort the process.
                                 *rate_ref.lock().unwrap_or_else(|e| e.into_inner()) = rate as u32;
                             }
                             if let Ok(ch) = s.get::<i32>("channels") {
@@ -276,11 +252,9 @@ impl ConvolutionEngine {
                         .map_readable()
                         .map_err(|_| gstreamer::FlowError::Error)?;
 
-                    // Fix Bug #29: use alignment-checked cast instead of unsafe raw cast
                     let Some(raw) = crate::util::cast_u8_to_f32(&map) else {
                         return Err(gstreamer::FlowError::Error);
                     };
-                    // Fix Issue #8: Use unwrap_or_else instead of .unwrap()
                     samples_ref
                         .lock()
                         .unwrap_or_else(|e| e.into_inner())
@@ -295,19 +269,12 @@ impl ConvolutionEngine {
             .context("IR pipeline play")?;
         let bus = pipeline.bus().context("pipeline bus")?;
 
-        // Fix M12: Reduce timeout from 30 s to 10 s. A 30-second blocking
-        // wait can hang the app if the pipeline stalls. After 10 seconds we
-        // force the pipeline to Null state and proceed with whatever samples
-        // we have collected so far.
         let msg = bus.timed_pop_filtered(
             gstreamer::ClockTime::from_seconds(10),
             &[gstreamer::MessageType::Eos, gstreamer::MessageType::Error],
         );
 
         if msg.is_none() {
-            // Pipeline did not reach EOS or error within 10 s — force it to
-            // Null state so resources are released and we can continue with
-            // whatever samples we already collected.
             tracing::warn!(
                 "IR decode pipeline did not finish within 10 s — forcing Null state \
                  and continuing with {} samples collected so far",
@@ -322,13 +289,6 @@ impl ConvolutionEngine {
         let rate = *detected_rate.lock().unwrap_or_else(|e| e.into_inner());
         let channels = *detected_channels.lock().unwrap_or_else(|e| e.into_inner());
 
-        // Fix Bug #4: Handle mono and stereo IR files correctly.
-        // Mono (1 channel): use samples directly — no downmix needed.
-        // Stereo (2 channels): downmix by averaging L and R.
-        // Multi-channel (>2): downmix by averaging all channels.
-        // Previously, the code forced stereo caps and always did chunks_exact(2),
-        // which silently produced garbage for mono IR files (treating each
-        // sample as L and the next as R).
         let (mono, ir_channels) = if channels == 1 {
             (raw, 1)
         } else if channels == 2 {
@@ -338,7 +298,6 @@ impl ConvolutionEngine {
                 .collect();
             (downmixed, 2)
         } else {
-            // Multi-channel IR: average all channels per frame
             tracing::info!(
                 "IR file has {} channels — downmixing to mono by averaging",
                 channels
@@ -360,8 +319,6 @@ impl ConvolutionEngine {
         Self::new(mono, ir_channels, rate)
     }
 
-    // ── Core overlap-add block processor ─────────────────────────────────────
-
     /// Convolve one block of stereo samples using overlap-add.
     ///
     /// `in_l` / `in_r` must both be exactly `BLOCK_SIZE` samples long.
@@ -372,8 +329,6 @@ impl ConvolutionEngine {
 
         let tail_len = self.ir_len - 1;
 
-        // ── Left channel ─────────────────────────────────────────────────────
-        // Fix Bug #5: reuse pre-allocated fft_buf_l instead of allocating per call
         {
             let buf = &mut self.fft_buf_l;
             buf.fill(Complex::default());
@@ -382,31 +337,25 @@ impl ConvolutionEngine {
             }
             self.fft_plan.process(buf);
 
-            // Pointwise multiply with IR spectrum.
             let scale = 1.0 / self.fft_sz as f32;
             for (x, h) in buf.iter_mut().zip(self.ir_fft.iter()) {
                 *x = *x * h * scale;
             }
             self.ifft_plan.process(buf);
 
-            // Overlap-add: add the saved tail from the previous block.
             for (i, val) in self.overlap_l.iter().enumerate() {
                 buf[i].re += val;
             }
 
-            // Write output and save new tail.
             for (i, sample) in out_l.iter_mut().enumerate() {
                 *sample = buf[i].re;
             }
-            // Fix Bug #5: reuse pre-allocated tail_buf_l instead of .collect::<Vec<_>>()
             for (i, c) in buf[BLOCK_SIZE..BLOCK_SIZE + tail_len].iter().enumerate() {
                 self.tail_buf_l[i] = c.re;
             }
             self.overlap_l.copy_from_slice(&self.tail_buf_l);
         }
 
-        // ── Right channel ─────────────────────────────────────────────────────
-        // Fix Bug #5: reuse pre-allocated fft_buf_r instead of allocating per call
         {
             let buf = &mut self.fft_buf_r;
             buf.fill(Complex::default());
@@ -428,15 +377,12 @@ impl ConvolutionEngine {
             for (i, sample) in out_r.iter_mut().enumerate() {
                 *sample = buf[i].re;
             }
-            // Fix Bug #5: reuse pre-allocated tail_buf_r instead of .collect::<Vec<_>>()
             for (i, c) in buf[BLOCK_SIZE..BLOCK_SIZE + tail_len].iter().enumerate() {
                 self.tail_buf_r[i] = c.re;
             }
             self.overlap_r.copy_from_slice(&self.tail_buf_r);
         }
     }
-
-    // ── Public per-sample API ─────────────────────────────────────────────────
 
     /// Process one stereo sample using the overlap-add engine.
     ///
@@ -454,29 +400,16 @@ impl ConvolutionEngine {
             return (input_l, input_r);
         }
 
-        // Fix Bug #3: Always accumulate samples into the input buffer, even
-        // when disabled, so the convolution overlap-add state stays warm.
-        // Previously, when disabled, process_advance() returned input
-        // immediately without accumulating, so the input buffers were empty
-        // on re-enable and the first BLOCK_SIZE samples produced silence.
-        // Now, when disabled, we still accumulate and flush blocks (keeping
-        // the convolution state current), but output the unconvolved input
-        // instead of the convolved output.
         self.input_l.push(input_l);
         self.input_r.push(input_r);
 
-        // Flush a full block when ready.
-        // Fix Bug #5: reuse pre-allocated tmp_out buffers instead of allocating per call
         if self.input_l.len() == BLOCK_SIZE {
             self.tmp_out_l.fill(0.0f32);
             self.tmp_out_r.fill(0.0f32);
-            // Take ownership of input data and tmp buffers to release borrow on self
             let in_l: Vec<f32> = std::mem::take(&mut self.input_l);
             let in_r: Vec<f32> = std::mem::take(&mut self.input_r);
             let mut tmp_out_l = std::mem::take(&mut self.tmp_out_l);
             let mut tmp_out_r = std::mem::take(&mut self.tmp_out_r);
-            // Always process_block to keep overlap-add state warm, even when
-            // disabled, so re-enabling produces correct output immediately.
             self.process_block(&in_l, &in_r, &mut tmp_out_l, &mut tmp_out_r);
             self.tmp_out_l = tmp_out_l;
             self.tmp_out_r = tmp_out_r;
@@ -485,9 +418,6 @@ impl ConvolutionEngine {
                 self.output_l.copy_from_slice(&self.tmp_out_l);
                 self.output_r.copy_from_slice(&self.tmp_out_r);
             } else {
-                // When disabled, output the unconvolved input so the signal
-                // passes through unchanged. The convolution state is still
-                // kept warm by process_block() above.
                 self.output_l.copy_from_slice(&in_l);
                 self.output_r.copy_from_slice(&in_r);
             }
@@ -495,14 +425,12 @@ impl ConvolutionEngine {
             self.out_len = BLOCK_SIZE;
         }
 
-        // Drain one sample from the output queue.
         if self.out_len > 0 {
             let i = self.out_head;
             self.out_head += 1;
             self.out_len -= 1;
             (self.output_l[i], self.output_r[i])
         } else {
-            // Pre-fill latency window: output silence until first block fires.
             (0.0, 0.0)
         }
     }
@@ -522,7 +450,6 @@ impl ConvolutionEngine {
     pub fn reset(&mut self) {
         self.overlap_l.fill(0.0);
         self.overlap_r.fill(0.0);
-        // Fix Bug #5: also reset pre-allocated work buffers
         self.fft_buf_l.fill(Complex::default());
         self.fft_buf_r.fill(Complex::default());
         self.tmp_out_l.fill(0.0f32);
@@ -557,11 +484,6 @@ impl ConvolutionEngine {
     }
 }
 
-// cast_u8_to_f32 is now in crate::util — the duplicate local definition
-// has been removed to follow DRY principles.
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -572,37 +494,25 @@ mod tests {
 
     #[test]
     fn bypass_returns_input_with_latency() {
-        // Fix Bug #3: When disabled, the convolution engine still accumulates
-        // samples and maintains the overlap-add state, but outputs the
-        // unconvolved input instead of the convolved output. This means bypass
-        // has the same BLOCK_SIZE latency as the enabled path, but the
-        // convolution state stays warm for seamless re-enable.
         let ir = vec![1.0; 128]; // non-identity IR (all 1.0 = averaging filter)
         let mut e = make_engine(ir);
         e.enabled = false;
-        // Feed BLOCK_SIZE samples to fill the latency window
         for _ in 0..BLOCK_SIZE {
             let (l, r) = e.process_advance(0.5, -0.3);
-            // During latency window, output is silence
             assert!(l.abs() < 1e-6, "latency window L should be 0, got {}", l);
             assert!(r.abs() < 1e-6, "latency window R should be 0, got {}", r);
         }
-        // After latency window, bypass outputs the unconvolved input
         let (l, r) = e.process_advance(0.5, -0.3);
-        // The output should be the raw input (0.5, -0.3), not the convolved
-        // result (which would be ~64.0 for this non-identity IR)
         assert!((l - 0.5).abs() < 1e-4, "bypass L should be 0.5, got {}", l);
         assert!((r + 0.3).abs() < 1e-4, "bypass R should be -0.3, got {}", r);
     }
 
     #[test]
     fn identity_ir_passes_signal_with_latency() {
-        // An IR of [1.0, 0, 0, ...] is the identity convolution.
         let mut ir = vec![0.0; 128];
         ir[0] = 1.0;
         let mut e = make_engine(ir);
 
-        // Feed BLOCK_SIZE samples of a sine, then one more to drain first output.
         let sine: Vec<f32> = (0..BLOCK_SIZE + 1)
             .map(|i| (2.0 * std::f32::consts::PI * 1000.0 * i as f32 / 44_100.0).sin())
             .collect();
@@ -613,8 +523,6 @@ mod tests {
             outputs.push(l);
         }
 
-        // First BLOCK_SIZE outputs are the latency window (silence or zeros).
-        // The (BLOCK_SIZE+1)th output corresponds to input[0].
         let last = *outputs.last().unwrap();
         let expected = sine[0];
         assert!(

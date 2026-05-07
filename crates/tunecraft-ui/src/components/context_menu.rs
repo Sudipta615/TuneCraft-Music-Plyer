@@ -10,7 +10,6 @@ use crate::app_state::{AppState, ViewType};
 pub fn ContextMenuOverlay() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
     let signals: ReactivitySignals = use_context();
-    // Issue #5: Subscribe to UI signal for context menu state
     let _ = *signals.ui.read();
 
     let dark = state
@@ -24,7 +23,6 @@ pub fn ContextMenuOverlay() -> Element {
         .lock()
         .unwrap_or_else(|e| e.into_inner());
 
-    // Bug #17 fix: Compute cursor position for dynamic context menu placement
     let menu_pos = state
         .read()
         .context_menu_position
@@ -33,17 +31,12 @@ pub fn ContextMenuOverlay() -> Element {
         .clone();
     let menu_style = format!("top: {}px; left: {}px;", menu_pos.1, menu_pos.0);
 
-    // If no context menu is open, render nothing
     let Some(target_idx) = context_target else {
         return rsx! {};
     };
 
-    // Bug #5 fix: Local signal holding the list of playlists to pick from when
-    // the user has multiple playlists. Populated by "Add to Playlist", cleared
-    // after a selection or on menu close.
     let mut playlist_picker: Signal<Vec<(i64, String)>> = use_signal(Vec::new);
 
-    // Issue #6: Track focused menu item index for keyboard navigation
     let mut focused_index: Signal<usize> = use_signal(|| 0usize);
     let menu_item_count = 6usize; // Play Next, Add to Queue, Add to Playlist, Go to Artist, Go to Album, Track Info
 
@@ -53,7 +46,6 @@ pub fn ContextMenuOverlay() -> Element {
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = None;
         playlist_picker.set(Vec::new());
-        // Issue #5: Bump UI signal after menu close
         let gen = *signals.ui.read();
         signals.ui.set(gen.wrapping_add(1));
     };
@@ -68,7 +60,6 @@ pub fn ContextMenuOverlay() -> Element {
             div {
                 class: if dark { "context-menu dark" } else { "context-menu light" },
                 style: "{menu_style}",
-                // Issue #6: Accessibility
                 role: "menu",
                 aria_label: "Track context menu",
                 onclick: move |e| e.stop_propagation(),
@@ -93,16 +84,13 @@ pub fn ContextMenuOverlay() -> Element {
                     }
                 },
 
-                // Play Next
                 button {
                     class: "context-menu-item",
-                    // Issue #6: Accessibility
                     role: "menuitem",
                     tabindex: "0",
                     aria_label: "Play Next",
                     onclick: move |_| {
                         let s = state.read().clone();
-                        // #13: Use pre-loaded tracks to avoid redundant DB queries
                         let tracks = s.load_tracks_for_view();
                         if let Some(track) = s.track_at_view_index(target_idx, &tracks) {
                             let mut queue = s.queue.lock().unwrap_or_else(|e| e.into_inner());
@@ -110,7 +98,6 @@ pub fn ContextMenuOverlay() -> Element {
                                 let insert_pos = queue.current_index.map(|c| c + 1).unwrap_or(0);
                                 if insert_pos <= queue.tracks.len() {
                                     queue.tracks.insert(insert_pos, track);
-                                    // #3: If queue was empty, set current_index to 0 so the track can be played
                                     if queue.current_index.is_none() {
                                         queue.current_index = Some(0);
                                     }
@@ -120,7 +107,6 @@ pub fn ContextMenuOverlay() -> Element {
                                 }
                             }
                         }
-                        // Issue #5: Bump signals
                         let gen = *signals.queue.read();
                         signals.queue.set(gen.wrapping_add(1));
                         close_menu();
@@ -128,22 +114,18 @@ pub fn ContextMenuOverlay() -> Element {
                     "▶ Play Next"
                 }
 
-                // Add to Queue
                 button {
                     class: "context-menu-item",
-                    // Issue #6: Accessibility
                     role: "menuitem",
                     tabindex: "0",
                     aria_label: "Add to Queue",
                     onclick: move |_| {
                         let s = state.read().clone();
-                        // #13: Use pre-loaded tracks to avoid redundant DB queries
                         let tracks = s.load_tracks_for_view();
                         if let Some(track) = s.track_at_view_index(target_idx, &tracks) {
                             let mut queue = s.queue.lock().unwrap_or_else(|e| e.into_inner());
                             if queue.tracks.len() < crate::app_state::MAX_QUEUE_SIZE {
                                 queue.tracks.push(track);
-                                // #3: If queue was empty and nothing is playing, point to the first track
                                 if queue.current_index.is_none() && queue.tracks.len() == 1 {
                                     queue.current_index = Some(0);
                                 }
@@ -159,13 +141,8 @@ pub fn ContextMenuOverlay() -> Element {
                     "+ Add to Queue"
                 }
 
-                // Add to Playlist
-                // Fix H11: Show a playlist selection list instead of unconditionally
-                // adding to the first playlist. Users with multiple playlists can now
-                // choose which one to add to.
                 button {
                     class: "context-menu-item",
-                    // Issue #6: Accessibility
                     role: "menuitem",
                     tabindex: "0",
                     aria_label: "Add to Playlist",
@@ -179,7 +156,6 @@ pub fn ContextMenuOverlay() -> Element {
                                     *s.toast_message.lock().unwrap_or_else(|e| e.into_inner()) =
                                         Some("No playlists available. Create one first.".into());
                                 } else if playlists.len() == 1 {
-                                    // Only one playlist — add directly
                                     if let Some(pl) = playlists.first() {
                                         if let Some(pl_id) = pl.id {
                                             let db = s.db.read().unwrap_or_else(|e| e.into_inner());
@@ -198,13 +174,10 @@ pub fn ContextMenuOverlay() -> Element {
                                         }
                                     }
                                 } else {
-                                    // Bug #5 fix: Show inline playlist picker instead of
-                                    // silently adding to whichever playlist happens to be first.
                                     let choices: Vec<(i64, String)> = playlists.iter()
                                         .filter_map(|p| p.id.map(|id| (id, p.name.clone())))
                                         .collect();
                                     playlist_picker.set(choices);
-                                    // Don't close the menu — the picker will render below
                                     return;
                                 }
                             }
@@ -214,10 +187,8 @@ pub fn ContextMenuOverlay() -> Element {
                     "♫ Add to Playlist"
                 }
 
-                // Go to Artist
                 button {
                     class: "context-menu-item",
-                    // Issue #6: Accessibility
                     role: "menuitem",
                     tabindex: "0",
                     aria_label: "Go to Artist",
@@ -239,10 +210,8 @@ pub fn ContextMenuOverlay() -> Element {
                     "👤 Go to Artist"
                 }
 
-                // Go to Album
                 button {
                     class: "context-menu-item",
-                    // Issue #6: Accessibility
                     role: "menuitem",
                     tabindex: "0",
                     aria_label: "Go to Album",
@@ -264,10 +233,8 @@ pub fn ContextMenuOverlay() -> Element {
                     "💿 Go to Album"
                 }
 
-                // Show Track Info
                 button {
                     class: "context-menu-item",
-                    // Issue #6: Accessibility
                     role: "menuitem",
                     tabindex: "0",
                     aria_label: "Show Track Info",
@@ -277,7 +244,6 @@ pub fn ContextMenuOverlay() -> Element {
                     "ℹ Track Info"
                 }
 
-                // Bug #5 fix: Inline playlist picker — shown when the user has multiple playlists
                 if !playlist_picker.read().is_empty() {
                     div { class: "context-menu-playlist-picker",
                         div { class: "context-menu-picker-label", "Add to playlist:" }
@@ -288,7 +254,6 @@ pub fn ContextMenuOverlay() -> Element {
                                 rsx! {
                                     button {
                                         class: "context-menu-item context-menu-playlist-choice",
-                                        // Issue #6: Accessibility
                                         role: "menuitem",
                                         tabindex: "0",
                                         aria_label: "Add to {pl_name_display}",
@@ -321,7 +286,6 @@ pub fn ContextMenuOverlay() -> Element {
                         }
                         button {
                             class: "context-menu-item",
-                            // Issue #6: Accessibility
                             role: "menuitem",
                             tabindex: "0",
                             aria_label: "Cancel",

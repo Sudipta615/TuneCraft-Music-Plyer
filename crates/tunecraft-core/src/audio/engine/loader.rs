@@ -35,7 +35,6 @@ pub fn load_internal(
 
     let (decode_prod, decode_cons) = HeapRb::<f32>::new(engine.decode_ring_size).split();
 
-    // Reset EBU R128 loudness measurement at track boundaries.
     engine
         .loudness_state
         .lock()
@@ -43,11 +42,6 @@ pub fn load_internal(
         .loudness
         .reset();
 
-    // Reset DSP state first, THEN signal the gapless smoother that a new
-    // track is starting. The previous order (mark_new_track then reset_state)
-    // cleared the seek_fade_ramp via reset_state() after it had been set up
-    // by the gapless logic, and also reset filter state that the gapless
-    // smoother's apply_to_head() depended on.
     {
         let dsp_arc = engine.dsp_arc();
         let mut dsp = dsp_arc.lock().unwrap_or_else(|e| e.into_inner());
@@ -55,7 +49,6 @@ pub fn load_internal(
         dsp.mark_new_track();
     }
 
-    // Create audio output FIRST so we know the device sample rate.
     let playing_flag = Arc::new(AtomicBool::new(false));
     let exclusive = engine
         .volume_state
@@ -84,7 +77,6 @@ pub fn load_internal(
     let device_rate = audio_output.sample_rate;
     let underrun_count = audio_output.underrun_count_arc();
 
-    // Create pipeline with the device rate so GStreamer outputs at the correct rate.
     let pipeline = DecodePipeline::new(&uri, decode_prod, device_rate)?;
 
     {
@@ -114,12 +106,10 @@ pub fn load_internal(
         underrun_count: underrun_count.clone(),
     };
 
-    // Reset the underrun counter when starting a new session.
     underrun_count.store(0, Ordering::Relaxed);
 
     *engine.session.lock().unwrap_or_else(|e| e.into_inner()) = Some(session);
 
-    // Reset last-reported state for the new track
     *engine
         .last_reported_position
         .lock()
@@ -129,7 +119,6 @@ pub fn load_internal(
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = None;
 
-    // Apply playback speed if non-default
     let speed = engine
         .volume_state
         .lock()
@@ -142,7 +131,6 @@ pub fn load_internal(
         }
     }
 
-    // Apply ReplayGain if enabled
     let rg = engine
         .rg_state
         .lock()
@@ -156,8 +144,6 @@ pub fn load_internal(
         }
     }
 
-    // Fix Bug #15: Store the current track path so that enabling ReplayGain
-    // on a playing track can immediately compute and apply the RG factor.
     *engine
         .current_track_path
         .lock()

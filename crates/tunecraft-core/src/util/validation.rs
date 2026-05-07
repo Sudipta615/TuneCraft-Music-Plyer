@@ -31,13 +31,11 @@ pub fn validate_file_path(
     path: &Path,
     allowed_dirs: &[PathBuf],
 ) -> Result<PathBuf, PathValidationError> {
-    // Check for null bytes (could cause truncation in C APIs)
     let path_str = path.to_string_lossy();
     if path_str.contains('\0') {
         return Err(PathValidationError::NullByte(path_str.into_owned()));
     }
 
-    // Check for directory traversal components
     for component in path.components() {
         match component {
             Component::ParentDir => {
@@ -46,22 +44,13 @@ pub fn validate_file_path(
                 ));
             }
             Component::Prefix(_) => {
-                // Fix L6 + Bug #3: On Windows, prefix components (drive letters
-                // like "C:", UNC paths like "\\server\share") are valid and expected.
-                // Only reject them on non-Windows platforms where they are unusual.
-                // Use target_family = "windows" instead of target_os = "windows"
-                // for robustness — this correctly handles Windows CE, and any
-                // future targets in the Windows family, rather than silently
-                // passing through on niche Windows variants.
                 #[cfg(not(target_family = "windows"))]
                 return Err(PathValidationError::UnexpectedPrefix(path_str.into_owned()));
-                // On Windows, prefix components are valid — allow them through.
             }
             _ => {}
         }
     }
 
-    // Canonicalize the path to resolve any remaining symlinks/relative components
     let canonical =
         path.canonicalize()
             .map_err(|e| PathValidationError::CanonicalizationFailed {
@@ -69,11 +58,9 @@ pub fn validate_file_path(
                 source: e,
             })?;
 
-    // If allowed directories are specified, verify the path is within one of them
     if !allowed_dirs.is_empty() {
         let mut is_within_allowed = false;
         for dir in allowed_dirs {
-            // Canonicalize the allowed dir too for fair comparison
             if let Ok(canonical_dir) = dir.canonicalize() {
                 if canonical.starts_with(&canonical_dir) {
                     is_within_allowed = true;
@@ -140,10 +127,8 @@ pub fn validate_audio_file_path(
     path: &Path,
     allowed_dirs: &[PathBuf],
 ) -> Result<PathBuf, PathValidationError> {
-    // First validate the path structure
     let canonical = validate_file_path(path, allowed_dirs)?;
 
-    // Check extension is a supported audio format
     const AUDIO_EXTENSIONS: &[&str] = &[
         "mp3", "flac", "wav", "ogg", "opus", "aac", "m4a", "wma", "aiff", "ape", "alac",
     ];
@@ -158,7 +143,6 @@ pub fn validate_audio_file_path(
         return Err(PathValidationError::UnsupportedFormat(canonical));
     }
 
-    // Verify the file exists and is a regular file
     if !canonical.is_file() {
         return Err(PathValidationError::NotAFile(canonical));
     }
@@ -184,7 +168,6 @@ pub fn validate_url(url: &str) -> Result<url::Url, UrlValidationError> {
     match parsed.scheme() {
         "https" => Ok(parsed),
         "http" => {
-            // Allow HTTP for development/testing but log a warning
             tracing::warn!("Opening non-HTTPS URL: {}", url);
             Ok(parsed)
         }
@@ -232,8 +215,6 @@ pub fn validate_lastfm_auth_url(url: &str) -> Result<url::Url, UrlValidationErro
 
     Ok(parsed)
 }
-
-// ── Error Types ────────────────────────────────────────────────────────────
 
 /// Errors that can occur during file path validation.
 #[derive(Debug, thiserror::Error)]
@@ -318,7 +299,6 @@ mod tests {
 
     #[test]
     fn test_validate_path_syntax_accepts_nonexistent() {
-        // This path doesn't need to exist — only syntax is validated
         let path = Path::new("/nonexistent/path/to/file.mp3");
         assert!(validate_path_syntax(path).is_ok());
     }

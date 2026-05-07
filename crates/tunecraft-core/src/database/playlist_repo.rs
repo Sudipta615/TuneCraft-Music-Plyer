@@ -52,14 +52,6 @@ impl Database {
     }
 
     /// Add a track to a playlist.
-    // Fix Bug #18: Use a single SQL statement to compute position atomically,
-    // avoiding the race condition where two concurrent INSERTs could read the
-    // same MAX(position) and both get the same position value.
-    // Fix Bug #21: Replace raw SQL BEGIN IMMEDIATE/COMMIT/ROLLBACK with
-    // rusqlite's transaction_with_behavior() API. The RAII Transaction object
-    // automatically rolls back on Drop if not committed, eliminating the risk
-    // of a stuck transaction if the code path between BEGIN and COMMIT panics
-    // or returns early.
     pub fn add_track_to_playlist(&self, playlist_id: i64, track_id: i64) -> Result<()> {
         let mut conn = self.conn()?;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;

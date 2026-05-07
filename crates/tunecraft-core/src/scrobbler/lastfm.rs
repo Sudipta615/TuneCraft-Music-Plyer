@@ -44,7 +44,6 @@ impl LastfmClient {
             api_secret: api_secret.into(),
             session_key: None,
             base_url: "https://ws.audioscrobbler.com/2.0/".to_string(),
-            // Fix Bug #68: Store a persistent reqwest::Client for connection pooling.
             client: reqwest::Client::new(),
         }
     }
@@ -68,30 +67,15 @@ impl LastfmClient {
         for key in keys {
             if let Some(value) = params.get(key) {
                 sig_string.push_str(key);
-                // Fix Bug #71: sign_params uses fragile to_string().replace('"', "").
-                // Previously used `value.to_string().replace('"', "")` which is fragile
-                // because it relies on the JSON serializer always quoting strings with
-                // double quotes, and would strip legitimate quote characters from values.
-                // Now uses `as_str()` which extracts the raw string without quotes.
                 if let Some(s) = value.as_str() {
                     sig_string.push_str(s);
                 } else if let Some(b) = value.as_bool() {
-                    // Fix Issue #10: Explicit boolean handling instead of
-                    // value.to_string() which emits "true"/"false". Last.fm
-                    // API parameters are strings, so booleans should be
-                    // represented as "1"/"0" for consistency with the API spec.
                     sig_string.push_str(if b { "1" } else { "0" });
                 } else if let Some(n) = value.as_i64() {
-                    // Integer values (e.g., timestamps) — use direct digit
-                    // representation. as_i64() avoids serde_json's
-                    // floating-point formatting for integer-valued numbers.
                     sig_string.push_str(&n.to_string());
                 } else if let Some(f) = value.as_f64() {
-                    // Floating-point values — use Display representation
                     sig_string.push_str(&f.to_string());
                 } else {
-                    // Null or other JSON types — skip (shouldn't occur in
-                    // Last.fm API parameters, but don't panic)
                     tracing::warn!(
                         "Skipping unexpected JSON value type in Last.fm signature for key '{}'",
                         key
@@ -134,10 +118,6 @@ impl LastfmClient {
     /// partial failures, ALL entries were marked as done. Now returns per-entry
     /// results so only truly successful entries are marked as done.
     pub async fn process_queue(&self, entries: Vec<ScrobbleEntry>) -> Result<Vec<bool>> {
-        // Fix: Check for empty session key — sending an empty string as the
-        // "sk" parameter causes Last.fm API errors (code 4: Invalid method
-        // or code 9: Invalid session key). Previously, `session_key = Some("")`
-        // passed the `is_none()` check but produced a broken "sk" parameter.
         match &self.session_key {
             None => return Ok(Vec::new()),
             Some(key) if key.is_empty() => {
@@ -155,10 +135,6 @@ impl LastfmClient {
         let mut results = vec![false; total];
         let mut offset = 0usize;
 
-        // Fix Bug #68: Reuse the stored reqwest::Client instead of creating a new one.
-        // This enables connection pooling and TLS session reuse.
-
-        // Batch scrobbles in groups of 50 (Last.fm limit)
         for chunk in entries.chunks(50) {
             let mut params = serde_json::Map::new();
             params.insert("method".to_string(), json!("track.scrobble"));
@@ -178,17 +154,12 @@ impl LastfmClient {
                 params.insert(format!("timestamp[{}]", i), json!(entry.timestamp));
             }
 
-            // Sign the request
             let api_sig = self.sign_params(&params);
             params.insert("api_sig".to_string(), json!(api_sig));
 
             match self.client.post(&self.base_url).form(&params).send().await {
                 Ok(resp) => {
                     if resp.status().is_success() {
-                        // Fix Bug #35: Last.fm can return HTTP 200 with partial
-                        // failures in the JSON body. Parse the response to check
-                        // the "ignored" count instead of counting the entire batch
-                        // as successful.
                         let body_text = resp.text().await.unwrap_or_default();
                         let ignored_count: usize =
                             serde_json::from_str::<serde_json::Value>(&body_text)
@@ -198,26 +169,12 @@ impl LastfmClient {
                                     attr.and_then(|a| a.get("ignored").cloned())
                                 })
                                 .and_then(|i| {
-                                    // Last.fm may return "ignored" as a string or integer
                                     i.as_str()
                                         .and_then(|s| s.parse().ok())
                                         .or_else(|| i.as_u64().map(|u| u as usize))
                                 })
                                 .unwrap_or(0);
 
-                        // Fix Bug #42: Last.fm reports only the *count* of
-                        // ignored entries, not their indices. The previous code
-                        // assumed ignored entries are always at the end of the
-                        // batch, but Last.fm does not guarantee this ordering —
-                        // any entry in the batch can be skipped due to validation
-                        // failures (duplicate timestamp, missing artist, etc.).
-                        //
-                        // Marking only the last N entries as failed is incorrect
-                        // because we cannot know WHICH entries were ignored.
-                        // Instead, when any entries are ignored we treat the
-                        // entire batch as failed so that the caller will retry
-                        // all entries individually rather than silently marking
-                        // wrong entries as successful.
                         if ignored_count > 0 {
                             warn!(
                                 "Scrobble partial failure: {} out of {} ignored by Last.fm — \
@@ -226,9 +183,7 @@ impl LastfmClient {
                                 ignored_count,
                                 chunk.len()
                             );
-                            // Leave all results[offset..offset+chunk.len()] as false
                         } else {
-                            // All entries in this batch succeeded
                             for i in 0..chunk.len() {
                                 results[offset + i] = true;
                             }
@@ -288,23 +243,16 @@ impl LastfmClient {
     /// Returns the validated URL string, or an error if validation fails
     /// (which would indicate a compromised or malformed API key).
     pub fn get_auth_url(&self) -> Result<String, UrlValidationError> {
-        // Sanitize the API key: strip control characters and whitespace that
-        // could break URL parsing or inject headers. Last.fm API keys are
-        // typically 32-character alphanumeric strings.
         let sanitized_key: String = self
             .api_key
             .chars()
             .filter(|c| !c.is_control() && !c.is_whitespace())
             .collect();
 
-        // Fix Bug #41: URL-encode the API key before inserting it into the URL.
-        // If the key ever contains special characters like &, =, #, or ?, they
-        // would break the query string or inject extra parameters.
         let encoded_key = urlencoding::encode(&sanitized_key);
 
         let url = format!("https://www.last.fm/api/auth/?api_key={}", encoded_key);
 
-        // Validate the auth URL before returning it
         validate_lastfm_auth_url(&url)?;
 
         Ok(url)
@@ -312,8 +260,6 @@ impl LastfmClient {
 
     /// Fetch a session key using an auth token.
     pub async fn get_session(&mut self, token: &str) -> Result<String> {
-        // Fix Bug #68: Reuse the stored reqwest::Client instead of creating a new one.
-
         let mut params = serde_json::Map::new();
         params.insert("method".to_string(), json!("auth.getSession"));
         params.insert("api_key".to_string(), json!(self.api_key));
@@ -350,8 +296,6 @@ impl LastfmClient {
         Ok(session_key)
     }
 }
-
-// ── Secure credential storage helpers ──────────────────────────────────────
 
 /// Encrypt a sensitive credential (API key, API secret, session key) for
 /// storage in the database. Uses AES-256-GCM with a machine-derived key.
@@ -411,13 +355,11 @@ mod tests {
 
     #[test]
     fn test_md5_empty_string() {
-        // Well-known MD5 test vector: empty string
         assert_eq!(md5_hash(""), "d41d8cd98f00b204e9800998ecf8427e");
     }
 
     #[test]
     fn test_md5_hello_world() {
-        // Well-known MD5 test vector
         assert_eq!(md5_hash("hello world"), "5eb63bbbe01eeed093cb22bb8f5acdc3");
     }
 
@@ -484,7 +426,6 @@ mod tests {
     fn test_auth_url_validated() {
         let client = LastfmClient::new("validkey", "validsecret");
         let url = client.get_auth_url().unwrap();
-        // Should successfully validate (HTTPS, last.fm domain)
         assert!(validate_lastfm_auth_url(&url).is_ok());
     }
 }

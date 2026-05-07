@@ -217,8 +217,6 @@ impl Biquad {
     }
 }
 
-// ── Smoothed biquad band (coefficient interpolation) ─────────────────
-
 /// ~5 ms at 48 kHz — smooths EQ parameter changes, eliminating zipper noise.
 pub const SMOOTH_FRAMES: u32 = 240;
 /// Precomputed reciprocal — avoids a per-frame division in the hot path.
@@ -252,9 +250,6 @@ impl SmoothedBand {
         if self.steps > 0 {
             self.steps -= 1;
             if self.steps == 0 {
-                // Snap exactly to target on the final step — eliminates f32
-                // accumulation error that would otherwise leave `current`
-                // fractionally off `target` after SMOOTH_FRAMES iterations.
                 for ch in 0..2 {
                     self.current[ch].copy_coeffs_from(&self.target[ch]);
                 }
@@ -285,8 +280,6 @@ impl SmoothedBand {
         self.steps = 0;
     }
 }
-
-// ── Tests ────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -380,7 +373,6 @@ mod tests {
         for i in 0..4800 {
             let x = (2.0 * PI * 23500.0 * i as f32 / 48000.0).sin() * 0.5;
             let _y = bq.process(x);
-            // f64 state: bound is tighter; no large intermediate accumulation.
             assert!(bq.s1.abs() < 50.0, "s1 blew up at sample {}: {}", i, bq.s1);
             assert!(bq.s2.abs() < 50.0, "s2 blew up at sample {}: {}", i, bq.s2);
         }
@@ -396,7 +388,6 @@ mod tests {
         let gain_db = 24.0_f32;
         let mut bq = Biquad::peaking(freq, gain_db, 1.0, sr);
         let mut max_val = 0.0_f32;
-        // Warm up for 2 s, then measure over the next 0.5 s.
         for i in 0..(sr as usize * 2 + sr as usize / 2) {
             let x = (2.0 * PI * freq * i as f32 / sr).sin() * 0.1;
             let y = bq.process(x);

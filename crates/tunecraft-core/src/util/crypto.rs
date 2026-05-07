@@ -68,28 +68,13 @@ fn derive_key() -> Result<&'static [u8; 32], CryptoError> {
         let fingerprint = machine_fingerprint();
         let mut ikm = fingerprint.as_bytes().to_vec();
 
-        // Try OS keyring first (v1.1 improvement) — much stronger than env vars
         if let Some(keyring_secret) = load_keyring_secret() {
             ikm.extend_from_slice(&keyring_secret);
             tracing::debug!("Using OS keyring for key derivation");
         } else if let Some(secret) = load_user_secret() {
-            // Fallback to dotfile
             ikm.extend_from_slice(&secret);
             tracing::debug!("Using dotfile secret for key derivation (keyring unavailable)");
         } else {
-            // Fix Bug #38 / Security #16: When neither keyring nor dotfile secret
-            // is available, the encryption key was derived solely from public
-            // environment variables (HOSTNAME, USER, OS, ARCH). These are visible
-            // to any process on the system, making the encryption effectively
-            // obfuscation rather than true security.
-            //
-            // Now we attempt to auto-generate a random 32-byte secret and store it
-            // in a known dotfile (~/.tunecraft-key) with 0600 permissions. This
-            // provides actual protection against credential extraction from a stolen
-            // database file, since the key material is not publicly visible.
-            //
-            // If the dotfile creation also fails (e.g., read-only home directory),
-            // we fall back to the weak env-var derivation but emit a strong warning.
             match generate_and_store_user_secret() {
                 Some(secret) => {
                     ikm.extend_from_slice(&secret);
@@ -110,16 +95,6 @@ fn derive_key() -> Result<&'static [u8; 32], CryptoError> {
         let hkdf = Hkdf::<Sha256>::new(Some(APP_SALT), &ikm);
 
         let mut key = [0u8; 32];
-        // Fix Issue #21: Previously, HKDF expand failure silently fell back to
-        // a SHA-256 hash of the IKM, producing a key that could never decrypt
-        // data encrypted with the real HKDF-derived key. This caused silent
-        // data loss — credentials encrypted after a fallback were unreadable
-        // on any other run (including after the HKDF was fixed), and vice versa.
-        //
-        // Now we return an error instead, which propagates through encrypt()/
-        // decrypt() so the user sees a visible error rather than losing data.
-        // HKDF expand should never fail with a 32-byte output from valid
-        // SHA-256 HKDF, but if it does, we refuse to produce an undecryptable key.
         match hkdf.expand(b"aes-256-gcm-key", &mut key) {
             Ok(()) => Ok(key),
             Err(e) => Err(CryptoError::KeyDerivationFailed(format!(
@@ -140,60 +115,46 @@ fn derive_key() -> Result<&'static [u8; 32], CryptoError> {
 /// Returns None if the keyring is unavailable or the entry doesn't exist yet.
 /// On first use, creates a random secret and stores it in the keyring.
 fn load_keyring_secret() -> Option<Vec<u8>> {
-    // v4.1: OS keyring integration is now fully implemented.
-    // The `keyring` crate talks to:
-    // - Linux: org.freedesktop.Secret / libsecret / GNOME Keyring / KWallet
-    // - macOS: Keychain Services
-    // - Windows: Credential Manager
-    //
-    // If the `keyring` feature is not enabled at compile time, or the
-    // OS secret service is unavailable, this returns None and the
-    // derive_key() fallback chain proceeds to the dotfile mechanism.
     #[cfg(feature = "keyring")]
     {
         use keyring::Entry;
         match Entry::new("org.tunecraft.Tunecraft", "encryption-key") {
-            Ok(entry) => {
-                match entry.get_password() {
-                    Ok(secret_hex) => match hex::decode(&secret_hex) {
-                        Ok(bytes) if bytes.len() >= 16 => {
-                            tracing::debug!("Loaded encryption key from OS keyring");
-                            Some(bytes)
-                        }
-                        Ok(_) => {
-                            tracing::warn!("Keyring secret too short, regenerating");
-                            let _ = entry.delete_credential();
-                            None
-                        }
-                        Err(e) => {
-                            tracing::debug!("Keyring secret hex decode failed: {}", e);
-                            let _ = entry.delete_credential();
-                            None
-                        }
-                    },
-                    Err(keyring::Error::NoEntry) => {
-                        // First use — generate and store a random 32-byte secret
-                        let secret: [u8; 32] = rand::random();
-                        let hex_str = hex::encode(secret);
-                        match entry.set_password(&hex_str) {
-                            Ok(()) => {
-                                tracing::info!(
-                                    "Generated and stored new encryption key in OS keyring"
-                                );
-                                Some(secret.to_vec())
-                            }
-                            Err(e) => {
-                                tracing::debug!("Failed to store keyring secret: {}", e);
-                                None
-                            }
-                        }
+            Ok(entry) => match entry.get_password() {
+                Ok(secret_hex) => match hex::decode(&secret_hex) {
+                    Ok(bytes) if bytes.len() >= 16 => {
+                        tracing::debug!("Loaded encryption key from OS keyring");
+                        Some(bytes)
                     }
-                    Err(e) => {
-                        tracing::debug!("Keyring access error: {}", e);
+                    Ok(_) => {
+                        tracing::warn!("Keyring secret too short, regenerating");
+                        let _ = entry.delete_credential();
                         None
                     }
+                    Err(e) => {
+                        tracing::debug!("Keyring secret hex decode failed: {}", e);
+                        let _ = entry.delete_credential();
+                        None
+                    }
+                },
+                Err(keyring::Error::NoEntry) => {
+                    let secret: [u8; 32] = rand::random();
+                    let hex_str = hex::encode(secret);
+                    match entry.set_password(&hex_str) {
+                        Ok(()) => {
+                            tracing::info!("Generated and stored new encryption key in OS keyring");
+                            Some(secret.to_vec())
+                        }
+                        Err(e) => {
+                            tracing::debug!("Failed to store keyring secret: {}", e);
+                            None
+                        }
+                    }
                 }
-            }
+                Err(e) => {
+                    tracing::debug!("Keyring access error: {}", e);
+                    None
+                }
+            },
             Err(e) => {
                 tracing::debug!("Keyring entry creation failed: {}", e);
                 None
@@ -216,9 +177,6 @@ fn machine_fingerprint() -> String {
     let hostname = std::env::var("HOSTNAME")
         .or_else(|_| std::env::var("COMPUTERNAME"))
         .or_else(|_| {
-            // Fix M9: HOSTNAME env var is unreliable on Linux (not always set).
-            // Fall back to the `hostname` command which queries the system
-            // hostname directly via gethostname(2).
             let output = std::process::Command::new("hostname").output().ok();
             output
                 .and_then(|o| {
@@ -260,16 +218,7 @@ fn user_secret_path() -> Option<std::path::PathBuf> {
 fn load_user_secret() -> Option<Vec<u8>> {
     let path = user_secret_path()?;
 
-    // Fix C4: Use atomic file creation to prevent TOCTOU race condition.
-    // If two processes start simultaneously, both could observe the file as
-    // non-existent, generate different secrets, and overwrite each other.
-    // Using OpenOptions::new().create_new(true) provides atomic O_CREAT|O_EXCL
-    // semantics — only one process will succeed in creating the file.
     if path.exists() {
-        // Fix Bug #39: Validate that the secret file contains exactly 32 bytes.
-        // A corrupted (truncated or partially overwritten) file would produce
-        // wrong bytes, causing HKDF to derive a different encryption key and
-        // permanently bricking all previously encrypted credentials.
         match std::fs::read(&path) {
             Ok(bytes) if bytes.len() == 32 => Some(bytes),
             Ok(bytes) => {
@@ -279,7 +228,6 @@ fn load_user_secret() -> Option<Vec<u8>> {
                     path,
                     bytes.len()
                 );
-                // Remove the corrupted file and generate a fresh one
                 let _ = std::fs::remove_file(&path);
                 generate_and_store_user_secret()
             }
@@ -298,7 +246,6 @@ fn load_user_secret() -> Option<Vec<u8>> {
             Ok(mut file) => {
                 use std::io::Write;
                 if file.write_all(&secret).is_ok() {
-                    // Set file permissions to owner-only (0600 on Unix)
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
@@ -312,8 +259,6 @@ fn load_user_secret() -> Option<Vec<u8>> {
                 }
             }
             Err(_) => {
-                // File was created by another process between our check and create.
-                // Read the existing file instead.
                 tracing::debug!("User secret file created by another process, reading existing");
                 std::fs::read(&path).ok()
             }
@@ -333,9 +278,6 @@ fn load_user_secret() -> Option<Vec<u8>> {
 fn generate_and_store_user_secret() -> Option<Vec<u8>> {
     let path = user_secret_path()?;
 
-    // Fix C4: Use atomic file creation to prevent TOCTOU race condition.
-    // The previous check-then-write pattern allowed two processes to both
-    // observe the file as non-existent and overwrite each other's secrets.
     let secret: [u8; 32] = rand::random();
     match std::fs::OpenOptions::new()
         .write(true)
@@ -345,7 +287,6 @@ fn generate_and_store_user_secret() -> Option<Vec<u8>> {
         Ok(mut file) => {
             use std::io::Write;
             if file.write_all(&secret).is_ok() {
-                // Set file permissions to owner-only (0600 on Unix)
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::PermissionsExt;
@@ -359,7 +300,6 @@ fn generate_and_store_user_secret() -> Option<Vec<u8>> {
             }
         }
         Err(_) => {
-            // File was created by another process — read the existing one
             tracing::debug!("Encryption key file created by another process, reading existing");
             std::fs::read(&path).ok()
         }
@@ -379,7 +319,6 @@ pub fn encrypt(plaintext: &str) -> Result<String, CryptoError> {
     let cipher =
         Aes256Gcm::new_from_slice(key).map_err(|e| CryptoError::KeyInitFailed(e.to_string()))?;
 
-    // Generate a random 96-bit nonce
     let nonce_bytes: [u8; 12] = rand::random();
     let nonce = Nonce::from_slice(&nonce_bytes);
 
@@ -387,7 +326,6 @@ pub fn encrypt(plaintext: &str) -> Result<String, CryptoError> {
         .encrypt(nonce, plaintext.as_bytes())
         .map_err(|e| CryptoError::EncryptionFailed(e.to_string()))?;
 
-    // Prepend nonce to ciphertext (nonce + ciphertext + tag)
     let mut combined = Vec::with_capacity(12 + ciphertext.len());
     combined.extend_from_slice(&nonce_bytes);
     combined.extend_from_slice(&ciphertext);
@@ -407,8 +345,6 @@ pub fn encrypt(plaintext: &str) -> Result<String, CryptoError> {
 /// - The ciphertext is too short
 /// - Decryption fails (wrong key, tampered data)
 pub fn decrypt(value: &str) -> Result<String, CryptoError> {
-    // If the value doesn't have the encrypted prefix, return it as-is
-    // This allows seamless migration from unencrypted storage
     if !value.starts_with(ENCRYPTED_PREFIX) {
         return Ok(value.to_string());
     }
@@ -419,7 +355,6 @@ pub fn decrypt(value: &str) -> Result<String, CryptoError> {
         .map_err(|e| CryptoError::Base64DecodeFailed(e.to_string()))?;
 
     if combined.len() < 12 + 16 {
-        // Need at least 12 bytes nonce + 16 bytes GCM tag
         return Err(CryptoError::CiphertextTooShort(combined.len()));
     }
 
@@ -456,8 +391,6 @@ pub fn ensure_encrypted(plaintext: &str) -> Result<String, CryptoError> {
 pub fn decrypt_if_needed(value: &str) -> Result<String, CryptoError> {
     decrypt(value)
 }
-
-// ── Error Types ────────────────────────────────────────────────────────────
 
 /// Errors that can occur during encryption/decryption operations.
 #[derive(Debug, thiserror::Error)]
@@ -527,7 +460,6 @@ mod tests {
         let plaintext = "test-secret";
         let encrypted1 = ensure_encrypted(plaintext).unwrap();
         let encrypted2 = ensure_encrypted(&encrypted1).unwrap();
-        // Second call should be a no-op (already encrypted)
         assert_eq!(encrypted1, encrypted2);
     }
 
@@ -538,18 +470,15 @@ mod tests {
         let decrypted = decrypt_if_needed(&encrypted).unwrap();
         assert_eq!(decrypted, plaintext);
 
-        // Unencrypted values pass through
         let plain_result = decrypt_if_needed("plain-text").unwrap();
         assert_eq!(plain_result, "plain-text");
     }
 
     #[test]
     fn test_different_plaintexts_produce_different_ciphertexts() {
-        // Due to random nonces, even the same plaintext produces different ciphertexts
         let enc1 = encrypt("same").unwrap();
         let enc2 = encrypt("same").unwrap();
         assert_ne!(enc1, enc2);
-        // But both decrypt correctly
         assert_eq!(decrypt(&enc1).unwrap(), "same");
         assert_eq!(decrypt(&enc2).unwrap(), "same");
     }

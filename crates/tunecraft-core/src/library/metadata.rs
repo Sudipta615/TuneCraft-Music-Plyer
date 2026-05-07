@@ -34,7 +34,6 @@ pub fn read_metadata_and_cover_art(path: &Path) -> Result<(Track, Option<CoverAr
 
     let track = build_track_from_tagged_file(path, &tagged_file)?;
 
-    // Extract cover art from the same tagged_file (no second file open)
     let cover_art = extract_cover_art_from_tagged(&tagged_file);
 
     Ok((track, cover_art))
@@ -68,8 +67,6 @@ fn build_track_from_tagged_file(
     let sample_rate = properties.sample_rate().map(|v| v as i32);
     let bitrate = properties.audio_bitrate().map(|v| v as i32);
 
-    // Fix Bug #62: std::fs::metadata(path) was called twice — once for file_size
-    // and once for file_mtime. Now called once and reused.
     let file_meta = std::fs::metadata(path).ok();
     Ok(Track {
         id: None,

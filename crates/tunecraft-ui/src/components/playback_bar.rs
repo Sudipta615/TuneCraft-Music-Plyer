@@ -14,7 +14,6 @@ const SLIDER_DEBOUNCE_MS: u64 = 50;
 pub fn PlaybackBar() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
     let signals: ReactivitySignals = use_context();
-    // Issue #5: Subscribe to playback signal for position/time/play-state updates
     let _ = *signals.playback.read();
 
     let dark = state
@@ -22,7 +21,6 @@ pub fn PlaybackBar() -> Element {
         .dark_mode
         .load(std::sync::atomic::Ordering::Relaxed);
 
-    // Read current track info
     let current_track = {
         let queue = state.read().queue_lock();
         queue.current_track().map(|t| {
@@ -58,7 +56,6 @@ pub fn PlaybackBar() -> Element {
 
     let (title, artist, _album) = current_track.unwrap_or_default();
 
-    // Issue #20: Debounce generation counters for seek and volume sliders.
     let mut seek_gen: Signal<u64> = use_signal(|| 0);
     let mut volume_gen: Signal<u64> = use_signal(|| 0);
 
@@ -68,7 +65,6 @@ pub fn PlaybackBar() -> Element {
             role: "region",
             aria_label: "Playback controls",
 
-            // Track info (left)
             div { class: "pb-track-info",
                 div { class: "pb-track-art", "♫" }
                 div { class: "pb-track-text",
@@ -86,7 +82,6 @@ pub fn PlaybackBar() -> Element {
                         };
                         if track.is_some() && is_loved { "pb-love-btn loved" } else { "pb-love-btn" }
                     },
-                    // Issue #6: Accessibility
                     aria_label: if state.read().queue_lock().current_track().is_some()
                         && state.read().loved_tracks.lock().unwrap_or_else(|e| e.into_inner()).contains(
                             state.read().queue_lock().current_track()
@@ -99,11 +94,8 @@ pub fn PlaybackBar() -> Element {
                         let track = s.queue_lock().current_track().cloned();
                         if let Some(t) = track {
                             let key = t.file_hash.clone().unwrap_or_else(|| t.file_path.clone());
-                            // Bug #29 fix: Use toggle_track_loved() which persists to DB.
-                            // Previously only modified the in-memory HashSet.
                             s.toggle_track_loved(&key);
                         }
-                        // Issue #5: Bump UI signal after love toggle
                         let gen = *signals.ui.read();
                         signals.ui.set(gen.wrapping_add(1));
                     },
@@ -123,20 +115,16 @@ pub fn PlaybackBar() -> Element {
                 }
             }
 
-            // Playback controls (center)
             div { class: "pb-controls",
                 div { class: "pb-main-controls",
-                    // Shuffle
                     button {
                         class: if shuffle { "pb-ctrl-btn active" } else { "pb-ctrl-btn" },
-                        // Issue #6: Accessibility
                         aria_label: if shuffle { "Disable shuffle" } else { "Enable shuffle" },
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
                             let mut queue = s.queue.lock().unwrap_or_else(|e| e.into_inner());
                             queue.toggle_shuffle();
-                            // Issue #5: Bump queue signal after shuffle toggle
                             drop(queue);
                             let gen = *signals.queue.read();
                             signals.queue.set(gen.wrapping_add(1));
@@ -154,17 +142,14 @@ pub fn PlaybackBar() -> Element {
                         "⇄"
                     }
 
-                    // Previous
                     button {
                         class: "pb-ctrl-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Previous track",
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
                             s.prev_track();
                             s.notify_track_change();
-                            // Issue #5: Bump signals after track change
                             let gen = *signals.queue.read();
                             signals.queue.set(gen.wrapping_add(1));
                             let gen = *signals.playback.read();
@@ -184,16 +169,13 @@ pub fn PlaybackBar() -> Element {
                         "⏮"
                     }
 
-                    // Play/Pause
                     button {
                         class: "pb-play-btn",
-                        // Issue #6: Accessibility
                         aria_label: if is_playing { "Pause" } else { "Play" },
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
                             s.toggle_playback();
-                            // Issue #5: Bump playback signal after toggle
                             let gen = *signals.playback.read();
                             signals.playback.set(gen.wrapping_add(1));
                         },
@@ -208,17 +190,14 @@ pub fn PlaybackBar() -> Element {
                         if is_playing { "⏸" } else { "▶" }
                     }
 
-                    // Next
                     button {
                         class: "pb-ctrl-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Next track",
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
                             s.next_track();
                             s.notify_track_change();
-                            // Issue #5: Bump signals after track change
                             let gen = *signals.queue.read();
                             signals.queue.set(gen.wrapping_add(1));
                             let gen = *signals.playback.read();
@@ -238,10 +217,8 @@ pub fn PlaybackBar() -> Element {
                         "⏭"
                     }
 
-                    // Repeat
                     button {
                         class: if repeat_mode != RepeatMode::None { "pb-ctrl-btn active" } else { "pb-ctrl-btn" },
-                        // Issue #6: Accessibility
                         aria_label: match repeat_mode {
                             RepeatMode::One => "Repeat one",
                             RepeatMode::All => "Repeat all",
@@ -252,7 +229,6 @@ pub fn PlaybackBar() -> Element {
                             let s = state.read().clone();
                             let mut queue = s.queue.lock().unwrap_or_else(|e| e.into_inner());
                             queue.cycle_repeat();
-                            // Issue #5: Bump queue signal after repeat toggle
                             drop(queue);
                             let gen = *signals.queue.read();
                             signals.queue.set(gen.wrapping_add(1));
@@ -275,7 +251,6 @@ pub fn PlaybackBar() -> Element {
                     }
                 }
 
-                // Progress bar
                 div { class: "pb-progress",
                     span { class: "pb-time", "{pos_str}" }
                     div { class: "pb-progress-bar",
@@ -289,16 +264,13 @@ pub fn PlaybackBar() -> Element {
                             min: "0",
                             max: "1000",
                             value: "{(progress * 1000.0) as i32}",
-                            // Issue #6: Accessibility
                             aria_label: "Seek",
-                            // Issue #20: Debounced seek — only applies after 50ms of inactivity
                             oninput: move |e| {
                                 let ratio: f64 = e.value().parse().unwrap_or(0.0) / 1000.0;
                                 let gen = *seek_gen.read() + 1;
                                 seek_gen.set(gen);
                                 spawn(async move {
                                     tokio::time::sleep(std::time::Duration::from_millis(SLIDER_DEBOUNCE_MS)).await;
-                                    // Only apply if no newer seek has been requested
                                     if *seek_gen.read() == gen {
                                         let s = state.read().clone();
                                         if let Some(duration) = s.duration() {
@@ -318,11 +290,9 @@ pub fn PlaybackBar() -> Element {
                 }
             }
 
-            // Volume + Queue (right)
             div { class: "pb-right",
                 button {
                     class: "pb-ctrl-btn",
-                    // Issue #6: Accessibility
                     aria_label: if is_muted || volume == 0.0 { "Unmute" } else { "Mute" },
                     tabindex: "0",
                     onclick: move |_| {
@@ -338,7 +308,6 @@ pub fn PlaybackBar() -> Element {
                             s.set_volume(0.0);
                             s.volume_muted.store(true, std::sync::atomic::Ordering::Relaxed);
                         }
-                        // Issue #5: Bump playback signal after volume change
                         let gen = *signals.playback.read();
                         signals.playback.set(gen.wrapping_add(1));
                     },
@@ -371,16 +340,13 @@ pub fn PlaybackBar() -> Element {
                     min: "0",
                     max: "100",
                     value: "{(volume * 100.0) as i32}",
-                    // Issue #6: Accessibility
                     aria_label: "Volume",
-                    // Issue #20: Debounced volume — only applies after 50ms of inactivity
                     oninput: move |e| {
                         let vol: f64 = e.value().parse().unwrap_or(volume * 100.0) / 100.0;
                         let gen = *volume_gen.read() + 1;
                         volume_gen.set(gen);
                         spawn(async move {
                             tokio::time::sleep(std::time::Duration::from_millis(SLIDER_DEBOUNCE_MS)).await;
-                            // Only apply if no newer volume change has been requested
                             if *volume_gen.read() == gen {
                                 let s = state.read().clone();
                                 s.set_volume(vol);
@@ -391,14 +357,12 @@ pub fn PlaybackBar() -> Element {
                 }
                 button {
                     class: "pb-ctrl-btn",
-                    // Issue #6: Accessibility
                     aria_label: "Toggle queue panel",
                     tabindex: "0",
                     onclick: move |_| {
                         let s = state.read().clone();
                         let visible = s.queue_visible.load(std::sync::atomic::Ordering::Relaxed);
                         s.queue_visible.store(!visible, std::sync::atomic::Ordering::Relaxed);
-                        // Issue #5: Bump UI signal after panel toggle
                         let gen = *signals.ui.read();
                         signals.ui.set(gen.wrapping_add(1));
                     },

@@ -99,16 +99,6 @@ impl Drop for Session {
     }
 }
 
-// SAFETY: Session is only accessed through Arc<Mutex<Option<Session>>>,
-// which provides synchronization. On Linux, cpal::Stream inside AudioOutput
-// is Send+Sync (see unsafe impl in output.rs gated behind #[cfg(target_os = "linux")]).
-// On macOS/Windows, cpal::Stream is !Send, so we only impl Send/Sync on Linux.
-// JoinHandle is Send. All fields are safe to access from any thread when
-// protected by Mutex.
-//
-// Fix Issue #1: Previously these impls were unconditional, causing undefined
-// behavior on macOS/Windows where cpal::Stream is !Send. Now gated behind
-// #[cfg(target_os = "linux")] to match the AudioOutput safety gate.
 #[cfg(target_os = "linux")]
 unsafe impl Send for Session {}
 #[cfg(target_os = "linux")]
@@ -227,15 +217,9 @@ pub(crate) fn ensure_gstreamer_initialized() -> Result<()> {
 
 impl AudioEngine {
     pub fn new() -> Result<Self> {
-        // Fix C10/M15: Use centralized init instead of raw gstreamer::init()
         ensure_gstreamer_initialized()?;
         let dsp = Mutex::new(Arc::new(Mutex::new(DspEngine::new(48_000.0f32))));
 
-        // v3.0 Phase 4: Read ring buffer sizes from config, falling back
-        // to defaults if the config is not yet loaded. The ring buffer sizes
-        // are read from the config at engine creation time and stored as
-        // immutable fields on AudioEngine. Changes to config after engine
-        // creation take effect on the next track load (via load_internal).
         let (decode_ring, output_ring) = Self::read_ring_sizes_from_config();
 
         Ok(Self {
@@ -270,16 +254,11 @@ impl AudioEngine {
             }),
             output_presets:     Arc::new(Mutex::new(OutputPresetStore::new())),
             active_device:      Mutex::new(OutputDeviceId::default_output()),
-            // Fix Issue #7: Replace .expect() with graceful fallback.
-            // EbuR128Loudness::new() can theoretically fail (OOM, invalid rate).
-            // If it fails at 48kHz, try 44.1kHz as fallback. If both fail,
-            // loudness normalization is disabled but the app still starts.
             loudness_state: Arc::new(Mutex::new(EngineLoudnessState {
                 loudness: EbuR128Loudness::new(48_000.0)
                     .or_else(|_| EbuR128Loudness::new(44_100.0))
                     .unwrap_or_else(|e| {
                         tracing::error!("Failed to create EbuR128Loudness: {} — loudness normalization disabled", e);
-                        // Create a dummy at 48kHz that will be a no-op
                         EbuR128Loudness::new(48_000.0).expect("EbuR128Loudness fallback: 48kHz must be valid")
                     }),
                 enabled: false,
@@ -319,8 +298,6 @@ impl AudioEngine {
         }
     }
 
-    // -- Load ---------------------------------------------------------------
-
     pub fn load(&self, path: &Path) -> Result<()> {
         let uri = path_to_uri(path)?;
         self.load_internal(uri, Some(path.to_path_buf()))
@@ -329,8 +306,6 @@ impl AudioEngine {
     fn load_internal(&self, uri: String, path: Option<std::path::PathBuf>) -> Result<()> {
         loader::load_internal(self, uri, path)
     }
-
-    // -- v3.0 Poll-Driven Tick -----------------------------------------------
 
     /// Called periodically by the UI framework's timer (e.g. iced `Subscription`
     /// at ~4 Hz / 250 ms intervals).
@@ -353,7 +328,6 @@ impl AudioEngine {
     /// Rust borrow-checker rejection. The fix collects all data under the
     /// lock, drops the lock, then fires callbacks outside the lock.
     pub fn tick(&self) {
-        // ── 1. Poll GStreamer bus for messages ──────────────────────────────
         let bus_events = {
             let guard = self.session.lock().unwrap_or_else(|e| e.into_inner());
             match *guard {
@@ -361,7 +335,6 @@ impl AudioEngine {
                 None => return, // No session — nothing to tick
             }
         };
-        // Lock is released; fire callbacks outside the lock to prevent deadlock.
 
         for event in bus_events {
             match event {
@@ -382,13 +355,6 @@ impl AudioEngine {
             }
         }
 
-        // ── 2 & 3. Poll position and duration ──────────────────────────────
-        // Fix H4: Collect position/duration under the session lock, then
-        // release it BEFORE updating last_reported_position/duration. This
-        // eliminates the nested lock acquisition (session → position → duration)
-        // which was fragile and could deadlock if future code changed the
-        // lock ordering. Document the invariant: session lock must never be
-        // acquired while holding last_reported_position or last_reported_duration.
         let (current_pos, current_dur) = {
             let guard = self.session.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(ref sess) = *guard {
@@ -403,8 +369,6 @@ impl AudioEngine {
                 (None, None)
             }
         };
-        // Session lock is released. Now update tracking fields and fire callbacks.
-        // Invariant: session lock is NOT held when acquiring position/duration locks.
 
         let pos_changed = if current_pos.is_some() {
             let mut last_pos = self
@@ -457,8 +421,6 @@ impl AudioEngine {
         }
     }
 
-    // -- Callbacks -----------------------------------------------------------
-
     pub fn on_position_changed(&self, callback: PositionCallback) {
         *self.position_cb.lock().unwrap_or_else(|e| e.into_inner()) = Some(callback);
     }
@@ -478,8 +440,6 @@ impl AudioEngine {
     #[allow(dead_code)]
     pub fn set_duration(&self, _dur: Option<std::time::Duration>) {}
 
-    // -- Genre preset --------------------------------------------------------
-
     pub fn apply_genre_preset(&self, genre: &str) -> bool {
         let manager = self
             .genre_preset_manager
@@ -487,9 +447,6 @@ impl AudioEngine {
             .unwrap_or_else(|e| e.into_inner());
         let found = manager.get(genre).is_some();
         if found {
-            // apply_to_engine correctly applies eq_state, stereo_width, bass_db,
-            // and treble_db from the preset (fixes dual-path bug where only eq_state
-            // was pushed and the preset's per-genre bass/treble/width were ignored).
             manager.apply_to_engine(genre, self);
             tracing::info!("Applied genre EQ preset for '{}'", genre);
         }
@@ -502,8 +459,6 @@ impl AudioEngine {
             .unwrap_or_else(|e| e.into_inner())
             .register(preset);
     }
-
-    // -- DSP Arc helpers (Fix Bug #9) ---------------------------------------
 
     /// Get a cloned Arc to the active DspEngine.
     /// The double-indirection (`Mutex<Arc<Mutex<DspEngine>>>`) allows the
@@ -531,12 +486,6 @@ fn notify_state(cb: &Arc<Mutex<Option<StateCallback>>>, state: PlayerState) {
 
 fn path_to_uri(path: &Path) -> Result<String> {
     let abs = std::fs::canonicalize(path).context("path does not exist")?;
-    // Fix cross-platform issue: use glib::filename_to_uri() which correctly
-    // handles percent-encoding, UNC paths on Windows, and non-ASCII characters
-    // on all platforms. The previous manual construction with encode_already_encoded
-    // misinterpreted %AB sequences (where AB are hex digits) as percent-encoded
-    // octets and passed them through, even when they were literal characters
-    // in a filename like "100%AB-complete.flac".
     glib::filename_to_uri(&abs, None)
         .map(|s| s.to_string())
         .map_err(|e| anyhow::anyhow!("path_to_uri failed: {}", e))

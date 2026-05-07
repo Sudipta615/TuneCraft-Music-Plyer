@@ -58,7 +58,6 @@ impl PcmBuffer {
         let max_samples = (self.sample_rate as u64)
             .saturating_mul(self.channels as u64)
             .saturating_mul(max_secs);
-        // Clamp to usize range on 32-bit platforms
         let max_samples = max_samples.min(usize::MAX as u64) as usize;
         if self.samples.len() > max_samples {
             self.samples.truncate(max_samples);
@@ -156,14 +155,12 @@ mod tests {
 
     #[test]
     fn test_pcm_buffer_duration() {
-        // 48000 Hz, 2 channels, 48000*2 = 96000 samples = 1 second
         let buf = PcmBuffer::new(vec![0.0f32; 96000], 48000, 2);
         assert!((buf.duration_secs() - 1.0).abs() < 0.01);
     }
 
     #[test]
     fn test_pcm_buffer_truncate() {
-        // 180 seconds of audio at 48kHz stereo
         let mut buf = PcmBuffer::new(vec![0.0f32; 48000 * 2 * 180], 48000, 2);
         assert!((buf.duration_secs() - 180.0).abs() < 0.1);
         buf.truncate_to_duration(90);
@@ -185,7 +182,6 @@ mod tests {
         let cache = PcmCache::new(2);
         cache.insert("hash1", PcmBuffer::new(vec![0.0; 100], 44100, 2));
         cache.insert("hash2", PcmBuffer::new(vec![0.0; 100], 44100, 2));
-        // Adding a third entry should evict the least recently used
         cache.insert("hash3", PcmBuffer::new(vec![0.0; 100], 44100, 2));
         assert!(!cache.contains("hash1")); // evicted
         assert!(cache.contains("hash2"));

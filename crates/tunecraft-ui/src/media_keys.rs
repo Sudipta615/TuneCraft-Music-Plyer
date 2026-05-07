@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 use crate::app_state::AppState;
 
-// ── Linux: MPRIS2 + notify-rust ──────────────────────────────────────
 #[cfg(target_os = "linux")]
 pub mod linux {
     use mpris_server::{
@@ -239,8 +238,6 @@ pub mod linux {
             match Server::new("Tunecraft", TunecraftMpris { state: state_clone }).await {
                 Ok(server) => {
                     let _ = MPRIS_SERVER.set(server);
-                    // Server runs continuously in the background automatically
-                    // keep tokio task alive so it doesn't drop anything if needed
                     std::future::pending::<()>().await;
                 }
                 Err(e) => tracing::error!("Failed to start MPRIS server: {}", e),
@@ -314,7 +311,6 @@ pub mod linux {
     }
 }
 
-// ── macOS: MPNowPlayingInfoCenter + MPRemoteCommandCenter ────────────
 #[cfg(target_os = "macos")]
 pub mod macos {
     use std::sync::Arc;
@@ -326,10 +322,6 @@ pub mod macos {
     /// Sets up `MPNowPlayingInfoCenter` with track metadata and
     /// `MPRemoteCommandCenter` handlers for play/pause/next/prev.
     pub fn init_media_keys(state: Arc<AppState>) {
-        // The macOS media session integration uses objc2-media-player
-        // to interact with MPNowPlayingInfoCenter and MPRemoteCommandCenter.
-        // Due to the complexity of Objective-C interop, we set up the
-        // command handlers here and update metadata separately.
         tracing::info!("macOS: Initializing media key integration");
 
         let state_play = state.clone();
@@ -344,32 +336,27 @@ pub mod macos {
 
             let command_center = MPRemoteCommandCenter::shared();
 
-            // Play command
             let play_cmd = command_center.playCommand();
             play_cmd.setHandler(&MPRemoteCommandHandler::new(Box::new(move || {
                 state_play.play();
             })));
 
-            // Pause command
             let pause_cmd = command_center.pauseCommand();
             pause_cmd.setHandler(&MPRemoteCommandHandler::new(Box::new(move || {
                 state_pause.pause();
             })));
 
-            // Toggle play/pause
             let toggle_cmd = command_center.togglePlayPauseCommand();
             toggle_cmd.setHandler(&MPRemoteCommandHandler::new(Box::new(move || {
                 state_toggle.toggle_playback();
             })));
 
-            // Next track
             let next_cmd = command_center.nextTrackCommand();
             next_cmd.setHandler(&MPRemoteCommandHandler::new(Box::new(move || {
                 state_next.next_track();
                 state_next.notify_track_change();
             })));
 
-            // Previous track
             let prev_cmd = command_center.previousTrackCommand();
             prev_cmd.setHandler(&MPRemoteCommandHandler::new(Box::new(move || {
                 state_prev.prev_track();
@@ -439,7 +426,6 @@ pub mod macos {
     }
 }
 
-// ── Windows: System Media Transport Controls ─────────────────────────
 #[cfg(target_os = "windows")]
 pub mod windows_smtc {
     use std::sync::Arc;
@@ -451,8 +437,6 @@ pub mod windows_smtc {
         tracing::info!("Windows: Initializing SMTC media key integration");
 
         let state_clone = state.clone();
-        // SMTC runs on the UI thread via the Windows runtime, so we set
-        // up the controller and button handlers here.
         std::thread::spawn(move || {
             setup_smtc(state_clone);
         });
@@ -487,7 +471,6 @@ pub mod windows_smtc {
         use windows::Foundation::TypedEventHandler;
         use windows::Media::Playback::MediaPlayer;
 
-        // Create a MediaPlayer instance to get the SystemMediaTransportControls
         let player = match MediaPlayer::new() {
             Ok(p) => p,
             Err(e) => {
@@ -496,7 +479,6 @@ pub mod windows_smtc {
             }
         };
 
-        // Disable actual audio output from this player (we use our own engine)
         let _ = player.SetIsMuted(true);
 
         let controls = match player.SystemMediaTransportControls() {
@@ -507,7 +489,6 @@ pub mod windows_smtc {
             }
         };
 
-        // Enable the buttons we want to handle
         let _ = controls.SetIsEnabled(true);
         if let Ok(play_btn) = controls.PlayButton() {
             let _ = play_btn.SetEnabled(true);
@@ -522,7 +503,6 @@ pub mod windows_smtc {
             let _ = prev_btn.SetEnabled(true);
         }
 
-        // Set up the button pressed handler
         let state_handler = state.clone();
         let handler = TypedEventHandler::new(move |_controls, args| {
             if let Some(args) = args {
@@ -554,15 +534,10 @@ pub mod windows_smtc {
             tracing::error!("Failed to set SMTC button handler: {}", e);
         }
 
-        // Keep the thread alive so the SMTC remains active
         std::thread::park();
     }
 
     fn update_smtc_metadata(title: &str, artist: &str, album: &str, duration: Option<i64>) {
-        // Note: In a full implementation, we'd access the updater from the
-        // MediaPlayer's SystemMediaTransportControls.DisplayUpdater.
-        // This requires keeping a reference to the MediaPlayer across threads.
-        // For now, we log the update.
         tracing::debug!("SMTC metadata update: {} by {} ({})", title, artist, album);
     }
 
@@ -574,8 +549,6 @@ pub mod windows_smtc {
         );
     }
 }
-
-// ── Re-exports for each platform ─────────────────────────────────────
 
 #[cfg(target_os = "linux")]
 pub use linux::{

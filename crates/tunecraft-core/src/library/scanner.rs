@@ -36,7 +36,6 @@ pub enum ScanEvent {
 /// not produce useful audio. The extended list is only used when the user
 /// enables the `scan_extended_formats` config option.
 const AUDIO_EXTENSIONS: &[&str] = &[
-    // ── Lossy compressed ──────────────────────────────────────────────
     "mp3",  // MPEG-1/2 Audio Layer III
     "mp2",  // MPEG-1/2 Audio Layer II
     "mp1",  // MPEG-1 Audio Layer I
@@ -55,14 +54,12 @@ const AUDIO_EXTENSIONS: &[&str] = &[
     "mka",  // Matroska Audio container
     "spx",  // Speex in Ogg container
     "tta",  // TTA (True Audio) lossless
-    // ── Lossless compressed ───────────────────────────────────────────
     "flac", // Free Lossless Audio Codec
     "ape",  // Monkey's Audio
     "wv",   // WavPack lossless / hybrid
     "wvp",  // WavPack correction file
     "ofr",  // OptimFROG lossless
     "ofs",  // OptimFROG DualStream
-    // ── PCM / uncompressed ────────────────────────────────────────────
     "wav",  // RIFF/WAVE PCM
     "aiff", // Audio Interchange File Format (Apple)
     "aif",  // AIFF alias
@@ -71,7 +68,6 @@ const AUDIO_EXTENSIONS: &[&str] = &[
     "snd",  // Alias for .au
     "w64",  // Sony Wave64 (>4 GB PCM)
     "rf64", // EBU RF64 broadcast wave
-    // ── Streaming / playlist containers (audio-primary) ────────────
     "3gp",  // 3GPP container (AMR / AAC)
     "3g2",  // 3GPP2 container
     "webm", // WebM container (Opus / Vorbis)
@@ -147,12 +143,6 @@ impl LibraryScanner {
     /// on Unix or checking the resolved path immediately before decoding.
     pub fn scan(&self) -> Vec<PathBuf> {
         let mut files = Vec::new();
-        // Fix Optimization #14: Use metadata-based dedup with (dev, ino) pairs
-        // instead of canonicalize() for every file. On a large library (100k+
-        // files), canonicalize() is a syscall per file (resolving symlinks and
-        // normalizing the path). Using file metadata (device + inode) requires
-        // only one stat() per file instead of a full path resolution, which is
-        // significantly faster on large libraries.
         let mut seen_dev_ino = std::collections::HashSet::new();
         for dir in &self.watch_paths {
             for entry in WalkDir::new(dir)
@@ -162,18 +152,11 @@ impl LibraryScanner {
                 .filter_map(|e| e.ok())
             {
                 let path = entry.path();
-                // Security: Verify the resolved path is still within watch directories
-                // This prevents symlink attacks that escape to sensitive locations
                 if path.is_file() && Self::is_audio(path) {
                     if Self::is_path_in_watch_dirs(path, &self.watch_paths) {
-                        // Deduplicate by device+inode so that the same file
-                        // accessed via different symlink paths is only scanned once.
-                        // This is faster than canonicalize() because it uses a
-                        // single stat() call per file instead of full path resolution.
                         let is_duplicate = std::fs::metadata(path)
                             .ok()
                             .and_then(|meta| {
-                                // Use Unix-specific file identity (dev, ino) when available
                                 #[cfg(unix)]
                                 {
                                     use std::os::unix::fs::MetadataExt;
@@ -181,9 +164,6 @@ impl LibraryScanner {
                                 }
                                 #[cfg(not(unix))]
                                 {
-                                    // Fallback: use file size + modified time as a
-                                    // probabilistic dedup key (not perfect but avoids
-                                    // the canonicalize() syscall overhead)
                                     Some((meta.len(), meta.modified().ok()?.as_nanos() as u64))
                                 }
                             })
@@ -272,7 +252,6 @@ impl LibraryScanner {
             .map(|p| p.to_string_lossy().to_string())
             .collect();
 
-        // Find and remove stale tracks
         let stale = match db.get_stale_tracks(&discovered_paths) {
             Ok(stale) => stale,
             Err(e) => {
@@ -290,18 +269,13 @@ impl LibraryScanner {
             }
         }
 
-        // Import new/updated tracks
         let mut added = 0;
         let mut newly_added_paths: Vec<String> = Vec::new();
 
         for path in &discovered {
             let path_str = path.to_string_lossy().to_string();
 
-            // Check if file already exists in the database and is unchanged
             if let Ok(Some(existing)) = db.get_track_by_path(&path_str) {
-                // Skip re-import if both the file size AND modification time match.
-                // Checking mtime is critical because re-tagging a file (updated title,
-                // album art, lyrics) does not change the file size, but does change mtime.
                 let skip_reimport = match (
                     std::fs::metadata(path),
                     existing.file_size,
@@ -316,15 +290,11 @@ impl LibraryScanner {
                             .map(|d| d.as_secs() as i64);
                         current_size == existing_size && current_mtime == Some(existing_mtime)
                     }
-                    (Ok(meta), Some(existing_size), None) => {
-                        // No mtime stored — fall back to size-only check
-                        meta.len() as i64 == existing_size
-                    }
+                    (Ok(meta), Some(existing_size), None) => meta.len() as i64 == existing_size,
                     _ => false,
                 };
 
                 if skip_reimport {
-                    // Even if we skip re-import, trigger mood analysis if needed
                     if enable_mood {
                         if let Ok(true) = db.track_needs_mood_analysis(&path_str) {
                             newly_added_paths.push(path_str);
@@ -334,20 +304,13 @@ impl LibraryScanner {
                 }
             }
 
-            // Fix Bug #26: Read metadata and cover art in a single file open.
-            // Previously, read_metadata and extract_cover_art each opened the
-            // file independently (3 opens total including file_sha256). Now
-            // metadata and cover art share one open, reducing I/O from 3 to 2.
             match read_metadata_and_cover_art(path) {
                 Ok((mut track, cover_art)) => {
-                    // Compute and set file hash (still requires a separate file read
-                    // for raw bytes, but this is unavoidable for cryptographic hashing)
                     match file_sha256(path) {
                         Ok(hash) => track.file_hash = Some(hash),
                         Err(e) => warn!("Failed to hash {}: {}", path_str, e),
                     }
 
-                    // Save cover art (extracted from the same file open as metadata)
                     if let Some(cover) = cover_art {
                         if let Some(ref hash) = track.file_hash {
                             if let Err(e) = db.save_cover_art(hash, &cover.data, &cover.mime_type) {
@@ -386,27 +349,16 @@ impl LibraryScanner {
             added, removed
         );
 
-        // Spawn mood analysis tasks for newly added / unanalyzed tracks
         if enable_mood && !newly_added_paths.is_empty() {
             info!(
                 "Queuing mood analysis for {} tracks",
                 newly_added_paths.len()
             );
-            // Fix Bug #39: Process in batches of 3 (not 4) to match the
-            // connection pool size (max_connections: 3 in connection.rs).
-            // Previously chunks of 4 could exhaust the pool, causing mood
-            // analysis tasks to block waiting for a connection.
             let cache = pcm_cache.unwrap_or_else(|| Arc::new(PcmCache::with_default_capacity()));
             for chunk in newly_added_paths.chunks(3) {
                 for path_str in chunk {
                     Self::spawn_mood_analysis(path_str.clone(), Arc::clone(db), Arc::clone(&cache));
                 }
-                // Small delay between batches to avoid overwhelming the blocking
-                // thread pool. Since this function runs inside spawn_blocking,
-                // std::thread::sleep is acceptable here, but we yield briefly.
-                // Fix H8: Reduced sleep from 50ms to 10ms to minimize tokio thread pool
-                // blocking. For a 10,000-track library, this reduces total sleep from
-                // ~2.8s to ~0.56s. Ideally, use tokio::task::yield_now() in async context.
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         }
@@ -491,11 +443,6 @@ impl LibraryScanner {
 
         while let Some(event) = notify_rx.recv().await {
             for path in event.paths {
-                // Security (v1.1 fix): Validate that the canonicalized path
-                // is still within watch directories. Without this check, a
-                // symlink created inside a watched directory pointing to a
-                // sensitive location (e.g. /etc/passwd) would pass the
-                // is_audio() check and trigger an import.
                 if !Self::is_path_in_watch_dirs(&path, &self.watch_paths) {
                     tracing::warn!("File watcher: skipping path outside watch dirs: {:?}", path);
                     continue;
@@ -555,7 +502,6 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let watch_dir = tmp.path().to_path_buf();
         let outside = PathBuf::from("/etc/passwd");
-        // /etc/passwd is not inside the temp watch dir
         assert!(!LibraryScanner::is_path_in_watch_dirs(
             &outside,
             &[watch_dir]
@@ -578,7 +524,6 @@ mod tests {
         let watch_dir = tmp.path().to_path_buf();
         let inside = tmp.path().join("song.mp3");
         fs::write(&inside, b"fake audio").unwrap();
-        // Even with a relative path, canonicalization should work
         let canonical = fs::canonicalize(&inside).unwrap();
         assert!(LibraryScanner::is_path_in_watch_dirs(
             &canonical,

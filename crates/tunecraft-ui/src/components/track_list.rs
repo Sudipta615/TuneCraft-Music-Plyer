@@ -16,7 +16,6 @@ const BUFFER_ROWS: usize = 5;
 pub fn TrackList() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
     let signals: ReactivitySignals = use_context();
-    // Issue #5: Subscribe to library and playback signals
     let _ = *signals.library.read();
     let _ = *signals.playback.read();
 
@@ -42,10 +41,8 @@ pub fn TrackList() -> Element {
         .lock()
         .unwrap_or_else(|e| e.into_inner());
 
-    // Load tracks for the current view (single query, reused below)
     let tracks = state.read().load_tracks_for_view();
 
-    // Calculate total duration
     let total_duration_secs: i64 = tracks.iter().filter_map(|t| t.duration).sum::<i64>();
     let total_hours = total_duration_secs / 3600;
     let total_mins = (total_duration_secs % 3600) / 60;
@@ -64,7 +61,6 @@ pub fn TrackList() -> Element {
         ViewType::Filter { genre, .. } => format!("{}: {}", tr("Filter"), genre),
     };
 
-    // Issue #27: Settings view — basic functional settings panel
     if current_view == ViewType::Settings {
         let config = state
             .read()
@@ -96,7 +92,6 @@ pub fn TrackList() -> Element {
                     }
                 }
                 div { class: "settings-panel",
-                    // ── Audio Settings ─────────────────────────────
                     div { class: "settings-section",
                         h3 { class: "settings-section-title", "🔊 {tr(\"Audio\")}" }
                         div { class: "settings-row",
@@ -201,7 +196,6 @@ pub fn TrackList() -> Element {
                         }
                     }
 
-                    // ── Library Settings ────────────────────────────
                     div { class: "settings-section",
                         h3 { class: "settings-section-title", "📁 {tr(\"Library\")}" }
                         div { class: "settings-row",
@@ -238,7 +232,6 @@ pub fn TrackList() -> Element {
                         }
                     }
 
-                    // ── Scrobble Settings ────────────────────────────
                     div { class: "settings-section",
                         h3 { class: "settings-section-title", "🎵 {tr(\"Scrobble (Last.fm)\")}" }
                         div { class: "settings-row",
@@ -267,7 +260,6 @@ pub fn TrackList() -> Element {
                         }
                     }
 
-                    // ── Advanced ─────────────────────────────────────
                     div { class: "settings-section",
                         h3 { class: "settings-section-title", "🔧 {tr(\"Advanced\")}" }
                         div { class: "settings-row",
@@ -278,7 +270,6 @@ pub fn TrackList() -> Element {
                                     class: "settings-btn",
                                     aria_label: "Open config file location",
                                     onclick: move |_| {
-                                        // Best-effort: open the directory containing the config file
                                         if let Ok(dir) = tunecraft_core::config::config_dir() {
                                             #[cfg(target_os = "linux")]
                                             { let _ = std::process::Command::new("xdg-open").arg(&dir).spawn(); }
@@ -298,8 +289,6 @@ pub fn TrackList() -> Element {
         };
     }
 
-    // Fix L29: Albums and Artists views now show album/artist summary cards
-    // instead of listing all tracks. Clicking a card navigates to the detail view.
     if current_view == ViewType::Albums {
         let albums = state.read().get_all_albums();
         return rsx! {
@@ -320,7 +309,6 @@ pub fn TrackList() -> Element {
                                 div {
                                     class: "album-card",
                                     key: "{album_name}",
-                                    // Issue #6: Accessibility
                                     role: "listitem",
                                     tabindex: "0",
                                     aria_label: "{album} by {artists}, {track_count} tracks, {total_mins} minutes",
@@ -328,7 +316,6 @@ pub fn TrackList() -> Element {
                                         let s = state_ref.read().clone();
                                         *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) =
                                             ViewType::AlbumDetail(album_name.clone());
-                                        // Issue #5: Bump signals
                                         let gen = *signals.library.read();
                                         signals.library.set(gen.wrapping_add(1));
                                         let gen = *signals.ui.read();
@@ -378,7 +365,6 @@ pub fn TrackList() -> Element {
                                 div {
                                     class: "artist-card",
                                     key: "{artist_name}",
-                                    // Issue #6: Accessibility
                                     role: "listitem",
                                     tabindex: "0",
                                     aria_label: "{artist}, {album_count} albums, {track_count} tracks",
@@ -415,9 +401,6 @@ pub fn TrackList() -> Element {
         };
     }
 
-    // Fix Bug #12: Playlists view now shows clickable playlist cards that
-    // navigate to PlaylistDetail, instead of falling through to the generic
-    // track list (which showed nothing useful for the Playlists view).
     if current_view == ViewType::Playlists {
         let playlists = state.read().get_all_playlists();
         return rsx! {
@@ -438,7 +421,6 @@ pub fn TrackList() -> Element {
                                 div {
                                     class: "album-card",
                                     key: "{pl_name}-{pl_id:?}",
-                                    // Issue #6: Accessibility
                                     role: "listitem",
                                     tabindex: "0",
                                     aria_label: "{playlist.name} playlist",
@@ -478,14 +460,10 @@ pub fn TrackList() -> Element {
         };
     }
 
-    // Issue #9: Virtual scrolling state
     let mut scroll_top: Signal<i64> = use_signal(|| 0);
     let total_tracks = tracks.len();
     let total_height = total_tracks as i64 * ROW_HEIGHT;
 
-    // Calculate visible range from scroll position
-    // Assume the track-table container fills the available space;
-    // use a reasonable default visible height estimate.
     let visible_height = 600i64; // Will be refined by onscroll events
     let start_idx = ((scroll_top.read() / ROW_HEIGHT) as usize).saturating_sub(BUFFER_ROWS);
     let visible_count = (visible_height / ROW_HEIGHT) as usize + 1;
@@ -495,7 +473,6 @@ pub fn TrackList() -> Element {
 
     rsx! {
         div { class: if dark { "track-list-container dark" } else { "track-list-container light" },
-            // Header row
             div { class: "track-list-header",
                 div { class: "track-list-header-info",
                     h2 { class: "track-list-title", "{view_title}" }
@@ -504,17 +481,14 @@ pub fn TrackList() -> Element {
                     }
                 }
                 div { class: "track-list-header-actions",
-                    // Filter button
                     button {
                         class: "toolbar-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Open filter panel",
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
                             let v = s.filter_visible.load(std::sync::atomic::Ordering::Relaxed);
                             s.filter_visible.store(!v, std::sync::atomic::Ordering::Relaxed);
-                            // Issue #5: Bump UI signal
                             let gen = *signals.ui.read();
                             signals.ui.set(gen.wrapping_add(1));
                         },
@@ -530,17 +504,14 @@ pub fn TrackList() -> Element {
                         "⚙ {tr(\"Filter\")}"
                     }
 
-                    // Sort button
                     button {
                         class: "toolbar-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Sort by {sort_mode.label()}",
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
                             let mut sort = s.sort_mode.lock().unwrap_or_else(|e| e.into_inner());
                             *sort = sort.cycle();
-                            // Issue #5: Bump library signal after sort change
                             drop(sort);
                             let gen = *signals.library.read();
                             signals.library.set(gen.wrapping_add(1));
@@ -558,10 +529,8 @@ pub fn TrackList() -> Element {
                         "↕ {sort_mode.label()}"
                     }
 
-                    // View mode toggle
                     button {
                         class: "toolbar-btn",
-                        // Issue #6: Accessibility
                         aria_label: if view_layout == ViewLayout::Grid { "Switch to list view" } else { "Switch to grid view" },
                         tabindex: "0",
                         onclick: move |_| {
@@ -571,7 +540,6 @@ pub fn TrackList() -> Element {
                                 ViewLayout::List => ViewLayout::Grid,
                                 ViewLayout::Grid => ViewLayout::List,
                             };
-                            // Issue #5: Bump UI signal after layout change
                             drop(layout);
                             let gen = *signals.ui.read();
                             signals.ui.set(gen.wrapping_add(1));
@@ -592,17 +560,14 @@ pub fn TrackList() -> Element {
                         if view_layout == ViewLayout::Grid { "▦" } else { "☰" }
                     }
 
-                    // EQ button
                     button {
                         class: "toolbar-btn eq-btn",
-                        // Issue #6: Accessibility
                         aria_label: "Open equalizer panel",
                         tabindex: "0",
                         onclick: move |_| {
                             let s = state.read().clone();
                             let v = s.eq_visible.load(std::sync::atomic::Ordering::Relaxed);
                             s.eq_visible.store(!v, std::sync::atomic::Ordering::Relaxed);
-                            // Issue #5: Bump UI signal
                             let gen = *signals.ui.read();
                             signals.ui.set(gen.wrapping_add(1));
                         },
@@ -620,19 +585,16 @@ pub fn TrackList() -> Element {
                 }
             }
 
-            // Track list table — Issue #6: role="list", Issue #9: virtual scrolling
             div {
                 class: "track-table",
                 role: "list",
                 aria_label: "Track list",
 
-                // Issue #9: onscroll handler for virtual scrolling
                 onscroll: move |e| {
                     let new_scroll_top = e.scroll_coordinates().y as i64;
                     scroll_top.set(new_scroll_top);
                 },
 
-                // Table header
                 div { class: "track-table-header",
                     span { class: "col-num", "#" }
                     span { class: "col-title", "{tr(\"TITLE\")}" }
@@ -642,13 +604,11 @@ pub fn TrackList() -> Element {
                     span { class: "col-actions", "" }
                 }
 
-                // Issue #9: Top spacer for virtual scrolling
                 div {
                     style: "height: {top_spacer_height}px;",
                     aria_hidden: "true",
                 }
 
-                // Issue #9: Only render visible rows (virtual scrolling)
                 for idx in start_idx..end_idx {
                     {
                         let track = match tracks.get(idx) {
@@ -662,7 +622,6 @@ pub fn TrackList() -> Element {
                             .map(|d| format!("{}:{:02}", d / 60, d % 60))
                             .unwrap_or_else(|| "--:--".into());
                         let mood = track.mood.clone().unwrap_or_else(|| "".into());
-                        // #12: Use is_track_loved_with_tracks to avoid full DB query per row
                         let is_loved = state.read().is_track_loved_with_tracks(idx, &tracks);
                         let mood_color = match mood.as_str() {
                             "Dance" | "dance" => "#ef4444",
@@ -680,23 +639,19 @@ pub fn TrackList() -> Element {
                             div {
                                 class: "track-row",
                                 key: "{track_idx}",
-                                // Issue #6: Accessibility
                                 role: "listitem",
                                 tabindex: "0",
                                 aria_label: "{title} by {artist}, {album}, {duration}",
 
-                                // Number / Play button
                                 span { class: "col-num",
                                     button {
                                         class: "track-play-btn",
-                                        // Issue #6: Accessibility
                                         aria_label: "Play {title}",
                                         tabindex: "-1",
                                         onclick: move |_| {
                                             let s = state_ref.read().clone();
                                             s.play_track_from_view(track_idx);
                                             s.notify_track_change();
-                                            // Issue #5: Bump signals
                                             let gen = *signals.queue.read();
                                             signals.queue.set(gen.wrapping_add(1));
                                             let gen = *signals.playback.read();
@@ -706,19 +661,15 @@ pub fn TrackList() -> Element {
                                     }
                                 }
 
-                                // Title + Artist
                                 span { class: "col-title",
                                     div { class: "track-title", "{title}" }
                                     div { class: "track-artist", "{artist}" }
                                 }
 
-                                // Album
                                 span { class: "col-album", "{album}" }
 
-                                // Duration
                                 span { class: "col-duration", "{duration}" }
 
-                                // Mood badge
                                 span { class: "col-mood",
                                     if !mood.is_empty() {
                                         span {
@@ -729,24 +680,19 @@ pub fn TrackList() -> Element {
                                     }
                                 }
 
-                                // Love + More buttons
                                 span { class: "col-actions",
                                     button {
                                         class: if is_loved { "love-btn loved" } else { "love-btn" },
-                                        // Issue #6: Accessibility
                                         aria_label: if is_loved { "Unlove {title}" } else { "Love {title}" },
                                         tabindex: "-1",
                                         onclick: move |_| {
                                             let s = state_ref.read().clone();
-                                            // Bug #28 fix: Use toggle_track_loved() which persists to DB.
-                                            // Previously only modified the in-memory HashSet.
                                             let tracks = s.load_tracks_for_view();
                                             if let Some(t) = tracks.get(track_idx) {
                                                 let key = t.file_hash.clone()
                                                     .unwrap_or_else(|| t.file_path.clone());
                                                 s.toggle_track_loved(&key);
                                             }
-                                            // Issue #5: Bump library signal after love toggle
                                             let gen = *signals.library.read();
                                             signals.library.set(gen.wrapping_add(1));
                                         },
@@ -754,16 +700,13 @@ pub fn TrackList() -> Element {
                                     }
                                     button {
                                         class: "more-btn",
-                                        // Issue #6: Accessibility
                                         aria_label: "More options for {title}",
                                         tabindex: "-1",
                                         onclick: move |evt| {
                                             let s = state_ref.read().clone();
                                             let mut target = s.context_menu_target.lock().unwrap_or_else(|e| e.into_inner());
                                             *target = if *target == Some(track_idx) { None } else { Some(track_idx) };
-                                            // Bug #17 fix: Capture cursor coordinates for context menu positioning
                                             *s.context_menu_position.lock().unwrap_or_else(|e| e.into_inner()) = (evt.page_coordinates().x, evt.page_coordinates().y);
-                                            // Issue #5: Bump UI signal for context menu
                                             let gen = *signals.ui.read();
                                             signals.ui.set(gen.wrapping_add(1));
                                         },
@@ -775,7 +718,6 @@ pub fn TrackList() -> Element {
                     }
                 }
 
-                // Issue #9: Bottom spacer for virtual scrolling
                 div {
                     style: "height: {bottom_spacer_height}px;",
                     aria_hidden: "true",

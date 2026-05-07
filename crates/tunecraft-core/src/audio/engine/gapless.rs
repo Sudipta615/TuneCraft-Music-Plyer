@@ -55,10 +55,6 @@ impl AudioEngine {
         if let Some(preloaded) = self.gapless_preloader.take_ready() {
             let underrun_count = preloaded.audio_output.underrun_count_arc();
 
-            // Fix Bug #10: Copy the old DspEngine's settings into the
-            // preloaded DspEngine before the session swap. The preloaded
-            // DspEngine starts with flat EQ, volume=1.0, and no ReplayGain
-            // — copying settings ensures no audible gap in DSP processing.
             {
                 let old_dsp_arc = self.dsp_arc();
                 let new_dsp_arc = Arc::clone(&preloaded.dsp);
@@ -67,14 +63,6 @@ impl AudioEngine {
                 new_dsp.copy_settings_from(&old_dsp);
             }
 
-            // Fix C2: Session no longer has bus_watch_id or position_timer_id
-            // fields (those were GLib-dependent, removed in v3.0 migration).
-            // Fix C3: Don't call pipeline.watch_bus() or glib::timeout_add_local()
-            // — the tick() method handles bus polling and position updates.
-            // Fix E0509: PreloadedSession implements Drop, so we can't move fields
-            // out directly. Use ManuallyDrop + ptr::read to take ownership of each
-            // field without running Drop. This is safe because we consume ALL fields
-            // — there's nothing left for Drop to clean up.
             let preloaded = std::mem::ManuallyDrop::new(preloaded);
             let p_ptr = &*preloaded as *const PreloadedSession;
             let session = Session {
@@ -95,18 +83,7 @@ impl AudioEngine {
                 *s = Some(session);
             }
 
-            // Fix: Propagate convolution and loudness settings from the engine
-            // to the preloaded session's DSP thread. The preloaded session
-            // creates its own Arcs with convolution=None and
-            // loudness_enabled=false during pre-roll (to avoid data races
-            // while the previous track is still playing). Now that we're
-            // swapping in the preloaded session, copy the engine's current
-            // settings so the new track retains convolution and loudness
-            // normalization.
             {
-                // Propagate loudness state (enabled + config) — consolidated
-                // lock acquisition avoids the previous 2-lock pattern which
-                // could deadlock if another thread acquired them in reverse order.
                 let engine_state = self
                     .loudness_state
                     .lock()
@@ -123,10 +100,6 @@ impl AudioEngine {
                     preload_state.config = engine_config;
                 }
 
-                // Bug #2 fix: Transfer the ConvolutionEngine to the preloaded session's
-                // DSP thread by moving the value out of engine.convolution and into
-                // preloaded.convolution. The old DSP thread has already been stopped via
-                // stop_and_join() above, so there is no contention on either Arc.
                 {
                     let mut engine_conv_guard =
                         self.convolution.lock().unwrap_or_else(|e| e.into_inner());
@@ -134,34 +107,18 @@ impl AudioEngine {
                         .convolution
                         .lock()
                         .unwrap_or_else(|e| e.into_inner());
-                    // Move the ConvolutionEngine (if any) from engine into the preloaded slot.
                     *preload_conv_guard = engine_conv_guard.take();
                     tracing::debug!("Gapless: convolution state transferred to preloaded session");
                 }
             }
 
-            // Fix Bug #9: Swap engine.dsp to point at the preloaded session's
-            // DspEngine Arc. After the session swap, the preloaded DSP thread
-            // owns the active audio path. Without this, all subsequent calls
-            // to set_eq_state(), set_volume_gain(), set_balance(),
-            // set_replaygain_factor() would mutate the old (disconnected)
-            // DspEngine with no effect on audio output. The double-indirection
-            // `Mutex<Arc<Mutex<DspEngine>>>` allows atomic Arc swap via
-            // `swap_dsp_arc()` so the engine and DSP thread share the same
-            // DspEngine instance.
             self.swap_dsp_arc(Arc::clone(&preloaded.dsp));
 
-            // Fix Bug #11: Call mark_new_track() AFTER stop_and_join() and on
-            // the PRELOADED DspEngine (now engine.dsp). The old code called
-            // mark_new_track() on the old engine.dsp before stop_and_join(),
-            // so the preloaded DspEngine never received the signal, breaking
-            // the GaplessSmoother's apply_to_head() blending at the boundary.
             self.dsp_arc()
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .mark_new_track();
 
-            // Apply ReplayGain for the new track if enabled
             let rg = self
                 .rg_state
                 .lock()
@@ -175,8 +132,6 @@ impl AudioEngine {
                 }
             }
 
-            // Fix Bug #15: Store the current track path for ReplayGain
-            // enable-apply on the currently-playing track.
             *self
                 .current_track_path
                 .lock()

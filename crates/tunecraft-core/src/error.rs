@@ -4,8 +4,6 @@
 //! enabling callers to match on specific error variants for targeted
 //! recovery strategies instead of string matching on anyhow messages.
 
-// ── Audio Errors ────────────────────────────────────────────────────────
-
 /// Errors that can occur during audio playback operations.
 ///
 /// **Note:** The new three-thread audio engine (v0.9.0+) uses `anyhow::Result`
@@ -72,8 +70,6 @@ pub enum AudioError {
     GStreamer(String),
 }
 
-// ── Database Errors ─────────────────────────────────────────────────────
-
 /// Errors that can occur during database operations.
 #[derive(Debug, thiserror::Error)]
 pub enum DatabaseError {
@@ -118,8 +114,6 @@ pub enum DatabaseError {
     Pool(#[from] r2d2::Error),
 }
 
-// ── Scrobbler Errors ────────────────────────────────────────────────────
-
 /// Errors that can occur during Last.fm scrobbling operations.
 #[derive(Debug, thiserror::Error)]
 pub enum ScrobblerError {
@@ -157,8 +151,6 @@ pub enum ScrobblerError {
     Network(#[from] reqwest::Error),
 }
 
-// ── Lyrics Errors ───────────────────────────────────────────────────────
-
 /// Errors that can occur during lyrics fetching operations.
 #[derive(Debug, thiserror::Error)]
 pub enum LyricsError {
@@ -179,8 +171,6 @@ pub enum LyricsError {
     #[error("network error: {0}")]
     Network(#[from] reqwest::Error),
 }
-
-// ── Playlist I/O Errors ─────────────────────────────────────────────────
 
 /// Errors that can occur during playlist import/export operations.
 #[derive(Debug, thiserror::Error)]
@@ -213,8 +203,6 @@ pub enum PlaylistError {
     #[error("invalid path in playlist: {path} — {reason}")]
     InvalidPath { path: String, reason: String },
 }
-
-// ── Mood Analysis Errors ────────────────────────────────────────────────
 
 /// Errors that can occur during mood analysis operations.
 #[derive(Debug, thiserror::Error)]
