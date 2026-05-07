@@ -147,7 +147,11 @@ pub fn App() -> Element {
                                             }
                                         }
                                     }).await.unwrap_or((0, 0));
-                                    tracing::info!("Startup scan: {} added, {} removed", added, removed);
+                                    tracing::info!(
+                                        "Startup scan: {} added, {} removed",
+                                        added,
+                                        removed
+                                    );
 
                                     state_ref2
                                         .is_scanning

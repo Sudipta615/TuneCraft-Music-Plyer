@@ -20,8 +20,11 @@ use crate::app_state::AppState;
 // ── Linux: MPRIS2 + notify-rust ──────────────────────────────────────
 #[cfg(target_os = "linux")]
 pub mod linux {
+    use mpris_server::{
+        zbus::{fdo, Result},
+        Metadata, PlaybackStatus, PlayerInterface, Property, RootInterface, Server, Time, Volume,
+    };
     use std::sync::{Arc, Mutex, OnceLock};
-    use mpris_server::{zbus::{fdo, Result}, Metadata, PlayerInterface, Property, RootInterface, Server, PlaybackStatus, Time, Volume};
 
     use crate::app_state::AppState;
 
@@ -33,18 +36,42 @@ pub mod linux {
     }
 
     impl RootInterface for TunecraftMpris {
-        async fn identity(&self) -> fdo::Result<String> { Ok("Tunecraft".into()) }
-        async fn desktop_entry(&self) -> fdo::Result<String> { Ok("tunecraft".into()) }
-        async fn supported_uri_schemes(&self) -> fdo::Result<Vec<String>> { Ok(vec![]) }
-        async fn supported_mime_types(&self) -> fdo::Result<Vec<String>> { Ok(vec![]) }
-        async fn has_track_list(&self) -> fdo::Result<bool> { Ok(false) }
-        async fn can_quit(&self) -> fdo::Result<bool> { Ok(false) }
-        async fn can_set_fullscreen(&self) -> fdo::Result<bool> { Ok(false) }
-        async fn can_raise(&self) -> fdo::Result<bool> { Ok(false) }
-        async fn fullscreen(&self) -> fdo::Result<bool> { Ok(false) }
-        async fn set_fullscreen(&self, _fullscreen: bool) -> Result<()> { Ok(()) }
-        async fn raise(&self) -> Result<()> { Ok(()) }
-        async fn quit(&self) -> Result<()> { Ok(()) }
+        async fn identity(&self) -> fdo::Result<String> {
+            Ok("Tunecraft".into())
+        }
+        async fn desktop_entry(&self) -> fdo::Result<String> {
+            Ok("tunecraft".into())
+        }
+        async fn supported_uri_schemes(&self) -> fdo::Result<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn supported_mime_types(&self) -> fdo::Result<Vec<String>> {
+            Ok(vec![])
+        }
+        async fn has_track_list(&self) -> fdo::Result<bool> {
+            Ok(false)
+        }
+        async fn can_quit(&self) -> fdo::Result<bool> {
+            Ok(false)
+        }
+        async fn can_set_fullscreen(&self) -> fdo::Result<bool> {
+            Ok(false)
+        }
+        async fn can_raise(&self) -> fdo::Result<bool> {
+            Ok(false)
+        }
+        async fn fullscreen(&self) -> fdo::Result<bool> {
+            Ok(false)
+        }
+        async fn set_fullscreen(&self, _fullscreen: bool) -> Result<()> {
+            Ok(())
+        }
+        async fn raise(&self) -> Result<()> {
+            Ok(())
+        }
+        async fn quit(&self) -> Result<()> {
+            Ok(())
+        }
     }
 
     impl PlayerInterface for TunecraftMpris {
@@ -76,15 +103,20 @@ pub mod linux {
                     let _ = e.stop();
                 }
             }
-            *self.state.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
-                tunecraft_core::audio::PlayerState::Stopped;
+            *self
+                .state
+                .player_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = tunecraft_core::audio::PlayerState::Stopped;
             Ok(())
         }
         async fn seek(&self, offset: Time) -> Result<()> {
             if let Some(position) = self.state.position() {
                 let offset_micros = offset.as_micros();
                 let new_pos = if offset_micros < 0 {
-                    position.saturating_sub(std::time::Duration::from_micros(offset_micros.unsigned_abs()))
+                    position.saturating_sub(std::time::Duration::from_micros(
+                        offset_micros.unsigned_abs(),
+                    ))
                 } else {
                     position + std::time::Duration::from_micros(offset_micros as u64)
                 };
@@ -96,7 +128,11 @@ pub mod linux {
             }
             Ok(())
         }
-        async fn set_position(&self, _track_id: mpris_server::TrackId, position: Time) -> Result<()> {
+        async fn set_position(
+            &self,
+            _track_id: mpris_server::TrackId,
+            position: Time,
+        ) -> Result<()> {
             if let Ok(engine) = self.state.engine.lock() {
                 if let Some(ref e) = *engine {
                     let _ = e.seek(std::time::Duration::from_micros(position.as_micros() as u64));
@@ -104,22 +140,54 @@ pub mod linux {
             }
             Ok(())
         }
-        async fn open_uri(&self, _uri: mpris_server::Uri) -> Result<()> { Ok(()) }
-        async fn can_go_next(&self) -> fdo::Result<bool> { Ok(true) }
-        async fn can_go_previous(&self) -> fdo::Result<bool> { Ok(true) }
-        async fn can_play(&self) -> fdo::Result<bool> { Ok(true) }
-        async fn can_pause(&self) -> fdo::Result<bool> { Ok(true) }
-        async fn can_seek(&self) -> fdo::Result<bool> { Ok(true) }
-        async fn can_control(&self) -> fdo::Result<bool> { Ok(true) }
-        async fn minimum_rate(&self) -> fdo::Result<mpris_server::PlaybackRate> { Ok(1.0) }
-        async fn maximum_rate(&self) -> fdo::Result<mpris_server::PlaybackRate> { Ok(1.0) }
-        async fn rate(&self) -> fdo::Result<mpris_server::PlaybackRate> { Ok(1.0) }
-        async fn set_rate(&self, _rate: mpris_server::PlaybackRate) -> Result<()> { Ok(()) }
-        async fn volume(&self) -> fdo::Result<Volume> { Ok(1.0) }
-        async fn set_volume(&self, _volume: Volume) -> Result<()> { Ok(()) }
-        async fn loop_status(&self) -> fdo::Result<mpris_server::LoopStatus> { Ok(mpris_server::LoopStatus::None) }
-        async fn set_loop_status(&self, _loop_status: mpris_server::LoopStatus) -> Result<()> { Ok(()) }
-        async fn shuffle(&self) -> fdo::Result<bool> { Ok(self.state.queue_lock().shuffle) }
+        async fn open_uri(&self, _uri: mpris_server::Uri) -> Result<()> {
+            Ok(())
+        }
+        async fn can_go_next(&self) -> fdo::Result<bool> {
+            Ok(true)
+        }
+        async fn can_go_previous(&self) -> fdo::Result<bool> {
+            Ok(true)
+        }
+        async fn can_play(&self) -> fdo::Result<bool> {
+            Ok(true)
+        }
+        async fn can_pause(&self) -> fdo::Result<bool> {
+            Ok(true)
+        }
+        async fn can_seek(&self) -> fdo::Result<bool> {
+            Ok(true)
+        }
+        async fn can_control(&self) -> fdo::Result<bool> {
+            Ok(true)
+        }
+        async fn minimum_rate(&self) -> fdo::Result<mpris_server::PlaybackRate> {
+            Ok(1.0)
+        }
+        async fn maximum_rate(&self) -> fdo::Result<mpris_server::PlaybackRate> {
+            Ok(1.0)
+        }
+        async fn rate(&self) -> fdo::Result<mpris_server::PlaybackRate> {
+            Ok(1.0)
+        }
+        async fn set_rate(&self, _rate: mpris_server::PlaybackRate) -> Result<()> {
+            Ok(())
+        }
+        async fn volume(&self) -> fdo::Result<Volume> {
+            Ok(1.0)
+        }
+        async fn set_volume(&self, _volume: Volume) -> Result<()> {
+            Ok(())
+        }
+        async fn loop_status(&self) -> fdo::Result<mpris_server::LoopStatus> {
+            Ok(mpris_server::LoopStatus::None)
+        }
+        async fn set_loop_status(&self, _loop_status: mpris_server::LoopStatus) -> Result<()> {
+            Ok(())
+        }
+        async fn shuffle(&self) -> fdo::Result<bool> {
+            Ok(self.state.queue_lock().shuffle)
+        }
         async fn set_shuffle(&self, shuffle: bool) -> Result<()> {
             self.state.queue_lock().shuffle = shuffle;
             Ok(())
@@ -127,14 +195,24 @@ pub mod linux {
         async fn playback_status(&self) -> fdo::Result<PlaybackStatus> {
             if self.state.is_playing() {
                 Ok(PlaybackStatus::Playing)
-            } else if *self.state.player_state.lock().unwrap_or_else(|e| e.into_inner()) == tunecraft_core::audio::PlayerState::Paused {
+            } else if *self
+                .state
+                .player_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                == tunecraft_core::audio::PlayerState::Paused
+            {
                 Ok(PlaybackStatus::Paused)
             } else {
                 Ok(PlaybackStatus::Stopped)
             }
         }
         async fn position(&self) -> fdo::Result<Time> {
-            let pos = self.state.position().map(|d| d.as_micros() as i64).unwrap_or(0);
+            let pos = self
+                .state
+                .position()
+                .map(|d| d.as_micros() as i64)
+                .unwrap_or(0);
             Ok(Time::from_micros(pos as u64))
         }
         async fn metadata(&self) -> fdo::Result<Metadata> {
@@ -186,10 +264,12 @@ pub mod linux {
             } else {
                 Metadata::new()
             };
-            
+
             let server_clone = server.clone();
             tokio::spawn(async move {
-                let _ = server_clone.properties_changed([Property::Metadata(metadata)]).await;
+                let _ = server_clone
+                    .properties_changed([Property::Metadata(metadata)])
+                    .await;
             });
         }
     }
@@ -199,15 +279,19 @@ pub mod linux {
         if let Some(server) = MPRIS_SERVER.get() {
             let status = if state.is_playing() {
                 PlaybackStatus::Playing
-            } else if *state.player_state.lock().unwrap_or_else(|e| e.into_inner()) == tunecraft_core::audio::PlayerState::Paused {
+            } else if *state.player_state.lock().unwrap_or_else(|e| e.into_inner())
+                == tunecraft_core::audio::PlayerState::Paused
+            {
                 PlaybackStatus::Paused
             } else {
                 PlaybackStatus::Stopped
             };
-            
+
             let server_clone = server.clone();
             tokio::spawn(async move {
-                let _ = server_clone.properties_changed([Property::PlaybackStatus(status)]).await;
+                let _ = server_clone
+                    .properties_changed([Property::PlaybackStatus(status)])
+                    .await;
             });
         }
     }
@@ -228,7 +312,6 @@ pub mod linux {
             tracing::warn!("Desktop notification failed: {}", e);
         }
     }
-
 }
 
 // ── macOS: MPNowPlayingInfoCenter + MPRemoteCommandCenter ────────────
