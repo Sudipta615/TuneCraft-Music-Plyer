@@ -76,7 +76,7 @@ impl AudioEngine {
             // field without running Drop. This is safe because we consume ALL fields
             // — there's nothing left for Drop to clean up.
             let preloaded = std::mem::ManuallyDrop::new(preloaded);
-            let p_ptr = &*preloaded as *const _;
+            let p_ptr = &*preloaded as *const PreloadedSession;
             let session = Session {
                 pipeline: unsafe { std::ptr::read(&(*p_ptr).pipeline) },
                 _audio_output: unsafe { std::ptr::read(&(*p_ptr).audio_output) },
