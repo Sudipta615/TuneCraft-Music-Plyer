@@ -412,7 +412,6 @@ impl DecodePipeline {
             gstreamer::ClockTime::NONE,
         );
     }
-
 }
 
 impl Drop for DecodePipeline {

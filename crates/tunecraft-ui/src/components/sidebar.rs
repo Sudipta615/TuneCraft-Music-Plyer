@@ -96,7 +96,7 @@ pub fn Sidebar() -> Element {
                         signals.ui.set(gen.wrapping_add(1));
                     },
                     onkeydown: move |e: KeyboardEvent| {
-                        if e.key() == Key::Enter || e.key() == Key::Space {
+                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                             let s = state.read().clone();
                             let c = s.sidebar_collapsed.load(std::sync::atomic::Ordering::Relaxed);
                             s.sidebar_collapsed.store(!c, std::sync::atomic::Ordering::Relaxed);
@@ -260,7 +260,7 @@ pub fn Sidebar() -> Element {
                                         signals_clone.ui.set(gen.wrapping_add(1));
                                     },
                                     onkeydown: move |e: KeyboardEvent| {
-                                        if e.key() == Key::Enter || e.key() == Key::Space {
+                                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                             let s = state_clone.read().clone();
                                             *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) = ViewType::Mood(mood_key_owned.clone());
                                             let gen = *signals_clone.library.read();
@@ -299,7 +299,7 @@ pub fn Sidebar() -> Element {
                             signals.ui.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
                                 s.eq_visible.store(false, std::sync::atomic::Ordering::Relaxed);

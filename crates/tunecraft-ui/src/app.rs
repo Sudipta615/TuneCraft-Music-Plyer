@@ -127,38 +127,36 @@ pub fn App() -> Element {
                                 let lib_signal = signals.library;
                                 s.is_scanning
                                     .store(true, std::sync::atomic::Ordering::Relaxed);
-                                std::thread::spawn(move || {
-                                    let result = std::panic::catch_unwind(
-                                        std::panic::AssertUnwindSafe(|| {
-                                            let scanner = tunecraft_core::library::scanner::LibraryScanner::new(watch_paths);
-                                            let (added, removed) = scanner
-                                                .scan_and_import_with_mood(
+                                let state_ref2 = state_ref.clone();
+                                dioxus::prelude::spawn(async move {
+                                    let (added, removed) = tokio::task::spawn_blocking(move || {
+                                        let result = std::panic::catch_unwind(
+                                            std::panic::AssertUnwindSafe(|| {
+                                                let scanner = tunecraft_core::library::scanner::LibraryScanner::new(watch_paths);
+                                                scanner.scan_and_import_with_mood(
                                                     &db,
                                                     state_ref.pcm_cache.clone(),
-                                                );
-                                            tracing::info!(
-                                                "Startup scan: {} added, {} removed",
-                                                added,
-                                                removed
-                                            );
-                                        }),
-                                    );
-                                    state_ref
+                                                )
+                                            }),
+                                        );
+                                        match result {
+                                            Ok(res) => res,
+                                            Err(panic_info) => {
+                                                tracing::error!("Library scanner panicked: {:?}", panic_info);
+                                                (0, 0)
+                                            }
+                                        }
+                                    }).await.unwrap_or((0, 0));
+                                    tracing::info!("Startup scan: {} added, {} removed", added, removed);
+
+                                    state_ref2
                                         .is_scanning
                                         .store(false, std::sync::atomic::Ordering::Relaxed);
-                                    // Bug #32 fix: Invalidate sidebar cache so counts refresh after scan.
-                                    state_ref
+                                    state_ref2
                                         .sidebar_cache_valid
                                         .store(false, std::sync::atomic::Ordering::Relaxed);
-                                    // Issue #5: Bump library signal after scan completes
                                     let gen = *lib_signal.read();
                                     lib_signal.set(gen.wrapping_add(1));
-                                    if let Err(panic_info) = result {
-                                        tracing::error!(
-                                            "Library scanner panicked: {:?}",
-                                            panic_info
-                                        );
-                                    }
                                 });
                             }
                         }

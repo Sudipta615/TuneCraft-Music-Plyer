@@ -75,13 +75,14 @@ impl AudioEngine {
             // out directly. Use ManuallyDrop + ptr::read to take ownership of each
             // field without running Drop. This is safe because we consume ALL fields
             // — there's nothing left for Drop to clean up.
-            let mut preloaded = std::mem::ManuallyDrop::new(preloaded);
+            let preloaded = std::mem::ManuallyDrop::new(preloaded);
+            let p_ptr = &*preloaded as *const _;
             let session = Session {
-                pipeline: unsafe { std::ptr::read(&preloaded.pipeline) },
-                _audio_output: unsafe { std::ptr::read(&preloaded.audio_output) },
-                dsp_stop: unsafe { std::ptr::read(&preloaded.dsp_stop) },
-                dsp_thread: unsafe { std::ptr::read(&preloaded.dsp_thread) },
-                playing: unsafe { std::ptr::read(&preloaded.playing_flag) },
+                pipeline: unsafe { std::ptr::read(&(*p_ptr).pipeline) },
+                _audio_output: unsafe { std::ptr::read(&(*p_ptr).audio_output) },
+                dsp_stop: unsafe { std::ptr::read(&(*p_ptr).dsp_stop) },
+                dsp_thread: unsafe { std::ptr::read(&(*p_ptr).dsp_thread) },
+                playing: unsafe { std::ptr::read(&(*p_ptr).playing_flag) },
                 is_playing: false,
                 underrun_count,
             };

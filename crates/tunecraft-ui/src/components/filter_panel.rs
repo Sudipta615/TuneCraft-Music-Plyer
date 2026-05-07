@@ -55,7 +55,7 @@ pub fn FilterPanel() -> Element {
                         signals.ui.set(gen.wrapping_add(1));
                     },
                     onkeydown: move |e: KeyboardEvent| {
-                        if e.key() == Key::Enter || e.key() == Key::Space {
+                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                             let s = state.read().clone();
                             s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
                             let gen = *signals.ui.read();
@@ -175,7 +175,7 @@ pub fn FilterPanel() -> Element {
                             signals.ui.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 // Same as onclick — trigger filter apply
                             }
                         },
@@ -203,7 +203,7 @@ pub fn FilterPanel() -> Element {
                             signals.ui.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 genre_value.set(String::new());
                                 year_value.set(String::new());
                                 let s = state.read().clone();

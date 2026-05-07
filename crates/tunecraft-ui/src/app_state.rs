@@ -229,7 +229,7 @@ impl PlayQueue {
         self.shuffle_order.shuffle(&mut rng);
     }
 
-    fn regenerate_shuffle_order_preserving_current(&mut self) {
+    pub fn regenerate_shuffle_order_preserving_current(&mut self) {
         use rand::seq::SliceRandom;
         let mut rng = rand::rng();
         let len = self.tracks.len();
@@ -776,7 +776,7 @@ impl AppState {
     pub fn toggle_playback(&self) {
         let state = *self.player_state.lock().unwrap_or_else(|e| e.into_inner());
         match state {
-            PlayerState::Playing => self.pause(),
+            PlayerState::Playing | PlayerState::Buffering => self.pause(),
             PlayerState::Paused | PlayerState::Stopped => self.play(),
         }
     }

@@ -108,7 +108,7 @@ pub fn PlaybackBar() -> Element {
                         signals.ui.set(gen.wrapping_add(1));
                     },
                     onkeydown: move |e: KeyboardEvent| {
-                        if e.key() == Key::Enter || e.key() == Key::Space {
+                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                             let s = state.read().clone();
                             let track = s.queue_lock().current_track().cloned();
                             if let Some(t) = track {
@@ -142,7 +142,7 @@ pub fn PlaybackBar() -> Element {
                             signals.queue.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 let mut queue = s.queue.lock().unwrap_or_else(|e| e.into_inner());
                                 queue.toggle_shuffle();
@@ -171,7 +171,7 @@ pub fn PlaybackBar() -> Element {
                             signals.playback.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 s.prev_track();
                                 s.notify_track_change();
@@ -198,7 +198,7 @@ pub fn PlaybackBar() -> Element {
                             signals.playback.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 s.toggle_playback();
                                 let gen = *signals.playback.read();
@@ -225,7 +225,7 @@ pub fn PlaybackBar() -> Element {
                             signals.playback.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 s.next_track();
                                 s.notify_track_change();
@@ -258,7 +258,7 @@ pub fn PlaybackBar() -> Element {
                             signals.queue.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 let mut queue = s.queue.lock().unwrap_or_else(|e| e.into_inner());
                                 queue.cycle_repeat();
@@ -343,7 +343,7 @@ pub fn PlaybackBar() -> Element {
                         signals.playback.set(gen.wrapping_add(1));
                     },
                     onkeydown: move |e: KeyboardEvent| {
-                        if e.key() == Key::Enter || e.key() == Key::Space {
+                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                             let s = state.read().clone();
                             let muted = s.volume_muted.load(std::sync::atomic::Ordering::Relaxed);
                             if muted {
@@ -403,7 +403,7 @@ pub fn PlaybackBar() -> Element {
                         signals.ui.set(gen.wrapping_add(1));
                     },
                     onkeydown: move |e: KeyboardEvent| {
-                        if e.key() == Key::Enter || e.key() == Key::Space {
+                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                             let s = state.read().clone();
                             let visible = s.queue_visible.load(std::sync::atomic::Ordering::Relaxed);
                             s.queue_visible.store(!visible, std::sync::atomic::Ordering::Relaxed);

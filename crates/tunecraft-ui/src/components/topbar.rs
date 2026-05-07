@@ -121,7 +121,7 @@ pub fn TopBar() -> Element {
                     signals.ui.set(gen.wrapping_add(1));
                 },
                 onkeydown: move |e: KeyboardEvent| {
-                    if e.key() == Key::Enter || e.key() == Key::Space {
+                    if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                         let s = state.read().clone();
                         let visible = s.notifications_visible.load(std::sync::atomic::Ordering::Relaxed);
                         s.notifications_visible.store(!visible, std::sync::atomic::Ordering::Relaxed);
@@ -158,7 +158,7 @@ pub fn TopBar() -> Element {
                     signals.ui.set(gen.wrapping_add(1));
                 },
                 onkeydown: move |e: KeyboardEvent| {
-                    if e.key() == Key::Enter || e.key() == Key::Space {
+                    if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                         let s = state.read().clone();
                         let d = s.dark_mode.load(std::sync::atomic::Ordering::Relaxed);
                         s.dark_mode.store(!d, std::sync::atomic::Ordering::Relaxed);
@@ -224,7 +224,7 @@ pub fn TopBar() -> Element {
                     }
                 },
                 onkeydown: move |e: KeyboardEvent| {
-                    if e.key() == Key::Enter || e.key() == Key::Space {
+                    if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                         // Trigger the same file dialog via click simulation
                         // (file dialogs can only be opened from user gesture)
                     }

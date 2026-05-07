@@ -1,0 +1,9 @@
+/home/sudipta/zFolder/Music Player/TuneCraft_v5.0/target/debug/deps/dioxus_core_types-5834fae15a14f0ad.d: /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/lib.rs /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/bubbles.rs /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/bundled.rs /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/formatter.rs /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/hr_context.rs
+
+/home/sudipta/zFolder/Music Player/TuneCraft_v5.0/target/debug/deps/libdioxus_core_types-5834fae15a14f0ad.rmeta: /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/lib.rs /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/bubbles.rs /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/bundled.rs /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/formatter.rs /home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/hr_context.rs
+
+/home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/lib.rs:
+/home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/bubbles.rs:
+/home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/bundled.rs:
+/home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/formatter.rs:
+/home/sudipta/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.7/src/hr_context.rs:

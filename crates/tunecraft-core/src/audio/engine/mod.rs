@@ -144,7 +144,7 @@ pub(crate) struct EngineTransportState {
 /// thread had to acquire `loudness`, `loudness_enabled`, and `loudness_config`
 /// in sequence. If two threads acquired them in different orders, deadlock
 /// was possible. With a single lock, lock ordering is trivially correct.
-pub(crate) struct EngineLoudnessState {
+pub struct EngineLoudnessState {
     pub loudness: EbuR128Loudness,
     pub enabled: bool,
     pub config: LoudnessNormalizationConfig,

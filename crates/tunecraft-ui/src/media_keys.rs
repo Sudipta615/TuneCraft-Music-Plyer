@@ -20,36 +20,196 @@ use crate::app_state::AppState;
 // ── Linux: MPRIS2 + notify-rust ──────────────────────────────────────
 #[cfg(target_os = "linux")]
 pub mod linux {
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex, OnceLock};
+    use mpris_server::{zbus::{fdo, Result}, Metadata, PlayerInterface, Property, RootInterface, Server, PlaybackStatus, Time, Volume};
 
     use crate::app_state::AppState;
 
+    /// Global server reference so we can emit property changes
+    static MPRIS_SERVER: OnceLock<Server<TunecraftMpris>> = OnceLock::new();
+
+    struct TunecraftMpris {
+        state: Arc<AppState>,
+    }
+
+    impl RootInterface for TunecraftMpris {
+        async fn identity(&self) -> fdo::Result<String> { Ok("Tunecraft".into()) }
+        async fn desktop_entry(&self) -> fdo::Result<String> { Ok("tunecraft".into()) }
+        async fn supported_uri_schemes(&self) -> fdo::Result<Vec<String>> { Ok(vec![]) }
+        async fn supported_mime_types(&self) -> fdo::Result<Vec<String>> { Ok(vec![]) }
+        async fn has_track_list(&self) -> fdo::Result<bool> { Ok(false) }
+        async fn can_quit(&self) -> fdo::Result<bool> { Ok(false) }
+        async fn can_set_fullscreen(&self) -> fdo::Result<bool> { Ok(false) }
+        async fn can_raise(&self) -> fdo::Result<bool> { Ok(false) }
+        async fn fullscreen(&self) -> fdo::Result<bool> { Ok(false) }
+        async fn set_fullscreen(&self, _fullscreen: bool) -> Result<()> { Ok(()) }
+        async fn raise(&self) -> Result<()> { Ok(()) }
+        async fn quit(&self) -> Result<()> { Ok(()) }
+    }
+
+    impl PlayerInterface for TunecraftMpris {
+        async fn play_pause(&self) -> Result<()> {
+            self.state.toggle_playback();
+            Ok(())
+        }
+        async fn play(&self) -> Result<()> {
+            self.state.play();
+            Ok(())
+        }
+        async fn pause(&self) -> Result<()> {
+            self.state.pause();
+            Ok(())
+        }
+        async fn next(&self) -> Result<()> {
+            self.state.next_track();
+            self.state.notify_track_change();
+            Ok(())
+        }
+        async fn previous(&self) -> Result<()> {
+            self.state.prev_track();
+            self.state.notify_track_change();
+            Ok(())
+        }
+        async fn stop(&self) -> Result<()> {
+            if let Ok(engine) = self.state.engine.lock() {
+                if let Some(ref e) = *engine {
+                    let _ = e.stop();
+                }
+            }
+            *self.state.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                tunecraft_core::audio::PlayerState::Stopped;
+            Ok(())
+        }
+        async fn seek(&self, offset: Time) -> Result<()> {
+            if let Some(position) = self.state.position() {
+                let offset_micros = offset.as_micros();
+                let new_pos = if offset_micros < 0 {
+                    position.saturating_sub(std::time::Duration::from_micros(offset_micros.unsigned_abs()))
+                } else {
+                    position + std::time::Duration::from_micros(offset_micros as u64)
+                };
+                if let Ok(engine) = self.state.engine.lock() {
+                    if let Some(ref e) = *engine {
+                        let _ = e.seek(new_pos);
+                    }
+                }
+            }
+            Ok(())
+        }
+        async fn set_position(&self, _track_id: mpris_server::TrackId, position: Time) -> Result<()> {
+            if let Ok(engine) = self.state.engine.lock() {
+                if let Some(ref e) = *engine {
+                    let _ = e.seek(std::time::Duration::from_micros(position.as_micros() as u64));
+                }
+            }
+            Ok(())
+        }
+        async fn open_uri(&self, _uri: mpris_server::Uri) -> Result<()> { Ok(()) }
+        async fn can_go_next(&self) -> fdo::Result<bool> { Ok(true) }
+        async fn can_go_previous(&self) -> fdo::Result<bool> { Ok(true) }
+        async fn can_play(&self) -> fdo::Result<bool> { Ok(true) }
+        async fn can_pause(&self) -> fdo::Result<bool> { Ok(true) }
+        async fn can_seek(&self) -> fdo::Result<bool> { Ok(true) }
+        async fn can_control(&self) -> fdo::Result<bool> { Ok(true) }
+        async fn minimum_rate(&self) -> fdo::Result<mpris_server::PlaybackRate> { Ok(1.0) }
+        async fn maximum_rate(&self) -> fdo::Result<mpris_server::PlaybackRate> { Ok(1.0) }
+        async fn rate(&self) -> fdo::Result<mpris_server::PlaybackRate> { Ok(1.0) }
+        async fn set_rate(&self, _rate: mpris_server::PlaybackRate) -> Result<()> { Ok(()) }
+        async fn volume(&self) -> fdo::Result<Volume> { Ok(1.0) }
+        async fn set_volume(&self, _volume: Volume) -> Result<()> { Ok(()) }
+        async fn loop_status(&self) -> fdo::Result<mpris_server::LoopStatus> { Ok(mpris_server::LoopStatus::None) }
+        async fn set_loop_status(&self, _loop_status: mpris_server::LoopStatus) -> Result<()> { Ok(()) }
+        async fn shuffle(&self) -> fdo::Result<bool> { Ok(self.state.queue_lock().shuffle) }
+        async fn set_shuffle(&self, shuffle: bool) -> Result<()> {
+            self.state.queue_lock().shuffle = shuffle;
+            Ok(())
+        }
+        async fn playback_status(&self) -> fdo::Result<PlaybackStatus> {
+            if self.state.is_playing() {
+                Ok(PlaybackStatus::Playing)
+            } else if *self.state.player_state.lock().unwrap_or_else(|e| e.into_inner()) == tunecraft_core::audio::PlayerState::Paused {
+                Ok(PlaybackStatus::Paused)
+            } else {
+                Ok(PlaybackStatus::Stopped)
+            }
+        }
+        async fn position(&self) -> fdo::Result<Time> {
+            let pos = self.state.position().map(|d| d.as_micros() as i64).unwrap_or(0);
+            Ok(Time::from_micros(pos as u64))
+        }
+        async fn metadata(&self) -> fdo::Result<Metadata> {
+            let queue = self.state.queue_lock();
+            if let Some(t) = queue.current_track() {
+                let mut m = Metadata::builder()
+                    .title(t.title.as_deref().unwrap_or("Unknown"))
+                    .artist([t.artist.as_deref().unwrap_or("Unknown")])
+                    .album(t.album.as_deref().unwrap_or("Unknown"));
+                if let Some(d) = t.duration {
+                    m = m.length(Time::from_micros((d * 1_000_000) as u64));
+                }
+                Ok(m.build())
+            } else {
+                Ok(Metadata::new())
+            }
+        }
+    }
+
     /// Initialize the MPRIS2 server and desktop notification support.
-    ///
-    /// Spawns a background tokio task that runs the MPRIS2 event loop.
-    /// The server listens for Play/Pause, Next, Previous, and Seek commands
-    /// from the D-Bus session bus and forwards them to the audio engine
-    /// via `AppState`.
     pub fn init_media_keys(state: Arc<AppState>) {
         let state_clone = state.clone();
         tokio::spawn(async move {
-            if let Err(e) = run_mpris_server(state_clone).await {
-                tracing::error!("MPRIS server error: {}", e);
+            match Server::new("Tunecraft", TunecraftMpris { state: state_clone }).await {
+                Ok(server) => {
+                    let _ = MPRIS_SERVER.set(server);
+                    // Server runs continuously in the background automatically
+                    // keep tokio task alive so it doesn't drop anything if needed
+                    std::future::pending::<()>().await;
+                }
+                Err(e) => tracing::error!("Failed to start MPRIS server: {}", e),
             }
         });
     }
 
     /// Update the MPRIS2 metadata with the current track info.
     pub fn update_media_metadata(state: &AppState) {
-        // MPRIS metadata is updated via the property cache; the server
-        // reads from AppState on every property query so an explicit
-        // push isn't needed beyond emitting a PropertiesChanged signal.
-        tracing::debug!("MPRIS: metadata update requested");
+        if let Some(server) = MPRIS_SERVER.get() {
+            let queue = state.queue_lock();
+            let metadata = if let Some(t) = queue.current_track() {
+                let mut m = Metadata::builder()
+                    .title(t.title.as_deref().unwrap_or("Unknown"))
+                    .artist([t.artist.as_deref().unwrap_or("Unknown")])
+                    .album(t.album.as_deref().unwrap_or("Unknown"));
+                if let Some(d) = t.duration {
+                    m = m.length(Time::from_micros((d * 1_000_000) as u64));
+                }
+                m.build()
+            } else {
+                Metadata::new()
+            };
+            
+            let server_clone = server.clone();
+            tokio::spawn(async move {
+                let _ = server_clone.properties_changed([Property::Metadata(metadata)]).await;
+            });
+        }
     }
 
     /// Update the MPRIS2 playback status.
     pub fn update_playback_status(state: &AppState) {
-        tracing::debug!("MPRIS: playback status update requested");
+        if let Some(server) = MPRIS_SERVER.get() {
+            let status = if state.is_playing() {
+                PlaybackStatus::Playing
+            } else if *state.player_state.lock().unwrap_or_else(|e| e.into_inner()) == tunecraft_core::audio::PlayerState::Paused {
+                PlaybackStatus::Paused
+            } else {
+                PlaybackStatus::Stopped
+            };
+            
+            let server_clone = server.clone();
+            tokio::spawn(async move {
+                let _ = server_clone.properties_changed([Property::PlaybackStatus(status)]).await;
+            });
+        }
     }
 
     /// Send a desktop notification on track change using notify-rust.
@@ -69,94 +229,6 @@ pub mod linux {
         }
     }
 
-    /// Run a simple MPRIS2 server on the D-Bus session bus.
-    ///
-    /// This implementation uses the `mpris-server` crate to expose the
-    /// `org.mpris.MediaPlayer2` and `org.mpris.MediaPlayer2.Player`
-    /// interfaces. The server is event-driven: it listens for method
-    /// calls (Play, Pause, PlayPause, Next, Previous, Seek, Stop) and
-    /// dispatches them to `AppState`.
-    async fn run_mpris_server(state: Arc<AppState>) -> Result<(), String> {
-        use mpris_server::server::Server;
-        use mpris_server::{MprisServer, MprisServerConfig};
-
-        let server = MprisServer::new("Tunecraft", MprisServerConfig::default())
-            .await
-            .map_err(|e| format!("Failed to create MPRIS server: {}", e))?;
-
-        // The server event loop. Each incoming D-Bus method call is
-        // handled here.
-        let state_for_handler = state.clone();
-        server
-            .run(move |event| {
-                let state = state_for_handler.clone();
-                async move {
-                    match event {
-                        mpris_server::event::Event::Play => {
-                            state.play();
-                        }
-                        mpris_server::event::Event::Pause => {
-                            state.pause();
-                        }
-                        mpris_server::event::Event::PlayPause => {
-                            state.toggle_playback();
-                        }
-                        mpris_server::event::Event::Next => {
-                            state.next_track();
-                            state.notify_track_change();
-                        }
-                        mpris_server::event::Event::Previous => {
-                            state.prev_track();
-                            state.notify_track_change();
-                        }
-                        mpris_server::event::Event::Stop => {
-                            if let Ok(engine) = state.engine.lock() {
-                                if let Some(ref e) = *engine {
-                                    let _ = e.stop();
-                                }
-                            }
-                            *state.player_state.lock().unwrap_or_else(|e| e.into_inner()) =
-                                tunecraft_core::audio::PlayerState::Stopped;
-                        }
-                        mpris_server::event::Event::Seek { offset_us } => {
-                            if let Some(position) = state.position() {
-                                let new_pos =
-                                    position + std::time::Duration::from_micros(offset_us as u64);
-                                if let Ok(engine) = state.engine.lock() {
-                                    if let Some(ref e) = *engine {
-                                        let _ = e.seek(new_pos);
-                                    }
-                                }
-                            }
-                        }
-                        mpris_server::event::Event::SetPosition { .. } => {
-                            // Position setting not supported in this simple impl
-                        }
-                        mpris_server::event::Event::OpenUri { .. } => {
-                            // URI opening not supported
-                        }
-                        mpris_server::event::Event::Raise => {
-                            // Window raise not applicable for Dioxus webview
-                        }
-                        mpris_server::event::Event::Quit => {
-                            // Quit not handled from MPRIS
-                        }
-                        mpris_server::event::Event::SetVolume { .. } => {
-                            // Volume control via MPRIS not implemented
-                        }
-                        mpris_server::event::Event::SetLoopStatus { .. } => {
-                            // Loop status setting not implemented
-                        }
-                        mpris_server::event::Event::SetShuffle { .. } => {
-                            // Shuffle setting via MPRIS not implemented
-                        }
-                        _ => {}
-                    }
-                }
-            })
-            .await
-            .map_err(|e| format!("MPRIS server loop error: {}", e))
-    }
 }
 
 // ── macOS: MPNowPlayingInfoCenter + MPRemoteCommandCenter ────────────

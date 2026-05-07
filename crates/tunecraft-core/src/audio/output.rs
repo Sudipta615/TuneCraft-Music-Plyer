@@ -79,7 +79,7 @@ impl AudioOutput {
             .default_output_device()
             .context("no default output device")?;
 
-        let (mut config, format) = Self::find_config(&device)?;
+        let (config, format) = Self::find_config(&device)?;
         let mut sample_rate = config.sample_rate().0;
         let channels = config.channels();
 

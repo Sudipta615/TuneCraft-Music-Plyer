@@ -1,0 +1,7 @@
+/tmp/t2eb6-0/gettext/gettext-0.26/gettext-runtime/gnulib-lib/trim.c: In function ‘trim2’:
+/tmp/t2eb6-0/gettext/gettext-0.26/gettext-runtime/gnulib-lib/trim.c:104:60: warning: ‘end’ may be used uninitialized [-Wmaybe-uninitialized]
+  104 |   size_t dlen = how == TRIM_LEADING ? strlen (start) : end - start;
+      |                                                        ~~~~^~~~~~~
+/tmp/t2eb6-0/gettext/gettext-0.26/gettext-runtime/gnulib-lib/trim.c:41:15: note: ‘end’ was declared here
+   41 |   const char *end;
+      |               ^~~

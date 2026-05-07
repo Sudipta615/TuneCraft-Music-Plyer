@@ -164,7 +164,7 @@ pub fn EqPanel() -> Element {
                         signals.ui.set(gen.wrapping_add(1));
                     },
                     onkeydown: move |e: KeyboardEvent| {
-                        if e.key() == Key::Enter || e.key() == Key::Space {
+                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                             let s = state.read().clone();
                             s.eq_visible.store(false, std::sync::atomic::Ordering::Relaxed);
                             let gen = *signals.ui.read();
@@ -458,7 +458,7 @@ pub fn EqPanel() -> Element {
                         signals.ui.set(gen.wrapping_add(1));
                     },
                     onkeydown: move |e: KeyboardEvent| {
-                        if e.key() == Key::Enter || e.key() == Key::Space {
+                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                             let s = state.read().clone();
                             *s.eq_bands.lock().unwrap_or_else(|e| e.into_inner()) = [0.0; 10];
                             *s.eq_preset.lock().unwrap_or_else(|e| e.into_inner()) = EqPreset::Flat;

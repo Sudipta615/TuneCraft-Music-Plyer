@@ -88,7 +88,7 @@ pub fn QueuePanel() -> Element {
                             signals.playback.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 if let Ok(engine) = s.engine.lock() {
                                     if let Some(ref e) = *engine {
@@ -122,7 +122,7 @@ pub fn QueuePanel() -> Element {
                             signals.ui.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 s.queue_visible.store(false, std::sync::atomic::Ordering::Relaxed);
                                 let gen = *signals.ui.read();

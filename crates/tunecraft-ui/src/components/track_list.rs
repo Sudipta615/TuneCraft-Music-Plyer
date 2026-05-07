@@ -46,7 +46,7 @@ pub fn TrackList() -> Element {
     let tracks = state.read().load_tracks_for_view();
 
     // Calculate total duration
-    let total_duration_secs: i64 = tracks.iter().filter_map(|t| t.duration).sum();
+    let total_duration_secs: i64 = tracks.iter().filter_map(|t| t.duration).sum::<i64>();
     let total_hours = total_duration_secs / 3600;
     let total_mins = (total_duration_secs % 3600) / 60;
 
@@ -335,7 +335,7 @@ pub fn TrackList() -> Element {
                                         signals.ui.set(gen.wrapping_add(1));
                                     },
                                     onkeydown: move |e: KeyboardEvent| {
-                                        if e.key() == Key::Enter || e.key() == Key::Space {
+                                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                             let s = state_ref.read().clone();
                                             *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) =
                                                 ViewType::AlbumDetail(album_name.clone());
@@ -392,7 +392,7 @@ pub fn TrackList() -> Element {
                                         signals.ui.set(gen.wrapping_add(1));
                                     },
                                     onkeydown: move |e: KeyboardEvent| {
-                                        if e.key() == Key::Enter || e.key() == Key::Space {
+                                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                             let s = state_ref.read().clone();
                                             *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) =
                                                 ViewType::ArtistDetail(artist_name.clone());
@@ -452,7 +452,7 @@ pub fn TrackList() -> Element {
                                         signals.ui.set(gen.wrapping_add(1));
                                     },
                                     onkeydown: move |e: KeyboardEvent| {
-                                        if e.key() == Key::Enter || e.key() == Key::Space {
+                                        if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                             let s = state_ref.read().clone();
                                             *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) =
                                                 ViewType::PlaylistDetail(pl_name.clone(), pl_id);
@@ -519,7 +519,7 @@ pub fn TrackList() -> Element {
                             signals.ui.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 let v = s.filter_visible.load(std::sync::atomic::Ordering::Relaxed);
                                 s.filter_visible.store(!v, std::sync::atomic::Ordering::Relaxed);
@@ -546,7 +546,7 @@ pub fn TrackList() -> Element {
                             signals.library.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 let mut sort = s.sort_mode.lock().unwrap_or_else(|e| e.into_inner());
                                 *sort = sort.cycle();
@@ -577,7 +577,7 @@ pub fn TrackList() -> Element {
                             signals.ui.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 let mut layout = s.view_layout.lock().unwrap_or_else(|e| e.into_inner());
                                 *layout = match *layout {
@@ -607,7 +607,7 @@ pub fn TrackList() -> Element {
                             signals.ui.set(gen.wrapping_add(1));
                         },
                         onkeydown: move |e: KeyboardEvent| {
-                            if e.key() == Key::Enter || e.key() == Key::Space {
+                            if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                 let s = state.read().clone();
                                 let v = s.eq_visible.load(std::sync::atomic::Ordering::Relaxed);
                                 s.eq_visible.store(!v, std::sync::atomic::Ordering::Relaxed);
