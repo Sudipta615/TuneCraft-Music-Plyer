@@ -53,7 +53,7 @@ jobs:
             libsecret-1-dev \
             pkg-config \
             libasound2-dev \
-            libdbus-1-dev
+            libdbus-1-dev \
             libgtk-3-dev
 
       # ── macOS: GStreamer via Homebrew ──────────────────────────────────────
@@ -61,38 +61,17 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install gstreamer gst-plugins-base gst-plugins-good
 
-      # ── Windows: GStreamer MSVC runtime ───────────────────────────────────
+      # ── Windows: GStreamer via Chocolatey ─────────────────────────────────
+      # freedesktop.org blocks CI runner IPs with bot-protection; choco
+      # pulls from a CDN mirror that is not rate-limited.
       - name: Install GStreamer (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $url = "https://gstreamer.freedesktop.org/data/pkg/windows/1.24.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.0.msi"
-          $maxRetries = 3
-          $retryCount = 0
-          $downloaded = $false
-          
-          $headers = @{
-            'User-Agent' = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
-          
-          while ($retryCount -lt $maxRetries -and -not $downloaded) {
-            try {
-              Invoke-WebRequest $url -OutFile gstreamer.msi -TimeoutSec 300 -Headers $headers
-              $downloaded = $true
-            } catch {
-              $retryCount++
-              if ($retryCount -lt $maxRetries) {
-                Write-Host "Download failed, retrying... (attempt $retryCount of $maxRetries)"
-                Start-Sleep -Seconds 5
-              } else {
-                throw "Failed to download GStreamer after $maxRetries attempts: $_"
-              }
-            }
-          }
-          
-          Start-Process msiexec.exe -Wait -ArgumentList '/i gstreamer.msi /quiet'
-          echo "GSTREAMER_1_0_ROOT_MSVC_X86_64=C:\gstreamer\1.0\msvc_x86_64" >> $env:GITHUB_ENV
-          echo "C:\gstreamer\1.0\msvc_x86_64\bin" >> $env:GITHUB_PATH
+          choco install gstreamer gstreamer-devel --no-progress -y
+          $gstRoot = "C:\gstreamer\1.0\msvc_x86_64"
+          echo "GSTREAMER_1_0_ROOT_MSVC_X86_64=$gstRoot" >> $env:GITHUB_ENV
+          echo "$gstRoot\bin" >> $env:GITHUB_PATH
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -112,14 +91,17 @@ jobs:
           cargo audit
 
   # ── MSRV Check ──────────────────────────────────────────────────────────────
+  # Minimum is 1.85.0: the `aligned` 0.4.3 transitive dep declares
+  # `edition = "2024"` in its Cargo.toml; Cargo only accepts that field
+  # starting with the 1.85.0 release (first stable edition-2024 toolchain).
   msrv:
-    name: MSRV (1.79.0)
+    name: MSRV (1.85.0)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust 1.79.0
-        uses: dtolnay/rust-toolchain@1.79.0
+      - name: Install Rust 1.85.0
+        uses: dtolnay/rust-toolchain@1.85.0
 
       - name: Cache cargo registry
         uses: actions/cache@v4
