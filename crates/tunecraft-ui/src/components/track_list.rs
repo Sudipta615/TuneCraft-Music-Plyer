@@ -303,6 +303,7 @@ pub fn TrackList() -> Element {
                     for (album, artists, track_count, total_duration) in albums.iter() {
                         {
                             let album_name = album.clone();
+                            let album_name2 = album_name.clone();
                             let total_mins = total_duration / 60;
                             let state_ref = state;
                             rsx! {
@@ -325,7 +326,7 @@ pub fn TrackList() -> Element {
                                         if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                             let s = state_ref.read().clone();
                                             *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) =
-                                                ViewType::AlbumDetail(album_name.clone());
+                                                ViewType::AlbumDetail(album_name2.clone());
                                             let gen = *signals.library.read();
                                             signals.library.set(gen.wrapping_add(1));
                                             let gen = *signals.ui.read();
@@ -360,6 +361,7 @@ pub fn TrackList() -> Element {
                     for (artist, track_count, album_count) in artists.iter() {
                         {
                             let artist_name = artist.clone();
+                            let artist_name2 = artist_name.clone();
                             let state_ref = state;
                             rsx! {
                                 div {
@@ -381,7 +383,7 @@ pub fn TrackList() -> Element {
                                         if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                             let s = state_ref.read().clone();
                                             *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) =
-                                                ViewType::ArtistDetail(artist_name.clone());
+                                                ViewType::ArtistDetail(artist_name2.clone());
                                             let gen = *signals.library.read();
                                             signals.library.set(gen.wrapping_add(1));
                                             let gen = *signals.ui.read();
@@ -415,6 +417,7 @@ pub fn TrackList() -> Element {
                     for playlist in playlists.iter() {
                         {
                             let pl_name = playlist.name.clone();
+                            let pl_name2 = pl_name.clone();
                             let pl_id = playlist.id;
                             let state_ref = state;
                             rsx! {
@@ -437,7 +440,7 @@ pub fn TrackList() -> Element {
                                         if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                             let s = state_ref.read().clone();
                                             *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) =
-                                                ViewType::PlaylistDetail(pl_name.clone(), pl_id);
+                                                ViewType::PlaylistDetail(pl_name2.clone(), pl_id);
                                             let gen = *signals.library.read();
                                             signals.library.set(gen.wrapping_add(1));
                                             let gen = *signals.ui.read();
@@ -462,7 +465,7 @@ pub fn TrackList() -> Element {
 
     let mut scroll_top: Signal<i64> = use_signal(|| 0);
     let total_tracks = tracks.len();
-    let total_height = total_tracks as i64 * ROW_HEIGHT;
+    let _total_height = total_tracks as i64 * ROW_HEIGHT;
 
     let visible_height = 600i64; // Will be refined by onscroll events
     let start_idx = ((*scroll_top.read() / ROW_HEIGHT) as usize).saturating_sub(BUFFER_ROWS);

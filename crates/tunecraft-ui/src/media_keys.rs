@@ -13,9 +13,6 @@
 //!   to the OS media session
 //! - `update_playback_status(state: &AppState)` — pushes Playing/Paused/Stopped
 
-use std::sync::Arc;
-
-use crate::app_state::AppState;
 
 #[cfg(target_os = "linux")]
 pub mod linux {
@@ -23,7 +20,8 @@ pub mod linux {
         zbus::fdo, Metadata, PlaybackStatus, PlayerInterface, Property, RootInterface, Server,
         Time, Volume,
     };
-    use std::sync::OnceLock;
+    use std::sync::{Arc, OnceLock};
+    use crate::app_state::AppState;
 
     /// Global server reference so we can emit property changes
     static MPRIS_SERVER: OnceLock<Server<TunecraftMpris>> = OnceLock::new();
