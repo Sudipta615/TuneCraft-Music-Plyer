@@ -25,7 +25,6 @@ impl AudioEngine {
         self.gapless_preloader.cancel();
     }
 
-
     pub fn play_preloaded(&self, path: Option<&std::path::Path>) -> Result<bool> {
         if let Some(preloaded) = self.gapless_preloader.take_ready() {
             let underrun_count = preloaded.audio_output.underrun_count_arc();

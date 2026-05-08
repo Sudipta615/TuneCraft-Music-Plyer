@@ -20,8 +20,8 @@ use crate::app_state::AppState;
 #[cfg(target_os = "linux")]
 pub mod linux {
     use mpris_server::{
-        zbus::fdo,
-        Metadata, PlaybackStatus, PlayerInterface, Property, RootInterface, Server, Time, Volume,
+        zbus::fdo, Metadata, PlaybackStatus, PlayerInterface, Property, RootInterface, Server,
+        Time, Volume,
     };
     use std::sync::{Arc, OnceLock};
 
