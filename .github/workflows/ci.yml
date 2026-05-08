@@ -78,13 +78,12 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          choco install gstreamer gstreamer-devel --no-progress -y
-          C:\msys64\usr\bin\pacman -S --noconfirm mingw-w64-x86_64-pkgconf
-          echo "PKG_CONFIG=C:\msys64\mingw64\bin\pkgconf.exe" >> $env:GITHUB_ENV
+          choco install gstreamer gstreamer-devel pkgconfiglite --no-progress -y
           $gstRoot = "C:\gstreamer\1.0\msvc_x86_64"
           echo "GSTREAMER_1_0_ROOT_MSVC_X86_64=$gstRoot" >> $env:GITHUB_ENV
           echo "$gstRoot\bin" >> $env:GITHUB_PATH
-          echo "PKG_CONFIG_PATH=$gstRoot\lib\pkgconfig" >> $env:GITHUB_ENV
+          $pkgConfigPath = "C:/gstreamer/1.0/msvc_x86_64/lib/pkgconfig"
+          echo "PKG_CONFIG_PATH=$pkgConfigPath" >> $env:GITHUB_ENV
 
       - name: Check formatting
         run: cargo fmt --all -- --check
