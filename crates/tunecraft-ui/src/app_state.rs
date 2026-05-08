@@ -279,9 +279,6 @@ impl PlayQueue {
     }
 
     /// Manual next index for user-initiated skips.
-    /// Fix: next_index() returns Some(current) for RepeatMode::One, which
-    /// is correct for EOS auto-advance but wrong when the user clicks "Next".
-    /// This method ignores RepeatMode::One and always advances.
     pub fn manual_next_index(&self) -> Option<usize> {
         if self.tracks.is_empty() {
             return None;
@@ -371,7 +368,6 @@ pub struct NotificationEntry {
     pub timestamp: String,
     /// Unique ID to prevent key collisions when multiple tracks with
     /// the same title are played in the same minute.
-    /// Fix Bug #10.
     pub unique_id: String,
 }
 
@@ -615,7 +611,7 @@ impl AppState {
             *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Playing;
         } else {
             drop(cf_guard);
-            let mut engine_guard = match self.engine.lock() {
+            let engine_guard = match self.engine.lock() {
                 Ok(guard) => guard,
                 Err(poisoned) => {
                     tracing::error!(
@@ -676,7 +672,7 @@ impl AppState {
                 *self.player_state.lock().unwrap_or_else(|e| e.into_inner()) = PlayerState::Playing;
             } else {
                 drop(cf_guard);
-                let mut engine_guard = match self.engine.lock() {
+                let engine_guard = match self.engine.lock() {
                     Ok(guard) => guard,
                     Err(poisoned) => {
                         tracing::error!("AudioEngine mutex poisoned! C state may be corrupted. Reinitializing...");
@@ -953,10 +949,6 @@ impl AppState {
             .unwrap_or_default()
     }
 
-    /// Issue #18: Compute a cache key from the current view, sort, search, and filter state.
-    /// If the cache key matches the previously cached result, return the cached tracks
-    /// instead of re-querying the database. The cache is invalidated whenever the view,
-    /// search query, sort mode, or filters change, or when a scan completes.
     fn track_cache_key(&self) -> String {
         let view = self.current_view.lock().unwrap_or_else(|e| e.into_inner());
         let sort = self.sort_mode.lock().unwrap_or_else(|e| e.into_inner());
@@ -969,8 +961,6 @@ impl AppState {
         format!("{:?}|{:?}|{}|{}|{}", *view, sort, query, genre, year_range)
     }
 
-    /// Issue #18: Invalidate the track list cache. Call this when the view changes,
-    /// search query changes, sort mode changes, filters change, or a scan completes.
     pub fn invalidate_track_cache(&self) {
         let mut cache = self.cached_tracks.lock().unwrap_or_else(|e| e.into_inner());
         *cache = None;
@@ -1113,9 +1103,6 @@ impl AppState {
     }
 
     /// Refresh the sidebar cache from the database.
-    /// Fix H9: Caches album/artist/playlist counts to avoid querying the DB
-    /// on every render (every 250ms).
-    /// Bug #34 fix: Also cache track count and per-mood counts.
     pub fn refresh_sidebar_cache(&self) {
         let db = self.db.read().unwrap_or_else(|e| e.into_inner());
         if let Some(ref db) = *db {
@@ -1151,7 +1138,7 @@ impl AppState {
 
     /// Tick the engine (called periodically from the UI).
     pub fn engine_tick(&self) {
-        let mut engine_guard = match self.engine.lock() {
+        let engine_guard = match self.engine.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
                 tracing::error!(
@@ -1180,7 +1167,7 @@ impl AppState {
                 self.notify_track_change();
             } else {
                 {
-                    let mut engine_guard = match self.engine.lock() {
+                    let engine_guard = match self.engine.lock() {
                         Ok(guard) => guard,
                         Err(poisoned) => {
                             tracing::error!("AudioEngine mutex poisoned during stop! Dropping corrupted engine.");
@@ -1214,9 +1201,6 @@ impl AppState {
 
     /// Take and clear the current toast message, if any.
     /// Returns None if there is no pending toast.
-    /// Fix C6: Previously, toast_message was set but never consumed by any
-    /// UI component. This method allows the UI to take() the message for
-    /// display and automatically clear it.
     pub fn take_toast_message(&self) -> Option<String> {
         self.toast_message
             .lock()
@@ -1225,8 +1209,6 @@ impl AppState {
     }
 
     /// Toggle the love status of a track and persist to database.
-    /// Fix C7: Previously, loved_tracks was purely in-memory — toggling love
-    /// was lost on restart. Now the change is persisted to the database.
     pub fn toggle_track_loved(&self, track_key: &str) -> bool {
         let mut loved = self.loved_tracks.lock().unwrap_or_else(|e| e.into_inner());
         let is_now_loved = if loved.contains(track_key) {
@@ -1247,7 +1229,6 @@ impl AppState {
     }
 
     /// Load loved tracks from the database into the in-memory set.
-    /// Fix C7: Call this after open_database() to restore love state.
     pub fn load_loved_tracks_from_db(&self) {
         let db = self.db.read().unwrap_or_else(|e| e.into_inner());
         if let Some(ref db) = *db {
@@ -1261,8 +1242,6 @@ impl AppState {
     }
 
     /// Push current EQ state from AppState to the audio engine.
-    /// Fix: Previously, the UI modified eq_bands/eq_preamp/etc. in AppState
-    /// but these values were never pushed down to the AudioEngine DSP context.
     pub fn push_eq_to_engine(&self) {
         if !self.eq_enabled.load(std::sync::atomic::Ordering::Relaxed) {
             return;
@@ -1291,8 +1270,6 @@ impl AppState {
     }
 
     /// Toggle mute state and push the change to the audio engine.
-    /// Fix: Previously, toggling volume_muted only updated the atomic boolean
-    /// and config — the GStreamer pipeline volume remained unchanged.
     pub fn toggle_mute(&self) {
         let currently_muted = self.volume_muted.load(std::sync::atomic::Ordering::Relaxed);
 

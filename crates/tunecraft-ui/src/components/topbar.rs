@@ -7,8 +7,6 @@ use crate::app::ReactivitySignals;
 use crate::app_state::{AppState, ViewType};
 use crate::i18n::tr;
 
-/// Fix M14: Debounce interval for search input (300ms).
-/// Prevents heavy DB queries on every keystroke.
 const SEARCH_DEBOUNCE_MS: u64 = 300;
 
 /// Top bar component.
@@ -56,8 +54,8 @@ pub fn TopBar() -> Element {
                         last_keystroke.set(Some(std::time::Instant::now()));
                         let s = state.read().clone();
                         let keystroke_time = std::time::Instant::now();
-                        let lib_signal = signals.library;
-                        let ui_signal = signals.ui;
+                        let mut lib_signal = signals.library;
+                        let mut ui_signal = signals.ui;
                         spawn(async move {
                             tokio::time::sleep(std::time::Duration::from_millis(SEARCH_DEBOUNCE_MS)).await;
                             let elapsed = keystroke_time.elapsed();
@@ -165,7 +163,7 @@ pub fn TopBar() -> Element {
                         db_guard.clone()
                     };
                     if let Some(db) = db {
-                        let lib_signal = signals.library;
+                        let mut lib_signal = signals.library;
                         spawn(async move {
                             let files = rfd::AsyncFileDialog::new()
                                 .add_filter("Audio Files", &["mp3", "flac", "wav", "ogg", "aac", "m4a"])

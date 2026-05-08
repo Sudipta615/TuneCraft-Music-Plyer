@@ -286,11 +286,6 @@ impl AudioOutput {
     ///
     /// Priority: F32 stereo 48 kHz → F32 stereo 44.1 kHz → F32 stereo any
     ///           → I16 stereo 48 kHz → device default (last resort).
-    ///
-    /// Fix Optimization #13: Previously iterated the supported configs Vec up
-    /// to 3 times (F32 stereo at specific rates → any F32 stereo → I16 stereo).
-    /// Now uses a single pass with priority scoring — cleaner and marginally
-    /// faster, especially on devices that report many supported configs.
     fn find_config(
         device: &cpal::Device,
     ) -> Result<(cpal::SupportedStreamConfig, cpal::SampleFormat)> {

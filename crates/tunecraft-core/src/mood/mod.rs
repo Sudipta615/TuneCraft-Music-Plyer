@@ -47,10 +47,6 @@ impl Mood {
     }
 
     /// Parse from SQLite string.
-    ///
-    /// Fix L15: Renamed from `from_str` to `parse_label` to avoid shadowing
-    /// the `FromStr` trait, which can cause confusing compiler errors when
-    /// both the inherent method and the trait are in scope.
     pub fn parse_label(s: &str) -> Option<Self> {
         match s {
             "Dance" => Some(Mood::Dance),
@@ -63,16 +59,6 @@ impl Mood {
     }
 
     /// Parse from SQLite string, returning a default mood for unrecognized labels.
-    ///
-    /// Fix Bug #5: The previous `from_str(label).unwrap_or_else(|| panic!(...))`
-    /// pattern in test code was reachable from production paths (e.g., reading
-    /// a mood string from the database that doesn't match any known variant due
-    /// to a schema migration or external edit). A panic in that context would
-    /// crash the entire process instead of returning an error.
-    ///
-    /// This method is safe for production use: if the label doesn't match any
-    /// known mood variant, it logs a warning and returns `Mood::Romantic` (the
-    /// default/catch-all category) instead of panicking.
     pub fn from_str_or_default(s: &str) -> Self {
         match Self::parse_label(s) {
             Some(mood) => mood,

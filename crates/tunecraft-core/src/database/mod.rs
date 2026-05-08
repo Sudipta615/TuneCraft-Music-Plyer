@@ -63,10 +63,6 @@ impl Database {
     }
 
     /// Execute a statement asynchronously (runs on tokio blocking thread).
-    ///
-    /// Fix Bug #75: Dead code `execute_async`. This method is currently unused
-    /// but is retained as a utility for future async database operations. If it
-    /// remains unused after the next release, it should be removed.
     #[allow(dead_code)]
     pub async fn execute_async(
         &self,

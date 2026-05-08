@@ -8,10 +8,6 @@ use crate::app_state::AppState;
 use crate::components::*;
 use crate::styles;
 
-/// Issue #5: Domain-specific reactivity signals replace the single global
-/// reactivity counter. Each signal is a generation counter (`Signal<u64>`)
-/// that only gets bumped when its specific data domain changes, so components
-/// subscribe only to the signals they need and avoid unnecessary re-renders.
 #[derive(Clone, Copy)]
 pub struct ReactivitySignals {
     pub playback: Signal<u64>,
@@ -69,7 +65,7 @@ pub fn App() -> Element {
                     }
                     {
                         let sc = s.clone();
-                        if let Ok(mut engine) = s.engine.lock() {
+                        if let Ok(engine) = s.engine.lock() {
                             if let Some(ref engine) = *engine {
                                 let sc2 = sc.clone();
                                 engine.on_state_changed(Box::new(move |new_state| {
@@ -115,7 +111,7 @@ pub fn App() -> Element {
                                 .collect();
                             if !watch_paths.is_empty() {
                                 let state_ref = s.clone();
-                                let lib_signal = signals.library;
+                                let mut lib_signal = signals.library;
                                 s.is_scanning
                                     .store(true, std::sync::atomic::Ordering::Relaxed);
                                 let state_ref2 = state_ref.clone();
@@ -336,10 +332,6 @@ pub fn App() -> Element {
 }
 
 /// Expand tilde in path strings.
-///
-/// Fix L20: Now handles bare `~` (without trailing slash) by expanding to the
-/// home directory. Previously only `~/` was expanded, causing a bare `~` to
-/// be treated as a relative path literal.
 fn expand_tilde(path: &str) -> std::path::PathBuf {
     if path == "~" {
         if let Some(home) = directories::UserDirs::new().map(|d| d.home_dir().to_path_buf()) {

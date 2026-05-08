@@ -49,14 +49,6 @@ use anyhow::Result;
 /// Maximum number of 400 ms blocks to keep for integrated loudness computation.
 /// At 48 kHz stereo, one block = 48000 * 0.4 * 2 = 38400 samples.
 /// 1200 blocks = 8 minutes of audio. Beyond this, older blocks are dropped.
-///
-/// Fix Issue #7: For long continuous playback sessions (DJ use, 4+ hour playlists),
-/// the gate window was effectively the entire first 8 minutes, which skewed the
-/// integrated loudness away from the current segment. The EBU R128 standard
-/// recommends resetting on track boundaries. The AudioEngine now calls reset()
-/// at track boundaries in load_internal(), ensuring each track gets an independent
-/// loudness measurement. This constant remains as a safety cap for very long
-/// tracks, but the per-track reset is the primary mechanism for correctness.
 const MAX_BLOCKS: usize = 1200;
 
 /// Duration of one measurement block in seconds (400 ms for momentary loudness).
@@ -341,9 +333,6 @@ impl EbuR128Loudness {
     /// 1. Remove blocks below -70 LUFS (absolute gate)
     /// 2. Compute ungated loudness, then remove blocks -10 dB below it (relative gate)
     /// 3. Compute final loudness from remaining blocks
-    /// Fix Bug #13: Changed from &self to &mut self to allow reuse of
-    /// pre-allocated scratch buffers (scratch_pass1, scratch_pass2), avoiding
-    /// heap allocations in the DSP thread.
     fn compute_gated_loudness(&mut self) -> Option<f64> {
         self.scratch_pass1.clear();
         self.scratch_pass1
@@ -380,8 +369,6 @@ impl EbuR128Loudness {
     }
 
     /// Get the current integrated loudness in LUFS, if enough samples have been processed.
-    /// Fix Bug #13: Changed from &self to &mut self because compute_gated_loudness()
-    /// now mutates scratch buffers instead of allocating new Vecs.
     pub fn integrated_loudness(&mut self) -> Option<f64> {
         if self.block_loudness.len() < 3 {
             return None;

@@ -107,10 +107,6 @@ fn import_m3u(path: &Path) -> Result<Vec<String>> {
 ///
 /// Writes the standard `#EXTM3U` header followed by `#EXTINF` entries for each
 /// track. The file paths are written as-is (absolute paths are preserved).
-///
-/// Fix L12: Previously the EXTINF line showed the raw file path, which is
-/// unhelpful in most players. Now extracts the filename (without extension)
-/// as a more readable display label, falling back to the full path.
 fn export_m3u(path: &Path, tracks: &[String]) -> Result<()> {
     let mut out = String::from("#EXTM3U\n");
 
@@ -131,12 +127,6 @@ fn export_m3u(path: &Path, tracks: &[String]) -> Result<()> {
 /// Extracts every `<location>` value inside `<track>` elements. Both
 /// `file:///` URIs and plain paths are accepted. Relative paths are resolved
 /// against the playlist's parent directory.
-///
-/// Fix Bug #25: Replaced the line-based XML parser with a proper event-based
-/// XML parser. The previous implementation only worked if each XML tag appeared
-/// on its own line. It failed on minified/one-line XSPF files, multi-line tag
-/// content, CDATA sections, and XML namespaced elements (e.g. `<xspf:location>`).
-/// The new parser handles all these cases correctly.
 fn import_xspf(path: &Path) -> Result<Vec<String>> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read XSPF playlist {:?}", path))?;
@@ -299,10 +289,6 @@ fn export_xspf(path: &Path, tracks: &[String]) -> Result<()> {
 
 /// Decode XML character entities, including the five standard named entities
 /// and numeric character references (decimal `&#DD;` and hexadecimal `&#xHH;`).
-///
-/// Fix Bug #66: Previously only handled the five named entities. Now also handles
-/// numeric references like `&#39;` (decimal for apostrophe) and `&#x27;` (hex for
-/// apostrophe), which are commonly produced by XML serializers.
 fn decode_xml_entities(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut chars = s.char_indices().peekable();
@@ -402,8 +388,6 @@ fn path_to_file_uri(path: &str) -> String {
 /// Convert a `file:///` URI back to a filesystem path.
 ///
 /// Handles percent-encoded characters and the `file:///` prefix.
-/// Fix H9: On Windows, `file:///C:/Users/...` must become `C:/Users/...`
-/// (not `/C:/Users/...` which is invalid). Detects Windows drive letter.
 fn url_to_path(uri: &str) -> Option<String> {
     if let Some(path_part) = uri.strip_prefix("file:///") {
         let decoded = percent_decode(path_part);

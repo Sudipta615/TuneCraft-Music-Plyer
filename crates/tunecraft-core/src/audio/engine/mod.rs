@@ -160,9 +160,6 @@ pub struct AudioEngine {
     /// True gapless preloader — builds the next track's pipeline in the
     /// background while the current track is still playing, so the swap at
     /// EOS is instantaneous with zero silence between tracks.
-    ///
-    /// Fix Bug #4: Each preloaded session creates its own DspEngine to avoid
-    /// data races. Settings are copied from the current engine at swap time.
     pub(crate) gapless_preloader: Arc<GaplessPreloader>,
 
     /// Volume, playback speed, and exclusive mode (consolidated from 3 separate Mutexes).
@@ -194,18 +191,10 @@ pub struct AudioEngine {
     /// v3.0: Last reported duration — used to detect duration changes in tick().
     pub(crate) last_reported_duration: Mutex<Option<std::time::Duration>>,
 
-    /// Fix Bug #15: Path of the currently-loaded track, so that enabling
-    /// ReplayGain on a playing track can immediately compute and apply the
-    /// RG factor without requiring a reload.
     pub(crate) current_track_path: Mutex<Option<std::path::PathBuf>>,
 }
 
 /// Centralized GStreamer initialization.
-/// Fix C10/M13/M15: gstreamer::init() was called in 4 different places
-/// (AudioEngine::new, CrossfadeEngine::new, DecodePipeline::new, ConvolutionEngine)
-/// with 3 different error-handling strategies. This centralized init uses
-/// std::sync::OnceLock for single initialization and properly propagates
-/// the init result so failed inits are reported to all callers.
 static GST_INIT_RESULT: OnceLock<Result<(), glib::Error>> = OnceLock::new();
 
 pub(crate) fn ensure_gstreamer_initialized() -> Result<()> {

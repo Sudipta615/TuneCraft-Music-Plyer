@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use crate::app::ReactivitySignals;
 use crate::app_state::AppState;
-use crate::i18n::tr;
 
 /// Queue panel overlay component.
 pub fn QueuePanel() -> Element {
@@ -20,7 +19,8 @@ pub fn QueuePanel() -> Element {
         .load(std::sync::atomic::Ordering::Relaxed);
 
     let queue_tracks: Vec<(usize, String, String, String)> = {
-        let queue = state.read().queue_lock();
+        let s = state.read();
+        let queue = s.queue_lock();
         queue
             .tracks
             .iter()

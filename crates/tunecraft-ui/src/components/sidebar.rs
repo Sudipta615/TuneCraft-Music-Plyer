@@ -106,7 +106,7 @@ pub fn Sidebar() -> Element {
                     div { class: "sidebar-section-header", "{tr(\"LIBRARY\")}" }
                     {sidebar_nav_item(&tr("All Tracks"), "♫", track_count, current_view == ViewType::AllTracks, dark, {
                         let state = state;
-                        let signals = signals;
+                        let mut signals = signals;
                         move |_| {
                             let s = state.read().clone();
                             s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -120,7 +120,7 @@ pub fn Sidebar() -> Element {
                     })}
                     {sidebar_nav_item(&tr("Albums"), "💿", album_count, current_view == ViewType::Albums, dark, {
                         let state = state;
-                        let signals = signals;
+                        let mut signals = signals;
                         move |_| {
                             let s = state.read().clone();
                             s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -134,7 +134,7 @@ pub fn Sidebar() -> Element {
                     })}
                     {sidebar_nav_item(&tr("Artists"), "👤", artist_count, current_view == ViewType::Artists, dark, {
                         let state = state;
-                        let signals = signals;
+                        let mut signals = signals;
                         move |_| {
                             let s = state.read().clone();
                             s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -148,7 +148,7 @@ pub fn Sidebar() -> Element {
                     })}
                     {sidebar_nav_item(&tr("Playlists"), "♬", playlist_count, current_view == ViewType::Playlists, dark, {
                         let state = state;
-                        let signals = signals;
+                        let mut signals = signals;
                         move |_| {
                             let s = state.read().clone();
                             s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -169,7 +169,7 @@ pub fn Sidebar() -> Element {
                     div { class: "sidebar-section-header", "{tr(\"PLAYLISTS\")}" }
                     {sidebar_nav_item(&tr("Favorites"), "★", 0, is_favorites_active, dark, {
                         let state = state;
-                        let signals = signals;
+                        let mut signals = signals;
                         move |_| {
                             let s = state.read().clone();
                             s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -183,7 +183,7 @@ pub fn Sidebar() -> Element {
                     })}
                     {sidebar_nav_item(&tr("Recently Played"), "🕐", 0, is_recent_active, dark, {
                         let state = state;
-                        let signals = signals;
+                        let mut signals = signals;
                         move |_| {
                             let s = state.read().clone();
                             s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -197,7 +197,7 @@ pub fn Sidebar() -> Element {
                     })}
                     {sidebar_nav_item(&tr("Most Played"), "📊", 0, is_most_played_active, dark, {
                         let state = state;
-                        let signals = signals;
+                        let mut signals = signals;
                         move |_| {
                             let s = state.read().clone();
                             s.filter_visible.store(false, std::sync::atomic::Ordering::Relaxed);

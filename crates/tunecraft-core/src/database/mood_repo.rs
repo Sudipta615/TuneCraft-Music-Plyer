@@ -56,15 +56,6 @@ impl Database {
     }
 
     /// Get tracks filtered by mood. Uses COALESCE so mood_override takes priority.
-    ///
-    /// Fix M8: Replaced ORDER BY RANDOM() (which is O(n log n)) with a
-    /// random offset approach. First counts matching tracks, then selects
-    /// a random offset and uses LIMIT to retrieve the desired number.
-    /// This is O(1) for small limits regardless of table size.
-    /// Fix Bug #19: Use a single connection for both COUNT and SELECT
-    /// queries to prevent a TOCTOU race. Previously, the COUNT used one
-    /// pooled connection and query_map() obtained a second, allowing tracks
-    /// to be added/removed between the two queries.
     pub fn get_tracks_by_mood(&self, mood: &str, limit: usize) -> Result<Vec<Track>> {
         let conn = self.conn()?;
 

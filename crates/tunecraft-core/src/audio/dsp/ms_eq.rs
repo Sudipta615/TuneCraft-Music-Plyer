@@ -129,9 +129,6 @@ impl MsEqStage {
         }
     }
 
-    /// Fix Bug #10: Copy all settings from another MsEqStage.
-    /// Copies band parameters, enabled flag, and target coefficients
-    /// (snapping current to target to avoid smoothing ramps).
     pub fn copy_settings_from(&mut self, other: &MsEqStage) {
         self.enabled = other.enabled;
         self.sample_rate = other.sample_rate;

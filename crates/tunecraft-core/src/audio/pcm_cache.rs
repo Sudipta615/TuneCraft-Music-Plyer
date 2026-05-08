@@ -45,12 +45,6 @@ impl PcmBuffer {
 
     /// Truncate the buffer to the first `max_secs` seconds of audio.
     /// Used to limit memory usage — mood analysis only needs the first 90s.
-    ///
-    /// Fix: Uses u64 arithmetic for the sample count calculation to prevent
-    /// integer overflow on 32-bit platforms. At 192 kHz / 8 channels / 90 s,
-    /// the product is 192000 × 8 × 90 = 138,240,000 which fits in u32, but
-    /// intermediate overflows are possible with edge cases (e.g. very high
-    /// sample rates combined with many channels). Using u64 throughout is safe.
     pub fn truncate_to_duration(&mut self, max_secs: u64) {
         if self.sample_rate == 0 || self.channels == 0 {
             return;
@@ -74,12 +68,6 @@ impl PcmBuffer {
 /// # Memory Usage
 ///
 /// At 48 kHz stereo F32, 90 seconds = 48000 × 2 × 4 × 90 = 34,560,000 bytes ≈ 33 MB per entry.
-/// Fix Issue #8: The previous comment claimed "~34.6 MB" and "~346 MB peak" (10 entries),
-/// but the actual calculation is 48000 × 2 × 4 × 90 = 34,560,000 bytes = ~33 MB (not 34.6 MB).
-/// With 5 entries (default), peak usage is ~165 MB — tuned for broad hardware compatibility
-/// including older machines with 2-4 GB RAM. Since mood analysis scans each track once
-/// and the cache primarily avoids dual-decode for the current + upcoming tracks, 5 entries
-/// is sufficient without sacrificing quality or introducing noticeable re-decode overhead.
 pub struct PcmCache {
     cache: Mutex<LruCache<String, PcmBuffer>>,
 }

@@ -270,11 +270,6 @@ fn load_user_secret() -> Option<Vec<u8>> {
 /// This is called as a fallback when neither keyring nor an existing dotfile
 /// secret is available. Returns the secret bytes on success, or None if the
 /// file cannot be created.
-///
-/// Fix Security #16: Previously, when neither keyring nor dotfile was available,
-/// the encryption key was derived from public env vars only. This function
-/// ensures that a random secret is generated on first run and stored with
-/// restricted permissions, providing actual cryptographic protection.
 fn generate_and_store_user_secret() -> Option<Vec<u8>> {
     let path = user_secret_path()?;
 
@@ -420,9 +415,6 @@ pub enum CryptoError {
     Utf8DecodeFailed(String),
 
     /// HKDF key derivation failed — refusing to produce undecryptable fallback key.
-    /// Fix Issue #21: Previously, HKDF expand failure silently fell back to a
-    /// SHA-256 hash of the IKM, producing a key that could never decrypt data
-    /// encrypted with the real HKDF-derived key. Now we return an error instead.
     #[error("key derivation failed: {0}")]
     KeyDerivationFailed(String),
 }

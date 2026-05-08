@@ -45,12 +45,6 @@ impl AudioEngine {
     }
 
     /// Compute EBU R128 loudness for a buffer of interleaved stereo samples.
-    ///
-    /// Fix H7: The DSP thread (dsp_thread.rs) already processes loudness on
-    /// every buffer and calls `dsp.set_loudness_gain()`. This method would
-    /// double-apply the gain. Now deprecated — this is a no-op to prevent
-    /// corrupting the DSP thread's loudness measurement. The DSP thread
-    /// handles loudness processing and gain application autonomously.
     #[deprecated(
         since = "5.1.0",
         note = "process_loudness corrupts DSP thread measurement; the DSP thread handles this internally"

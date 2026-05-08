@@ -9,14 +9,6 @@ impl Database {
     /// If a track with the same file_path already exists, performs an UPSERT
     /// (INSERT ... ON CONFLICT DO UPDATE) to update all metadata columns, so
     /// that re-tagged files correctly reflect their new metadata in the database.
-    ///
-    /// Fix Bug #23: Previously used INSERT OR IGNORE which silently discarded
-    /// new metadata when a file was re-tagged (size/mtime mismatch detected
-    /// by scanner). Now uses ON CONFLICT(file_path) DO UPDATE SET to update
-    /// file_hash, file_size, file_mtime, title, artist, album, genre, year,
-    /// track_number, duration, sample_rate, and bitrate when the file already
-    /// exists. User-specific columns (play_count, skip_count, rating, love,
-    /// mood, mood_override, last_played, date_added) are preserved.
     pub fn insert_track(&self, track: &Track) -> Result<i64> {
         let conn = self.conn()?;
         conn.execute(
@@ -144,12 +136,6 @@ impl Database {
 
     /// Search tracks by title, artist, or album.
     /// Uses parameterized queries to prevent SQL injection.
-    ///
-    /// Fix Bug #67: LIKE '%query%' prevents index usage.
-    /// The leading wildcard forces a full table scan on every search, which
-    /// scales poorly for large libraries. The proper fix is to use SQLite FTS5
-    /// (full-text search) with a dedicated virtual table and triggers to keep
-    /// it in sync. For now, this remains a known performance limitation.
     pub fn search_tracks(&self, query: &str) -> Result<Vec<Track>> {
         let escaped = query
             .replace('\\', "\\\\")
@@ -254,8 +240,6 @@ impl Database {
 
     /// Get tracks that exist in the database but are missing from the given file set.
     /// Returns paths of tracks to remove.
-    /// Fix H5: Uses a temporary table for SQL set difference instead of loading
-    /// all paths into Rust memory. This avoids allocating ~8-20 MB for large libraries.
     pub fn get_stale_tracks(&self, existing_paths: &[String]) -> Result<Vec<String>> {
         let conn = self.conn()?;
 
@@ -289,9 +273,6 @@ impl Database {
     }
 
     /// Remove all tracks and reset the library.
-    /// Fix Bug #20: Also delete from cover_art_cache and waveforms before
-    /// deleting tracks, since these tables have no foreign key relationship
-    /// and would otherwise orphan data.
     pub fn clear_library(&self) -> Result<usize> {
         let conn = self.conn()?;
         conn.execute("DELETE FROM cover_art_cache", [])?;
@@ -301,15 +282,6 @@ impl Database {
     }
 
     /// Set the love status of a track identified by file_hash or file_path.
-    /// Fix C7: Persists love status to database so it survives restarts.
-    /// Fix Bug #16: Guard against empty track_key to prevent mass data
-    /// corruption. Since file_hash has a NOT NULL DEFAULT '' constraint,
-    /// an empty track_key would match every track with an empty file_hash
-    /// and set love on all of them simultaneously.
-    /// Fix Bug #3: Use a single atomic SQL statement with OR logic instead of
-    /// two separate UPDATE operations. The previous two-step approach was
-    /// non-atomic — between the two statements, another transaction could
-    /// read an inconsistent state (or both could fire on overlapping data).
     pub fn set_track_loved(&self, track_key: &str, loved: bool) -> Result<()> {
         if track_key.is_empty() {
             anyhow::bail!("set_track_loved: track_key must not be empty");
@@ -324,7 +296,6 @@ impl Database {
     }
 
     /// Get all loved track keys (file_hash if available, otherwise file_path).
-    /// Fix C7: Used to restore loved_tracks set from database on startup.
     pub fn get_loved_tracks(&self) -> Result<Vec<String>> {
         let conn = self.conn()?;
         let mut stmt = conn.prepare(
@@ -341,7 +312,6 @@ impl Database {
     }
 
     /// Get tracks ordered by last_played date (most recent first).
-    /// Fix Bug #5/#7: SQL push-down query to avoid loading all tracks into memory.
     pub fn get_recent_tracks(&self, limit: u32) -> Result<Vec<Track>> {
         let sql = format!(
             "SELECT {} FROM tracks WHERE last_played IS NOT NULL ORDER BY last_played DESC LIMIT ?",
@@ -351,7 +321,6 @@ impl Database {
     }
 
     /// Get tracks ordered by play_count (most played first).
-    /// Fix Bug #5/#7: SQL push-down query to avoid loading all tracks into memory.
     pub fn get_most_played_tracks(&self, limit: u32) -> Result<Vec<Track>> {
         let sql = format!(
             "SELECT {} FROM tracks WHERE play_count > 0 ORDER BY play_count DESC LIMIT ?",
@@ -361,8 +330,6 @@ impl Database {
     }
 
     /// Get full Track records for loved tracks.
-    /// Fix Bug #5/#7: Uses the existing 'love' column (INTEGER DEFAULT 0) instead of
-    /// the in-memory HashSet, avoiding O(N) full-table scan + filter.
     pub fn get_loved_track_records(&self) -> Result<Vec<Track>> {
         let sql = format!("SELECT {} FROM tracks WHERE love = 1", TRACK_COLUMNS);
         self.query_map(&sql, [], |row| Track::from_row(row))

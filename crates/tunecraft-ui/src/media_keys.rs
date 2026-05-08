@@ -23,9 +23,7 @@ pub mod linux {
         zbus::fdo, Metadata, PlaybackStatus, PlayerInterface, Property, RootInterface, Server,
         Time, Volume,
     };
-    use std::sync::{Arc, OnceLock};
-
-    use crate::app_state::AppState;
+    use std::sync::OnceLock;
 
     /// Global server reference so we can emit property changes
     static MPRIS_SERVER: OnceLock<Server<TunecraftMpris>> = OnceLock::new();
@@ -62,7 +60,7 @@ pub mod linux {
         async fn fullscreen(&self) -> fdo::Result<bool> {
             Ok(false)
         }
-        async fn set_fullscreen(&self, _fullscreen: bool) -> fdo::Result<()> {
+        async fn set_fullscreen(&self, _fullscreen: bool) -> mpris_server::zbus::Result<()> {
             Ok(())
         }
         async fn raise(&self) -> fdo::Result<()> {
@@ -171,25 +169,31 @@ pub mod linux {
         async fn rate(&self) -> fdo::Result<mpris_server::PlaybackRate> {
             Ok(1.0)
         }
-        async fn set_rate(&self, _rate: mpris_server::PlaybackRate) -> fdo::Result<()> {
+        async fn set_rate(
+            &self,
+            _rate: mpris_server::PlaybackRate,
+        ) -> mpris_server::zbus::Result<()> {
             Ok(())
         }
         async fn volume(&self) -> fdo::Result<Volume> {
             Ok(1.0)
         }
-        async fn set_volume(&self, _volume: Volume) -> fdo::Result<()> {
+        async fn set_volume(&self, _volume: Volume) -> mpris_server::zbus::Result<()> {
             Ok(())
         }
         async fn loop_status(&self) -> fdo::Result<mpris_server::LoopStatus> {
             Ok(mpris_server::LoopStatus::None)
         }
-        async fn set_loop_status(&self, _loop_status: mpris_server::LoopStatus) -> fdo::Result<()> {
+        async fn set_loop_status(
+            &self,
+            _loop_status: mpris_server::LoopStatus,
+        ) -> mpris_server::zbus::Result<()> {
             Ok(())
         }
         async fn shuffle(&self) -> fdo::Result<bool> {
             Ok(self.state.queue_lock().shuffle)
         }
-        async fn set_shuffle(&self, shuffle: bool) -> fdo::Result<()> {
+        async fn set_shuffle(&self, shuffle: bool) -> mpris_server::zbus::Result<()> {
             self.state.queue_lock().shuffle = shuffle;
             Ok(())
         }

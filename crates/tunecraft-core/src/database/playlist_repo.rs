@@ -75,8 +75,6 @@ impl Database {
     }
 
     /// Get all tracks in a playlist, ordered by position.
-    /// Fix Bug #15: Prefix TRACK_COLUMNS with table alias 't.' to avoid
-    /// ambiguous column 'id' when joining with playlist_tracks.
     pub fn get_playlist_tracks(&self, playlist_id: i64) -> Result<Vec<Track>> {
         let prefixed_columns: String = TRACK_COLUMNS
             .split(',')

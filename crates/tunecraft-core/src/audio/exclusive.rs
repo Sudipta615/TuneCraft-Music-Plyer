@@ -252,14 +252,6 @@ impl ExclusiveAudioOutput {
     /// We prefer the hardware's maximum sample rate because in exclusive mode
     /// we want to bypass the system resampler — the source file should be
     /// resampled to the hardware rate by our Rust resampler instead.
-    ///
-    /// Fix Bug #6: The maximum selected sample rate is capped at 192000 Hz.
-    /// Previously, the function selected the highest available rate, which
-    /// could be 384 kHz or higher. These extreme rates are rarely useful
-    /// (most content is 44.1/48/96 kHz), consume excessive CPU and memory
-    /// for resampling, and can cause audio glitches on underpowered hardware.
-    /// 192 kHz is the highest rate that provides any practical benefit
-    /// (supports 96 kHz content with headroom for oversampling DACs).
     fn find_exclusive_config(
         device: &cpal::Device,
     ) -> Result<(cpal::SupportedStreamConfig, cpal::SampleFormat)> {

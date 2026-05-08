@@ -257,21 +257,6 @@ impl DspEngine {
     }
 
     /// Called by the engine tick after `process_buffer()`.
-    ///
-    /// Fix CRITICAL BUG: The previous implementation prematurely completed the
-    /// fade-in by immediately setting `volume_gain = ramp.target` and clearing
-    /// the ramp when the phase was `FadeIn`. This happened because `advance()`
-    /// sets `phase = FadeIn` as soon as the fade-out reaches zero, and then
-    /// `tick_seek_fade()` saw `FadeIn` and instantly jumped to the target
-    /// volume, skipping the entire gradual fade-in. This caused:
-    ///   1. An audible click on every seek (instant volume jump from 0 to target)
-    ///   2. The seek-fade mechanism was effectively broken — only fade-out worked
-    ///
-    /// The correct behavior: `advance()` handles the sample-by-sample ramping
-    /// (both fade-out and fade-in) inside `process_buffer()`. When `advance()`
-    /// returns `true`, the ramp is complete and `process_buffer()` clears it.
-    /// `tick_seek_fade()` should only handle the phase transition notification
-    /// and should NOT interfere with the ongoing fade-in.
     pub fn tick_seek_fade(&mut self) {}
 
     pub fn set_ms_eq_band(&mut self, index: usize, band: MsEqBand) {
@@ -298,13 +283,6 @@ impl DspEngine {
         self.gapless.capture_tail(buf);
     }
 
-    /// Fix Bug #10: Copy all DSP settings from another DspEngine instance.
-    ///
-    /// Used during gapless track swap to apply the current engine's EQ,
-    /// volume, balance, ReplayGain, stereo width, and other settings to
-    /// the preloaded session's DspEngine, which starts with flat defaults.
-    /// Does NOT copy runtime state (biquad delay lines, limiter envelope,
-    /// gapless smoother, seek-fade ramp) — those are session-specific.
     pub fn copy_settings_from(&mut self, other: &DspEngine) {
         self.balance = other.balance;
         self.stereo_width = other.stereo_width;
@@ -418,9 +396,6 @@ impl DspEngine {
     }
 
     /// Process an interleaved stereo buffer in-place (L, R, L, R, …).
-    /// Fix M4: Changed from &mut [f32] to &mut Vec<f32> to allow padding
-    /// odd-length buffers with a zero sample instead of silently dropping
-    /// the last sample.
     pub fn process_buffer(&mut self, buf: &mut Vec<f32>) {
         if !self.enabled {
             self.seek_fade_ramp = None;

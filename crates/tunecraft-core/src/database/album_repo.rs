@@ -6,17 +6,6 @@ use crate::database::{Database, TRACK_COLUMNS};
 impl Database {
     /// Get all distinct album names with track count and artist info.
     /// Returns Vec<(album_name, artist_names, track_count, total_duration_secs)>
-    ///
-    /// Fix M6: Previously used GROUP BY album, artist, causing compilation albums
-    /// with multiple artists to appear as separate entries. Now groups by album only
-    /// and uses GROUP_CONCAT(DISTINCT artist) to aggregate all artists into a single
-    /// comma-separated string.
-    ///
-    /// Fix Bug #1: Same-named albums from different artists were incorrectly merged
-    /// because GROUP BY used only the album name. Now groups by (album, artist) so
-    /// that e.g. "Greatest Hits" by Queen and "Greatest Hits" by Tom Petty appear
-    /// as separate entries. GROUP_CONCAT still aggregates tracks from multi-artist
-    /// compilations under the same (album, primary_artist) key.
     pub fn get_all_albums(&self) -> Result<Vec<(String, String, i64, i64)>> {
         let conn = self.conn()?;
         let mut stmt = conn.prepare(

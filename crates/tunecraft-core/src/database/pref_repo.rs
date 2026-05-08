@@ -49,13 +49,6 @@ impl Database {
     }
 
     /// Save an EQ preset.
-    ///
-    /// Fix Bug #63: INSERT OR REPLACE + AUTOINCREMENT loses old IDs.
-    /// Previously used `INSERT OR REPLACE` which deletes and re-inserts the row
-    /// with a new AUTOINCREMENT ID, breaking foreign key references. Now uses
-    /// `INSERT OR IGNORE` + `UPDATE` pattern: if the name already exists, the
-    /// existing row is updated in place (preserving its ID); if it's new, it's
-    /// inserted. This keeps the ID stable across saves.
     pub fn save_eq_preset(&self, name: &str, bands_json: &str, preamp: f64) -> Result<i64> {
         let conn = self.conn()?;
         conn.execute(

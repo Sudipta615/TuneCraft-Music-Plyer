@@ -203,19 +203,6 @@ fn parse_gain(tag: &lofty::tag::Tag, key: &ItemKey) -> Option<f64> {
 }
 
 /// Parse a peak tag value (e.g. "0.987654") into an f64.
-///
-/// Fix Bug #60: Previously assumed 16-bit peak scaling only (val > 1.0 && val <= 32768.0).
-/// Now handles different bit depths: 8-bit (0-255), 16-bit (0-65535), 24-bit (0-8388607),
-/// 32-bit (0-2147483647), and float (0.0-1.0). Values > 1.0 are normalized to [0.0, 1.0]
-/// based on the most likely bit depth implied by the magnitude.
-///
-/// Fix Bug #6: Values slightly above 1.0 (up to ~2.0) are now treated as linear
-/// float peaks that indicate clipping in the source, rather than being misclassified
-/// as 8-bit integer peaks. The ReplayGain spec defines peak as a linear amplitude
-/// ratio where 1.0 = full scale; values > 1.0 indicate true peaks exceeding digital
-/// full scale (inter-sample peaks). Treating these as 8-bit integer values (dividing
-/// by 255) would produce tiny, incorrect peak values (e.g. 1.5 / 255 = 0.006),
-/// causing excessive and incorrect peak clamping.
 fn parse_peak(tag: &lofty::tag::Tag, key: &ItemKey) -> Option<f64> {
     let raw = tag.get_string(key)?;
     let cleaned = raw.trim();

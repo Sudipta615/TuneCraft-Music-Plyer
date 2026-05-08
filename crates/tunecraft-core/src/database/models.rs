@@ -36,10 +36,6 @@ pub struct Track {
 
 impl Track {
     /// Construct a Track from a database row.
-    /// Fix Bug #4: Log a warning when non-critical column reads fail instead of
-    /// silently swallowing errors. The `file_path` column is still required (hard
-    /// error on failure), but optional metadata columns now emit a tracing::warn
-    /// so that data issues are diagnosable from logs.
     pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
         let date_added_str: String = row.get("date_added").unwrap_or_default();
         let date_added = NaiveDate::parse_from_str(&date_added_str, "%Y-%m-%d")

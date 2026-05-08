@@ -74,16 +74,7 @@ pub struct PreloadedSession {
     pub dsp_stop: Arc<AtomicBool>,
     pub dsp_thread: Option<std::thread::JoinHandle<()>>,
     pub playing_flag: Arc<AtomicBool>,
-    /// Fix Bug #9: The preloaded session's own DspEngine. After the session swap
-    /// in `play_preloaded()`, `engine.dsp` must be re-assigned to this Arc so
-    /// that subsequent calls to `set_eq_state()`, `set_volume_gain()`, etc.
-    /// mutate the DspEngine that is actually connected to the audio output.
     pub dsp: Arc<Mutex<DspEngine>>,
-    /// Fix: Store the preloaded session's convolution/loudness Arcs so that
-    /// `play_preloaded()` can propagate the engine's settings to the new
-    /// session's DSP thread. Without this, the preloaded session always has
-    /// convolution=None and loudness_enabled=false, silently disabling these
-    /// features on track transitions.
     pub convolution: Arc<Mutex<Option<ConvolutionEngine>>>,
     /// Loudness state (consolidated from 3 separate Arc<Mutex<…>> fields).
     /// See EngineLoudnessState for the rationale behind consolidation.
@@ -114,45 +105,16 @@ enum PreloadState {
 unsafe impl Send for PreloadState {}
 
 /// Manages pre-loading of the next track's pipeline for true gapless playback.
-///
-/// Fix Bug #4: The preloader no longer shares a DspEngine with the current
-/// session. Instead, it stores the sample rate and creates a fresh DspEngine
-/// for each preloaded session, eliminating the data race where two DSP threads
-/// contended for the same lock and corrupted filter state.
-///
-/// Fix Bug #12: The cancel flag is wrapped in a `Mutex<Arc<AtomicBool>>` so
-/// that each preload call gets its own cancel flag. The old thread's cancel
-/// reference remains valid even after a new preload replaces the flag.
 pub struct GaplessPreloader {
     state: Arc<Mutex<PreloadState>>,
-    /// Fix Bug #12: Mutex-wrapped so we can replace the Arc<AtomicBool> on each
-    /// preload call. The old thread retains its own Arc clone; setting the old
-    /// flag to true signals cancellation without affecting the new flag.
     cancel: Mutex<Arc<AtomicBool>>,
-    /// Fix Bug #4: Store the sample rate instead of sharing the DspEngine Arc.
-    /// Each preloaded session gets its own fresh DspEngine.
-    /// Fix: Changed from f32 to u32 — f32 cannot represent 44100 exactly
-    /// (44099.998…), causing subtle sample-rate mismatches. u32 is exact
-    /// for all standard audio rates.
     sample_rate: u32,
-    /// Fix H3: Configurable ring buffer sizes from AudioEngine.
-    /// Previously hardcoded to DECODE_RING/OUTPUT_RING constants.
     decode_ring_size: usize,
     output_ring_size: usize,
 }
 
-const DECODE_RING: usize = 65_536;
-const OUTPUT_RING: usize = 32_768;
-
 impl GaplessPreloader {
     /// Create a new preloader with the given audio device sample rate.
-    ///
-    /// Fix Bug #4: No longer takes a shared DspEngine. Each preloaded session
-    /// creates its own fresh DspEngine to avoid data races between two DSP
-    /// threads contending for the same lock.
-    ///
-    /// Fix H3: Now accepts configurable ring buffer sizes instead of using
-    /// hardcoded DECODE_RING/OUTPUT_RING constants.
     pub fn new(sample_rate: u32, decode_ring_size: usize, output_ring_size: usize) -> Self {
         Self {
             state: Arc::new(Mutex::new(PreloadState::Idle)),

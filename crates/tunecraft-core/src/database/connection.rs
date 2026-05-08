@@ -61,9 +61,6 @@ impl r2d2::CustomizeConnection<rusqlite::Connection, rusqlite::Error> for Pragma
 }
 
 /// Apply performance pragmas to a connection.
-/// Fix Bug #36: Previously used string interpolation for journal_mode and
-/// synchronous, allowing SQL injection via DbConfig. Now validates these
-/// values against a whitelist before using them in PRAGMA statements.
 pub fn apply_pragmas(
     conn: &rusqlite::Connection,
     busy_timeout_ms: u32,

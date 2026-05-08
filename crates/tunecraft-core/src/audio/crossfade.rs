@@ -459,10 +459,6 @@ impl CrossfadeEngine {
             .context("crossfade pipeline seek failed")
     }
 
-    /// Fix Bug #14: Set the playback speed (rate) on the crossfade pipeline.
-    /// Uses GStreamer seek-with-rate to change playback speed without
-    /// reloading, mirroring how `DecodePipeline::set_rate()` works for the
-    /// normal pipeline.
     pub fn set_rate(&self, rate: f64) {
         let rate = rate.clamp(0.25, 4.0);
         let pos = match self.pipeline.query_position::<gstreamer::ClockTime>() {

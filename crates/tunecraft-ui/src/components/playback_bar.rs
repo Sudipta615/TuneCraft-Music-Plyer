@@ -6,8 +6,6 @@ use std::sync::Arc;
 use crate::app::ReactivitySignals;
 use crate::app_state::{AppState, RepeatMode};
 
-/// Issue #20: Debounce interval for seek and volume sliders (50ms).
-/// Prevents flooding the audio engine with seek/volume commands during rapid sliding.
 const SLIDER_DEBOUNCE_MS: u64 = 50;
 
 /// Playback bar component.
@@ -281,7 +279,7 @@ pub fn PlaybackBar() -> Element {
                                         let s = state.read().clone();
                                         if let Some(duration) = s.duration() {
                                             let pos = std::time::Duration::from_secs_f64(duration.as_secs_f64() * ratio);
-                                            if let Ok(mut engine) = s.engine.lock() {
+                                            if let Ok(engine) = s.engine.lock() {
                                                 if let Some(ref engine) = *engine {
                                                     let _ = engine.seek(pos);
                                                 }

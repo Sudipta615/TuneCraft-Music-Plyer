@@ -17,9 +17,6 @@ pub struct DspThreadConfig {
     pub stop: Arc<AtomicBool>,
     pub convolution: Arc<Mutex<Option<ConvolutionEngine>>>,
     /// Consolidated loudness state (enabled, config, loudness measurement).
-    /// Fix Issue #15: Replaces 3 separate Arc<Mutex<…>> fields with a single
-    /// lock to eliminate the deadlock surface where two threads could acquire
-    /// loudness / loudness_enabled / loudness_config in different orders.
     pub loudness_state: Arc<Mutex<EngineLoudnessState>>,
     pub underrun_count: Arc<AtomicU64>,
 }
@@ -32,11 +29,6 @@ pub struct DspThreadConfig {
 /// counter. The DSP thread reads it to adapt its read-ahead buffer level:
 /// when underruns increase, the thread requires more buffered data before
 /// processing, building headroom to prevent further underruns.
-///
-/// Fix Bug #1: The adaptive underrun logic now uses exponential decay instead
-/// of an absolute counter. Previously, even a single underrun permanently
-/// increased latency until the next track load. Now the read-ahead scale
-/// decays over time, returning to baseline when underruns stop occurring.
 pub fn spawn_dsp_thread(config: DspThreadConfig) -> Option<std::thread::JoinHandle<()>> {
     match std::thread::Builder::new()
         .name("tunecraft-dsp".into())

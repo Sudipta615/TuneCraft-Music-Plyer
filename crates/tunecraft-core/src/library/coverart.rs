@@ -4,8 +4,6 @@ use std::path::Path;
 
 /// Maximum allowed cover art size (10 MB). Larger images are skipped to avoid
 /// excessive memory usage and UI lag from decoding huge embedded artwork.
-/// Fix Bug #7: Previously had no size limit, allowing 100MB+ embedded images
-/// to be loaded into memory, potentially causing OOM or severe UI jank.
 const MAX_COVER_ART_BYTES: usize = 10 * 1024 * 1024;
 
 /// Extract cover art from an audio file using lofty.

@@ -482,9 +482,6 @@ pub mod templates {
     }
 
     /// Recently played (has plays, sorted by last_played date descending).
-    /// Fix Bug #5: Previously sorted by play_count (same as most_played),
-    /// now correctly sorts by last_played descending so the most recently
-    /// heard tracks appear first.
     pub fn recently_played() -> SmartPlaylist {
         SmartPlaylist::new(
             "Recently Played",

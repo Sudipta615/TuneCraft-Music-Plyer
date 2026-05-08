@@ -14,7 +14,6 @@ pub use tunecraft_core::util::i18n::init_i18n;
 pub use tunecraft_core::util::i18n::tr;
 
 /// Re-export the plural translation function.
-pub use tunecraft_core::util::i18n::tr_n;
 
 /// Translate a string using gettext.
 ///

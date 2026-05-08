@@ -267,12 +267,6 @@ fn sanitize_f64(val: f64, field_name: &str, default_val: f64) -> f64 {
 
 impl TunecraftConfig {
     /// Clamp all config values to safe ranges.
-    ///
-    /// Fix: NaN values bypass `clamp()` because all comparisons with NaN
-    /// return false (e.g. `NaN.clamp(0.0, 1.0)` returns NaN). This can
-    /// cause panics or undefined behavior in DSP code that expects finite
-    /// values. Now we check for NaN first and replace with a sensible
-    /// default before clamping.
     pub fn validate(&mut self) {
         self.general.volume =
             sanitize_f64(self.general.volume, "general.volume", 0.8).clamp(0.0, 1.0);

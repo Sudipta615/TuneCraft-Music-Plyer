@@ -10,8 +10,6 @@ mod i18n;
 mod media_keys;
 mod styles;
 
-use dioxus::prelude::*;
-
 #[cfg(target_os = "windows")]
 fn setup_gstreamer_env() {
     if let Ok(mut exe_path) = std::env::current_exe() {

@@ -18,13 +18,6 @@ pub fn read_metadata(path: &Path) -> Result<Track> {
 }
 
 /// Read metadata and cover art from an audio file in a single file open.
-///
-/// Fix Bug #26: Previously the scanner called `read_metadata` and
-/// `extract_cover_art` separately, each opening the file independently.
-/// This tripled I/O overhead (read_metadata + extract_cover_art + file_sha256).
-/// This function combines metadata and cover art extraction into a single
-/// file open, reducing I/O from 3 file opens to 2 (the SHA256 still needs
-/// a separate read of raw bytes).
 pub fn read_metadata_and_cover_art(path: &Path) -> Result<(Track, Option<CoverArt>)> {
     let tagged_file = lofty::probe::Probe::open(path)
         .context("failed to probe file")?

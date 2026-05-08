@@ -14,19 +14,6 @@ use std::path::{Component, Path, PathBuf};
 
 /// Validate that a file path does not contain directory traversal sequences
 /// and resolves to a location within the allowed base directory.
-///
-/// Fix Bug #73: `validate_file_path` requires file to exist but function name
-/// doesn't indicate this. The function calls `path.canonicalize()` which
-/// requires the file to exist on disk. If the file does not exist, the
-/// function returns `CanonicalizationFailed`. Callers who need to validate
-/// a path without requiring existence should use a different approach.
-///
-/// This prevents:
-/// - `..` traversal attacks (e.g., `/music/../../etc/passwd`)
-/// - Null byte injection (e.g., `file.mp3\x00.exe`)
-/// - Path components that could escape the allowed directory
-///
-/// Returns the canonicalized path if valid, or an error describing why it was rejected.
 pub fn validate_file_path(
     path: &Path,
     allowed_dirs: &[PathBuf],
@@ -80,19 +67,6 @@ pub fn validate_file_path(
 }
 
 /// Validate that a path's syntax is safe without requiring the file to exist.
-///
-/// Fix Issue #9: `validate_file_path` requires file existence because it calls
-/// `path.canonicalize()`, but callers may need to validate a path before the
-/// file is created (e.g., for export paths, playlist save locations, or
-/// database entries where the file may be temporarily offline). This function
-/// performs all the same syntactic checks (null bytes, directory traversal,
-/// Windows prefix on non-Windows) without calling `canonicalize()`, so it
-/// works for paths that don't exist on disk.
-///
-/// Note: This does NOT verify that the resolved path is within allowed
-/// directories (since that requires canonicalization to resolve symlinks).
-/// Use `validate_file_path` when you need full security validation and the
-/// file exists, or use this for syntax-only checks.
 pub fn validate_path_syntax(path: &Path) -> Result<(), PathValidationError> {
     let path_str = path.to_string_lossy();
     if path_str.contains('\0') {

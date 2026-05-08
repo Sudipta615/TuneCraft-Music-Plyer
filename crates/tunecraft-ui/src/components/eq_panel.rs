@@ -89,7 +89,7 @@ pub fn EqPanel() -> Element {
                             let enabled = s.eq_enabled.load(std::sync::atomic::Ordering::Relaxed);
                             let new_enabled = !enabled;
                             s.eq_enabled.store(new_enabled, std::sync::atomic::Ordering::Relaxed);
-                            if let Ok(mut engine) = s.engine.lock() {
+                            if let Ok(engine) = s.engine.lock() {
                                 if let Some(ref engine) = *engine {
                                     engine.set_eq_enabled(new_enabled);
                                 }
@@ -123,7 +123,7 @@ pub fn EqPanel() -> Element {
                         let gains = preset.gains();
                         *s.eq_bands.lock().unwrap_or_else(|e| e.into_inner()) = gains;
                         *s.eq_preset.lock().unwrap_or_else(|e| e.into_inner()) = preset;
-                        if let Ok(mut engine) = s.engine.lock() {
+                        if let Ok(engine) = s.engine.lock() {
                             if let Some(ref engine) = *engine {
                                 for (i, &g) in gains.iter().enumerate() {
                                     engine.set_eq_band_gain(i, g as f64);
@@ -197,7 +197,7 @@ pub fn EqPanel() -> Element {
                                                 }
                                                 *s.eq_preset.lock().unwrap_or_else(|e| e.into_inner()) = EqPreset::Custom;
                                             }
-                                            if let Ok(mut engine) = s.engine.lock() {
+                                            if let Ok(engine) = s.engine.lock() {
                                                 if let Some(ref engine) = *engine {
                                                     engine.set_eq_band_gain(band_idx_for_closure, gain as f64);
                                                 }
@@ -230,7 +230,7 @@ pub fn EqPanel() -> Element {
                             let s = state.read().clone();
                             *s.eq_bass_db.lock().unwrap_or_else(|e| e.into_inner()) = gain;
                             *s.eq_preset.lock().unwrap_or_else(|e| e.into_inner()) = EqPreset::Custom;
-                            if let Ok(mut engine) = s.engine.lock() {
+                            if let Ok(engine) = s.engine.lock() {
                                 if let Some(ref engine) = *engine {
                                     engine.set_bass(gain as f64);
                                 }
@@ -257,7 +257,7 @@ pub fn EqPanel() -> Element {
                             let s = state.read().clone();
                             *s.eq_treble_db.lock().unwrap_or_else(|e| e.into_inner()) = gain;
                             *s.eq_preset.lock().unwrap_or_else(|e| e.into_inner()) = EqPreset::Custom;
-                            if let Ok(mut engine) = s.engine.lock() {
+                            if let Ok(engine) = s.engine.lock() {
                                 if let Some(ref engine) = *engine {
                                     engine.set_treble(gain as f64);
                                 }
@@ -282,7 +282,7 @@ pub fn EqPanel() -> Element {
                             let width: f32 = e.value().parse::<f32>().unwrap_or(stereo_width * 100.0).clamp(0.0, 300.0) / 100.0;
                             let s = state.read().clone();
                             *s.eq_stereo_width.lock().unwrap_or_else(|e| e.into_inner()) = width;
-                            if let Ok(mut engine) = s.engine.lock() {
+                            if let Ok(engine) = s.engine.lock() {
                                 if let Some(ref engine) = *engine {
                                     engine.set_stereo_width(width as f64);
                                 }
@@ -307,7 +307,7 @@ pub fn EqPanel() -> Element {
                             let bal: f32 = e.value().parse::<f32>().unwrap_or(balance * 100.0).clamp(-100.0, 100.0) / 100.0;
                             let s = state.read().clone();
                             *s.eq_balance.lock().unwrap_or_else(|e| e.into_inner()) = bal;
-                            if let Ok(mut engine) = s.engine.lock() {
+                            if let Ok(engine) = s.engine.lock() {
                                 if let Some(ref engine) = *engine {
                                     engine.set_balance(bal as f64);
                                 }
@@ -330,7 +330,7 @@ pub fn EqPanel() -> Element {
                                 let enabled = s.eq_dither_enabled.load(std::sync::atomic::Ordering::Relaxed);
                                 let new_enabled = !enabled;
                                 s.eq_dither_enabled.store(new_enabled, std::sync::atomic::Ordering::Relaxed);
-                                if let Ok(mut engine) = s.engine.lock() {
+                                if let Ok(engine) = s.engine.lock() {
                                     if let Some(ref engine) = *engine {
                                         engine.set_dither_enabled(new_enabled);
                                     }
@@ -352,7 +352,7 @@ pub fn EqPanel() -> Element {
                                 let enabled = s.eq_ms_enabled.load(std::sync::atomic::Ordering::Relaxed);
                                 let new_enabled = !enabled;
                                 s.eq_ms_enabled.store(new_enabled, std::sync::atomic::Ordering::Relaxed);
-                                if let Ok(mut engine) = s.engine.lock() {
+                                if let Ok(engine) = s.engine.lock() {
                                     if let Some(ref engine) = *engine {
                                         let mut eq_state = engine.eq_state();
                                         eq_state.ms_eq_enabled = new_enabled;
@@ -382,7 +382,7 @@ pub fn EqPanel() -> Element {
                             let gain: f32 = e.value().parse().unwrap_or(0.0);
                             let s = state.read().clone();
                             *s.eq_preamp.lock().unwrap_or_else(|e| e.into_inner()) = gain;
-                            if let Ok(mut engine) = s.engine.lock() {
+                            if let Ok(engine) = s.engine.lock() {
                                 if let Some(ref engine) = *engine {
                                     engine.set_replaygain_preamp_db(gain as f64);
                                 }
@@ -409,7 +409,7 @@ pub fn EqPanel() -> Element {
                         *s.eq_preamp.lock().unwrap_or_else(|e| e.into_inner()) = 0.0;
                         s.eq_dither_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
                         s.eq_ms_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
-                        if let Ok(mut engine) = s.engine.lock() {
+                        if let Ok(engine) = s.engine.lock() {
                             if let Some(ref engine) = *engine {
                                 for i in 0..10 { engine.set_eq_band_gain(i, 0.0); }
                                 engine.set_bass(0.0);
@@ -438,7 +438,7 @@ pub fn EqPanel() -> Element {
                             *s.eq_preamp.lock().unwrap_or_else(|e| e.into_inner()) = 0.0;
                             s.eq_dither_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
                             s.eq_ms_enabled.store(false, std::sync::atomic::Ordering::Relaxed);
-                            if let Ok(mut engine) = s.engine.lock() {
+                            if let Ok(engine) = s.engine.lock() {
                                 if let Some(ref engine) = *engine {
                                     for i in 0..10 { engine.set_eq_band_gain(i, 0.0); }
                                     engine.set_bass(0.0);

@@ -4,12 +4,10 @@ use dioxus::prelude::*;
 use std::sync::Arc;
 
 use crate::app::ReactivitySignals;
-use crate::app_state::{AppState, SortMode, ViewLayout, ViewType};
+use crate::app_state::{AppState, ViewLayout, ViewType};
 use crate::i18n::tr;
 
-/// Issue #9: Height of each track row in pixels for virtual scrolling.
 const ROW_HEIGHT: i64 = 48;
-/// Issue #9: Number of buffer rows to render above/below the visible range.
 const BUFFER_ROWS: usize = 5;
 
 /// Track list component.
@@ -192,7 +190,7 @@ pub fn TrackList() -> Element {
                                     },
                                 }
                                 span { class: "settings-value",
-                                    "{if crossfade_ms > 0 { crossfade_ms / 1000 } else { 2 }}s"
+                                    "{crossfade_display / 1000}s"
                                 }
                             }
                         }
@@ -595,7 +593,7 @@ pub fn TrackList() -> Element {
                 onscroll: move |_e: Event<ScrollData>| {
                     // Read scroll position via JS eval for cross-platform compatibility
                     spawn(async move {
-                        if let Ok(result) = eval(r#"return document.querySelector('.track-table').scrollTop || 0"#).await {
+                        if let Ok(result) = dioxus::document::eval(r#"return document.querySelector('.track-table').scrollTop || 0"#).await {
                             if let Some(n) = result.as_f64() {
                                 scroll_top.set(n as i64);
                             }

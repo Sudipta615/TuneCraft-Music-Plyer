@@ -8,16 +8,6 @@ use crate::util::crypto;
 use crate::util::validation::{validate_lastfm_auth_url, UrlValidationError};
 
 /// Last.fm scrobble client.
-///
-/// Fix Bug #68: Previously created a new `reqwest::Client` per request,
-/// preventing connection pooling and TLS session reuse. Now stores a
-/// persistent `reqwest::Client` instance that is reused across all requests.
-///
-/// Optimization #15: `#[derive(Clone)]` is intentionally kept. Cloning a
-/// `LastfmClient` is cheap because `reqwest::Client` uses `Arc` internally —
-/// the clone shares the same connection pool and TLS session cache. This is
-/// the correct behavior for passing the client to multiple async tasks or
-/// handler closures without creating redundant connection pools.
 #[derive(Clone)]
 pub struct LastfmClient {
     api_key: String,
@@ -112,11 +102,6 @@ impl LastfmClient {
     /// Process queued scrobbles by submitting them to Last.fm.
     /// Returns a Vec<bool> indicating per-entry success (true = successfully scrobbled).
     /// The caller is responsible for marking entries as done in the database.
-    ///
-    /// Fix M5: Previously returned a single `success_count`, which prevented the
-    /// caller from knowing which specific entries succeeded. When a batch had
-    /// partial failures, ALL entries were marked as done. Now returns per-entry
-    /// results so only truly successful entries are marked as done.
     pub async fn process_queue(&self, entries: Vec<ScrobbleEntry>) -> Result<Vec<bool>> {
         match &self.session_key {
             None => return Ok(Vec::new()),

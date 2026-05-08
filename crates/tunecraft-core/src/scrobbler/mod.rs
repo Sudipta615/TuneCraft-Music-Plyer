@@ -120,13 +120,6 @@ impl ScrobbleManager {
     /// which performs network I/O.
     ///
     /// # Retry semantics
-    ///
-    /// Fix M5: Per-entry success tracking. Previously, if *any* scrobbles in
-    /// the batch succeeded, *all* pending entries were marked as done — even
-    /// those that Last.fm ignored (e.g. due to metadata issues). Now only
-    /// entries that were successfully scrobbled are marked as done. Ignored
-    /// entries remain pending and will be retried on the next flush (though
-    /// persistent metadata issues will cause them to be ignored again).
     pub async fn flush_queue(&self, db: &Database) -> Result<()> {
         let client = match &self.client {
             Some(c) if c.is_ready() => c,

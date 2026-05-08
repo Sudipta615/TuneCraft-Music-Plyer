@@ -210,10 +210,6 @@ pub fn parse_lrc(lrc: &str) -> Vec<(f64, String)> {
 }
 
 /// Parse an LRC timestamp like "01:23.45" into seconds.
-///
-/// Fix M7: Added validation to reject negative minutes/seconds and
-/// seconds >= 60. Also clamps the total timestamp to 24 hours (86400s)
-/// to prevent unreasonably large values from malformed LRC files.
 fn parse_lrc_timestamp(tag: &str) -> Option<f64> {
     let parts: Vec<&str> = tag.split(':').collect();
     if parts.len() != 2 {

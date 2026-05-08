@@ -30,11 +30,6 @@ pub enum ScanEvent {
 /// Note: DSD/DSF/DFF are NOT included because GStreamer's standard plugin
 /// sets do not include a DSD decoder on Linux. DSD playback requires
 /// specialized hardware or proprietary plugins.
-/// Fix M11: Split AUDIO_EXTENSIONS into "definitely audio" and "maybe audio" lists.
-/// The primary list contains formats that are always audio. The extended list
-/// contains video containers, MIDI files, and tracker modules that may or may
-/// not produce useful audio. The extended list is only used when the user
-/// enables the `scan_extended_formats` config option.
 const AUDIO_EXTENSIONS: &[&str] = &[
     "mp3",  // MPEG-1/2 Audio Layer III
     "mp2",  // MPEG-1/2 Audio Layer II
@@ -73,35 +68,6 @@ const AUDIO_EXTENSIONS: &[&str] = &[
     "webm", // WebM container (Opus / Vorbis)
 ];
 
-/// Extended audio format list — video containers, MIDI, tracker modules,
-/// and metafile formats that may produce audio but waste time probing when
-/// the user only has standard music files. Enabled via config option.
-const AUDIO_EXTENSIONS_EXTENDED: &[&str] = &[
-    "asf",  // Advanced Systems Format (WMA/WMV container)
-    "amr",  // Adaptive Multi-Rate (narrowband)
-    "awb",  // Adaptive Multi-Rate Wideband
-    "gsm",  // GSM 06.10 raw frames
-    "ra",   // RealAudio
-    "rm",   // RealMedia container
-    "ram",  // RealAudio metafile (URI list)
-    "vqf",  // TwinVQ / VQF (Yamaha)
-    "mid",  // Standard MIDI File
-    "midi", // Standard MIDI File (alias)
-    "kar",  // Karaoke MIDI with lyrics
-    "mod",  // ProTracker / Amiga MOD
-    "s3m",  // Scream Tracker 3 module
-    "xm",   // FastTracker 2 Extended Module
-    "it",   // Impulse Tracker module
-    "mp4",  // MPEG-4 container (may contain AAC/ALAC audio)
-    "m4v",  // MPEG-4 video container
-    "ts",   // MPEG Transport Stream
-    "mts",  // AVCHD Transport Stream
-    "m2ts", // Blu-ray Transport Stream
-    "mkv",  // Matroska video container
-    "flv",  // Flash Video container
-    "avi",  // AVI container
-];
-
 /// Library scanner that watches directories for changes.
 pub struct LibraryScanner {
     watch_paths: Vec<PathBuf>,
@@ -122,25 +88,6 @@ impl LibraryScanner {
 
     /// Perform a full scan of all watch directories, returning discovered file paths.
     /// Follows symlinks so that symlinked music directories are not silently skipped.
-    ///
-    /// Security Note: This follows symlinks which could potentially lead to:
-    /// - Directory traversal attacks (symlinks pointing outside music directories)
-    /// - Symbolic loop attacks (circular symlinks)
-    /// - Following symlinks to sensitive directories
-    ///
-    /// Consider implementing:
-    /// - Symlink depth limits
-    /// - Checking symlink targets don't escape allowed directories
-    /// - Option to disable symlink following for untrusted directories
-    ///
-    /// Security #17 (TOCTOU note): There is a time-of-check-to-time-of-use
-    /// window between `is_path_in_watch_dirs()` (which canonicalizes the path)
-    /// and the actual file open in the decoder. A symlink could be retargeted
-    /// in this window. For a local music player this is low-severity — an
-    /// attacker would need local filesystem access and the ability to create
-    /// symlinks in the user's music directory, which already implies significant
-    /// compromise. A full fix would require opening the file via O_NOFOLLOW
-    /// on Unix or checking the resolved path immediately before decoding.
     pub fn scan(&self) -> Vec<PathBuf> {
         let mut files = Vec::new();
         let mut seen_dev_ino = std::collections::HashSet::new();
@@ -186,14 +133,6 @@ impl LibraryScanner {
 
     /// Check if a path resolves to a location within one of the watch directories.
     /// Used to prevent symlink attacks that escape to sensitive locations.
-    ///
-    /// Fix Bug #69: Redundant canonicalization in `is_path_in_watch_dirs`.
-    /// This function canonicalizes the path AND each watch directory on every call.
-    /// The watch directory canonicalizations are constant and could be cached at
-    /// scanner construction time. Additionally, `collect_audio_files` above calls
-    /// `canonicalize(path)` for deduplication, then this function calls it again.
-    /// A future optimization should: (1) cache canonical watch dirs, and (2) pass
-    /// the already-canonicalized path to avoid redundant syscall overhead.
     fn is_path_in_watch_dirs(path: &Path, watch_dirs: &[PathBuf]) -> bool {
         let resolved = match std::fs::canonicalize(path) {
             Ok(p) => p,

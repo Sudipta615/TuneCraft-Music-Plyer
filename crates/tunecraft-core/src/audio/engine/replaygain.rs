@@ -10,10 +10,6 @@ use super::AudioEngine;
 
 impl AudioEngine {
     /// Build a ReplayGainConfig from the consolidated rg_state.
-    ///
-    /// Fix Bug #33: Previously this read 4 separate Mutex fields individually,
-    /// so the config could be inconsistent if another thread modified a field
-    /// between reads. Now all fields are read atomically from a single Mutex.
     pub(crate) fn build_rg_config(&self) -> ReplayGainConfig {
         let rg = self.rg_state.lock().unwrap_or_else(|e| e.into_inner());
         ReplayGainConfig {
