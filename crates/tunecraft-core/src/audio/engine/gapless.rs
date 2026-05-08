@@ -3,21 +3,12 @@
 use std::sync::Arc;
 
 use super::{AudioEngine, Session};
+use crate::audio::gapless::PreloadedSession;
 use anyhow::Result;
 
 impl AudioEngine {
     /// Queue the next track for gapless preloading.
-    ///
-    /// Call this as soon as the UI knows what track will play next (e.g. when
-    /// the current track passes the 50% mark, or when the user explicitly
-    /// queues a track). The next track's GStreamer pipeline is built and
-    /// pre-rolled to PAUSED in the background. When EOS fires on the current
-    /// track, call `play_preloaded()` to swap it in with zero silence.
-    ///
-    /// The preloaded session creates its own `DspEngine` to avoid data races.
-    /// Settings are copied from the current engine at swap time (not at
-    /// preroll time) so the latest EQ/ReplayGain/stereo width settings are
-    /// applied.
+
     pub fn preload_next(&self, path: &std::path::Path) -> Result<()> {
         let uri = super::path_to_uri(path)?;
         self.gapless_preloader.preload(uri);
@@ -34,23 +25,7 @@ impl AudioEngine {
         self.gapless_preloader.cancel();
     }
 
-    /// Attempt to start the preloaded session. Returns `true` on success.
-    ///
-    /// Call this from the EOS callback instead of `load()` for true gapless
-    /// playback. Falls back gracefully if no preloaded session is ready.
-    ///
-    /// # Fix C2 & C3: GLib decoupling
-    ///
-    /// The previous version of this method used `pipeline.watch_bus()` and
-    /// `glib::timeout_add_local()` — both GLib-dependent APIs that break
-    /// on macOS/Windows with iced (no GLib main context). The `Session`
-    /// struct also had `bus_watch_id` and `position_timer_id` fields that
-    /// were removed in the v3.0 migration but still referenced here.
-    ///
-    /// Both are removed: the `tick()` method already handles bus polling
-    /// and position queries in a poll-driven fashion that doesn't require
-    /// GLib. The preloaded session is swapped in cleanly without any
-    /// GLib-specific setup.
+
     pub fn play_preloaded(&self, path: Option<&std::path::Path>) -> Result<bool> {
         if let Some(preloaded) = self.gapless_preloader.take_ready() {
             let underrun_count = preloaded.audio_output.underrun_count_arc();
