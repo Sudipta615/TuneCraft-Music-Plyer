@@ -4,6 +4,15 @@ pub mod lastfm;
 #[cfg(feature = "lastfm")]
 use lastfm::{LastfmClient, ScrobbleEntry};
 
+#[cfg(feature = "lastfm")]
+use crate::{config::ScrobbleConfig, database::Database};
+#[cfg(feature = "lastfm")]
+use anyhow::Result;
+#[cfg(feature = "lastfm")]
+use chrono::Utc;
+#[cfg(feature = "lastfm")]
+use tracing::{info, warn};
+
 /// Manages scrobble submission logic, enforcing duration and playback
 /// percentage thresholds before queueing a track for scrobbling.
 ///
