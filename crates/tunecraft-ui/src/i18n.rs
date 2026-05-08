@@ -1,5 +1,10 @@
 //! i18n wrapper for the UI crate.
- them and adds a convenience
+//!
+//! Issue #17: Re-exports the core i18n translation function and macro
+//! so that UI components can use `t!()` for translatable strings.
+//!
+//! The core crate provides `tunecraft_core::util::i18n::tr()` and
+//! `init_i18n()`. This module re-exports them and adds a convenience
 //! `t!()` macro that calls `tr()` at the call site.
 
 /// Re-export the core i18n initialization function.

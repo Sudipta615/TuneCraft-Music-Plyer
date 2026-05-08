@@ -917,6 +917,16 @@ impl AppState {
     }
 
     fn track_cache_key(&self) -> String {
+        let view = self.current_view.lock().unwrap_or_else(|e| e.into_inner());
+        let sort = *self.sort_mode.lock().unwrap_or_else(|e| e.into_inner());
+        let query = self.search_query.lock().unwrap_or_else(|e| e.into_inner());
+        let genre = self.filter_genre.lock().unwrap_or_else(|e| e.into_inner());
+        let year_range = self
+            .filter_year_range
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        format!("{:?}|{:?}|{}|{}|{}", *view, sort, query, genre, year_range)
+    }
 
     pub fn load_tracks_for_view(&self) -> Vec<tunecraft_core::Track> {
         let cache_key = self.track_cache_key();
