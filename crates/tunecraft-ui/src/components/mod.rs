@@ -1,5 +1,7 @@
 //! Dioxus UI components for TuneCraft.
 
+#![allow(non_snake_case)]
+
 pub mod context_menu;
 pub mod eq_panel;
 pub mod filter_panel;

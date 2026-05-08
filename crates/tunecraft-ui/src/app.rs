@@ -1,5 +1,7 @@
 //! TuneCraft v5.0 — Dioxus Application root component.
 
+#![allow(non_snake_case)]
+
 use std::sync::Arc;
 
 use dioxus::prelude::*;
@@ -36,7 +38,6 @@ pub fn App() -> Element {
     use_context_provider(|| signals);
 
     {
-        let state = state;
         let mut signals = signals;
         spawn(async move {
             let s = state.read().clone();
@@ -163,7 +164,6 @@ pub fn App() -> Element {
     }
 
     {
-        let state = state;
         let mut signals = signals;
         spawn(async move {
             loop {
@@ -185,7 +185,6 @@ pub fn App() -> Element {
     }
 
     {
-        let state = state;
         spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_secs(15)).await;
@@ -337,9 +336,9 @@ fn expand_tilde(path: &str) -> std::path::PathBuf {
         if let Some(home) = directories::UserDirs::new().map(|d| d.home_dir().to_path_buf()) {
             return home;
         }
-    } else if path.starts_with("~/") {
+    } else if let Some(stripped) = path.strip_prefix("~/") {
         if let Some(home) = directories::UserDirs::new().map(|d| d.home_dir().to_path_buf()) {
-            return home.join(&path[2..]);
+            return home.join(stripped);
         }
     }
     std::path::PathBuf::from(path)

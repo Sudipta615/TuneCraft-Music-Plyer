@@ -320,37 +320,6 @@ impl PlayQueue {
             Some(logical)
         }
     }
-
-    pub fn set_shuffle(&mut self, enabled: bool) {
-        let was_shuffle = self.shuffle;
-        self.shuffle = enabled;
-        if enabled && !was_shuffle {
-            self.regenerate_shuffle_order_preserving_current();
-        } else if !enabled && was_shuffle {
-            if let Some(logical) = self.current_index {
-                if logical < self.shuffle_order.len() {
-                    self.current_index = Some(self.shuffle_order[logical]);
-                }
-            }
-            self.shuffle_order.clear();
-        }
-    }
-
-    pub fn set_repeat_mode(&mut self, mode: RepeatMode) {
-        self.repeat_mode = mode;
-    }
-
-    pub fn shuffle(&self) -> bool {
-        self.shuffle
-    }
-
-    pub fn repeat_mode(&self) -> RepeatMode {
-        self.repeat_mode
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.tracks.is_empty()
-    }
 }
 
 /// Scrobble state.
@@ -381,7 +350,6 @@ pub struct AppState {
     pub current_view: Mutex<ViewType>,
     pub search_query: Mutex<String>,
     pub config: RwLock<tunecraft_core::config::TunecraftConfig>,
-    pub cover_art_cache: Mutex<LruCache<String, Option<Vec<u8>>>>,
     pub is_scanning: AtomicBool,
     pub dark_mode: AtomicBool,
     pub sidebar_collapsed: AtomicBool,
@@ -456,7 +424,6 @@ impl AppState {
             current_view: Mutex::new(ViewType::AllTracks),
             search_query: Mutex::new(String::new()),
             config: RwLock::new(loaded_config),
-            cover_art_cache: Mutex::new(LruCache::new(NonZeroUsize::new(100).unwrap())),
             is_scanning: AtomicBool::new(false),
             dark_mode: AtomicBool::new(is_dark),
             sidebar_collapsed: AtomicBool::new(false),
@@ -950,21 +917,6 @@ impl AppState {
     }
 
     fn track_cache_key(&self) -> String {
-        let view = self.current_view.lock().unwrap_or_else(|e| e.into_inner());
-        let sort = self.sort_mode.lock().unwrap_or_else(|e| e.into_inner());
-        let query = self.search_query.lock().unwrap_or_else(|e| e.into_inner());
-        let genre = self.filter_genre.lock().unwrap_or_else(|e| e.into_inner());
-        let year_range = self
-            .filter_year_range
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        format!("{:?}|{:?}|{}|{}|{}", *view, sort, query, genre, year_range)
-    }
-
-    pub fn invalidate_track_cache(&self) {
-        let mut cache = self.cached_tracks.lock().unwrap_or_else(|e| e.into_inner());
-        *cache = None;
-    }
 
     pub fn load_tracks_for_view(&self) -> Vec<tunecraft_core::Track> {
         let cache_key = self.track_cache_key();
@@ -982,11 +934,10 @@ impl AppState {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
-        let sort = self
+        let sort = *self
             .sort_mode
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone();
+            .unwrap_or_else(|e| e.into_inner());
         let mut tracks = match view {
             ViewType::AllTracks => self.load_all_tracks(),
             ViewType::Search => {
@@ -1042,7 +993,7 @@ impl AppState {
         tracks
     }
 
-    fn apply_sort(&self, tracks: &mut Vec<tunecraft_core::Track>, sort: SortMode) {
+    fn apply_sort(&self, tracks: &mut [tunecraft_core::Track], sort: SortMode) {
         match sort {
             SortMode::Default => {}
             SortMode::TitleAsc => tracks.sort_by(|a, b| a.title.cmp(&b.title)),
@@ -1051,8 +1002,8 @@ impl AppState {
             SortMode::ArtistDesc => tracks.sort_by(|a, b| b.artist.cmp(&a.artist)),
             SortMode::AlbumAsc => tracks.sort_by(|a, b| a.album.cmp(&b.album)),
             SortMode::AlbumDesc => tracks.sort_by(|a, b| b.album.cmp(&a.album)),
-            SortMode::DurationAsc => tracks.sort_by(|a, b| a.duration.cmp(&b.duration)),
-            SortMode::DurationDesc => tracks.sort_by(|a, b| b.duration.cmp(&a.duration)),
+            SortMode::DurationAsc => tracks.sort_by_key(|a| a.duration),
+            SortMode::DurationDesc => tracks.sort_by_key(|b| std::cmp::Reverse(b.duration)),
         }
     }
 
@@ -1199,15 +1150,6 @@ impl AppState {
         }
     }
 
-    /// Take and clear the current toast message, if any.
-    /// Returns None if there is no pending toast.
-    pub fn take_toast_message(&self) -> Option<String> {
-        self.toast_message
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .take()
-    }
-
     /// Toggle the love status of a track and persist to database.
     pub fn toggle_track_loved(&self, track_key: &str) -> bool {
         let mut loved = self.loved_tracks.lock().unwrap_or_else(|e| e.into_inner());
@@ -1260,40 +1202,11 @@ impl AppState {
         if let Ok(engine_guard) = self.engine.lock() {
             if let Some(ref engine) = *engine_guard {
                 for (i, &gain) in bands.iter().enumerate() {
-                    let _ = engine.set_eq_band_gain(i, gain as f64);
+                    engine.set_eq_band_gain(i, gain as f64);
                 }
-                let _ = engine.set_stereo_width(width as f64);
-                let _ = engine.set_balance(balance as f64);
+                engine.set_stereo_width(width as f64);
+                engine.set_balance(balance as f64);
                 let _ = ms_eq; // Used by future MS EQ integration
-            }
-        }
-    }
-
-    /// Toggle mute state and push the change to the audio engine.
-    pub fn toggle_mute(&self) {
-        let currently_muted = self.volume_muted.load(std::sync::atomic::Ordering::Relaxed);
-
-        if currently_muted {
-            let restore_vol = f64::from_bits(
-                self.volume_before_mute
-                    .load(std::sync::atomic::Ordering::Relaxed),
-            );
-            self.volume_muted
-                .store(false, std::sync::atomic::Ordering::Relaxed);
-            self.set_volume(restore_vol);
-        } else {
-            let current_vol = self.volume();
-            if current_vol > 0.0 {
-                self.volume_before_mute
-                    .store(current_vol.to_bits(), std::sync::atomic::Ordering::Relaxed);
-            }
-            self.volume_muted
-                .store(true, std::sync::atomic::Ordering::Relaxed);
-
-            if let Ok(engine) = self.engine.lock() {
-                if let Some(ref e) = *engine {
-                    let _ = e.set_volume(0.0);
-                }
             }
         }
     }

@@ -23,12 +23,11 @@ pub fn ContextMenuOverlay() -> Element {
         .lock()
         .unwrap_or_else(|e| e.into_inner());
 
-    let menu_pos = state
+    let menu_pos = *state
         .read()
         .context_menu_position
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone();
+        .unwrap_or_else(|e| e.into_inner());
     let menu_style = format!("top: {}px; left: {}px;", menu_pos.1, menu_pos.0);
 
     let Some(target_idx) = context_target else {

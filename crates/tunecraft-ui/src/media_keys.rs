@@ -264,7 +264,7 @@ pub mod linux {
                 Metadata::new()
             };
 
-            let server_clone = server.clone();
+            let server_clone = server;
             tokio::spawn(async move {
                 let _ = server_clone
                     .properties_changed([Property::Metadata(metadata)])
@@ -286,7 +286,7 @@ pub mod linux {
                 PlaybackStatus::Stopped
             };
 
-            let server_clone = server.clone();
+            let server_clone = server;
             tokio::spawn(async move {
                 let _ = server_clone
                     .properties_changed([Property::PlaybackStatus(status)])
@@ -295,22 +295,6 @@ pub mod linux {
         }
     }
 
-    /// Send a desktop notification on track change using notify-rust.
-    pub fn send_track_notification(title: &str, artist: &str, album: &str) {
-        let body = if album.is_empty() {
-            format!("by {}", artist)
-        } else {
-            format!("by {} — {}", artist, album)
-        };
-        if let Err(e) = notify_rust::Notification::new()
-            .summary(title)
-            .body(&body)
-            .appname("Tunecraft")
-            .show()
-        {
-            tracing::warn!("Desktop notification failed: {}", e);
-        }
-    }
 }
 
 #[cfg(target_os = "macos")]
@@ -554,10 +538,6 @@ pub mod windows_smtc {
 
 #[cfg(target_os = "linux")]
 pub use linux::{init_media_keys, update_media_metadata, update_playback_status};
-
-#[cfg(target_os = "linux")]
-#[allow(unused_imports)]
-pub use linux::send_track_notification;
 
 #[cfg(target_os = "macos")]
 pub use macos::{init_media_keys, update_media_metadata, update_playback_status};

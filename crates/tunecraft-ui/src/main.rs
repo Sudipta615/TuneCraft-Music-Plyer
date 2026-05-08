@@ -3,6 +3,8 @@
 //! This is the Dioxus-based UI that replaces the iced frontend.
 //! Architecture: Component-based (React-like) with Dioxus signals and hooks.
 
+#![allow(non_snake_case)]
+
 mod app;
 mod app_state;
 mod components;
