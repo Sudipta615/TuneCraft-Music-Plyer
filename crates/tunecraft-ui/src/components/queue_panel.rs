@@ -10,7 +10,7 @@ use crate::i18n::tr;
 /// Queue panel overlay component.
 pub fn QueuePanel() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
-    let signals: ReactivitySignals = use_context();
+    let mut signals: ReactivitySignals = use_context();
     let _ = *signals.queue.read();
     let _ = *signals.playback.read();
 

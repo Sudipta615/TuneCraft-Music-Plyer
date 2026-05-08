@@ -10,7 +10,7 @@ use crate::i18n::tr;
 /// EQ Panel overlay component.
 pub fn EqPanel() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
-    let signals: ReactivitySignals = use_context();
+    let mut signals: ReactivitySignals = use_context();
     let _ = *signals.ui.read();
 
     let dark = state

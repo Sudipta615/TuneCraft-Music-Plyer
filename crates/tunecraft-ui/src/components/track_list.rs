@@ -15,7 +15,7 @@ const BUFFER_ROWS: usize = 5;
 /// Track list component.
 pub fn TrackList() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
-    let signals: ReactivitySignals = use_context();
+    let mut signals: ReactivitySignals = use_context();
     let _ = *signals.library.read();
     let _ = *signals.playback.read();
 
@@ -43,7 +43,7 @@ pub fn TrackList() -> Element {
 
     let tracks = state.read().load_tracks_for_view();
 
-    let total_duration_secs: i64 = tracks.iter().filter_map(|t| t.duration).sum::<i64>();
+    let total_duration_secs: i64 = tracks.iter().filter_map(|t| t.duration).sum::<u64>() as i64;
     let total_hours = total_duration_secs / 3600;
     let total_mins = (total_duration_secs % 3600) / 60;
 
@@ -83,6 +83,8 @@ pub fn TrackList() -> Element {
                 .map(|d| d.join("tunecraft.toml").display().to_string())
                 .unwrap_or_else(|_| "Unknown".to_string())
         };
+
+        let crossfade_display: u32 = if crossfade_ms > 0 { crossfade_ms } else { 2000 };
 
         return rsx! {
             div { class: if dark { "track-list-container dark" } else { "track-list-container light" },
@@ -172,7 +174,7 @@ pub fn TrackList() -> Element {
                                     min: "500",
                                     max: "10000",
                                     step: "500",
-                                    value: "{if crossfade_ms > 0 { crossfade_ms } else { 2000 }}",
+                                    value: "{crossfade_display}",
                                     class: "settings-slider",
                                     disabled: crossfade_ms == 0,
                                     aria_label: "Crossfade duration",
@@ -465,7 +467,7 @@ pub fn TrackList() -> Element {
     let total_height = total_tracks as i64 * ROW_HEIGHT;
 
     let visible_height = 600i64; // Will be refined by onscroll events
-    let start_idx = ((scroll_top.read() / ROW_HEIGHT) as usize).saturating_sub(BUFFER_ROWS);
+    let start_idx = ((*scroll_top.read() / ROW_HEIGHT) as usize).saturating_sub(BUFFER_ROWS);
     let visible_count = (visible_height / ROW_HEIGHT) as usize + 1;
     let end_idx = (start_idx + visible_count + 2 * BUFFER_ROWS).min(total_tracks);
     let top_spacer_height = start_idx as i64 * ROW_HEIGHT;
@@ -590,9 +592,15 @@ pub fn TrackList() -> Element {
                 role: "list",
                 aria_label: "Track list",
 
-                onscroll: move |e| {
-                    let new_scroll_top = e.scroll_coordinates().y as i64;
-                    scroll_top.set(new_scroll_top);
+                onscroll: move |_e: Event<ScrollData>| {
+                    // Read scroll position via JS eval for cross-platform compatibility
+                    spawn(async move {
+                        if let Ok(result) = eval(r#"return document.querySelector('.track-table').scrollTop || 0"#).await {
+                            if let Some(n) = result.as_f64() {
+                                scroll_top.set(n as i64);
+                            }
+                        }
+                    });
                 },
 
                 div { class: "track-table-header",
@@ -611,7 +619,7 @@ pub fn TrackList() -> Element {
 
                 for idx in start_idx..end_idx {
                     {
-                        let track = match tracks.get(idx) {
+                        let track: tunecraft_core::Track = match tracks.get(idx) {
                             Some(t) => t.clone(),
                             None => return rsx! {},
                         };

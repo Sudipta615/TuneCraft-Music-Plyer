@@ -10,7 +10,7 @@ use crate::i18n::tr;
 /// Sidebar navigation component.
 pub fn Sidebar() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
-    let signals: ReactivitySignals = use_context();
+    let mut signals: ReactivitySignals = use_context();
     let _ = *signals.library.read();
     let _ = *signals.ui.read();
 
@@ -221,8 +221,9 @@ pub fn Sidebar() -> Element {
                             let count = state.read().get_mood_track_count(mood_key);
                             let is_active = current_view == ViewType::Mood(mood_key.to_string());
                             let mood_key_owned = mood_key.to_string();
+                            let mood_key_owned2 = mood_key_owned.clone();
                             let state_clone = state;
-                            let signals_clone = signals;
+                            let mut signals_clone = signals;
                             rsx! {
                                 button {
                                     class: if is_active { "sidebar-item active" } else { "sidebar-item" },
@@ -240,7 +241,7 @@ pub fn Sidebar() -> Element {
                                     onkeydown: move |e: KeyboardEvent| {
                                         if e.key() == Key::Enter || e.key() == Key::Character(" ".into()) {
                                             let s = state_clone.read().clone();
-                                            *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) = ViewType::Mood(mood_key_owned.clone());
+                                            *s.current_view.lock().unwrap_or_else(|e| e.into_inner()) = ViewType::Mood(mood_key_owned2.clone());
                                             let gen = *signals_clone.library.read();
                                             signals_clone.library.set(gen.wrapping_add(1));
                                             let gen = *signals_clone.ui.read();

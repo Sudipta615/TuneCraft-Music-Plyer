@@ -20,10 +20,10 @@ use crate::app_state::AppState;
 #[cfg(target_os = "linux")]
 pub mod linux {
     use mpris_server::{
-        zbus::{fdo, Result},
+        zbus::fdo,
         Metadata, PlaybackStatus, PlayerInterface, Property, RootInterface, Server, Time, Volume,
     };
-    use std::sync::{Arc, Mutex, OnceLock};
+    use std::sync::{Arc, OnceLock};
 
     use crate::app_state::AppState;
 
@@ -62,41 +62,41 @@ pub mod linux {
         async fn fullscreen(&self) -> fdo::Result<bool> {
             Ok(false)
         }
-        async fn set_fullscreen(&self, _fullscreen: bool) -> Result<()> {
+        async fn set_fullscreen(&self, _fullscreen: bool) -> fdo::Result<()> {
             Ok(())
         }
-        async fn raise(&self) -> Result<()> {
+        async fn raise(&self) -> fdo::Result<()> {
             Ok(())
         }
-        async fn quit(&self) -> Result<()> {
+        async fn quit(&self) -> fdo::Result<()> {
             Ok(())
         }
     }
 
     impl PlayerInterface for TunecraftMpris {
-        async fn play_pause(&self) -> Result<()> {
+        async fn play_pause(&self) -> fdo::Result<()> {
             self.state.toggle_playback();
             Ok(())
         }
-        async fn play(&self) -> Result<()> {
+        async fn play(&self) -> fdo::Result<()> {
             self.state.play();
             Ok(())
         }
-        async fn pause(&self) -> Result<()> {
+        async fn pause(&self) -> fdo::Result<()> {
             self.state.pause();
             Ok(())
         }
-        async fn next(&self) -> Result<()> {
+        async fn next(&self) -> fdo::Result<()> {
             self.state.next_track();
             self.state.notify_track_change();
             Ok(())
         }
-        async fn previous(&self) -> Result<()> {
+        async fn previous(&self) -> fdo::Result<()> {
             self.state.prev_track();
             self.state.notify_track_change();
             Ok(())
         }
-        async fn stop(&self) -> Result<()> {
+        async fn stop(&self) -> fdo::Result<()> {
             if let Ok(engine) = self.state.engine.lock() {
                 if let Some(ref e) = *engine {
                     let _ = e.stop();
@@ -109,7 +109,7 @@ pub mod linux {
                 .unwrap_or_else(|e| e.into_inner()) = tunecraft_core::audio::PlayerState::Stopped;
             Ok(())
         }
-        async fn seek(&self, offset: Time) -> Result<()> {
+        async fn seek(&self, offset: Time) -> fdo::Result<()> {
             if let Some(position) = self.state.position() {
                 let offset_micros = offset.as_micros();
                 let new_pos = if offset_micros < 0 {
@@ -131,15 +131,17 @@ pub mod linux {
             &self,
             _track_id: mpris_server::TrackId,
             position: Time,
-        ) -> Result<()> {
+        ) -> fdo::Result<()> {
             if let Ok(engine) = self.state.engine.lock() {
                 if let Some(ref e) = *engine {
-                    let _ = e.seek(std::time::Duration::from_micros(position.as_micros() as u64));
+                    let _ = e.seek(std::time::Duration::from_micros(
+                        position.as_micros().unsigned_abs(),
+                    ));
                 }
             }
             Ok(())
         }
-        async fn open_uri(&self, _uri: mpris_server::Uri) -> Result<()> {
+        async fn open_uri(&self, _uri: mpris_server::Uri) -> fdo::Result<()> {
             Ok(())
         }
         async fn can_go_next(&self) -> fdo::Result<bool> {
@@ -169,25 +171,25 @@ pub mod linux {
         async fn rate(&self) -> fdo::Result<mpris_server::PlaybackRate> {
             Ok(1.0)
         }
-        async fn set_rate(&self, _rate: mpris_server::PlaybackRate) -> Result<()> {
+        async fn set_rate(&self, _rate: mpris_server::PlaybackRate) -> fdo::Result<()> {
             Ok(())
         }
         async fn volume(&self) -> fdo::Result<Volume> {
             Ok(1.0)
         }
-        async fn set_volume(&self, _volume: Volume) -> Result<()> {
+        async fn set_volume(&self, _volume: Volume) -> fdo::Result<()> {
             Ok(())
         }
         async fn loop_status(&self) -> fdo::Result<mpris_server::LoopStatus> {
             Ok(mpris_server::LoopStatus::None)
         }
-        async fn set_loop_status(&self, _loop_status: mpris_server::LoopStatus) -> Result<()> {
+        async fn set_loop_status(&self, _loop_status: mpris_server::LoopStatus) -> fdo::Result<()> {
             Ok(())
         }
         async fn shuffle(&self) -> fdo::Result<bool> {
             Ok(self.state.queue_lock().shuffle)
         }
-        async fn set_shuffle(&self, shuffle: bool) -> Result<()> {
+        async fn set_shuffle(&self, shuffle: bool) -> fdo::Result<()> {
             self.state.queue_lock().shuffle = shuffle;
             Ok(())
         }
@@ -212,7 +214,7 @@ pub mod linux {
                 .position()
                 .map(|d| d.as_micros() as i64)
                 .unwrap_or(0);
-            Ok(Time::from_micros(pos as u64))
+            Ok(Time::from_micros(pos))
         }
         async fn metadata(&self) -> fdo::Result<Metadata> {
             let queue = self.state.queue_lock();
@@ -222,7 +224,7 @@ pub mod linux {
                     .artist([t.artist.as_deref().unwrap_or("Unknown")])
                     .album(t.album.as_deref().unwrap_or("Unknown"));
                 if let Some(d) = t.duration {
-                    m = m.length(Time::from_micros((d * 1_000_000) as u64));
+                    m = m.length(Time::from_micros((d as i64).saturating_mul(1_000_000)));
                 }
                 Ok(m.build())
             } else {
@@ -255,7 +257,7 @@ pub mod linux {
                     .artist([t.artist.as_deref().unwrap_or("Unknown")])
                     .album(t.album.as_deref().unwrap_or("Unknown"));
                 if let Some(d) = t.duration {
-                    m = m.length(Time::from_micros((d * 1_000_000) as u64));
+                    m = m.length(Time::from_micros((d as i64).saturating_mul(1_000_000)));
                 }
                 m.build()
             } else {
@@ -551,9 +553,11 @@ pub mod windows_smtc {
 }
 
 #[cfg(target_os = "linux")]
-pub use linux::{
-    init_media_keys, send_track_notification, update_media_metadata, update_playback_status,
-};
+pub use linux::{init_media_keys, update_media_metadata, update_playback_status};
+
+#[cfg(target_os = "linux")]
+#[allow(unused_imports)]
+pub use linux::send_track_notification;
 
 #[cfg(target_os = "macos")]
 pub use macos::{init_media_keys, update_media_metadata, update_playback_status};

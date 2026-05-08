@@ -13,7 +13,7 @@ const SLIDER_DEBOUNCE_MS: u64 = 50;
 /// Playback bar component.
 pub fn PlaybackBar() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
-    let signals: ReactivitySignals = use_context();
+    let mut signals: ReactivitySignals = use_context();
     let _ = *signals.playback.read();
 
     let dark = state
@@ -22,7 +22,8 @@ pub fn PlaybackBar() -> Element {
         .load(std::sync::atomic::Ordering::Relaxed);
 
     let current_track = {
-        let queue = state.read().queue_lock();
+        let state_ref = state.read();
+        let queue = state_ref.queue_lock();
         queue.current_track().map(|t| {
             (
                 t.title.clone().unwrap_or_default(),
@@ -73,21 +74,26 @@ pub fn PlaybackBar() -> Element {
                 }
                 button {
                     class: {
-                        let track = state.read().queue_lock().current_track();
+                        let state_ref = state.read();
+                        let track = state_ref.queue_lock();
+                        let track = track.current_track();
                         let is_loved = if let Some(t) = track.as_ref() {
                             let key = t.file_hash.as_deref().unwrap_or(t.file_path.as_str());
-                            state.read().loved_tracks.lock().unwrap_or_else(|e| e.into_inner()).contains(key)
+                            state_ref.loved_tracks.lock().unwrap_or_else(|e| e.into_inner()).contains(key)
                         } else {
                             false
                         };
                         if track.is_some() && is_loved { "pb-love-btn loved" } else { "pb-love-btn" }
                     },
-                    aria_label: if state.read().queue_lock().current_track().is_some()
-                        && state.read().loved_tracks.lock().unwrap_or_else(|e| e.into_inner()).contains(
-                            state.read().queue_lock().current_track()
-                                .map(|t| t.file_hash.as_deref().unwrap_or(t.file_path.as_str()))
-                                .unwrap_or("")
-                        ) { "Unlove track" } else { "Love track" },
+                    aria_label: {
+                        let state_ref2 = state.read();
+                        let q = state_ref2.queue_lock();
+                        let is_loved = q.current_track().map(|t| {
+                            let key = t.file_hash.as_deref().unwrap_or(t.file_path.as_str());
+                            state_ref2.loved_tracks.lock().unwrap_or_else(|e| e.into_inner()).contains(key)
+                        }).unwrap_or(false);
+                        if q.current_track().is_some() && is_loved { "Unlove track" } else { "Love track" }
+                    },
                     tabindex: "0",
                     onclick: move |_| {
                         let s = state.read().clone();

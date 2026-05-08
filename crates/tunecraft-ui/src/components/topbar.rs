@@ -14,7 +14,7 @@ const SEARCH_DEBOUNCE_MS: u64 = 300;
 /// Top bar component.
 pub fn TopBar() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
-    let signals: ReactivitySignals = use_context();
+    let mut signals: ReactivitySignals = use_context();
     let _ = *signals.ui.read();
     let _ = *signals.playback.read();
 

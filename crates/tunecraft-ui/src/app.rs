@@ -41,7 +41,7 @@ pub fn App() -> Element {
 
     {
         let state = state;
-        let signals = signals;
+        let mut signals = signals;
         spawn(async move {
             let s = state.read().clone();
             match s.init_engine() {
@@ -168,7 +168,7 @@ pub fn App() -> Element {
 
     {
         let state = state;
-        let signals = signals;
+        let mut signals = signals;
         spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_millis(250)).await;

@@ -9,7 +9,7 @@ use crate::app_state::{AppState, ViewType};
 /// Context menu overlay component.
 pub fn ContextMenuOverlay() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
-    let signals: ReactivitySignals = use_context();
+    let mut signals: ReactivitySignals = use_context();
     let _ = *signals.ui.read();
 
     let dark = state
@@ -40,7 +40,7 @@ pub fn ContextMenuOverlay() -> Element {
     let mut focused_index: Signal<usize> = use_signal(|| 0usize);
     let menu_item_count = 6usize; // Play Next, Add to Queue, Add to Playlist, Go to Artist, Go to Album, Track Info
 
-    let close_menu = move || {
+    let mut close_menu = move || {
         let s = state.read().clone();
         *s.context_menu_target
             .lock()

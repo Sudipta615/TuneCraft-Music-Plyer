@@ -316,7 +316,7 @@ impl PlayQueue {
         }
     }
 
-    fn effective_index(&self, logical: usize) -> Option<usize> {
+    pub fn effective_index(&self, logical: usize) -> Option<usize> {
         if self.shuffle && logical < self.shuffle_order.len() {
             Some(self.shuffle_order[logical])
         } else {

@@ -9,7 +9,7 @@ use crate::app_state::AppState;
 /// Notifications panel overlay component.
 pub fn NotificationsPanel() -> Element {
     let state: Signal<Arc<AppState>> = use_context();
-    let signals: ReactivitySignals = use_context();
+    let mut signals: ReactivitySignals = use_context();
     let _ = *signals.ui.read();
 
     let dark = state
@@ -18,8 +18,8 @@ pub fn NotificationsPanel() -> Element {
         .load(std::sync::atomic::Ordering::Relaxed);
 
     let notifs: Vec<(String, String, String, String)> = {
-        let notifications = state
-            .read()
+        let state_ref = state.read();
+        let notifications = state_ref
             .notifications
             .lock()
             .unwrap_or_else(|e| e.into_inner());
