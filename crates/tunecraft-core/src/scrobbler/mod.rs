@@ -61,6 +61,7 @@ impl ScrobbleManager {
     /// current UTC timestamp and persisted via [`LastfmClient::queue_scrobble`].
     ///
     /// Returns `Ok(())` in all early-return cases (not an error to skip).
+    #[allow(clippy::too_many_arguments)]
     pub fn check_and_scrobble(
         &self,
         track_title: &str,
