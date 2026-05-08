@@ -88,6 +88,6 @@ impl Database {
              ORDER BY pt.position",
             prefixed_columns
         );
-        self.query_map(&sql, [playlist_id], |row| Track::from_row(row))
+        self.query_map(&sql, [playlist_id], Track::from_row)
     }
 }

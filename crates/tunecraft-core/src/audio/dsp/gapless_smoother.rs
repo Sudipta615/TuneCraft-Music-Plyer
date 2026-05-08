@@ -13,6 +13,12 @@ pub struct GaplessSmoother {
     pub enabled: bool,
 }
 
+impl Default for GaplessSmoother {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GaplessSmoother {
     pub fn new() -> Self {
         Self {
@@ -39,9 +45,9 @@ impl GaplessSmoother {
             return;
         }
         let n = self.tail_len.min(buf.len());
-        for i in 0..n {
+        for (i, val) in buf.iter_mut().enumerate().take(n) {
             let fade_in = i as f32 / n as f32;
-            buf[i] = buf[i] * fade_in + self.tail[i] * (1.0 - fade_in);
+            *val = *val * fade_in + self.tail[i] * (1.0 - fade_in);
         }
         self.tail_len = 0;
     }

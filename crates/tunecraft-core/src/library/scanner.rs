@@ -103,11 +103,11 @@ impl LibraryScanner {
                     if Self::is_path_in_watch_dirs(path, &self.watch_paths) {
                         let is_duplicate = std::fs::metadata(path)
                             .ok()
-                            .and_then(|meta| {
+                            .map(|meta| {
                                 #[cfg(unix)]
                                 {
                                     use std::os::unix::fs::MetadataExt;
-                                    Some((meta.dev(), meta.ino()))
+                                    (meta.dev(), meta.ino())
                                 }
                                 #[cfg(not(unix))]
                                 {

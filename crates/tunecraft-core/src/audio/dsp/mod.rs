@@ -167,8 +167,8 @@ impl DspEngine {
 
     pub fn set_all_gains(&mut self, gains_db: &[f32]) {
         let n = gains_db.len().min(self.num_bands);
-        for i in 0..n {
-            self.band_params[i].gain_db = gains_db[i].clamp(-24.0, 24.0);
+        for (i, gain) in gains_db.iter().enumerate().take(n) {
+            self.band_params[i].gain_db = gain.clamp(-24.0, 24.0);
             self.recompute_band(i);
         }
         self.update_preamp();
@@ -402,7 +402,7 @@ impl DspEngine {
             return;
         }
 
-        if buf.len() % 2 != 0 {
+        if !buf.len().is_multiple_of(2) {
             tracing::warn!(
                 "process_buffer: odd-length buffer ({}), padding with one zero sample",
                 buf.len()

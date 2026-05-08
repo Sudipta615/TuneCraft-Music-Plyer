@@ -235,7 +235,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
                 .query_row("SELECT sqlite_version()", [], |row| {
                     let v: String = row.get(0)?;
                     let parts: Vec<i64> = v.split('.').filter_map(|p| p.parse().ok()).collect();
-                    Ok(parts.get(0).unwrap_or(&3) * 1_000_000
+                    Ok(parts.first().unwrap_or(&3) * 1_000_000
                         + parts.get(1).unwrap_or(&0) * 1_000
                         + parts.get(2).unwrap_or(&0))
                 })

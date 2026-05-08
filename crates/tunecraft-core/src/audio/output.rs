@@ -79,7 +79,7 @@ impl AudioOutput {
         let mut sample_rate = config.sample_rate().0;
         let channels = config.channels();
 
-        if sample_rate < 8000 || sample_rate > 192000 {
+        if !(8000..=192000).contains(&sample_rate) {
             tracing::warn!("Unusual sample rate {} Hz, clamping to 48000", sample_rate);
             sample_rate = 48000;
         }
@@ -108,7 +108,7 @@ impl AudioOutput {
                     if filled < output.len() {
                         output[filled..].fill(0.0);
                         let count = underrun_cb.fetch_add(1, Ordering::Relaxed);
-                        if count % 12_000 == 0 {
+                        if count.is_multiple_of(12_000) {
                             tracing::warn!(
                                 "Audio underrun #{} — consider increasing DECODE_RING \
                                      or reducing DSP load",

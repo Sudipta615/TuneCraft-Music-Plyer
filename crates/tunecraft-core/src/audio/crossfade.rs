@@ -136,7 +136,7 @@ impl CrossfadeEntry {
             }
         });
 
-        pipeline.add_many(&[&uridecodebin, &volume])?;
+        pipeline.add_many([&uridecodebin, &volume])?;
         uridecodebin.sync_state_with_parent()?;
 
         Ok(Self {
@@ -232,8 +232,8 @@ impl CrossfadeEngine {
             .build()
             .context("autoaudiosink")?;
 
-        pipeline.add_many(&[&mixer, &audioconvert, &audiosink])?;
-        Element::link_many(&[&mixer, &audioconvert, &audiosink])?;
+        pipeline.add_many([&mixer, &audioconvert, &audiosink])?;
+        Element::link_many([&mixer, &audioconvert, &audiosink])?;
 
         let eos_cb: Arc<Mutex<Option<CrossfadeEosCallback>>> = Arc::new(Mutex::new(None));
 

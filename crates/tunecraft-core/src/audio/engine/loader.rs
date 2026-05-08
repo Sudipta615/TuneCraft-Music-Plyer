@@ -138,7 +138,7 @@ pub fn load_internal(
         .enabled;
     if rg {
         if let Some(ref p) = path {
-            if let Err(e) = engine.apply_replaygain_for(&p) {
+            if let Err(e) = engine.apply_replaygain_for(p) {
                 tracing::warn!("ReplayGain: {}", e);
             }
         }

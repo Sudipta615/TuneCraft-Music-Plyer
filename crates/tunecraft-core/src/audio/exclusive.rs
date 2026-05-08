@@ -400,7 +400,7 @@ fn is_pipewire_running() -> bool {
 /// On non-Linux platforms, returns `None`.
 fn get_current_uid() -> Option<u32> {
     if let Ok(xdg) = std::env::var("XDG_RUNTIME_DIR") {
-        if let Some(uid_str) = xdg.split('/').last() {
+        if let Some(uid_str) = xdg.split('/').next_back() {
             if let Ok(uid) = uid_str.parse::<u32>() {
                 return Some(uid);
             }

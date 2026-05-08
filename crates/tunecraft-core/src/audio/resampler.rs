@@ -230,7 +230,7 @@ impl Resampler {
         let channels = self.channels;
         let frames_in = input.len() / channels;
 
-        if input.len() % channels != 0 {
+        if !input.len().is_multiple_of(channels) {
             tracing::warn!(
                 "Resampler: input length ({}) is not a multiple of channels ({}), \
                  dropping {} trailing samples",
@@ -263,9 +263,9 @@ impl Resampler {
         let actual_output_frames = frames_written;
         let mut result = Vec::with_capacity(actual_output_frames * channels);
         for frame in 0..actual_output_frames {
-            for ch in 0..channels {
-                if frame < output_buffers[ch].len() {
-                    result.push(output_buffers[ch][frame]);
+            for out_buf in output_buffers.iter().take(channels) {
+                if frame < out_buf.len() {
+                    result.push(out_buf[frame]);
                 }
             }
         }

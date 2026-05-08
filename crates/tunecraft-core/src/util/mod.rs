@@ -13,14 +13,14 @@ pub mod validation;
 /// This is the single shared implementation used by both `convolution.rs`
 /// and `pipeline.rs` to avoid code duplication.
 pub fn cast_u8_to_f32(bytes: &[u8]) -> Option<&[f32]> {
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         tracing::warn!(
             "F32LE buffer length {} is not a multiple of 4, skipping sample",
             bytes.len()
         );
         return None;
     }
-    if bytes.as_ptr() as usize % std::mem::align_of::<f32>() != 0 {
+    if !(bytes.as_ptr() as usize).is_multiple_of(std::mem::align_of::<f32>()) {
         tracing::warn!("F32LE buffer is not 4-byte aligned, skipping sample");
         return None;
     }

@@ -114,14 +114,14 @@ impl Database {
     /// Get a track by its id.
     pub fn get_track(&self, id: i64) -> Result<Option<Track>> {
         let sql = format!("SELECT {} FROM tracks WHERE id = ?1", TRACK_COLUMNS);
-        let results: Vec<Track> = self.query_map(&sql, [id], |row| Track::from_row(row))?;
+        let results: Vec<Track> = self.query_map(&sql, [id], Track::from_row)?;
         Ok(results.into_iter().next())
     }
 
     /// Get a track by file path.
     pub fn get_track_by_path(&self, path: &str) -> Result<Option<Track>> {
         let sql = format!("SELECT {} FROM tracks WHERE file_path = ?1", TRACK_COLUMNS);
-        let results: Vec<Track> = self.query_map(&sql, [path], |row| Track::from_row(row))?;
+        let results: Vec<Track> = self.query_map(&sql, [path], Track::from_row)?;
         Ok(results.into_iter().next())
     }
 
@@ -131,7 +131,7 @@ impl Database {
             "SELECT {} FROM tracks ORDER BY artist, album, track_number, title",
             TRACK_COLUMNS
         );
-        self.query_map(&sql, [], |row| Track::from_row(row))
+        self.query_map(&sql, [], Track::from_row)
     }
 
     /// Search tracks by title, artist, or album.
@@ -146,7 +146,7 @@ impl Database {
             "SELECT {} FROM tracks WHERE title LIKE ?1 ESCAPE '\\' OR artist LIKE ?1 ESCAPE '\\' OR album LIKE ?1 ESCAPE '\\' ORDER BY artist, album, title",
             TRACK_COLUMNS
         );
-        self.query_map(&sql, [&pattern], |row| Track::from_row(row))
+        self.query_map(&sql, [&pattern], Track::from_row)
     }
 
     /// Search tracks by genre and/or year range, with optional text query.
@@ -261,10 +261,8 @@ impl Database {
         )?;
         let rows = stale_stmt.query_map([], |row| row.get::<_, String>(0))?;
         let mut stale = Vec::new();
-        for row in rows {
-            if let Ok(path) = row {
-                stale.push(path);
-            }
+        for path in rows.flatten() {
+            stale.push(path);
         }
 
         conn.execute_batch("DROP TABLE IF EXISTS _existing_paths")?;
@@ -303,10 +301,8 @@ impl Database {
         )?;
         let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
         let mut keys = Vec::new();
-        for row in rows {
-            if let Ok(key) = row {
-                keys.push(key);
-            }
+        for key in rows.flatten() {
+            keys.push(key);
         }
         Ok(keys)
     }
@@ -317,7 +313,7 @@ impl Database {
             "SELECT {} FROM tracks WHERE last_played IS NOT NULL ORDER BY last_played DESC LIMIT ?",
             TRACK_COLUMNS
         );
-        self.query_map(&sql, [limit], |row| Track::from_row(row))
+        self.query_map(&sql, [limit], Track::from_row)
     }
 
     /// Get tracks ordered by play_count (most played first).
@@ -326,12 +322,12 @@ impl Database {
             "SELECT {} FROM tracks WHERE play_count > 0 ORDER BY play_count DESC LIMIT ?",
             TRACK_COLUMNS
         );
-        self.query_map(&sql, [limit], |row| Track::from_row(row))
+        self.query_map(&sql, [limit], Track::from_row)
     }
 
     /// Get full Track records for loved tracks.
     pub fn get_loved_track_records(&self) -> Result<Vec<Track>> {
         let sql = format!("SELECT {} FROM tracks WHERE love = 1", TRACK_COLUMNS);
-        self.query_map(&sql, [], |row| Track::from_row(row))
+        self.query_map(&sql, [], Track::from_row)
     }
 }

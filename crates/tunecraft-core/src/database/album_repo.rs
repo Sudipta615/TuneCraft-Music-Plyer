@@ -37,7 +37,7 @@ impl Database {
             "SELECT {} FROM tracks WHERE album = ?1 ORDER BY track_number, title",
             TRACK_COLUMNS
         );
-        self.query_map(&sql, [album], |row| Track::from_row(row))
+        self.query_map(&sql, [album], Track::from_row)
     }
 
     /// Get all distinct artist names with track count.
@@ -73,6 +73,6 @@ impl Database {
             "SELECT {} FROM tracks WHERE artist = ?1 ORDER BY album, track_number, title",
             TRACK_COLUMNS
         );
-        self.query_map(&sql, [artist], |row| Track::from_row(row))
+        self.query_map(&sql, [artist], Track::from_row)
     }
 }

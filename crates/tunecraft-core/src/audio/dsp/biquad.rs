@@ -229,6 +229,12 @@ pub struct SmoothedBand {
     pub steps: u32,
 }
 
+impl Default for SmoothedBand {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SmoothedBand {
     pub fn new() -> Self {
         let id = Biquad::identity();

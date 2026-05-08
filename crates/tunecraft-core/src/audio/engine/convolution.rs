@@ -28,6 +28,6 @@ impl AudioEngine {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
-            .map_or(false, |e| e.enabled)
+            .is_some_and(|e| e.enabled)
     }
 }

@@ -119,7 +119,7 @@ impl ConvolutionEngine {
         let mut ir_buf: Vec<Complex<f32>> = ir_data
             .iter()
             .map(|&s| Complex { re: s, im: 0.0 })
-            .chain(std::iter::repeat(Complex::default()).take(fft_sz - ir_len))
+            .chain(std::iter::repeat_n(Complex::default(), fft_sz - ir_len))
             .collect();
         fft_plan.process(&mut ir_buf);
         let ir_fft = ir_buf;
@@ -190,13 +190,13 @@ impl ConvolutionEngine {
             .dynamic_cast()
             .map_err(|_| anyhow::anyhow!("appsink cast"))?;
 
-        pipeline.add_many(&[
+        pipeline.add_many([
             &uridecodebin,
             &audioconvert,
             &capsfilter,
             appsink.upcast_ref::<gstreamer::Element>(),
         ])?;
-        gstreamer::Element::link_many(&[
+        gstreamer::Element::link_many([
             &audioconvert,
             &capsfilter,
             appsink.upcast_ref::<gstreamer::Element>(),

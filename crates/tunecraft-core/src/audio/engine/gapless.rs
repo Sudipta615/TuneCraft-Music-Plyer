@@ -8,7 +8,6 @@ use anyhow::Result;
 
 impl AudioEngine {
     /// Queue the next track for gapless preloading.
-
     pub fn preload_next(&self, path: &std::path::Path) -> Result<()> {
         let uri = super::path_to_uri(path)?;
         self.gapless_preloader.preload(uri);

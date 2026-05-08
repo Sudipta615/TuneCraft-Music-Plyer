@@ -36,6 +36,7 @@ pub const LOOKAHEAD_MS: f32 = 2.0;
 const MAX_LOOKAHEAD_SAMPLES: usize = 384;
 
 const TP_TAPS: usize = 4;
+#[allow(clippy::approx_constant)]
 const TP_PHASES: [[f32; TP_TAPS]; 3] = [
     [0.0, 0.43388, 0.70711, -0.13529],
     [-0.10251, 0.60263, 0.60263, -0.10251],
@@ -221,6 +222,12 @@ pub struct TpdfDither {
     pub enabled: bool,
     lcg1: u32,
     lcg2: u32,
+}
+
+impl Default for TpdfDither {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TpdfDither {

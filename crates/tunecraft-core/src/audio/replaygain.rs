@@ -208,7 +208,7 @@ fn parse_peak(tag: &lofty::tag::Tag, key: &ItemKey) -> Option<f64> {
     let cleaned = raw.trim();
 
     let val = cleaned.parse::<f64>().ok()?;
-    if val < 0.0 && val >= -100.0 {
+    if (-100.0..0.0).contains(&val) {
         let linear = 10f64.powf(val / 20.0);
         tracing::debug!(
             "ReplayGain peak appears to be in dB ({:.2}), converting to linear ({:.6})",
@@ -218,9 +218,7 @@ fn parse_peak(tag: &lofty::tag::Tag, key: &ItemKey) -> Option<f64> {
         return Some(linear.clamp(0.0, 2.0));
     }
 
-    if val <= 1.0 {
-        Some(val)
-    } else if val <= 2.0 {
+    if val <= 2.0 {
         Some(val)
     } else if val <= 255.0 {
         Some(val / 255.0)

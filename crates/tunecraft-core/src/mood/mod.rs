@@ -148,11 +148,7 @@ fn decode_to_interleaved(path: &str) -> Result<(Vec<f32>, u32, u16), MoodError> 
 
     const MAX_ANALYSIS_SECONDS: usize = 90;
 
-    loop {
-        let packet = match format.next_packet() {
-            Ok(p) => p,
-            Err(_) => break,
-        };
+    while let Ok(packet) = format.next_packet() {
         let decoded = match decoder.decode(&packet) {
             Ok(d) => d,
             Err(_) => continue,

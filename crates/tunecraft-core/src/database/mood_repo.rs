@@ -1,3 +1,6 @@
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
+
 use anyhow::Result;
 use rusqlite::params;
 
@@ -67,7 +70,7 @@ impl Database {
                 TRACK_COLUMNS
             );
             let mut stmt = conn.prepare(&sql)?;
-            let rows = stmt.query_map(rusqlite::params![mood], |row| Track::from_row(row))?;
+            let rows = stmt.query_map(rusqlite::params![mood], Track::from_row)?;
             let mut results = Vec::new();
             for row in rows {
                 results.push(row?);
@@ -104,7 +107,7 @@ impl Database {
         let mut stmt = conn.prepare(&sql)?;
         let rows = stmt.query_map(
             rusqlite::params![mood, limit as i64, offset as i64],
-            |row| Track::from_row(row),
+            Track::from_row,
         )?;
         let mut results = Vec::new();
         for row in rows {

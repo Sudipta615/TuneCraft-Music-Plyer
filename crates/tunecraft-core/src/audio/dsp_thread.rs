@@ -140,7 +140,7 @@ fn dsp_thread_main(config: DspThreadConfig) {
                 static SKIP_COUNT: std::sync::atomic::AtomicU64 =
                     std::sync::atomic::AtomicU64::new(0);
                 let count = SKIP_COUNT.fetch_add(1, Ordering::Relaxed);
-                if count % 10_000 == 0 {
+                if count.is_multiple_of(10_000) {
                     tracing::warn!(
                         "DSP lock contended {} times — replayed previous buffer",
                         count
@@ -169,19 +169,16 @@ fn dsp_thread_main(config: DspThreadConfig) {
 
         {
             let state_guard = loudness_state.try_lock();
-            match state_guard {
-                Ok(mut state) => {
-                    if state.enabled {
-                        let cfg = state.config.clone();
-                        state.loudness.process_buffer(&buf[..SAMPLE_COUNT], &cfg);
-                        let gain = state.loudness.current_gain();
-                        drop(state);
-                        if let Ok(mut dsp_guard) = dsp.try_lock() {
-                            dsp_guard.set_loudness_gain(gain);
-                        }
+            if let Ok(mut state) = state_guard {
+                if state.enabled {
+                    let cfg = state.config.clone();
+                    state.loudness.process_buffer(&buf[..SAMPLE_COUNT], &cfg);
+                    let gain = state.loudness.current_gain();
+                    drop(state);
+                    if let Ok(mut dsp_guard) = dsp.try_lock() {
+                        dsp_guard.set_loudness_gain(gain);
                     }
                 }
-                Err(_) => {}
             }
         }
 

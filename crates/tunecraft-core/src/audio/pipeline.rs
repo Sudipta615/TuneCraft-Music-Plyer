@@ -118,14 +118,14 @@ impl DecodePipeline {
             .dynamic_cast()
             .map_err(|_| anyhow::anyhow!("appsink dynamic_cast failed"))?;
 
-        pipeline.add_many(&[
+        pipeline.add_many([
             &uridecodebin,
             &audioconvert,
             &capsfilter,
             appsink.upcast_ref::<gstreamer::Element>(),
         ])?;
 
-        gstreamer::Element::link_many(&[
+        gstreamer::Element::link_many([
             &audioconvert,
             &capsfilter,
             appsink.upcast_ref::<gstreamer::Element>(),
@@ -193,7 +193,7 @@ impl DecodePipeline {
                             );
                             break;
                         }
-                        if yield_count % 100 == 0 {
+                        if yield_count.is_multiple_of(100) {
                             std::thread::sleep(std::time::Duration::from_micros(100));
                         } else {
                             std::thread::yield_now();

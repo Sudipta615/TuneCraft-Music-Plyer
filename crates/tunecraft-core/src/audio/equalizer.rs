@@ -240,13 +240,11 @@ pub fn load_autoeq_profile(json: &str) -> Result<EqualizerState, serde_json::Err
             "HSC" => {
                 state.treble_db = filter.gain.clamp(-12.0, 12.0);
             }
-            "PK" => {
-                if band_index < state.bands.len() {
-                    state.bands[band_index].frequency = filter.frequency;
-                    state.bands[band_index].gain = filter.gain.clamp(-24.0, 24.0);
-                    state.bands[band_index].bandwidth = filter.q;
-                    band_index += 1;
-                }
+            "PK" if band_index < state.bands.len() => {
+                state.bands[band_index].frequency = filter.frequency;
+                state.bands[band_index].gain = filter.gain.clamp(-24.0, 24.0);
+                state.bands[band_index].bandwidth = filter.q;
+                band_index += 1;
             }
             _ => {} // unknown filter type — skip
         }

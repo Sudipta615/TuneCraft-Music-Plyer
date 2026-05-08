@@ -78,13 +78,13 @@ impl AudioEngine {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .as_ref()
-                .map_or(false, |e| e.is_playing());
+                .is_some_and(|e| e.is_playing());
         }
         self.session
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .as_ref()
-            .map_or(false, |s| s.is_playing)
+            .is_some_and(|s| s.is_playing)
     }
 
     pub fn state(&self) -> PlayerState {
