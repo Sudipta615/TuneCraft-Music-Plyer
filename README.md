@@ -10,6 +10,10 @@ Built with Rust, Dioxus, and GStreamer — featuring mood-based discovery, smart
 
 ---
 
+## Attention
+
+- Hey guys Shasow is here, first I want to clarify I am a non-coder guy and I don't believe in Vibe Coder bullshit. I just love tech so I tried to build a music player for my own old system, but I am dropping it as I don't have time I am focusing on studies. This project was bild completely using AI so it has many bugs, though I fixed most of them. So if anyone is interested on completing it fell free to do so and also let me know, I will be happy to try the final version.
+
 ## Features
 
 - **Hybrid three-thread audio pipeline** — GStreamer decode, Rust DSP processing, cpal output
