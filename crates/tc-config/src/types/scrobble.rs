@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Local play-journal (scrobble) configuration.
-
+///
 /// Controls whether TuneCraft records listen history to the local SQLite
 /// database and the threshold at which a play is considered "complete".
 /// No API keys, no network credentials — everything is local.

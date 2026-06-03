@@ -26,11 +26,11 @@ pub enum ConfigError {
 }
 
 /// Configuration persistence manager with configurable paths and change notification.
-
+///
 /// Unlike the previous unit-struct design, this is a stateful struct that holds:
 /// - A configurable config directory path (for testing or portable mode)
 /// - A channel for config change notifications
-
+///
 /// For the simplest usage, use the associated functions (`load()`, `save()`,
 /// `load_or_default()`) which use the default system config directory.
 /// For advanced usage (custom paths, notifications), create an instance.
@@ -76,9 +76,11 @@ impl ConfigPersistence {
             Ok(content) => content,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 // Config file doesn't exist — create defaults with system paths
-                let mut config = AppConfig::default();
                 // Use system-specific defaults for library paths
-                config.library = crate::types::LibraryConfig::with_system_defaults();
+                let config = AppConfig {
+                    library: crate::types::LibraryConfig::with_system_defaults(),
+                    ..Default::default()
+                };
                 if let Err(e) = Self::save(&config) {
                     log::error!(
                         "Failed to save default config (settings will not persist): {}",
@@ -121,9 +123,10 @@ impl ConfigPersistence {
     pub fn load_or_default() -> AppConfig {
         Self::load().unwrap_or_else(|e| {
             log::warn!("Failed to load config (using defaults): {}", e);
-            let mut config = AppConfig::default();
-            config.library = crate::types::LibraryConfig::with_system_defaults();
-            config
+            AppConfig {
+                library: crate::types::LibraryConfig::with_system_defaults(),
+                ..Default::default()
+            }
         })
     }
 
@@ -203,8 +206,10 @@ impl ConfigPersistence {
         let content = match std::fs::read_to_string(&path) {
             Ok(content) => content,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                let mut config = AppConfig::default();
-                config.library = crate::types::LibraryConfig::with_system_defaults();
+                let config = AppConfig {
+                    library: crate::types::LibraryConfig::with_system_defaults(),
+                    ..Default::default()
+                };
                 if let Err(e) = self.save_instance(&config) {
                     log::error!("Failed to save default config: {}", e);
                 }
@@ -254,9 +259,9 @@ impl ConfigPersistence {
     }
 
     /// Atomic write: write to temp file, fsync, then rename.
-
-    // monotonically-increasing counter instead of a fixed "config.toml.tmp" to
-    // prevent collisions when multiple processes or threads write concurrently.
+    ///
+    /// Monotonically-increasing counter instead of a fixed "config.toml.tmp" to
+    /// prevent collisions when multiple processes or threads write concurrently.
     fn atomic_write(path: &Path, content: &str) -> Result<(), ConfigError> {
         let file_name = path
             .file_name()
