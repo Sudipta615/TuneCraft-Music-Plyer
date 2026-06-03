@@ -1,7 +1,7 @@
 //! State synchronization methods for TuneCraftApp.
 
-use super::TuneCraftApp;
 use super::toasts::ToastLevel;
+use super::TuneCraftApp;
 
 impl TuneCraftApp {
     /// Sync UI playback mirrors from PlaybackService.
@@ -142,4 +142,3 @@ impl TuneCraftApp {
         }
     }
 }
-

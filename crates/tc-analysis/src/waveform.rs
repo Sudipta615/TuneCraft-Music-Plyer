@@ -12,7 +12,9 @@ impl WaveformGenerator {
     /// an infinite loop or panic during generation.
     pub fn new(samples_per_pixel: usize) -> Result<Self, super::AnalysisError> {
         if samples_per_pixel == 0 {
-            return Err(super::AnalysisError::InvalidSamplesPerPixel(samples_per_pixel));
+            return Err(super::AnalysisError::InvalidSamplesPerPixel(
+                samples_per_pixel,
+            ));
         }
         Ok(Self { samples_per_pixel })
     }
@@ -30,7 +32,10 @@ impl WaveformGenerator {
                 min = min.min(mono);
                 max = max.max(mono);
             }
-            if min == f64::MAX { min = 0.0; max = 0.0; }
+            if min == f64::MAX {
+                min = 0.0;
+                max = 0.0;
+            }
             peaks.push((min, max));
         }
 
@@ -49,10 +54,12 @@ mod tests {
     #[test]
     fn test_waveform_generator() {
         let gen = WaveformGenerator::new(100).unwrap();
-        let samples: Vec<(f64, f64)> = (0..1000).map(|i| {
-            let v = (i as f64 / 100.0).sin();
-            (v, v)
-        }).collect();
+        let samples: Vec<(f64, f64)> = (0..1000)
+            .map(|i| {
+                let v = (i as f64 / 100.0).sin();
+                (v, v)
+            })
+            .collect();
         let result = gen.generate(&samples);
         assert!(!result.peaks.is_empty());
         assert_eq!(result.total_frames, 1000);
@@ -64,4 +71,3 @@ mod tests {
         assert!(WaveformGenerator::new(1).is_ok());
     }
 }
-

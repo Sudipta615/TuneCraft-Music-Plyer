@@ -7,4 +7,3 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), refinery::E
     migrations::runner().run(conn)?;
     Ok(())
 }
-

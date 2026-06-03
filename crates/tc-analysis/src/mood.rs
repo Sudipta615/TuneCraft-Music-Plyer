@@ -61,8 +61,8 @@ impl LowPass {
     fn new(cutoff_hz: f64, sample_rate: f64) -> Self {
         // Bilinear transform of RC low-pass
         let w = 2.0 * PI * cutoff_hz / sample_rate;
-        let k = w / (w + 2.0);        // = w/(w+2) from BLT
-        // H(z) = k·(1+z⁻¹) / (1 − (1−2k)z⁻¹), simplified to direct form
+        let k = w / (w + 2.0); // = w/(w+2) from BLT
+                               // H(z) = k·(1+z⁻¹) / (1 − (1−2k)z⁻¹), simplified to direct form
         let a1 = k - 1.0;
         let b0 = k;
         Self { b0, a1, y1: 0.0 }
@@ -86,7 +86,7 @@ impl LowPass {
 /// First-order IIR high-pass filter state (Direct Form I).
 #[derive(Clone)]
 struct HighPass {
-    alpha: f64,   // = RC/(RC+T)
+    alpha: f64, // = RC/(RC+T)
     x1: f64,
     y1: f64,
 }
@@ -96,7 +96,11 @@ impl HighPass {
         let rc = 1.0 / (2.0 * PI * cutoff_hz);
         let t = 1.0 / sample_rate;
         let alpha = rc / (rc + t);
-        Self { alpha, x1: 0.0, y1: 0.0 }
+        Self {
+            alpha,
+            x1: 0.0,
+            y1: 0.0,
+        }
     }
 
     #[inline(always)]
@@ -152,17 +156,17 @@ pub struct MoodClassifier {
     pub(crate) sample_rate: f64,
 
     // Filters
-    lp_500: LowPass,    // ≤ 500 Hz  (warm / body band)
-    hp_500: HighPass,   // > 500 Hz  (presence / air band)
-    hp_4k: HighPass,    // > 4 kHz   (high-frequency harshness / air)
+    lp_500: LowPass,  // ≤ 500 Hz  (warm / body band)
+    hp_500: HighPass, // > 500 Hz  (presence / air band)
+    hp_4k: HighPass,  // > 4 kHz   (high-frequency harshness / air)
 
     // Welford accumulators (one per feature)
-    acc_energy:     Welford,   // total per-frame energy
-    acc_lo_energy:  Welford,   // energy in lo (≤ 500 Hz) band
-    acc_hi_energy:  Welford,   // energy in hi (> 500 Hz) band
-    acc_hf_energy:  Welford,   // energy in hf (> 4 kHz) band
-    acc_flux:       Welford,   // spectral flux proxy (|energy delta|)
-    acc_zcr:        Welford,   // zero-crossing rate
+    acc_energy: Welford,    // total per-frame energy
+    acc_lo_energy: Welford, // energy in lo (≤ 500 Hz) band
+    acc_hi_energy: Welford, // energy in hi (> 500 Hz) band
+    acc_hf_energy: Welford, // energy in hf (> 4 kHz) band
+    acc_flux: Welford,      // spectral flux proxy (|energy delta|)
+    acc_zcr: Welford,       // zero-crossing rate
 
     // State for flux and ZCR
     prev_energy: f64,
@@ -182,13 +186,13 @@ impl MoodClassifier {
             sample_rate,
             lp_500: LowPass::new(500.0, sample_rate),
             hp_500: HighPass::new(500.0, sample_rate),
-            hp_4k:  HighPass::new(4000.0, sample_rate),
-            acc_energy:    Welford::default(),
+            hp_4k: HighPass::new(4000.0, sample_rate),
+            acc_energy: Welford::default(),
             acc_lo_energy: Welford::default(),
             acc_hi_energy: Welford::default(),
             acc_hf_energy: Welford::default(),
-            acc_flux:      Welford::default(),
-            acc_zcr:       Welford::default(),
+            acc_flux: Welford::default(),
+            acc_zcr: Welford::default(),
             prev_energy: 0.0,
             prev_sample: 0.0,
             sample_count: 0,
@@ -206,11 +210,11 @@ impl MoodClassifier {
             let mono = (l + r) * 0.5;
 
             // --- band energies ---
-            let lo  = self.lp_500.process(mono);
-            let hi  = self.hp_500.process(mono);
-            let hf  = self.hp_4k.process(mono);
+            let lo = self.lp_500.process(mono);
+            let hi = self.hp_500.process(mono);
+            let hf = self.hp_4k.process(mono);
 
-            let energy    = mono * mono;
+            let energy = mono * mono;
             let lo_energy = lo * lo;
             let hi_energy = hi * hi;
             let hf_energy = hf * hf;
@@ -282,9 +286,9 @@ impl MoodClassifier {
         let flux_raw = self.acc_flux.mean.max(1e-12);
         // Map [1e-6, 0.01] → [0, 1] on a log scale
         let flux = ((flux_raw.ln() - (-6.0_f64 * std::f64::consts::LN_10))
-                    / ((-2.0_f64 * std::f64::consts::LN_10) - (-6.0_f64 * std::f64::consts::LN_10)))
-                   .min(1.0)
-                   .max(0.0);
+            / ((-2.0_f64 * std::f64::consts::LN_10) - (-6.0_f64 * std::f64::consts::LN_10)))
+            .min(1.0)
+            .max(0.0);
 
         // ZCR: typical speech/vocals ≈ 0.05–0.15, noise ≈ 0.4+
         let zcr = (self.acc_zcr.mean * 6.0).min(1.0);
@@ -333,15 +337,19 @@ impl MoodClassifier {
         };
         let flux_raw = self.acc_flux.mean.max(1e-12);
         let flux = ((flux_raw.ln() - (-6.0_f64 * std::f64::consts::LN_10))
-                    / ((-2.0_f64 * std::f64::consts::LN_10) - (-6.0_f64 * std::f64::consts::LN_10)))
-                   .min(1.0)
-                   .max(0.0);
+            / ((-2.0_f64 * std::f64::consts::LN_10) - (-6.0_f64 * std::f64::consts::LN_10)))
+            .min(1.0)
+            .max(0.0);
         let zcr = (self.acc_zcr.mean * 6.0).min(1.0);
 
-        let warmth  = (1.0 - centroid) * (1.0 - hf_ratio * 0.5);
-        let vocal   = (zcr * (1.0 - (centroid - 0.45).abs() * 2.5).max(0.0)).min(1.0);
+        let warmth = (1.0 - centroid) * (1.0 - hf_ratio * 0.5);
+        let vocal = (zcr * (1.0 - (centroid - 0.45).abs() * 2.5).max(0.0)).min(1.0);
 
-        let bpm_opt = if bpm_confidence > 0.2 { Some(bpm) } else { None };
+        let bpm_opt = if bpm_confidence > 0.2 {
+            Some(bpm)
+        } else {
+            None
+        };
         self.classify_features(energy, centroid, flux, warmth, vocal, bpm_opt)
     }
 
@@ -376,15 +384,9 @@ impl MoodClassifier {
         bpm: Option<f64>,
     ) -> super::MoodResult {
         // Convenience: is BPM in a given range?
-        let bpm_in = |lo: f64, hi: f64| -> bool {
-            bpm.map_or(true, |b| b >= lo && b < hi)
-        };
-        let bpm_above = |thresh: f64| -> bool {
-            bpm.map_or(true, |b| b >= thresh)
-        };
-        let bpm_below = |thresh: f64| -> bool {
-            bpm.map_or(true, |b| b < thresh)
-        };
+        let bpm_in = |lo: f64, hi: f64| -> bool { bpm.map_or(true, |b| b >= lo && b < hi) };
+        let bpm_above = |thresh: f64| -> bool { bpm.map_or(true, |b| b >= thresh) };
+        let bpm_below = |thresh: f64| -> bool { bpm.map_or(true, |b| b < thresh) };
 
         // valence is a secondary output used by the UI for colour-coding;
         // derive it independently from warmth and energy.
@@ -424,11 +426,7 @@ impl MoodClassifier {
         //   Separated from Energetic by lower energy floor and from Lofi
         //   by higher flux and tempo.
         // ------------------------------------------------------------------
-        if energy > 0.28
-            && flux > 0.30
-            && centroid > 0.30
-            && bpm_in(85.0, 140.0)
-        {
+        if energy > 0.28 && flux > 0.30 && centroid > 0.30 && bpm_in(85.0, 140.0) {
             return super::MoodResult {
                 mood: "Groovy".to_string(),
                 energy,
@@ -460,15 +458,11 @@ impl MoodClassifier {
         //   Covers: slow instrumental tracks, melancholic vocals, dirges.
         //   Bollywood: slow rain songs, separation themes.
         // ------------------------------------------------------------------
-        if energy < 0.35
-            && centroid < 0.50
-            && flux < 0.40
-            && bpm_below(95.0)
-        {
+        if energy < 0.35 && centroid < 0.50 && flux < 0.40 && bpm_below(95.0) {
             return super::MoodResult {
                 mood: "Sad".to_string(),
                 energy,
-                valence: valence * 0.6,   // pull valence down for sad label
+                valence: valence * 0.6, // pull valence down for sad label
             };
         }
 
@@ -496,29 +490,69 @@ impl MoodClassifier {
         // low energy (unusual recordings) or borderline thresholds.
         // ------------------------------------------------------------------
         #[derive(Clone)]
-        struct Prototype { mood: &'static str, e: f64, c: f64, f: f64, w: f64 }
+        struct Prototype {
+            mood: &'static str,
+            e: f64,
+            c: f64,
+            f: f64,
+            w: f64,
+        }
         let prototypes = [
-            Prototype { mood: "Energetic", e: 0.75, c: 0.60, f: 0.70, w: 0.30 },
-            Prototype { mood: "Groovy",    e: 0.50, c: 0.50, f: 0.50, w: 0.45 },
-            Prototype { mood: "Romantic",  e: 0.25, c: 0.35, f: 0.20, w: 0.75 },
-            Prototype { mood: "Sad",       e: 0.15, c: 0.30, f: 0.15, w: 0.40 },
-            Prototype { mood: "Lofi",      e: 0.20, c: 0.40, f: 0.25, w: 0.55 },
+            Prototype {
+                mood: "Energetic",
+                e: 0.75,
+                c: 0.60,
+                f: 0.70,
+                w: 0.30,
+            },
+            Prototype {
+                mood: "Groovy",
+                e: 0.50,
+                c: 0.50,
+                f: 0.50,
+                w: 0.45,
+            },
+            Prototype {
+                mood: "Romantic",
+                e: 0.25,
+                c: 0.35,
+                f: 0.20,
+                w: 0.75,
+            },
+            Prototype {
+                mood: "Sad",
+                e: 0.15,
+                c: 0.30,
+                f: 0.15,
+                w: 0.40,
+            },
+            Prototype {
+                mood: "Lofi",
+                e: 0.20,
+                c: 0.40,
+                f: 0.25,
+                w: 0.55,
+            },
         ];
 
         let mut best = &prototypes[0];
         let mut best_dist = f64::MAX;
         for p in &prototypes {
-            let dist = (energy  - p.e).abs()
-                     + (centroid - p.c).abs()
-                     + (flux    - p.f).abs()
-                     + (warmth  - p.w).abs();
+            let dist = (energy - p.e).abs()
+                + (centroid - p.c).abs()
+                + (flux - p.f).abs()
+                + (warmth - p.w).abs();
             if dist < best_dist {
                 best_dist = dist;
                 best = p;
             }
         }
 
-        let final_valence = if best.mood == "Sad" { valence * 0.6 } else { valence };
+        let final_valence = if best.mood == "Sad" {
+            valence * 0.6
+        } else {
+            valence
+        };
         super::MoodResult {
             mood: best.mood.to_string(),
             energy,
@@ -552,7 +586,12 @@ mod tests {
     use super::*;
     use std::f64::consts::PI;
 
-    fn make_samples_sine(freq_hz: f64, amplitude: f64, duration_secs: f64, sr: f64) -> Vec<(f64, f64)> {
+    fn make_samples_sine(
+        freq_hz: f64,
+        amplitude: f64,
+        duration_secs: f64,
+        sr: f64,
+    ) -> Vec<(f64, f64)> {
         let n = (sr * duration_secs) as usize;
         (0..n)
             .map(|i| {
@@ -609,8 +648,12 @@ mod tests {
         let mut c = MoodClassifier::new(44100.0).unwrap();
         c.feed(&make_samples_sine(440.0, 0.7, 5.0, 44100.0));
         let r = c.classify();
-        assert!(r.energy  >= 0.0 && r.energy  <= 1.0, "energy  = {}", r.energy);
-        assert!(r.valence >= 0.0 && r.valence <= 1.0, "valence = {}", r.valence);
+        assert!(r.energy >= 0.0 && r.energy <= 1.0, "energy  = {}", r.energy);
+        assert!(
+            r.valence >= 0.0 && r.valence <= 1.0,
+            "valence = {}",
+            r.valence
+        );
     }
 
     #[test]
@@ -640,7 +683,10 @@ mod tests {
         let mut c = MoodClassifier::new(44100.0).unwrap();
         c.feed(&make_samples_sine(80.0, 0.08, 8.0, 44100.0));
         let r = c.classify_with_bpm(70.0, 0.7);
-        assert_ne!(r.mood, "Energetic", "should not be Energetic for quiet bass sine");
+        assert_ne!(
+            r.mood, "Energetic",
+            "should not be Energetic for quiet bass sine"
+        );
     }
 
     #[test]
@@ -652,7 +698,9 @@ mod tests {
         let r = c.classify_with_bpm(75.0, 0.6);
         assert!(
             r.mood == "Romantic" || r.mood == "Lofi",
-            "expected Romantic or Lofi, got {} (energy={:.3})", r.mood, r.energy
+            "expected Romantic or Lofi, got {} (energy={:.3})",
+            r.mood,
+            r.energy
         );
     }
 
@@ -664,7 +712,9 @@ mod tests {
         let r = c.classify_with_bpm(65.0, 0.5);
         assert!(
             r.mood == "Sad" || r.mood == "Lofi",
-            "expected Sad or Lofi, got {} (energy={:.3})", r.mood, r.energy
+            "expected Sad or Lofi, got {} (energy={:.3})",
+            r.mood,
+            r.energy
         );
     }
 
@@ -676,7 +726,8 @@ mod tests {
         let r = c.classify_with_bpm(110.0, 0.75);
         assert!(
             r.mood == "Groovy" || r.mood == "Energetic",
-            "expected Groovy or Energetic, got {}", r.mood
+            "expected Groovy or Energetic, got {}",
+            r.mood
         );
     }
 
@@ -688,7 +739,7 @@ mod tests {
         // Must not panic or return Unknown for non-empty audio.
         let mut c = MoodClassifier::new(44100.0).unwrap();
         c.feed(&make_samples_sine(220.0, 0.3, 5.0, 44100.0));
-        let r = c.classify_with_bpm(0.0, 0.0);   // confidence = 0
+        let r = c.classify_with_bpm(0.0, 0.0); // confidence = 0
         assert_ne!(r.mood, "Unknown");
     }
 

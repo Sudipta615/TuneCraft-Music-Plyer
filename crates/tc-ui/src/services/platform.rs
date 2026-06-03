@@ -9,7 +9,9 @@
 
 use std::sync::Arc;
 
-use tc_platform::{MediaKeyAction, MediaKeyReceiver, MprisPlaybackStatus, MprisTrackInfo, PlatformIntegration};
+use tc_platform::{
+    MediaKeyAction, MediaKeyReceiver, MprisPlaybackStatus, MprisTrackInfo, PlatformIntegration,
+};
 
 use super::config::{recover_from_poison, recover_from_poison_write};
 
@@ -34,7 +36,10 @@ impl PlatformService {
 
     /// Try to receive a media key action (non-blocking).
     pub fn try_recv_action(&self) -> Option<MediaKeyAction> {
-        self.media_key_rx.lock().ok().and_then(|mut rx| rx.try_recv())
+        self.media_key_rx
+            .lock()
+            .ok()
+            .and_then(|mut rx| rx.try_recv())
     }
 
     /// Update MPRIS status to Playing with track info.
@@ -60,7 +65,8 @@ impl PlatformService {
 
     /// Update MPRIS status to Playing (resume, no track change).
     pub fn update_mpris_playing_by_state(&self) {
-        recover_from_poison_write(self.inner.write()).set_mpris_status(MprisPlaybackStatus::Playing);
+        recover_from_poison_write(self.inner.write())
+            .set_mpris_status(MprisPlaybackStatus::Playing);
     }
 
     /// Update MPRIS status to Paused.
@@ -70,7 +76,8 @@ impl PlatformService {
 
     /// Update MPRIS status to Stopped.
     pub fn update_mpris_stopped(&self) {
-        recover_from_poison_write(self.inner.write()).set_mpris_status(MprisPlaybackStatus::Stopped);
+        recover_from_poison_write(self.inner.write())
+            .set_mpris_status(MprisPlaybackStatus::Stopped);
     }
 
     /// Update MPRIS volume.
@@ -79,7 +86,11 @@ impl PlatformService {
     }
 
     /// Send a desktop notification.
-    pub fn send_notification(&self, title: &str, body: &str) -> Result<(), tc_platform::PlatformError> {
+    pub fn send_notification(
+        &self,
+        title: &str,
+        body: &str,
+    ) -> Result<(), tc_platform::PlatformError> {
         recover_from_poison(self.inner.read()).send_notification(title, body)
     }
 
@@ -103,4 +114,3 @@ impl PlatformService {
         recover_from_poison_write(self.inner.write()).set_mpris_position(position_us);
     }
 }
-

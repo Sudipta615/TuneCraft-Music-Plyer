@@ -5,9 +5,7 @@ fn bench_equalizer(c: &mut Criterion) {
     let mut eq = ParametricEq::default_10_band(44100.0);
     eq.set_enabled(true);
     c.bench_function("equalizer/10_band_stereo_frame", |b| {
-        b.iter(|| {
-            black_box(eq.process(black_box(0.5_f64), black_box(0.3_f64)))
-        });
+        b.iter(|| black_box(eq.process(black_box(0.5_f64), black_box(0.3_f64))));
     });
     c.bench_function("equalizer/10_band_stereo_block_256", |b| {
         let mut frames: Vec<(f64, f64)> = vec![(0.5, 0.3); 256];
@@ -40,4 +38,3 @@ fn bench_loudness(c: &mut Criterion) {
 
 criterion_group!(benches, bench_equalizer, bench_limiter, bench_loudness);
 criterion_main!(benches);
-

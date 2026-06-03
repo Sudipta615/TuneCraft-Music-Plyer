@@ -2,11 +2,10 @@
 
 use crate::models::*;
 
-use super::{Database, DbError};
 use super::tracks::log_and_filter;
+use super::{Database, DbError};
 
 impl Database {
-
     pub fn get_all_albums(&self) -> Result<Vec<Album>, DbError> {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(
@@ -31,11 +30,10 @@ impl Database {
         Ok(albums)
     }
 
-
     pub fn get_all_artists(&self) -> Result<Vec<Artist>, DbError> {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(
-            "SELECT id, name, album_count, track_count FROM artists ORDER BY name"
+            "SELECT id, name, album_count, track_count FROM artists ORDER BY name",
         )?;
         let artists = stmt
             .query_map([], |row| {
@@ -50,7 +48,6 @@ impl Database {
             .collect();
         Ok(artists)
     }
-
 
     /// Recompute derived album and artist tables from the current tracks.
     /// Call this after bulk changes (scan, cleanup) to keep aggregate
@@ -113,7 +110,8 @@ impl Database {
              SELECT DISTINCT ca.album_id FROM cover_art ca \
              WHERE ca.album_id IS NOT NULL)",
             [],
-        ).ok(); // Best-effort -- cover_art may not have album_id set
+        )
+        .ok(); // Best-effort -- cover_art may not have album_id set
 
         // `artists` has a UNIQUE(name) constraint, so we can use UPSERT
         // to update existing rows in-place and insert new ones.
@@ -169,7 +167,7 @@ impl Database {
                content=tracks, content_rowid=id\
              );\
              INSERT INTO tracks_fts(rowid, title, artist, album, album_artist, genre)\
-               SELECT id, title, artist, album, album_artist, genre FROM tracks;"
+               SELECT id, title, artist, album, album_artist, genre FROM tracks;",
         )?;
         tx.commit().map_err(DbError::Sqlite)?;
         Ok(())
@@ -183,7 +181,10 @@ mod tests {
     #[test]
     fn test_rebuild_fts_index() {
         let db = Database::open_in_memory().unwrap();
-        let track = crate::repository::tracks::tests::make_test_track("/music/test.flac", "Unique Search Term");
+        let track = crate::repository::tracks::tests::make_test_track(
+            "/music/test.flac",
+            "Unique Search Term",
+        );
         db.insert_track(&track).unwrap();
 
         // Rebuild FTS index
@@ -194,4 +195,3 @@ mod tests {
         assert_eq!(results.len(), 1);
     }
 }
-

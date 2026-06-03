@@ -47,17 +47,41 @@ impl TuneCraftApp {
             let alpha = (remaining.min(0.5) * 2.0).clamp(0.0, 1.0);
 
             let bg_color = match level {
-
                 // passing to from_rgba_premultiplied, since that function expects
                 // pre-multiplied color values (R*a, G*a, B*a, a).
-                ToastLevel::Info    => egui::Color32::from_rgba_premultiplied((50.0 * alpha) as u8, (50.0 * alpha) as u8, (60.0 * alpha) as u8, (220.0 * alpha) as u8),
-                ToastLevel::Success => egui::Color32::from_rgba_premultiplied((30.0 * alpha) as u8, (80.0 * alpha) as u8, (50.0 * alpha) as u8, (220.0 * alpha) as u8),
-                ToastLevel::Warning => egui::Color32::from_rgba_premultiplied((90.0 * alpha) as u8, (70.0 * alpha) as u8, (20.0 * alpha) as u8, (220.0 * alpha) as u8),
-                ToastLevel::Error   => egui::Color32::from_rgba_premultiplied((90.0 * alpha) as u8, (30.0 * alpha) as u8, (30.0 * alpha) as u8, (220.0 * alpha) as u8),
+                ToastLevel::Info => egui::Color32::from_rgba_premultiplied(
+                    (50.0 * alpha) as u8,
+                    (50.0 * alpha) as u8,
+                    (60.0 * alpha) as u8,
+                    (220.0 * alpha) as u8,
+                ),
+                ToastLevel::Success => egui::Color32::from_rgba_premultiplied(
+                    (30.0 * alpha) as u8,
+                    (80.0 * alpha) as u8,
+                    (50.0 * alpha) as u8,
+                    (220.0 * alpha) as u8,
+                ),
+                ToastLevel::Warning => egui::Color32::from_rgba_premultiplied(
+                    (90.0 * alpha) as u8,
+                    (70.0 * alpha) as u8,
+                    (20.0 * alpha) as u8,
+                    (220.0 * alpha) as u8,
+                ),
+                ToastLevel::Error => egui::Color32::from_rgba_premultiplied(
+                    (90.0 * alpha) as u8,
+                    (30.0 * alpha) as u8,
+                    (30.0 * alpha) as u8,
+                    (220.0 * alpha) as u8,
+                ),
             };
-            let text_alpha = (alpha * 220.0) as u8;  // Bug #6 fix: consistent with bg alpha (220·α, not 255·α)
+            let text_alpha = (alpha * 220.0) as u8; // Bug #6 fix: consistent with bg alpha (220·α, not 255·α)
 
-            let text_color = egui::Color32::from_rgba_premultiplied((220.0 * alpha) as u8, (220.0 * alpha) as u8, (220.0 * alpha) as u8, text_alpha);
+            let text_color = egui::Color32::from_rgba_premultiplied(
+                (220.0 * alpha) as u8,
+                (220.0 * alpha) as u8,
+                (220.0 * alpha) as u8,
+                text_alpha,
+            );
 
             let toast_width = 280.0;
             let toast_height = 36.0;
@@ -66,19 +90,24 @@ impl TuneCraftApp {
                 egui::Vec2::new(toast_width, toast_height),
             );
 
-            let layer_id_bg = egui::LayerId::new(egui::Order::Foreground, egui::Id::new(format!("toast_bg_{}", id)));
-            let layer_id_text = egui::LayerId::new(egui::Order::Foreground, egui::Id::new(format!("toast_txt_{}", id)));
+            let layer_id_bg = egui::LayerId::new(
+                egui::Order::Foreground,
+                egui::Id::new(format!("toast_bg_{}", id)),
+            );
+            let layer_id_text = egui::LayerId::new(
+                egui::Order::Foreground,
+                egui::Id::new(format!("toast_txt_{}", id)),
+            );
 
             ctx.layer_painter(layer_id_bg)
                 .rect_filled(toast_rect, 6.0, bg_color);
-            ctx.layer_painter(layer_id_text)
-                .text(
-                    toast_rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    msg,
-                    egui::FontId::proportional(12.0),
-                    text_color,
-                );
+            ctx.layer_painter(layer_id_text).text(
+                toast_rect.center(),
+                egui::Align2::CENTER_CENTER,
+                msg,
+                egui::FontId::proportional(12.0),
+                text_color,
+            );
 
             y_offset -= toast_height + 6.0;
         }
@@ -88,4 +117,3 @@ impl TuneCraftApp {
         }
     }
 }
-

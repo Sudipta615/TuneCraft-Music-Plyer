@@ -14,7 +14,10 @@ impl AudioEngine {
             match self.cmd_rx.try_recv() {
                 Ok(cmd) => self.handle_command(cmd),
                 Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => { warn!("Command channel disconnected"); break; }
+                Err(TryRecvError::Disconnected) => {
+                    warn!("Command channel disconnected");
+                    break;
+                },
             }
         }
     }
@@ -26,7 +29,7 @@ impl AudioEngine {
                     self.update_playback_state(PlaybackState::Playing);
                     info!("Playback started");
                 }
-            }
+            },
             EngineCommand::Pause => {
                 // M7: Only pause if there is an active stream. Pausing with
                 // no stream loaded sets state to Paused with no audio, which
@@ -35,7 +38,7 @@ impl AudioEngine {
                     self.update_playback_state(PlaybackState::Paused);
                     info!("Playback paused");
                 }
-            }
+            },
             EngineCommand::Stop => {
                 // v0.21.0: Pause the CPAL output stream before resetting the
                 // ring buffer to prevent the data race / UB that occurs when
@@ -45,7 +48,9 @@ impl AudioEngine {
                     output.pause();
                 }
                 self.position_secs = 0.0;
-                unsafe { self.output_buffer.reset(); }
+                unsafe {
+                    self.output_buffer.reset();
+                }
                 self.pipeline.reset();
                 self.stream = None;
                 self.crossfade_triggered = false;
@@ -56,7 +61,7 @@ impl AudioEngine {
                 }
                 self.update_playback_state(PlaybackState::Stopped);
                 info!("Playback stopped");
-            }
+            },
             EngineCommand::Seek(pos_secs) => {
                 if !pos_secs.is_finite() || pos_secs < 0.0 {
                     warn!("Seek ignored: invalid position {}", pos_secs);
@@ -71,7 +76,8 @@ impl AudioEngine {
                         incoming_decoder,
                         incoming_resampler,
                         ..
-                    }) = self.stream.take() {
+                    }) = self.stream.take()
+                    {
                         self.stream = Some(PlaybackStream::Single {
                             decoder: incoming_decoder,
                             resampler: incoming_resampler,
@@ -80,7 +86,11 @@ impl AudioEngine {
                     }
                 }
 
-                if let Some(PlaybackStream::Single { ref mut decoder, ref mut resampler }) = self.stream {
+                if let Some(PlaybackStream::Single {
+                    ref mut decoder,
+                    ref mut resampler,
+                }) = self.stream
+                {
                     self.pipeline.begin_seek_fade_out();
 
                     for _ in 0..128 {
@@ -90,7 +100,10 @@ impl AudioEngine {
                         }
                     }
                     if self.dropped_fadeout_frames > 0 {
-                        warn!("Dropped {} fade-out frames due to full output buffer", self.dropped_fadeout_frames);
+                        warn!(
+                            "Dropped {} fade-out frames due to full output buffer",
+                            self.dropped_fadeout_frames
+                        );
                         self.dropped_fadeout_frames = 0;
                     }
                     match decoder.seek(pos_secs) {
@@ -106,18 +119,18 @@ impl AudioEngine {
                             // Reset crossfade trigger since position changed.
                             self.crossfade_triggered = false;
                             info!("Seeked to {:.1}s", pos_secs);
-                        }
+                        },
                         Err(e) => {
                             self.pipeline.begin_seek_fade_in();
                             warn!("Seek failed: {}", e);
-                        }
+                        },
                     }
                 }
-            }
+            },
             EngineCommand::SetVolume(vol) => {
                 self.pipeline.set_volume(vol);
                 self.write_playback_info(|pb| pb.volume = vol);
-            }
+            },
             EngineCommand::SetSpeed(speed) => {
                 if !speed.is_finite() {
                     warn!("SetSpeed ignored: non-finite value {}", speed);
@@ -132,7 +145,7 @@ impl AudioEngine {
                         if let Some(ref mut r) = resampler {
                             r.set_speed(clamped);
                         }
-                    }
+                    },
                     Some(PlaybackStream::Transitioning {
                         outgoing_resampler,
                         incoming_resampler,
@@ -144,23 +157,39 @@ impl AudioEngine {
                         if let Some(ref mut r) = incoming_resampler {
                             r.set_speed(clamped);
                         }
-                    }
-                    None => {}
+                    },
+                    None => {},
                 }
                 self.write_playback_info(|pb| pb.speed = clamped);
                 info!("Playback speed set to {:.2}x", clamped);
-            }
+            },
             // L2: NextTrack, PrevTrack, and LoadTrack are intentional no-ops in
             // the engine. Track navigation and loading is handled by the PlaybackService
             // and TuneCraftApp layers; the engine only manages audio decoding and
             // DSP. These commands exist in the enum for MPRIS/D-Bus compatibility.
-            EngineCommand::NextTrack  => { log::debug!("NextTrack: handled by PlaybackService, not engine"); }
-            EngineCommand::PrevTrack  => { log::debug!("PrevTrack: handled by PlaybackService, not engine"); }
-            EngineCommand::LoadTrack(_id) => { log::debug!("LoadTrack by ID: use load_track() directly on AudioEngine"); }
-            EngineCommand::Shutdown   => { self.stop(); }
+            EngineCommand::NextTrack => {
+                log::debug!("NextTrack: handled by PlaybackService, not engine");
+            },
+            EngineCommand::PrevTrack => {
+                log::debug!("PrevTrack: handled by PlaybackService, not engine");
+            },
+            EngineCommand::LoadTrack(_id) => {
+                log::debug!("LoadTrack by ID: use load_track() directly on AudioEngine");
+            },
+            EngineCommand::Shutdown => {
+                self.stop();
+            },
 
-            EngineCommand::SetEqEnabled(enabled) => { self.pipeline.set_eq_enabled(enabled); }
-            EngineCommand::SetEqBand { index, frequency, gain_db, q, enabled } => {
+            EngineCommand::SetEqEnabled(enabled) => {
+                self.pipeline.set_eq_enabled(enabled);
+            },
+            EngineCommand::SetEqBand {
+                index,
+                frequency,
+                gain_db,
+                q,
+                enabled,
+            } => {
                 use crate::dsp::equalizer::{EqBandParams, EqFilterType};
                 // L1: Previously only indices 0 and 9 were mapped to shelf filters,
                 // which is wrong when MAX_EQ_BANDS != 10. Now use first/last index
@@ -173,22 +202,42 @@ impl AudioEngine {
                 } else {
                     EqFilterType::Peaking
                 };
-                self.pipeline.set_eq_band(index, EqBandParams { frequency, gain_db, q, filter_type, enabled });
-            }
-            EngineCommand::SetPreamp(db) => { self.pipeline.eq_mut().set_preamp_db(db); }
+                self.pipeline.set_eq_band(
+                    index,
+                    EqBandParams {
+                        frequency,
+                        gain_db,
+                        q,
+                        filter_type,
+                        enabled,
+                    },
+                );
+            },
+            EngineCommand::SetPreamp(db) => {
+                self.pipeline.eq_mut().set_preamp_db(db);
+            },
             EngineCommand::SetStereoWidth(width) => {
                 self.pipeline.set_stereo_width(width);
-            }
-            EngineCommand::SetBalance(balance)      => { self.pipeline.set_balance(balance); }
-            EngineCommand::SetDitherEnabled(enabled) => { self.pipeline.set_dither_enabled(enabled); }
-            EngineCommand::SetMidsideEq(enabled)     => { self.pipeline.set_midside_eq(enabled); }
+            },
+            EngineCommand::SetBalance(balance) => {
+                self.pipeline.set_balance(balance);
+            },
+            EngineCommand::SetDitherEnabled(enabled) => {
+                self.pipeline.set_dither_enabled(enabled);
+            },
+            EngineCommand::SetMidsideEq(enabled) => {
+                self.pipeline.set_midside_eq(enabled);
+            },
 
             EngineCommand::SetShuffle(_enabled) => {
                 info!("Shuffle state change requested via MPRIS (handled by playback layer)");
-            }
+            },
             EngineCommand::SetLoopStatus(status) => {
-                info!("Loop status set to '{}' via MPRIS (handled by playback layer)", status);
-            }
+                info!(
+                    "Loop status set to '{}' via MPRIS (handled by playback layer)",
+                    status
+                );
+            },
             EngineCommand::OpenUri(uri) => {
                 if uri.starts_with("file://") {
                     let path_str = uri.trim_start_matches("file://");
@@ -209,18 +258,24 @@ impl AudioEngine {
                             if allowed {
                                 match self.load_track(&canonical_path) {
                                     Ok(info) => {
-                                        info!("Loaded URI: {} Hz, {} ch, {:.1}s", info.sample_rate, info.channels, info.duration_secs);
+                                        info!(
+                                            "Loaded URI: {} Hz, {} ch, {:.1}s",
+                                            info.sample_rate, info.channels, info.duration_secs
+                                        );
                                         self.update_playback_state(PlaybackState::Playing);
                                         self.write_playback_info(|pb| {
                                             pb.track_id = self.current_track_id;
                                         });
-                                    }
+                                    },
                                     Err(e) => {
                                         warn!("Failed to load URI '{}': {}", uri, e);
-                                    }
+                                    },
                                 }
                             } else {
-                                warn!("OpenUri: access denied for path traversal: {:?}", canonical_path);
+                                warn!(
+                                    "OpenUri: access denied for path traversal: {:?}",
+                                    canonical_path
+                                );
                             }
                         } else {
                             warn!("OpenUri: file not found or invalid: {}", path.display());
@@ -231,24 +286,22 @@ impl AudioEngine {
                 } else {
                     warn!("OpenUri: only file:// URIs are supported, got: {}", uri);
                 }
-            }
-            EngineCommand::PrepareNextTrack(path) => {
-                match self.prepare_next_track(&path) {
-                    Ok(info) => {
-                        info!("Prepared next track for crossfade: {} Hz, {:.1}s",
-                              info.sample_rate, info.duration_secs);
-                    }
-                    Err(e) => {
-                        warn!("Failed to prepare next track: {}", e);
-                    }
-                }
-            }
-            EngineCommand::RecoverStream => {
-                match self.recover_output_stream() {
-                    Ok(()) => info!("Stream recovered via command"),
-                    Err(e) => error!("Stream recovery failed: {}", e),
-                }
-            }
+            },
+            EngineCommand::PrepareNextTrack(path) => match self.prepare_next_track(&path) {
+                Ok(info) => {
+                    info!(
+                        "Prepared next track for crossfade: {} Hz, {:.1}s",
+                        info.sample_rate, info.duration_secs
+                    );
+                },
+                Err(e) => {
+                    warn!("Failed to prepare next track: {}", e);
+                },
+            },
+            EngineCommand::RecoverStream => match self.recover_output_stream() {
+                Ok(()) => info!("Stream recovered via command"),
+                Err(e) => error!("Stream recovery failed: {}", e),
+            },
         }
     }
 }

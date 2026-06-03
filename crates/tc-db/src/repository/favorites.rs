@@ -3,11 +3,10 @@
 use crate::models::*;
 use rusqlite::params;
 
+use super::tracks::{log_and_filter, prefixed_track_columns, row_to_track};
 use super::{Database, DbError};
-use super::tracks::{row_to_track, log_and_filter, prefixed_track_columns};
 
 impl Database {
-
     /// Add a track to the user's favorites
     pub fn add_favorite(&self, track_id: i64) -> Result<(), DbError> {
         self.write_lock()?.execute(
@@ -39,7 +38,8 @@ impl Database {
     /// Get all favorited track IDs
     pub fn get_favorite_track_ids(&self) -> Result<Vec<i64>, DbError> {
         let lock = self.read_lock()?;
-        let mut stmt = lock.prepare_cached("SELECT track_id FROM favorites ORDER BY date_favorited DESC")?;
+        let mut stmt =
+            lock.prepare_cached("SELECT track_id FROM favorites ORDER BY date_favorited DESC")?;
         let ids = stmt
             .query_map([], |row| row.get(0))?
             .filter_map(log_and_filter)
@@ -88,4 +88,3 @@ mod tests {
         assert!(!db.is_favorite(track_id).unwrap());
     }
 }
-

@@ -29,7 +29,10 @@ pub struct AudioFrame {
 impl AudioFrame {
     #[inline]
     pub fn stereo(left: f64, right: f64) -> Self {
-        Self { channels: [left, right], num_channels: 2 }
+        Self {
+            channels: [left, right],
+            num_channels: 2,
+        }
     }
 
     /// Create a mono frame. The sample is duplicated to both channels so that
@@ -37,7 +40,10 @@ impl AudioFrame {
     /// correct signal on both L and R instead of silence on the right channel.
     #[inline]
     pub fn mono(sample: f64) -> Self {
-        Self { channels: [sample, sample], num_channels: 1 }
+        Self {
+            channels: [sample, sample],
+            num_channels: 1,
+        }
     }
 
     #[inline]
@@ -45,12 +51,18 @@ impl AudioFrame {
         if num_channels == 0 || num_channels > MAX_CHANNELS as u8 {
             return Err(BufferError::InvalidChannelCount(num_channels));
         }
-        Ok(Self { channels: [0.0; MAX_CHANNELS], num_channels })
+        Ok(Self {
+            channels: [0.0; MAX_CHANNELS],
+            num_channels,
+        })
     }
 
     #[inline]
     pub fn zero_stereo() -> Self {
-        Self { channels: [0.0; MAX_CHANNELS], num_channels: 2 }
+        Self {
+            channels: [0.0; MAX_CHANNELS],
+            num_channels: 2,
+        }
     }
 
     #[inline]
@@ -93,8 +105,16 @@ impl AudioFrame {
         for i in 0..max_ch {
             // For a narrower frame, repeat channel[0] instead of using 0.0
             // to avoid a silent channel on the wider side of the crossfade.
-            let a = if i < self.num_channels as usize { self.channels[i] } else { self.channels[0] };
-            let b = if i < other.num_channels as usize { other.channels[i] } else { other.channels[0] };
+            let a = if i < self.num_channels as usize {
+                self.channels[i]
+            } else {
+                self.channels[0]
+            };
+            let b = if i < other.num_channels as usize {
+                other.channels[i]
+            } else {
+                other.channels[0]
+            };
             result.channels[i] = a * (1.0 - t) + b * t;
         }
         result.num_channels = max_ch as u8;
@@ -113,17 +133,23 @@ impl AudioChunk {
     pub fn new(sample_rate: u32, capacity: usize) -> Self {
         let mut frames = Vec::with_capacity(capacity);
         frames.resize(capacity, AudioFrame::stereo(0.0, 0.0));
-        Self { frames, sample_rate }
+        Self {
+            frames,
+            sample_rate,
+        }
     }
 
-    pub fn len(&self) -> usize { self.frames.len() }
-    pub fn is_empty(&self) -> bool { self.frames.is_empty() }
+    pub fn len(&self) -> usize {
+        self.frames.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.frames.is_empty()
+    }
 
     pub fn num_channels(&self) -> u8 {
         self.frames.first().map(|f| f.num_channels).unwrap_or(2)
     }
 }
-
 
 // Previously push() and pop() were both &self methods on the same type,
 // meaning nothing stopped two threads from calling push() concurrently
@@ -174,7 +200,12 @@ pub fn create_fixed_frame_buffer(capacity: usize) -> Result<(Producer, Consumer)
         write_pos: AtomicUsize::new(0),
         capacity,
     });
-    Ok((Producer { inner: Arc::clone(&shared) }, Consumer { inner: shared }))
+    Ok((
+        Producer {
+            inner: Arc::clone(&shared),
+        },
+        Consumer { inner: shared },
+    ))
 }
 
 impl Producer {
@@ -184,7 +215,9 @@ impl Producer {
         let write = self.inner.write_pos.load(Ordering::Relaxed);
         let next = (write + 1) % self.inner.capacity;
         let read = self.inner.read_pos.load(Ordering::Acquire);
-        if next == read { return false; }
+        if next == read {
+            return false;
+        }
         // SAFETY: Single producer; we've verified space exists above.
         unsafe {
             let ptr = (*self.inner.frames.get()).as_mut_ptr();
@@ -214,20 +247,28 @@ impl Producer {
     /// inconsistent. Do not use for synchronization decisions.
     pub fn available_approx(&self) -> usize {
         let write = self.inner.write_pos.load(Ordering::Acquire);
-        let read  = self.inner.read_pos.load(Ordering::Acquire);
-        if write >= read { write - read } else { self.inner.capacity - read + write }
+        let read = self.inner.read_pos.load(Ordering::Acquire);
+        if write >= read {
+            write - read
+        } else {
+            self.inner.capacity - read + write
+        }
     }
 
-    pub fn capacity(&self) -> usize { self.inner.capacity }
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity
+    }
 }
 
 impl Consumer {
     /// Read a single frame. Returns None if the buffer is empty.
     #[inline]
     pub fn pop(&self) -> Option<AudioFrame> {
-        let read  = self.inner.read_pos.load(Ordering::Relaxed);
+        let read = self.inner.read_pos.load(Ordering::Relaxed);
         let write = self.inner.write_pos.load(Ordering::Acquire);
-        if read == write { return None; }
+        if read == write {
+            return None;
+        }
         // SAFETY: Single consumer; we've verified data exists above.
         let frame = unsafe {
             let ptr = (*self.inner.frames.get()).as_ptr();
@@ -244,13 +285,18 @@ impl Consumer {
     /// inconsistent. Do not use for synchronization decisions.
     pub fn available_approx(&self) -> usize {
         let write = self.inner.write_pos.load(Ordering::Acquire);
-        let read  = self.inner.read_pos.load(Ordering::Acquire);
-        if write >= read { write - read } else { self.inner.capacity - read + write }
+        let read = self.inner.read_pos.load(Ordering::Acquire);
+        if write >= read {
+            write - read
+        } else {
+            self.inner.capacity - read + write
+        }
     }
 
-    pub fn capacity(&self) -> usize { self.inner.capacity }
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity
+    }
 }
-
 
 /// Compatibility shim: wraps the split Producer/Consumer pair behind a single
 /// shareable handle. New code should prefer `create_fixed_frame_buffer`.
@@ -273,11 +319,20 @@ impl FixedFrameBuffer {
         Ok(Self { producer, consumer })
     }
 
-    #[inline] pub fn push(&self, frame: AudioFrame) -> bool { self.producer.push(frame) }
-    #[inline] pub fn pop(&self)  -> Option<AudioFrame>      { self.consumer.pop()       }
+    #[inline]
+    pub fn push(&self, frame: AudioFrame) -> bool {
+        self.producer.push(frame)
+    }
+    #[inline]
+    pub fn pop(&self) -> Option<AudioFrame> {
+        self.consumer.pop()
+    }
 
     /// Approximate available count. Informational only; not safe for flow control.
-    #[inline] pub fn available(&self) -> usize { self.producer.available_approx() }
+    #[inline]
+    pub fn available(&self) -> usize {
+        self.producer.available_approx()
+    }
 
     /// Reset both positions.
     ///
@@ -285,10 +340,13 @@ impl FixedFrameBuffer {
     ///
     /// The caller MUST ensure both the producer and consumer are quiescent.
     /// See [`Producer::reset()`] for details.
-    pub unsafe fn reset(&self) { self.producer.reset(); }
-    pub fn capacity(&self) -> usize { self.producer.capacity() }
+    pub unsafe fn reset(&self) {
+        self.producer.reset();
+    }
+    pub fn capacity(&self) -> usize {
+        self.producer.capacity()
+    }
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EngineCommand {
@@ -304,7 +362,13 @@ pub enum EngineCommand {
     LoadTrack(u64),
     Shutdown,
     SetEqEnabled(bool),
-    SetEqBand { index: usize, frequency: f64, gain_db: f64, q: f64, enabled: bool },
+    SetEqBand {
+        index: usize,
+        frequency: f64,
+        gain_db: f64,
+        q: f64,
+        enabled: bool,
+    },
     SetPreamp(f64),
     SetStereoWidth(f64),
     SetBalance(f64),
@@ -376,11 +440,17 @@ pub const DENORMAL_OFFSET: f64 = 1e-18;
 
 #[inline]
 pub fn flush_denormal(sample: f64) -> f64 {
-    if sample.abs() < DENORMAL_OFFSET { 0.0 } else { sample }
+    if sample.abs() < DENORMAL_OFFSET {
+        0.0
+    } else {
+        sample
+    }
 }
 
 #[inline]
-pub fn prevent_denormal(sample: f64) -> f64 { sample + DENORMAL_OFFSET }
+pub fn prevent_denormal(sample: f64) -> f64 {
+    sample + DENORMAL_OFFSET
+}
 
 #[cfg(test)]
 mod tests {
@@ -585,4 +655,3 @@ mod tests {
         assert_eq!(chunk.len(), 0);
     }
 }
-

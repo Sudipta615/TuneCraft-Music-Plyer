@@ -39,7 +39,6 @@ pub struct LoudnessMetadata {
     pub ebu_r128_peak: Option<f64>,
 }
 
-
 /// First-order high-pass shelf (stage 1 of K-weighting)
 #[derive(Debug, Clone, Copy)]
 struct KWeightStage1 {
@@ -53,8 +52,13 @@ impl KWeightStage1 {
     fn new(sample_rate: f64) -> Self {
         // L6: Guard against zero or negative sample_rate which would cause
         // tan() to receive infinity or NaN, producing garbage coefficients.
-        let sample_rate = if sample_rate > 0.0 { sample_rate } else {
-            log::warn!("KWeightStage1: invalid sample_rate {:.1}, defaulting to 44100", sample_rate);
+        let sample_rate = if sample_rate > 0.0 {
+            sample_rate
+        } else {
+            log::warn!(
+                "KWeightStage1: invalid sample_rate {:.1}, defaulting to 44100",
+                sample_rate
+            );
             44100.0
         };
         let f0: f64 = 1681.974450955533;
@@ -95,8 +99,13 @@ struct KWeightStage2 {
 impl KWeightStage2 {
     fn new(sample_rate: f64) -> Self {
         // L6: Guard against zero or negative sample_rate.
-        let sample_rate = if sample_rate > 0.0 { sample_rate } else {
-            log::warn!("KWeightStage2: invalid sample_rate {:.1}, defaulting to 44100", sample_rate);
+        let sample_rate = if sample_rate > 0.0 {
+            sample_rate
+        } else {
+            log::warn!(
+                "KWeightStage2: invalid sample_rate {:.1}, defaulting to 44100",
+                sample_rate
+            );
             44100.0
         };
         let f0 = 38.13547087602444;
@@ -199,21 +208,18 @@ impl LoudnessNormalizer {
     pub fn set_track_metadata(&mut self, meta: &LoudnessMetadata) {
         let gain_db = match self.mode {
             LoudnessMode::Off => 0.0,
-            LoudnessMode::TrackReplayGain => {
-                meta.replaygain_track_db
-                    .map(|rg| rg + self.preamp_db)
-                    .unwrap_or(0.0)
-            }
-            LoudnessMode::AlbumReplayGain => {
-                meta.replaygain_album_db
-                    .map(|rg| rg + self.preamp_db)
-                    .unwrap_or(0.0)
-            }
-            LoudnessMode::EbuR128 => {
-                meta.ebu_r128_loudness
-                    .map(|loudness| self.target_lufs - loudness + self.preamp_db)
-                    .unwrap_or(0.0)
-            }
+            LoudnessMode::TrackReplayGain => meta
+                .replaygain_track_db
+                .map(|rg| rg + self.preamp_db)
+                .unwrap_or(0.0),
+            LoudnessMode::AlbumReplayGain => meta
+                .replaygain_album_db
+                .map(|rg| rg + self.preamp_db)
+                .unwrap_or(0.0),
+            LoudnessMode::EbuR128 => meta
+                .ebu_r128_loudness
+                .map(|loudness| self.target_lufs - loudness + self.preamp_db)
+                .unwrap_or(0.0),
         };
 
         // Apply true peak guard
@@ -255,7 +261,10 @@ impl LoudnessNormalizer {
         // Smooth gain transition
         self.current_gain_linear +=
             self.smooth_coeff * (self.target_gain_linear - self.current_gain_linear);
-        (left * self.current_gain_linear, right * self.current_gain_linear)
+        (
+            left * self.current_gain_linear,
+            right * self.current_gain_linear,
+        )
     }
 
     /// Get current applied gain in dB (for metering)
@@ -277,7 +286,9 @@ impl LoudnessNormalizer {
         let num_ch = frame.num_channels as usize;
         // Measurement mode: K-weight and accumulate
         for ch in 0..num_ch {
-            let weighted = self.stage2.process(self.stage1.process(frame.channels[ch], ch), ch);
+            let weighted = self
+                .stage2
+                .process(self.stage1.process(frame.channels[ch], ch), ch);
             self.loudness_sum += weighted * weighted;
         }
         self.loudness_count += 1;
@@ -358,8 +369,16 @@ mod tests {
         let (l, _r) = norm.process(0.5, 0.5);
         // With correct ReplayGain sign: rg + preamp = -5.0 + 0.0 = -5.0 dB (attenuation)
         // A loud track should be attenuated, so output should be less than input
-        assert!(l < 0.5, "Loud track should be attenuated by ReplayGain, got {}", l);
-        assert!(l > 0.01, "Should still be audible after attenuation, got {}", l);
+        assert!(
+            l < 0.5,
+            "Loud track should be attenuated by ReplayGain, got {}",
+            l
+        );
+        assert!(
+            l > 0.01,
+            "Should still be audible after attenuation, got {}",
+            l
+        );
     }
 
     #[test]
@@ -424,4 +443,3 @@ mod tests {
         );
     }
 }
-

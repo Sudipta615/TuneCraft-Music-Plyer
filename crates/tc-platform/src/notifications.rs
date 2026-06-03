@@ -36,18 +36,21 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
         // arguments directly to the process without shell interpretation,
         // so escaping is unnecessary and causes literal backslashes to
         // appear in notifications.
-        let status = Command::new("notify-send")
-            .arg(title)
-            .arg(body)
-            .status();
+        let status = Command::new("notify-send").arg(title).arg(body).status();
         match status {
             Ok(s) if s.success() => return Ok(()),
-            Ok(s) => return Err(PlatformError::Other(format!(
-                "notify-send exited with status: {}", s
-            ))),
-            Err(e) => return Err(PlatformError::Other(format!(
-                "Failed to run notify-send: {}", e
-            ))),
+            Ok(s) => {
+                return Err(PlatformError::Other(format!(
+                    "notify-send exited with status: {}",
+                    s
+                )))
+            },
+            Err(e) => {
+                return Err(PlatformError::Other(format!(
+                    "Failed to run notify-send: {}",
+                    e
+                )))
+            },
         }
     }
 
@@ -77,18 +80,21 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
             .map_err(|e| PlatformError::Other(format!("Failed to spawn osascript: {}", e)))?;
 
         if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(script.as_bytes())
-                .map_err(|e| PlatformError::Other(format!("Failed to write osascript stdin: {}", e)))?;
+            stdin.write_all(script.as_bytes()).map_err(|e| {
+                PlatformError::Other(format!("Failed to write osascript stdin: {}", e))
+            })?;
         }
 
-        let status = child.wait()
+        let status = child
+            .wait()
             .map_err(|e| PlatformError::Other(format!("osascript wait failed: {}", e)))?;
 
         if status.success() {
             return Ok(());
         }
         return Err(PlatformError::Other(format!(
-            "osascript exited with status: {}", status
+            "osascript exited with status: {}",
+            status
         )));
     }
 
@@ -116,19 +122,27 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
             .status();
         match status {
             Ok(s) if s.success() => return Ok(()),
-            Ok(s) => return Err(PlatformError::Other(format!(
-                "PowerShell toast exited with status: {}", s
-            ))),
-            Err(e) => return Err(PlatformError::Other(format!(
-                "Failed to run PowerShell: {}", e
-            ))),
+            Ok(s) => {
+                return Err(PlatformError::Other(format!(
+                    "PowerShell toast exited with status: {}",
+                    s
+                )))
+            },
+            Err(e) => {
+                return Err(PlatformError::Other(format!(
+                    "Failed to run PowerShell: {}",
+                    e
+                )))
+            },
         }
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     {
         let _ = (title, body);
-        Err(PlatformError::NotAvailable("Desktop notifications not supported on this platform".to_string()))
+        Err(PlatformError::NotAvailable(
+            "Desktop notifications not supported on this platform".to_string(),
+        ))
     }
 }
 
@@ -141,19 +155,18 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
 /// (e.g., track titles from maliciously-crafted music files).
 pub fn applescript_escape(s: &str) -> String {
     s.replace('\\', "\\\\")
-     .replace('"', "\\\"")
-     .replace('\n', "\\n")
-     .replace('\r', "\\r")
-     .replace('\t', "\\t")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\t', "\\t")
 }
 
 /// Escape a string for safe embedding in XML content (e.g., Windows toast templates).
 /// Escapes the five XML-special characters.
 pub fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
-     .replace('<', "&lt;")
-     .replace('>', "&gt;")
-     .replace('"', "&quot;")
-     .replace('\'', "&apos;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
-

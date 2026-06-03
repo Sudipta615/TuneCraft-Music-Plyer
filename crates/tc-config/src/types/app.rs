@@ -97,7 +97,6 @@ impl Default for AppConfig {
     }
 }
 
-
 /// A notification that the configuration has changed.
 /// Consumers can subscribe to receive these notifications.
 #[derive(Debug, Clone)]
@@ -116,4 +115,3 @@ pub enum ConfigSection {
     Scrobble,
     All,
 }
-

@@ -6,8 +6,8 @@
 //! Consistent with PlaybackService and EqService. Uses the
 //! standardized `recover_from_poison` pattern from config.rs.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use log::{info, warn};
 use tokio::runtime::Runtime;
@@ -128,11 +128,11 @@ impl LyricsService {
                     } else {
                         Err("No lyrics found".to_string())
                     }
-                }
+                },
                 Err(e) => {
                     warn!("Lyrics search failed: {}", e);
                     Err(format!("Lyrics search failed: {}", e))
-                }
+                },
             };
 
             // H12: Only commit the result if no newer fetch() has started
@@ -167,11 +167,11 @@ impl LyricsService {
                 Ok(lines) => {
                     state.current_lyrics = Some(lines);
                     true
-                }
+                },
                 Err(_e) => {
                     state.current_lyrics = None;
                     true
-                }
+                },
             }
         } else {
             false

@@ -3,41 +3,28 @@
 //! This module re-exports all config types from their respective submodules.
 //! Consumers can use `use tc_config::types::*` or import individual types.
 
-mod enums;
+mod app;
 mod engine;
+mod enums;
 mod library;
 mod playback;
-mod ui;
 mod scrobble;
-mod app;
+mod ui;
 
 /// Current config schema version.
 /// Increment when the config schema changes; migration functions
 /// will transform older versions to the current one.
 pub const CONFIG_VERSION: u32 = 1;
 
-
 // Enums
 pub use enums::{
-    CrossfadeCurve,
-    FilterType,
-    LoudnessMode,
-    PerformanceMode,
-    RepeatMode,
-    ResamplerQuality,
-    Theme,
+    CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, RepeatMode, ResamplerQuality, Theme,
 };
 
 // Engine types
 pub use engine::{
-    ConvolutionConfig,
-    CrossfadeConfig,
-    EngineConfig,
-    EqBand,
-    EqConfig,
-    LimiterConfig,
-    LoudnessConfig,
-    StereoEnhancerConfig,
+    ConvolutionConfig, CrossfadeConfig, EngineConfig, EqBand, EqConfig, LimiterConfig,
+    LoudnessConfig, StereoEnhancerConfig,
 };
 
 // Library types
@@ -53,12 +40,7 @@ pub use ui::UiConfig;
 pub use scrobble::ScrobbleConfig;
 
 // App types
-pub use app::{
-    AppConfig,
-    ConfigChangedEvent,
-    ConfigSection,
-};
-
+pub use app::{AppConfig, ConfigChangedEvent, ConfigSection};
 
 #[cfg(test)]
 mod tests {
@@ -68,24 +50,37 @@ mod tests {
     fn test_default_config_validates_cleanly() {
         let mut config = AppConfig::default();
         let warnings = config.validate();
-        assert!(warnings.is_empty(), "Default config should validate without warnings: {:?}", warnings);
+        assert!(
+            warnings.is_empty(),
+            "Default config should validate without warnings: {:?}",
+            warnings
+        );
     }
 
     #[test]
     fn test_eq_band_validate_clamps_frequency() {
-        let mut band = EqBand { frequency: 10.0, ..Default::default() };
+        let mut band = EqBand {
+            frequency: 10.0,
+            ..Default::default()
+        };
         let warnings = band.validate();
         assert!(!warnings.is_empty());
         assert_eq!(band.frequency, 20.0);
 
-        let mut band = EqBand { frequency: 50000.0, ..Default::default() };
+        let mut band = EqBand {
+            frequency: 50000.0,
+            ..Default::default()
+        };
         band.validate();
         assert_eq!(band.frequency, 20000.0);
     }
 
     #[test]
     fn test_eq_band_validate_rejects_zero_q() {
-        let mut band = EqBand { q: 0.0, ..Default::default() };
+        let mut band = EqBand {
+            q: 0.0,
+            ..Default::default()
+        };
         let warnings = band.validate();
         assert!(!warnings.is_empty());
         assert_eq!(band.q, 1.414);
@@ -93,36 +88,54 @@ mod tests {
 
     #[test]
     fn test_eq_band_validate_rejects_nan_q() {
-        let mut band = EqBand { q: f64::NAN, ..Default::default() };
+        let mut band = EqBand {
+            q: f64::NAN,
+            ..Default::default()
+        };
         band.validate();
         assert_eq!(band.q, 1.414);
     }
 
     #[test]
     fn test_playback_validate_clamps_volume() {
-        let mut playback = PlaybackConfig { volume: 1.5, ..Default::default() };
+        let mut playback = PlaybackConfig {
+            volume: 1.5,
+            ..Default::default()
+        };
         playback.validate();
         assert_eq!(playback.volume, 1.0);
 
-        let mut playback = PlaybackConfig { volume: -0.5, ..Default::default() };
+        let mut playback = PlaybackConfig {
+            volume: -0.5,
+            ..Default::default()
+        };
         playback.validate();
         assert_eq!(playback.volume, 0.0);
     }
 
     #[test]
     fn test_playback_validate_clamps_speed() {
-        let mut playback = PlaybackConfig { speed: 0.1, ..Default::default() };
+        let mut playback = PlaybackConfig {
+            speed: 0.1,
+            ..Default::default()
+        };
         playback.validate();
         assert_eq!(playback.speed, 0.25);
 
-        let mut playback = PlaybackConfig { speed: 10.0, ..Default::default() };
+        let mut playback = PlaybackConfig {
+            speed: 10.0,
+            ..Default::default()
+        };
         playback.validate();
         assert_eq!(playback.speed, 4.0);
     }
 
     #[test]
     fn test_playback_validate_rejects_zero_speed() {
-        let mut playback = PlaybackConfig { speed: 0.0, ..Default::default() };
+        let mut playback = PlaybackConfig {
+            speed: 0.0,
+            ..Default::default()
+        };
         playback.validate();
         assert_eq!(playback.speed, 1.0);
     }
@@ -206,7 +219,10 @@ mod tests {
         };
         let toml_str = toml::to_string_pretty(&config).unwrap();
         let deserialized: ConvolutionConfig = toml::from_str(&toml_str).unwrap();
-        assert_eq!(deserialized.ir_path, Some(std::path::PathBuf::from("/path/to/ir.wav")));
+        assert_eq!(
+            deserialized.ir_path,
+            Some(std::path::PathBuf::from("/path/to/ir.wav"))
+        );
     }
 
     #[test]
@@ -216,7 +232,9 @@ mod tests {
             ..Default::default()
         };
         let warnings = config.validate();
-        assert!(warnings.iter().any(|w| w.contains("session_key_in_keychain")));
+        assert!(warnings
+            .iter()
+            .any(|w| w.contains("session_key_in_keychain")));
     }
 
     #[test]
@@ -226,4 +244,3 @@ mod tests {
         assert!(!toml_str.contains("slope"));
     }
 }
-

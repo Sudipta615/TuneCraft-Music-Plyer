@@ -15,13 +15,13 @@
 //! - [`covers`]      — Cover art data persistence
 //! - [`aggregates`]  — Album/artist/playlist counter reconciliation
 
-mod tracks;
-mod playlists;
-mod favorites;
-pub(crate) mod eq_presets;  // Bug #1 fix: pub(crate) so sibling modules can import from it
-mod waveforms;
-mod covers;
 mod aggregates;
+mod covers;
+pub(crate) mod eq_presets; // Bug #1 fix: pub(crate) so sibling modules can import from it
+mod favorites;
+mod playlists;
+mod tracks;
+mod waveforms;
 
 use crate::migrations;
 use rusqlite::{params, Connection};
@@ -101,7 +101,8 @@ impl Database {
         write_conn.execute_batch(
             "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;",
         )?;
-        migrations::run_migrations(&mut write_conn).map_err(|e| DbError::Migration(e.to_string()))?;
+        migrations::run_migrations(&mut write_conn)
+            .map_err(|e| DbError::Migration(e.to_string()))?;
 
         Self::check_version_compatibility(&write_conn)?;
 
@@ -120,7 +121,7 @@ impl Database {
                     e
                 );
                 Connection::open(path).map_err(DbError::Sqlite)?
-            }
+            },
         };
 
         Ok(Self {
@@ -153,10 +154,8 @@ impl Database {
             if let Some(version) = stored_version {
                 let current_version = env!("CARGO_PKG_VERSION");
                 if version.as_str() != current_version {
-                    let stored_parts: Vec<u32> = version
-                        .split('.')
-                        .filter_map(|s| s.parse().ok())
-                        .collect();
+                    let stored_parts: Vec<u32> =
+                        version.split('.').filter_map(|s| s.parse().ok()).collect();
                     let current_parts: Vec<u32> = current_version
                         .split('.')
                         .filter_map(|s| s.parse().ok())
@@ -203,7 +202,6 @@ impl Database {
     /// behavior in tests may differ from production. Test authors
     /// should be aware of this difference.
     pub fn open_in_memory() -> Result<Self, DbError> {
-
         // shared "file:mem?mode=memory&cache=shared" so that parallel test
         // instances each get their own database. The static counter ensures
         // uniqueness; the thread ID is also included as an extra guard.
@@ -217,15 +215,20 @@ impl Database {
 
         let mut write_conn = Connection::open_with_flags(
             &mem_uri,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE | rusqlite::OpenFlags::SQLITE_OPEN_CREATE | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+                | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
+                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
         )?;
         write_conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;")?;
-        migrations::run_migrations(&mut write_conn).map_err(|e| DbError::Migration(e.to_string()))?;
+        migrations::run_migrations(&mut write_conn)
+            .map_err(|e| DbError::Migration(e.to_string()))?;
 
         // Both read and write use the same shared cache, so reads see writes.
         let read_conn = Connection::open_with_flags(
             &mem_uri,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE | rusqlite::OpenFlags::SQLITE_OPEN_CREATE | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+                | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
+                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
         )?;
 
         Ok(Self {
@@ -277,7 +280,9 @@ impl Database {
         E: From<DbError>,
     {
         let conn = self.write_lock().map_err(E::from)?;
-        let tx = conn.unchecked_transaction().map_err(|e| E::from(DbError::Sqlite(e)))?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|e| E::from(DbError::Sqlite(e)))?;
         let result = f(&*tx)?;
         tx.commit().map_err(|e| E::from(DbError::Sqlite(e)))?;
         Ok(result)
@@ -294,4 +299,3 @@ mod tests {
         assert!(db.is_ok(), "Should be able to open in-memory database");
     }
 }
-

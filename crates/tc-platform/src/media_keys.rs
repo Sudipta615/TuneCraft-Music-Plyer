@@ -9,8 +9,8 @@
 //! The Linux-only MPRIS D-Bus approach is supplemented (not replaced) by
 //! souvlaki, which handles media key events on macOS and Windows too.
 
-use std::sync::mpsc::Receiver;
 use std::sync::atomic::Ordering;
+use std::sync::mpsc::Receiver;
 
 use crate::types::MediaKeyAction;
 use crate::PlatformIntegration;
@@ -57,10 +57,12 @@ impl PlatformIntegration {
 
         // Cross-platform media controls (souvlaki) are already initialized
         // in PlatformIntegration::new(). They work on all platforms.
-        if self.media_controls.as_ref().map_or(false, |c| c.is_available()) {
-            log::info!(
-                "Media key listener active via cross-platform controls (souvlaki)"
-            );
+        if self
+            .media_controls
+            .as_ref()
+            .map_or(false, |c| c.is_available())
+        {
+            log::info!("Media key listener active via cross-platform controls (souvlaki)");
         } else {
             log::warn!(
                 "Cross-platform media controls not available. \

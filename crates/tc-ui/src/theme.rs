@@ -117,22 +117,22 @@ impl TuneCraftColors {
             border: DARK_BORDER,
             hover: DARK_HOVER,
             active_bg: DARK_ACTIVE,
-            sidebar_active_bg: DARK_ACTIVE,                       // #222151
-            accent: ACCENT,                                       // #4231F1
-            accent_light: ACCENT_LIGHT,                           // #8A5EED
-            accent_dark: ACCENT_DARK,                             // #352DD9
-            player_bar: DARK_SIDEBAR,                             // #0D1421
-            player_bar_border: DARK_BORDER,                       // #2D344C
-            slider_track: Color32::from_rgb(0x3A, 0x42, 0x58),   // navy-tinted track
+            sidebar_active_bg: DARK_ACTIVE, // #222151
+            accent: ACCENT,                 // #4231F1
+            accent_light: ACCENT_LIGHT,     // #8A5EED
+            accent_dark: ACCENT_DARK,       // #352DD9
+            player_bar: DARK_SIDEBAR,       // #0D1421
+            player_bar_border: DARK_BORDER, // #2D344C
+            slider_track: Color32::from_rgb(0x3A, 0x42, 0x58), // navy-tinted track
             slider_fill: ACCENT,
             toggle_bg_on: ACCENT,
             toggle_bg_off: Color32::from_rgb(0x3A, 0x42, 0x58),
-            table_header_bg: DARK_SIDEBAR,                        // #0D1421
-            table_row_even: DARK_BG,                              // #0B1220
-            table_row_odd: DARK_CARD,                             // #171E2B
-            table_row_hover: DARK_CARD,                           // #171E2B
-            search_bg: Color32::from_rgb(0x17, 0x1E, 0x2B),      // card bg for input
-            search_border: DARK_BORDER,                           // #2D344C
+            table_header_bg: DARK_SIDEBAR,                  // #0D1421
+            table_row_even: DARK_BG,                        // #0B1220
+            table_row_odd: DARK_CARD,                       // #171E2B
+            table_row_hover: DARK_CARD,                     // #171E2B
+            search_bg: Color32::from_rgb(0x17, 0x1E, 0x2B), // card bg for input
+            search_border: DARK_BORDER,                     // #2D344C
             dark_mode: true,
         }
     }
@@ -148,23 +148,23 @@ impl TuneCraftColors {
             text_muted: LIGHT_TEXT_MUTED,
             border: LIGHT_BORDER,
             hover: LIGHT_HOVER,
-            active_bg: LIGHT_ACTIVE,                              // #F3F2FB
-            sidebar_active_bg: LIGHT_SIDEBAR_ACTIVE,             // #D9D7E5
-            accent: ACCENT,                                       // #4231F1
-            accent_light: ACCENT_LIGHT,                           // #8A5EED
-            accent_dark: ACCENT_DARK,                             // #352DD9
-            player_bar: LIGHT_CARD,                               // #FFFFFF
-            player_bar_border: LIGHT_BORDER,                      // #DFDFE5
-            slider_track: LIGHT_BORDER,                           // #DFDFE5
-            slider_fill: ACCENT,                                  // #4231F1
+            active_bg: LIGHT_ACTIVE,                 // #F3F2FB
+            sidebar_active_bg: LIGHT_SIDEBAR_ACTIVE, // #D9D7E5
+            accent: ACCENT,                          // #4231F1
+            accent_light: ACCENT_LIGHT,              // #8A5EED
+            accent_dark: ACCENT_DARK,                // #352DD9
+            player_bar: LIGHT_CARD,                  // #FFFFFF
+            player_bar_border: LIGHT_BORDER,         // #DFDFE5
+            slider_track: LIGHT_BORDER,              // #DFDFE5
+            slider_fill: ACCENT,                     // #4231F1
             toggle_bg_on: ACCENT,
-            toggle_bg_off: Color32::from_rgb(0xDF, 0xDF, 0xE5),  // matches border
-            table_header_bg: LIGHT_SURFACE,                       // #FAFAFC
-            table_row_even: LIGHT_CARD,                           // #FFFFFF
-            table_row_odd: LIGHT_BG,                              // #FAFAFC
-            table_row_hover: LIGHT_HOVER,                         // #F3F2FB
-            search_bg: LIGHT_SURFACE,                             // #FAFAFC
-            search_border: Color32::from_rgb(0xDF, 0xDF, 0xE5),  // matches border
+            toggle_bg_off: Color32::from_rgb(0xDF, 0xDF, 0xE5), // matches border
+            table_header_bg: LIGHT_SURFACE,                     // #FAFAFC
+            table_row_even: LIGHT_CARD,                         // #FFFFFF
+            table_row_odd: LIGHT_BG,                            // #FAFAFC
+            table_row_hover: LIGHT_HOVER,                       // #F3F2FB
+            search_bg: LIGHT_SURFACE,                           // #FAFAFC
+            search_border: Color32::from_rgb(0xDF, 0xDF, 0xE5), // matches border
             dark_mode: false,
         }
     }

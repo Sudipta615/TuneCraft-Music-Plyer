@@ -45,10 +45,10 @@ use std::f64::consts::PI;
 
 /// Computes |DFT[k]|² for one target frequency with O(1) state per sample.
 struct Goertzel {
-    coeff: f64,   // 2·cos(2π·k/N)
+    coeff: f64, // 2·cos(2π·k/N)
     s1: f64,
     s2: f64,
-    n: usize,     // samples accumulated in current block
+    n: usize, // samples accumulated in current block
     block_size: usize,
     /// Accumulated mean power across completed blocks (Welford).
     power_mean: f64,
@@ -106,14 +106,12 @@ impl Goertzel {
 
 // Major profile (starting from C)
 const MAJOR_PROFILE: [f64; 12] = [
-    6.35, 2.23, 3.48, 2.33, 4.38, 4.09,
-    2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
+    6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
 ];
 
 // Minor profile (starting from C, natural minor)
 const MINOR_PROFILE: [f64; 12] = [
-    6.33, 2.68, 3.52, 5.38, 2.60, 3.53,
-    2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
+    6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
 ];
 
 /// Pearson correlation between two 12-element arrays.
@@ -126,12 +124,16 @@ fn pearson(a: &[f64; 12], b: &[f64; 12]) -> f64 {
     for i in 0..12 {
         let da = a[i] - mean_a;
         let db = b[i] - mean_b;
-        num  += da * db;
-        da2  += da * da;
-        db2  += db * db;
+        num += da * db;
+        da2 += da * da;
+        db2 += db * db;
     }
     let denom = (da2 * db2).sqrt();
-    if denom < 1e-12 { 0.0 } else { num / denom }
+    if denom < 1e-12 {
+        0.0
+    } else {
+        num / denom
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -162,16 +164,35 @@ pub struct ChromaDetector {
 /// The 12 pitch classes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PitchClass {
-    C, Cs, D, Ds, E, F, Fs, G, Gs, A, As, B,
+    C,
+    Cs,
+    D,
+    Ds,
+    E,
+    F,
+    Fs,
+    G,
+    Gs,
+    A,
+    As,
+    B,
 }
 
 impl PitchClass {
     pub fn name(self) -> &'static str {
         match self {
-            Self::C  => "C",  Self::Cs => "C#", Self::D  => "D",
-            Self::Ds => "D#", Self::E  => "E",  Self::F  => "F",
-            Self::Fs => "F#", Self::G  => "G",  Self::Gs => "G#",
-            Self::A  => "A",  Self::As => "A#", Self::B  => "B",
+            Self::C => "C",
+            Self::Cs => "C#",
+            Self::D => "D",
+            Self::Ds => "D#",
+            Self::E => "E",
+            Self::F => "F",
+            Self::Fs => "F#",
+            Self::G => "G",
+            Self::Gs => "G#",
+            Self::A => "A",
+            Self::As => "A#",
+            Self::B => "B",
         }
     }
 }
@@ -190,12 +211,12 @@ pub struct KeyMode {
 
 /// Frequencies of C3…B3 and C4…B4 (12-TET, A4=440 Hz).
 const OCT3_HZ: [f64; 12] = [
-    130.813, 138.591, 146.832, 155.563, 164.814, 174.614,
-    184.997, 195.998, 207.652, 220.000, 233.082, 246.942,
+    130.813, 138.591, 146.832, 155.563, 164.814, 174.614, 184.997, 195.998, 207.652, 220.000,
+    233.082, 246.942,
 ];
 const OCT4_HZ: [f64; 12] = [
-    261.626, 277.183, 293.665, 311.127, 329.628, 349.228,
-    369.994, 391.995, 415.305, 440.000, 466.164, 493.883,
+    261.626, 277.183, 293.665, 311.127, 329.628, 349.228, 369.994, 391.995, 415.305, 440.000,
+    466.164, 493.883,
 ];
 
 /// Analysis sample rate after decimation.
@@ -212,8 +233,8 @@ impl ChromaDetector {
 
         // Anti-alias LP: cutoff = 1800 Hz at the source rate.
         let rc = 1.0 / (2.0 * PI * 1800.0);
-        let t  = 1.0 / src_sample_rate;
-        let aa_a1 = -(-t / (rc + t)).exp();   // approximate first-order IIR
+        let t = 1.0 / src_sample_rate;
+        let aa_a1 = -(-t / (rc + t)).exp(); // approximate first-order IIR
         let aa_b0 = 1.0 + aa_a1;
 
         let mk_oct3 = |i: usize| Goertzel::new(OCT3_HZ[i], ANALYSIS_RATE, BLOCK_SIZE);
@@ -243,8 +264,12 @@ impl ChromaDetector {
             self.dec_acc += 1.0;
             if self.dec_acc >= step {
                 self.dec_acc -= step;
-                for f in &mut self.filters_oct3 { f.feed(y); }
-                for f in &mut self.filters_oct4 { f.feed(y); }
+                for f in &mut self.filters_oct3 {
+                    f.feed(y);
+                }
+                for f in &mut self.filters_oct4 {
+                    f.feed(y);
+                }
             }
         }
     }
@@ -262,8 +287,7 @@ impl ChromaDetector {
         // Build 12-element chroma vector: sum octave 3 and octave 4 powers.
         let mut chroma = [0.0f64; 12];
         for i in 0..12 {
-            chroma[i] = self.filters_oct3[i].power_mean
-                      + self.filters_oct4[i].power_mean;
+            chroma[i] = self.filters_oct3[i].power_mean + self.filters_oct4[i].power_mean;
         }
 
         // Normalise to unit sum to make correlation scale-invariant.
@@ -271,7 +295,9 @@ impl ChromaDetector {
         if total < 1e-12 {
             return None; // silence
         }
-        for c in &mut chroma { *c /= total; }
+        for c in &mut chroma {
+            *c /= total;
+        }
 
         // Correlate against all 24 key profiles (12 major + 12 minor),
         // each rotated to the corresponding tonic.
@@ -303,12 +329,18 @@ impl ChromaDetector {
         }
 
         let tonic = match best_tonic {
-            0  => PitchClass::C,  1  => PitchClass::Cs,
-            2  => PitchClass::D,  3  => PitchClass::Ds,
-            4  => PitchClass::E,  5  => PitchClass::F,
-            6  => PitchClass::Fs, 7  => PitchClass::G,
-            8  => PitchClass::Gs, 9  => PitchClass::A,
-            10 => PitchClass::As, _  => PitchClass::B,
+            0 => PitchClass::C,
+            1 => PitchClass::Cs,
+            2 => PitchClass::D,
+            3 => PitchClass::Ds,
+            4 => PitchClass::E,
+            5 => PitchClass::F,
+            6 => PitchClass::Fs,
+            7 => PitchClass::G,
+            8 => PitchClass::Gs,
+            9 => PitchClass::A,
+            10 => PitchClass::As,
+            _ => PitchClass::B,
         };
 
         Some(KeyMode {
@@ -320,10 +352,14 @@ impl ChromaDetector {
 
     /// Reset all state for reuse on the next track.
     pub fn reset(&mut self) {
-        self.aa_y1  = 0.0;
+        self.aa_y1 = 0.0;
         self.dec_acc = 0.0;
-        for f in &mut self.filters_oct3 { f.reset(); }
-        for f in &mut self.filters_oct4 { f.reset(); }
+        for f in &mut self.filters_oct3 {
+            f.reset();
+        }
+        for f in &mut self.filters_oct4 {
+            f.reset();
+        }
     }
 }
 
@@ -337,10 +373,12 @@ mod tests {
 
     fn sine(freq: f64, amp: f64, dur: f64, sr: f64) -> Vec<(f64, f64)> {
         let n = (sr * dur) as usize;
-        (0..n).map(|i| {
-            let v = amp * (2.0 * PI * freq * i as f64 / sr).sin();
-            (v, v)
-        }).collect()
+        (0..n)
+            .map(|i| {
+                let v = amp * (2.0 * PI * freq * i as f64 / sr).sin();
+                (v, v)
+            })
+            .collect()
     }
 
     #[test]
@@ -381,14 +419,16 @@ mod tests {
     fn test_c_major_chord_detects_major() {
         // C major chord: C4 + E4 + G4.  Should detect major mode.
         let sr = 44100.0;
-        let n  = (sr * 12.0) as usize;
-        let samples: Vec<(f64, f64)> = (0..n).map(|i| {
-            let t = i as f64 / sr;
-            let v = 0.3 * (2.0 * PI * 261.63 * t).sin()   // C4
+        let n = (sr * 12.0) as usize;
+        let samples: Vec<(f64, f64)> = (0..n)
+            .map(|i| {
+                let t = i as f64 / sr;
+                let v = 0.3 * (2.0 * PI * 261.63 * t).sin()   // C4
                   + 0.3 * (2.0 * PI * 329.63 * t).sin()   // E4
-                  + 0.3 * (2.0 * PI * 392.00 * t).sin();  // G4
-            (v, v)
-        }).collect();
+                  + 0.3 * (2.0 * PI * 392.00 * t).sin(); // G4
+                (v, v)
+            })
+            .collect();
         let mut d = ChromaDetector::new(sr).unwrap();
         d.feed(&samples);
         if let Some(km) = d.detect() {
@@ -402,14 +442,16 @@ mod tests {
     fn test_a_minor_chord_detects_minor() {
         // A minor chord: A3 + C4 + E4.  Should detect minor mode.
         let sr = 44100.0;
-        let n  = (sr * 12.0) as usize;
-        let samples: Vec<(f64, f64)> = (0..n).map(|i| {
-            let t = i as f64 / sr;
-            let v = 0.3 * (2.0 * PI * 220.00 * t).sin()   // A3
+        let n = (sr * 12.0) as usize;
+        let samples: Vec<(f64, f64)> = (0..n)
+            .map(|i| {
+                let t = i as f64 / sr;
+                let v = 0.3 * (2.0 * PI * 220.00 * t).sin()   // A3
                   + 0.3 * (2.0 * PI * 261.63 * t).sin()   // C4
-                  + 0.3 * (2.0 * PI * 329.63 * t).sin();  // E4
-            (v, v)
-        }).collect();
+                  + 0.3 * (2.0 * PI * 329.63 * t).sin(); // E4
+                (v, v)
+            })
+            .collect();
         let mut d = ChromaDetector::new(sr).unwrap();
         d.feed(&samples);
         if let Some(km) = d.detect() {
@@ -440,8 +482,11 @@ mod tests {
         let mut d = ChromaDetector::new(44100.0).unwrap();
         d.feed(&sine(440.0, 0.5, 15.0, 44100.0));
         if let Some(km) = d.detect() {
-            assert!(km.confidence >= -1.0 && km.confidence <= 1.0,
-                    "confidence = {}", km.confidence);
+            assert!(
+                km.confidence >= -1.0 && km.confidence <= 1.0,
+                "confidence = {}",
+                km.confidence
+            );
         }
     }
 }

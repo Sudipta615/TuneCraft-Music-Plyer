@@ -18,7 +18,10 @@ impl AudioEngine {
     /// instead of being dropped and re-opened later. This eliminates a
     /// redundant file open + probe + decoder creation when the crossfade
     /// trigger fires.
-    pub fn prepare_next_track(&mut self, path: &std::path::PathBuf) -> Result<DecodeInfo, EngineError> {
+    pub fn prepare_next_track(
+        &mut self,
+        path: &std::path::PathBuf,
+    ) -> Result<DecodeInfo, EngineError> {
         // If crossfade is disabled or there is no current stream, just
         // remember the path for a regular track transition later.
         if !self.config.crossfade.enabled {
@@ -82,17 +85,15 @@ impl AudioEngine {
             Some(d) => {
                 info!("Using cached incoming decoder for crossfade");
                 d
-            }
-            None => {
-                match SymphoniaDecoder::open(&next_path) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        warn!("Failed to open incoming track for crossfade: {}", e);
-                        self.crossfade_triggered = false;
-                        return;
-                    }
-                }
-            }
+            },
+            None => match SymphoniaDecoder::open(&next_path) {
+                Ok(d) => d,
+                Err(e) => {
+                    warn!("Failed to open incoming track for crossfade: {}", e);
+                    self.crossfade_triggered = false;
+                    return;
+                },
+            },
         };
 
         let incoming_info = incoming_decoder.info().clone();
@@ -112,7 +113,8 @@ impl AudioEngine {
 
         // Calculate crossfade frame count based on output sample rate.
         let crossfade_total_frames = (self.config.crossfade.duration_ms as f64
-            * 0.001 * self.output_sample_rate as f64) as usize;
+            * 0.001
+            * self.output_sample_rate as f64) as usize;
 
         // Extract the current decoder and resampler from the stream.
         let current_stream = self.stream.take();
@@ -145,15 +147,15 @@ impl AudioEngine {
                 // out-of-bounds read from the samples slice.
                 self.pending_chunk = None;
                 self.pending_incoming_chunk = None;
-            }
+            },
             Some(PlaybackStream::Transitioning { .. }) => {
                 // Already transitioning — shouldn't happen since crossfade_triggered
                 // prevents re-entry, but handle gracefully.
                 warn!("Crossfade triggered while already transitioning; ignoring");
-            }
+            },
             None => {
                 warn!("Crossfade triggered but no active stream");
-            }
+            },
         }
     }
 }

@@ -16,8 +16,12 @@ pub struct UiConfig {
 }
 
 impl UiConfig {
-    fn default_show_spectrum() -> bool { true }
-    fn default_show_waveform() -> bool { true }
+    fn default_show_spectrum() -> bool {
+        true
+    }
+    fn default_show_waveform() -> bool {
+        true
+    }
 
     /// Validate UI config (currently no constraints to validate).
     pub fn validate(&mut self) -> Vec<String> {
@@ -35,4 +39,3 @@ impl Default for UiConfig {
         }
     }
 }
-

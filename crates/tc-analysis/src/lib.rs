@@ -33,8 +33,8 @@ pub use lyrics_sentiment::{LyricsSentiment, Sentiment, SentimentResult};
 pub use mood::MoodClassifier;
 pub use waveform::WaveformGenerator;
 
-use std::path::Path;
 use log::{info, warn};
+use std::path::Path;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -112,12 +112,12 @@ pub fn analyze_file(
     max_duration_secs: Option<f64>,
     lyrics: Option<&str>,
 ) -> Result<TrackAnalysis, AnalysisError> {
+    use symphonia::core::audio::SampleBuffer;
     use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
     use symphonia::core::formats::FormatOptions;
     use symphonia::core::io::MediaSourceStream;
     use symphonia::core::meta::MetadataOptions;
     use symphonia::core::probe::Hint;
-    use symphonia::core::audio::SampleBuffer;
 
     let file = std::fs::File::open(path)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
@@ -136,7 +136,9 @@ pub fn analyze_file(
         .format(&hint, mss, &format_opts, &metadata_opts)
         .map_err(|e| AnalysisError::Decode(format!("Probe failed: {}", e)))?;
 
-    let track = probed.format.tracks()
+    let track = probed
+        .format
+        .tracks()
         .iter()
         .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
         .ok_or_else(|| AnalysisError::Decode("No audio track found".to_string()))?;
@@ -144,7 +146,8 @@ pub fn analyze_file(
     let codec_params = &track.codec_params;
     let sample_rate = codec_params.sample_rate.unwrap_or(44100) as f64;
     let channels = codec_params.channels.map(|c| c.count()).unwrap_or(2);
-    let duration = codec_params.n_frames
+    let duration = codec_params
+        .n_frames
         .map(|n| n as f64 / sample_rate)
         .unwrap_or(0.0);
 
@@ -173,7 +176,7 @@ pub fn analyze_file(
                 if e.kind() == std::io::ErrorKind::UnexpectedEof =>
             {
                 break;
-            }
+            },
             Err(_) => break,
         };
 
@@ -225,43 +228,54 @@ pub fn analyze_file(
                 }
 
                 if total_samples >= max_samples {
-                    info!("Analysis duration limit reached ({:.0}s), stopping decode", max_duration);
+                    info!(
+                        "Analysis duration limit reached ({:.0}s), stopping decode",
+                        max_duration
+                    );
                     break;
                 }
-            }
+            },
             Err(e) => {
                 decode_errors += 1;
                 if decode_errors <= 5 {
-                    warn!("Decode error in {}: {}, continuing with partial data", path.display(), e);
+                    warn!(
+                        "Decode error in {}: {}, continuing with partial data",
+                        path.display(),
+                        e
+                    );
                 } else if decode_errors == 6 {
                     warn!("Too many decode errors, suppressing further warnings");
                 }
                 if decode_errors >= 50 {
                     warn!(
                         "Aborting analysis of {} after {} decode errors — file is too corrupt",
-                        path.display(), decode_errors
+                        path.display(),
+                        decode_errors
                     );
                     return Err(AnalysisError::Decode(format!(
-                        "Too many decode errors ({}) in {}", decode_errors, path.display()
+                        "Too many decode errors ({}) in {}",
+                        decode_errors,
+                        path.display()
                     )));
                 }
                 continue;
-            }
+            },
         }
     }
 
     if decode_errors > 0 {
-        warn!("File {} had {} decode errors; analysis may be incomplete", path.display(), decode_errors);
+        warn!(
+            "File {} had {} decode errors; analysis may be incomplete",
+            path.display(),
+            decode_errors
+        );
     }
 
-    let bpm_result   = bpm_detector.detect();
-    let key_result   = chroma_detector.detect();
+    let bpm_result = bpm_detector.detect();
+    let key_result = chroma_detector.detect();
 
     // --- Stage 1: audio-only classification ---
-    let mut mood_result = mood_classifier.classify_with_bpm(
-        bpm_result.bpm,
-        bpm_result.confidence,
-    );
+    let mut mood_result = mood_classifier.classify_with_bpm(bpm_result.bpm, bpm_result.confidence);
 
     // --- Stage 2: refine with chroma key/mode ---
     // Only apply when the audio classifier landed in the ambiguous Romantic/Sad
@@ -275,14 +289,20 @@ pub fn analyze_file(
                 // Major key + Sad signal → more likely Romantic; flip.
                 mood_result.mood = "Romantic".to_string();
                 mood_result.valence = (mood_result.valence * 1.3).min(1.0);
-                info!("Chroma override: {} major → Romantic (conf={:.2})",
-                      km.tonic.name(), km.confidence);
+                info!(
+                    "Chroma override: {} major → Romantic (conf={:.2})",
+                    km.tonic.name(),
+                    km.confidence
+                );
             } else if !km.is_major && mood_result.mood == "Romantic" {
                 // Minor key + Romantic signal → more likely Sad; flip.
                 mood_result.mood = "Sad".to_string();
                 mood_result.valence = (mood_result.valence * 0.7).min(1.0);
-                info!("Chroma override: {} minor → Sad (conf={:.2})",
-                      km.tonic.name(), km.confidence);
+                info!(
+                    "Chroma override: {} minor → Sad (conf={:.2})",
+                    km.tonic.name(),
+                    km.confidence
+                );
             }
         }
     }
@@ -303,14 +323,16 @@ pub fn analyze_file(
             if in_grey_zone && sentiment.sentiment != Sentiment::Ambiguous {
                 let new_mood = match sentiment.sentiment {
                     Sentiment::Romantic => "Romantic",
-                    Sentiment::Sad      => "Sad",
+                    Sentiment::Sad => "Sad",
                     Sentiment::Ambiguous => unreachable!(),
                 };
                 if new_mood != mood_result.mood {
                     info!(
                         "Lyrics override: {} → {} (R={} S={} conf={:.2})",
-                        mood_result.mood, new_mood,
-                        sentiment.romantic_hits, sentiment.sad_hits,
+                        mood_result.mood,
+                        new_mood,
+                        sentiment.romantic_hits,
+                        sentiment.sad_hits,
                         sentiment.confidence
                     );
                     mood_result.mood = new_mood.to_string();
@@ -339,7 +361,9 @@ pub fn analyze_file(
         bpm_result.confidence,
         mood_result.mood,
         key_result.as_ref().map_or("?".to_string(), |k| format!(
-            "{} {}", k.tonic.name(), if k.is_major { "maj" } else { "min" }
+            "{} {}",
+            k.tonic.name(),
+            if k.is_major { "maj" } else { "min" }
         )),
         actual_duration,
     );

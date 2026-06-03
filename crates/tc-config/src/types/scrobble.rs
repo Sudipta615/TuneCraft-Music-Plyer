@@ -25,9 +25,15 @@ pub struct ScrobbleConfig {
 }
 
 impl ScrobbleConfig {
-    fn default_enabled() -> bool { true }
-    fn default_scrobble_threshold_pct() -> f64 { 0.5 }
-    fn default_scrobble_threshold_sec() -> u64 { 240 }
+    fn default_enabled() -> bool {
+        true
+    }
+    fn default_scrobble_threshold_pct() -> f64 {
+        0.5
+    }
+    fn default_scrobble_threshold_sec() -> u64 {
+        240
+    }
 
     /// Validate and clamp out-of-range values.
     /// Returns a list of human-readable warnings for any adjusted field.

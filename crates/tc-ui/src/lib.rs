@@ -29,15 +29,14 @@
 //!       └── PlatformService  → PlatformIntegration (RefCell)
 //! ```
 
-pub mod services;
 pub mod app;
 pub mod eq_panel;
 pub mod player_bar;
+pub mod services;
 pub mod sidebar;
 pub mod theme;
 pub mod track_list;
 
-pub use app::TuneCraftApp;
 pub use app::run;
 pub use app::AppContext;
-
+pub use app::TuneCraftApp;

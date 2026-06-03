@@ -46,10 +46,18 @@ impl KeyboardShortcut {
     /// Get a display string for the shortcut
     pub fn display(&self) -> String {
         let mut parts = Vec::new();
-        if self.ctrl { parts.push("Ctrl"); }
-        if self.alt { parts.push("Alt"); }
-        if self.shift { parts.push("Shift"); }
-        if self.meta { parts.push("Meta"); }
+        if self.ctrl {
+            parts.push("Ctrl");
+        }
+        if self.alt {
+            parts.push("Alt");
+        }
+        if self.shift {
+            parts.push("Shift");
+        }
+        if self.meta {
+            parts.push("Meta");
+        }
         parts.push(&self.key);
         parts.join("+")
     }
@@ -115,4 +123,3 @@ impl PlatformIntegration {
         None
     }
 }
-
