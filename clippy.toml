@@ -1,0 +1,17 @@
+# TuneCraft Clippy configuration
+# Applied via: cargo clippy --workspace --all-features -- $(cat clippy.toml | grep '^-' | xargs)
+# Or use clippy.toml directly with the `clippy::` attribute prefix.
+
+# Maximum allowed complexity for a single function (cyclomatic)
+cognitive-complexity-threshold = 25
+
+# Warn when a type is larger than this many bytes and passed by value
+too-large-for-stack = 512
+
+# Minimum number of variants before suggesting a Box for enum size
+enum-variant-size-threshold = 200
+
+# Allow the standard abbreviations used throughout the codebase
+allowed-idents-below-min-chars = ["db", "eq", "tx", "rx", "rt", "id", "ui"]
+
+msrv = "1.82"

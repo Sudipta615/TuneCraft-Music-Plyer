@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=TuneCraft
+GenericName=Music Player
+Comment=A production-grade cross-platform offline music player with DSP processing
+Exec=tunecraft %F
+Icon=tunecraft
+Type=Application
+Categories=AudioVideo;Audio;Player;Music;
+Keywords=music;player;audio;dsp;equalizer;
+MimeType=audio/mpeg;audio/flac;audio/ogg;audio/wav;audio/aac;audio/x-wav;
+StartupNotify=true
+StartupWMClass=TuneCraft

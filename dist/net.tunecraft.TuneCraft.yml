@@ -1,0 +1,41 @@
+app-id: net.tunecraft.TuneCraft
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: tunecraft
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  # v0.14.0: Replaced blanket --filesystem=host:ro with narrower portal-based
+  # access. Music files are accessed via the XDG Music portal; the user can
+  # grant additional directories at runtime via the Files portal if needed.
+  - --filesystem=xdg-music:ro
+  - --filesystem=xdg-download:ro
+  - --talk-name=org.mpris.MediaPlayer2
+  - --talk-name=org.freedesktop.portal.FileChooser
+modules:
+  - name: tunecraft
+    buildsystem: simple
+    build-commands:
+      # To build offline (e.g. in a Flatpak sandbox without network access):
+      #   1. Run `cargo vendor vendor` in the project root to download all deps.
+      #   2. Create `.cargo/config.toml` containing:
+      #        [source.crates-io]
+      #        replace-with = "vendored-sources"
+      #        [source.vendored-sources]
+      #        directory = "vendor"
+      #   3. Add `type: dir, path: vendor` to the sources list below and set
+      #      `CARGO_NET_OFFLINE=true` in the environment or pass `--offline`.
+      # The vendor directory is intentionally NOT committed to the repository;
+      # generate it locally with `cargo vendor` before running flatpak-builder.
+      - cargo build --release
+      - install -Dm755 target/release/tunecraft /app/bin/tunecraft
+      - install -Dm644 dist/tunecraft.desktop /app/share/applications/net.tunecraft.TuneCraft.desktop
+      # v0.14.0: Install desktop icon (was missing, breaking the desktop launcher)
+      - install -Dm644 crates/tc-ui/icon.png /app/share/icons/hicolor/256x256/apps/tunecraft.png
+    sources:
+      - type: dir
+        path: .
+

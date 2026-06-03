@@ -1,0 +1,23 @@
+[package]
+name = "tc-platform"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tc-config = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+# v0.9.5: Fixed Low #L9 — removed unused crossbeam dependency (uses std::sync::mpsc instead)
+parking_lot = { workspace = true }
+# v0.20.0: Cross-platform media key handling via souvlaki — replaces Linux-only
+# raw D-Bus approach. souvlaki uses MPRIS on Linux, SMTC on Windows, and
+# MPRemoteCommandCenter on macOS, providing true cross-platform parity.
+souvlaki = { workspace = true }
+
+# v0.18.0: Pinned zbus to 4.4.0 to prevent future version drift.
+# zbus 4.4+ pulls in proc-macro-crate 3.x → toml_edit 0.25 (edition2024),
+# which requires Rust 1.82+. This is now compatible since rust-version = "1.82".
+# Retained for MPRIS D-Bus property reporting (Metadata, CanGoNext, etc.)
+# that souvlaki does not expose.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "4.4.0", features = ["blocking"] }

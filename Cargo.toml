@@ -1,0 +1,129 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/tc-engine",
+    "crates/tc-db",
+    "crates/tc-library",
+    "crates/tc-config",
+    "crates/tc-analysis",
+    "crates/tc-platform",
+    "crates/tc-lyrics",
+    "crates/tc-ui",
+    "crates/tunecraft",
+]
+default-members = [
+    "crates/tc-engine",
+    "crates/tc-db",
+    "crates/tc-library",
+    "crates/tc-config",
+    "crates/tc-analysis",
+    "crates/tc-platform",
+    "crates/tc-lyrics",
+    "crates/tc-ui",
+    "crates/tunecraft",
+]
+
+[workspace.package]
+version = "1.0.2"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+
+[workspace.dependencies]
+# Audio
+# cpal 0.16+ has breaking changes (StreamConfig, error callback signature).
+# Pinned to latest 0.15.x until the output layer is ported to 0.16+.
+cpal = "0.15.3"
+symphonia = { version = "0.5.4", features = ["mp3", "flac", "ogg", "wav", "aac", "pcm", "isomp4"] }
+# rubato 0.16+ renamed FftFixedIn/FftFixedInOut and changed the Resampler trait.
+# Pinned to latest 0.15.x until the resampler module is ported.
+rubato = "0.15.0"
+
+# Database
+rusqlite = { version = "0.32.1", features = ["bundled", "chrono"] }
+refinery = { version = "0.8.14", features = ["rusqlite"] }
+
+# Concurrency & async
+crossbeam = "0.8.4"
+arc-swap = "1.9.1"
+tokio = { version = "1.41.1", features = ["rt-multi-thread", "sync", "macros", "fs", "io-util", "time"] }
+tokio-util = { version = "0.7.12", features = ["rt"] }
+futures = "0.3.31"
+
+# Serialization
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.134"
+toml = "0.8.19"
+
+# UI — egui/eframe 0.30+ has breaking changes in App trait and widget API.
+# Pinned to 0.29.x until the UI layer is updated.
+egui = "0.29.1"
+eframe = { version = "0.29.1", default-features = false, features = ["default_fonts", "wgpu", "wayland", "x11"] }
+
+# Utilities
+log = "0.4.22"
+env_logger = "0.11.6"
+thiserror = "1.0.69"
+anyhow = "1.0.95"
+uuid = { version = "1.11.0", features = ["v4"] }
+chrono = { version = "0.4.39", features = ["serde"] }
+dirs = "5.0.1"
+walkdir = "2.5.0"
+glob = "0.3.2"
+base64 = "0.22.1"
+# v0.18.0: Pinned image and disabled AVIF default features to avoid
+# pulling in rav1e -> aligned 0.4.3 (edition2024) dependency chain.
+# Only png/jpeg/webp needed for cover art. Note: eframe still depends
+# on image and may enable AVIF, but MSRV is now 1.82 so edition2024
+# crates compile correctly.
+image = { version = "0.25.5", default-features = false, features = ["png", "jpeg", "webp"] }
+crc32fast = "1.4.2"
+ctrlc = "3.4.5"
+parking_lot = "0.12.3"
+
+# Math & DSP
+num-traits = "0.2.19"
+num-complex = "0.4.6"
+# realfft 3.5.0 is backwards-compatible with 3.3.0 (same major).
+realfft = "3.5.0"
+
+# Platform — zbus pinned to 4.4.x; earlier 4.x versions may pull in
+# proc-macro-crate 2.x (fine), but 4.4+ requires proc-macro-crate 3.x
+# which depends on toml_edit 0.25 (edition2024). Since rust-version is
+# now 1.82, edition2024 compiles correctly. Pinning prevents future drift.
+# Only used on Linux via cfg(target_os = "linux").
+
+# Cross-platform media key handling (MPRIS on Linux, SMTC on Windows,
+# MPRemoteCommandCenter on macOS).
+# souvlaki 0.8 has minor API additions; 0.7.x API is fully compatible.
+souvlaki = "0.7.3"
+
+# Real-time thread priority for the audio callback thread.
+# thread-priority 2.x and 3.x changed the set_current_thread_priority API.
+# Pinned to latest 1.x until cpal_output.rs is updated.
+thread-priority = "1.2.0"
+
+# Scrobbling (reqwest retained for tc-lyrics HTTP client)
+reqwest = { version = "0.12.12", features = ["json"] }
+
+
+# Internal crates
+tc-engine = { path = "crates/tc-engine" }
+tc-db = { path = "crates/tc-db" }
+tc-library = { path = "crates/tc-library" }
+tc-config = { path = "crates/tc-config" }
+tc-analysis = { path = "crates/tc-analysis" }
+tc-platform = { path = "crates/tc-platform" }
+tc-lyrics = { path = "crates/tc-lyrics" }
+tc-ui = { path = "crates/tc-ui" }
+
+# v0.10.0: Release build profile tuning for production binaries.
+# - lto = true: Link-Time Optimization for smaller, faster binaries
+# - strip = true: Strip debug symbols from release builds
+# - codegen-units = 1: Better optimization at cost of compile time
+# - panic = "abort": Smaller binary, no unwinding overhead
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

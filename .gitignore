@@ -1,0 +1,52 @@
+# ── Rust build output ────────────────────────────────────────────────────────
+/target/
+# Per-crate target dirs are uncommon in workspaces but cover any future splits
+crates/*/target/
+
+# Cargo.lock is intentionally committed for this binary application.
+# Remove this line if you ever want to go back to not tracking it.
+# Cargo.lock
+
+# ── Dependency vendoring (Flatpak offline builds) ─────────────────────────────
+# Generated with `cargo vendor vendor` — not committed per Flatpak manifest note.
+vendor/
+.cargo/config.toml
+
+# ── Packaging build artifacts ─────────────────────────────────────────────────
+# .deb staging and output (build-deb.sh writes here)
+target/deb/
+*.deb
+
+# RPM build tree
+rpmbuild/
+*.rpm
+
+# Flatpak build and repo directories
+.flatpak-builder/
+flatpak-repo/
+*.flatpak
+*.flatpakref
+
+# ── Editor and IDE ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Environment and secrets ───────────────────────────────────────────────────
+.env
+.env.local
+*.key
+*.pem
+
+# ── Test and coverage output ──────────────────────────────────────────────────
+/lcov.info
+/coverage/
+tarpaulin-report.html
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log

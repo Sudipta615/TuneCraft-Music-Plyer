@@ -1,0 +1,62 @@
+.TH TUNECRAFT 1 "2026" "TuneCraft 1.0.2" "User Commands"
+.SH NAME
+tunecraft \- offline music player with DSP processing and local play-history journaling
+.SH SYNOPSIS
+.B tunecraft
+[\fIFILE\fR]
+[\fB\-\-headless\fR]
+[\fB\-\-help\fR]
+[\fB\-\-version\fR]
+.SH DESCRIPTION
+.B tunecraft
+is a high-fidelity, offline music player featuring a parametric equalizer,
+loudness normalisation, BPM detection, mood classification, synced lyrics, and
+local play-history journaling.  It uses an egui/eframe graphical interface with a
+wgpu back-end and supports the MPRIS D-Bus protocol on Linux.
+.PP
+Supported audio formats: MP3, FLAC, OGG/Vorbis, WAV, AAC.
+.SH OPTIONS
+.TP
+.I FILE
+Open and play a specific audio file on launch.
+.TP
+.B \-\-headless
+Run without the graphical interface (library management only).
+.TP
+.B \-\-help
+Print a short usage summary and exit.
+.TP
+.B \-\-version
+Print version information and exit.
+.SH ENVIRONMENT
+.TP
+.B RUST_LOG
+Log level filter (e.g.\& \fBinfo\fR, \fBdebug\fR, \fBwarn\fR).  Default: \fBinfo\fR.
+.TP
+.B XDG_DATA_HOME
+Override the directory used for the SQLite library database and play-history
+journal.  Defaults to \fI~/.local/share/tunecraft\fR.
+.TP
+.B XDG_CONFIG_HOME
+Override the directory used for \fIconfig.toml\fR.
+Defaults to \fI~/.config/tunecraft\fR.
+.SH FILES
+.TP
+.I ~/.config/tunecraft/config.toml
+TOML configuration file.  Created with defaults on first run.
+.TP
+.I ~/.local/share/tunecraft/library.db
+SQLite database storing the music library, play counts, and cached lyrics.
+.SH PLATFORM NOTES
+Media key integration (play, pause, next, previous) is available on all
+platforms via the \fBsouvlaki\fR library:
+\fBLinux\fR uses the MPRIS D-Bus protocol, \fBmacOS\fR uses
+MPRemoteCommandCenter, and \fBWindows\fR uses SystemMediaTransportControls.
+Advanced MPRIS controls (Seek, SetPosition, OpenUri, shuffle, loop, etc.)
+are available on \fBLinux only\fR.
+.SH BUGS
+Please report bugs at \fIhttps://github.com/tunecraft-app/tunecraft/issues\fR.
+.SH LICENSE
+MIT.  See \fI/usr/share/doc/tunecraft/LICENSE\fR.
+.SH AUTHORS
+TuneCraft Contributors <hello@tunecraft.app>

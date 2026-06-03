@@ -1,0 +1,30 @@
+[package]
+name = "tunecraft"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "tunecraft"
+path = "src/main.rs"
+
+[features]
+default = ["gui", "audio-output"]
+gui = ["tc-ui"]
+audio-output = ["tc-engine/audio-output"]
+
+[dependencies]
+tc-engine = { workspace = true }
+tc-db = { workspace = true }
+tc-library = { workspace = true }
+tc-config = { workspace = true }
+tc-analysis = { workspace = true }
+tc-platform = { workspace = true }
+tc-lyrics = { workspace = true }
+tc-ui = { workspace = true, optional = true }
+
+log = { workspace = true }
+env_logger = { workspace = true }
+anyhow = { workspace = true }
+dirs = { workspace = true }
+ctrlc = { workspace = true }
+tokio = { workspace = true }

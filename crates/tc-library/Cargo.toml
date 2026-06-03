@@ -1,0 +1,17 @@
+[package]
+name = "tc-library"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tc-db = { workspace = true }
+tc-config = { workspace = true }
+walkdir = { workspace = true }
+serde = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+image = { workspace = true }
+symphonia = { workspace = true }
+crc32fast = { workspace = true }
+chrono = { workspace = true }
+# v0.9.5: Fixed Low #L9 — removed unused uuid and base64 dependencies

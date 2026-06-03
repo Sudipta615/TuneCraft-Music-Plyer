@@ -1,0 +1,26 @@
+[package]
+name = "tc-ui"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["audio-output"]
+audio-output = ["tc-engine/audio-output"]
+
+[dependencies]
+egui = { workspace = true }
+eframe = { workspace = true }
+tc-engine = { workspace = true }
+tc-db = { workspace = true }
+tc-library = { workspace = true }
+tc-config = { workspace = true }
+tc-analysis = { workspace = true }
+tc-platform = { workspace = true }
+tc-lyrics = { workspace = true }
+crossbeam = { workspace = true }
+arc-swap = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync", "macros"] }
+log = { workspace = true }
+anyhow = { workspace = true }
+dirs = { workspace = true }
+chrono = { workspace = true }

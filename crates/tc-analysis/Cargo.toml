@@ -1,0 +1,9 @@
+[package]
+name = "tc-analysis"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+symphonia = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }

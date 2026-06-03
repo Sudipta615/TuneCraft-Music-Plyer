@@ -1,0 +1,48 @@
+[package]
+name = "tc-engine"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = []
+# v0.21.0: Merged duplicate [features] sections. The second section was
+# overriding the first, which lost the codec-* feature flags.
+audio-output = ["cpal", "thread-priority"]
+resample = ["rubato"]
+# v0.9.5: Fixed High #H2 — codec feature flags now activate the corresponding
+# symphonia features instead of being no-ops.
+codec-mp3 = ["symphonia/mp3"]
+codec-flac = ["symphonia/flac"]
+codec-ogg = ["symphonia/ogg"]
+codec-wav = ["symphonia/wav"]
+codec-aac = ["symphonia/aac"]
+codec-pcm = ["symphonia/pcm"]
+codec-isomp4 = ["symphonia/isomp4"]
+all-codecs = ["codec-mp3", "codec-flac", "codec-ogg", "codec-wav", "codec-aac", "codec-pcm", "codec-isomp4"]
+
+[dependencies]
+cpal = { workspace = true, optional = true }
+rubato = { workspace = true, optional = true }
+symphonia = { workspace = true }
+crossbeam = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+num-traits = { workspace = true }
+num-complex = { workspace = true }
+realfft = { workspace = true }
+tc-config = { workspace = true }
+tc-analysis = { workspace = true }
+thread-priority = { workspace = true, optional = true }
+dirs = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.5.1"
+approx = "0.5.1"
+
+[[bench]]
+name = "dsp_bench"
+harness = false
+
+[[bench]]
+name = "pipeline_bench"
+harness = false
