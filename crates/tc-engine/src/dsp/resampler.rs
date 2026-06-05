@@ -11,7 +11,7 @@ use rubato::{FftFixedIn, FftFixedInOut, Resampler};
 use tc_config::ResamplerQuality;
 
 /// Error type for resampler construction failures.
-
+///
 /// Replaces the previous `expect()` calls that would panic the process
 /// on invalid rates or internal rubato failures.
 #[derive(Debug, thiserror::Error)]

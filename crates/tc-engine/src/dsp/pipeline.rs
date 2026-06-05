@@ -37,7 +37,7 @@ const VOLUME_RAMP_DURATION_MS: f64 = 10.0;
 const PREAMP_RAMP_DURATION_MS: f64 = VOLUME_RAMP_DURATION_MS;
 
 /// The complete DSP processing pipeline
-
+///
 /// All processing is done in f64 for maximum precision. The pipeline is
 /// designed for zero allocation in the hot path.
 pub struct DspPipeline {

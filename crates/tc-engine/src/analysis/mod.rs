@@ -26,7 +26,7 @@ pub use tc_analysis::{
 pub use waveform::WaveformGenerator;
 
 /// Error type for analysis construction failures.
-
+///
 /// Replaces the previous `assert!` / `panic!` paths with recoverable errors.
 #[derive(Debug, thiserror::Error)]
 pub enum AnalysisError {
@@ -44,9 +44,9 @@ pub enum AnalysisError {
 
 /// A decimated analysis buffer that captures audio for analysis
 /// without affecting the audio thread performance.
-
+///
 /// ## Write ordering
-
+///
 /// The buffer writes the sample data **before** advancing the write position,
 /// so readers never observe uninitialized slots. This fixes the previous
 /// publish-before-write hazard where `write_pos` was advanced before the

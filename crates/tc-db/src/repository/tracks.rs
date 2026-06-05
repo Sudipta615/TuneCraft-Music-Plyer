@@ -204,7 +204,7 @@ impl Database {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map(params![fts_query, limit], |row| row_to_track(row))?
+            .query_map(params![fts_query, limit], row_to_track)?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
@@ -224,7 +224,7 @@ impl Database {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map(params![limit, offset], |row| row_to_track(row))?
+            .query_map(params![limit, offset], row_to_track)?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
@@ -238,7 +238,7 @@ impl Database {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map(params![album], |row| row_to_track(row))?
+            .query_map(params![album], row_to_track)?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)

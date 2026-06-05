@@ -64,7 +64,6 @@ impl BiquadCoeffs {
     }
 
     /// Second-order (biquad) low-pass filter
-
     pub fn lowpass(sample_rate: f64, freq: f64, q: f64) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
         let w0 = 2.0 * PI * freq / sample_rate;
@@ -87,7 +86,6 @@ impl BiquadCoeffs {
     }
 
     /// Second-order (biquad) high-pass filter
-
     pub fn highpass(sample_rate: f64, freq: f64, q: f64) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
         let w0 = 2.0 * PI * freq / sample_rate;

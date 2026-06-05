@@ -55,7 +55,7 @@ impl Default for CrossfadeConfig {
 }
 
 /// The crossfade/gapless mixer
-
+///
 /// Manages transitions between tracks by crossfading the outgoing track's
 /// tail with the incoming track's head. The outgoing tail must be provided
 /// in advance (pre-read) for gapless/crossfade operation.

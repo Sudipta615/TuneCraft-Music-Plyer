@@ -135,7 +135,7 @@ impl KWeightStage2 {
 }
 
 /// Loudness normaliser for playback
-
+///
 /// Applies gain adjustments based on pre-computed loudness metadata.
 /// Supports ReplayGain (track/album) and EBU R128 modes.
 pub struct LoudnessNormalizer {

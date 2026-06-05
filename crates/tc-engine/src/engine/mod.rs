@@ -59,12 +59,12 @@ use crate::{
 };
 
 /// Dual-decoder state machine for true gapless playback and crossfading.
-
+///
 /// `Single` represents normal single-track playback. `Transitioning` holds
 /// both the outgoing (fading) and incoming (rising) decoders simultaneously,
 /// allowing the `TrackMixer` to receive genuinely distinct sample streams
 /// and perform real overlapping gain scaling.
-
+///
 /// Defined in `mod.rs` so that private fields are accessible from all engine
 /// submodules (Rust privacy rules: submodules can access parent-module items).
 pub enum PlaybackStream {

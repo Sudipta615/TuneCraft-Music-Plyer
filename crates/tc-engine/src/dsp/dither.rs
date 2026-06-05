@@ -25,7 +25,7 @@ pub enum DitherType {
 }
 
 /// Dither processor
-
+///
 /// Applies dithering before quantization to the target bit depth.
 /// At 32-bit and above, dithering is a no-op (quantization error is
 /// below the noise floor of any real DAC).

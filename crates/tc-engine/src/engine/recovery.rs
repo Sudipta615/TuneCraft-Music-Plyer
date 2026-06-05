@@ -162,7 +162,7 @@ impl AudioEngine {
 /// Shared helper for creating a resampler with the engine's current config
 /// and speed settings. Eliminates duplicated match/Ok/Err blocks across
 /// `load_track`, `begin_crossfade_transition`, and `recover_output_stream`.
-
+///
 /// Returns `None` if the resampler feature is disabled or if creation fails
 /// (a warning is logged on failure).
 #[cfg(feature = "resample")]

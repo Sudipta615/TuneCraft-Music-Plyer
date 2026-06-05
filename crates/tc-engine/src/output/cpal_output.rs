@@ -17,7 +17,7 @@ use cpal::{
 };
 use thiserror::Error;
 
-use crate::buffer::{AudioFrame, FixedFrameBuffer, MAX_CHANNELS};
+use crate::buffer::FixedFrameBuffer;
 
 #[derive(Debug, Error)]
 pub enum OutputError {

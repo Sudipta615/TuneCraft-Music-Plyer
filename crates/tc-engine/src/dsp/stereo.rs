@@ -7,7 +7,7 @@
 //! Disabled by default — the user must opt in.
 
 /// Stereo width enhancer
-
+///
 /// Operates on the mid/side representation:
 /// ```text
 /// mid  = (L + R) / 2    (mono component)
@@ -15,7 +15,7 @@
 /// L' = mid + side * width
 /// R' = mid - side * width
 /// ```
-
+///
 /// - `width = 0.0`: mono (side eliminated)
 /// - `width = 1.0`: passthrough (no change)
 /// - `width > 1.0`: enhanced stereo (side boosted)
