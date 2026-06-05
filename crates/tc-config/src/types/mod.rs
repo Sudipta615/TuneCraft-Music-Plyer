@@ -172,18 +172,18 @@ mod tests {
 
     #[test]
     fn test_serde_rename_all_snake_case() {
-        let json = toml::to_string(&PerformanceMode::UltraQuality).unwrap();
+        let json = serde_json::to_string(&PerformanceMode::UltraQuality).unwrap();
         assert!(json.contains("ultra_quality"));
 
-        let json = toml::to_string(&ResamplerQuality::HighQuality).unwrap();
+        let json = serde_json::to_string(&ResamplerQuality::HighQuality).unwrap();
         assert!(json.contains("high_quality"));
     }
 
     #[test]
     fn test_serde_alias_backward_compat() {
         // Old CamelCase format should still deserialize
-        let old_format = "ultra_quality";
-        let mode: PerformanceMode = toml::from_str(old_format).unwrap();
+        let old_format = "\"ultra_quality\"";
+        let mode: PerformanceMode = serde_json::from_str(old_format).unwrap();
         assert_eq!(mode, PerformanceMode::UltraQuality);
 
         // Old alias should work

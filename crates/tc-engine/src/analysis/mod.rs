@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn test_analysis_buffer_feed_and_read() {
         let buf = AnalysisBuffer::new(64, 1).unwrap(); // decimation=1 captures every sample
-        for i in 0..32 {
+        for i in 1..=32 {
             buf.feed(i as f64 * 0.1, i as f64 * 0.05);
         }
         let data = buf.read();
@@ -183,16 +183,16 @@ mod tests {
             .collect();
         assert_eq!(nonzero.len(), 32);
         // First sample
-        assert!((nonzero[0].0 - 0.0).abs() < 1e-12);
-        assert!((nonzero[0].1 - 0.0).abs() < 1e-12);
+        assert!((nonzero[0].0 - 0.1).abs() < 1e-12);
+        assert!((nonzero[0].1 - 0.05).abs() < 1e-12);
         // Last sample (index 31)
-        assert!((nonzero[31].0 - 3.1).abs() < 1e-10);
+        assert!((nonzero[31].0 - 3.2).abs() < 1e-10);
     }
 
     #[test]
     fn test_analysis_buffer_decimation() {
         let buf = AnalysisBuffer::new(64, 3).unwrap(); // capture every 3rd sample
-        for i in 0..30 {
+        for i in 1..=30 {
             buf.feed(i as f64, i as f64);
         }
         let data = buf.read();

@@ -82,6 +82,9 @@ fn test_engine_pipeline_accessors() {
     let _ = engine.pipeline().speed();
     // Pipeline mut should work.
     engine.pipeline_mut().set_volume(0.5);
+    for _ in 0..50000 {
+        engine.pipeline_mut().process(0.0, 0.0);
+    }
     assert!((engine.pipeline().volume() - 0.5).abs() < 0.01);
 }
 

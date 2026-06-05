@@ -461,7 +461,10 @@ mod tests {
             "image/gif"
         );
         assert_eq!(detect_image_mime(&[0x42, 0x4D, 0x00, 0x00]), "image/bmp");
-        assert_eq!(detect_image_mime(&[0x00, 0x01, 0x02]), "image/jpeg");
+        assert_eq!(
+            detect_image_mime(&[0x00, 0x01, 0x02]),
+            "application/octet-stream"
+        );
     }
 
     #[test]
