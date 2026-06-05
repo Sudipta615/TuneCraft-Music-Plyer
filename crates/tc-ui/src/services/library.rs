@@ -15,9 +15,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
-use log::{error, info, warn};
+use log::{info, warn, error};
 
-use tc_db::{Database, Playlist, Track};
+use tc_db::{Track, Playlist, Database};
 
 /// Snapshot of library state that the UI can read without any locks.
 #[derive(Debug, Clone)]
@@ -130,15 +130,12 @@ impl LibraryService {
         let total = self.db.track_count().unwrap_or(0) as usize;
         let page = self.track_page.load(Ordering::Relaxed);
         let offset = page * self.tracks_per_page;
-        let tracks = match self
-            .db
-            .get_all_tracks(self.tracks_per_page as i64, offset as i64)
-        {
+        let tracks = match self.db.get_all_tracks(self.tracks_per_page as i64, offset as i64) {
             Ok(t) => t,
             Err(e) => {
                 error!("Failed to refresh track list: {}", e);
                 Vec::new()
-            },
+            }
         };
 
         self.snapshot.rcu(|old| {
@@ -159,10 +156,10 @@ impl LibraryService {
                     new_snap.favorite_ids = ids.clone().into_iter().collect();
                     new_snap
                 });
-            },
+            }
             Err(e) => {
                 warn!("Failed to refresh favorite IDs: {}", e);
-            },
+            }
         }
     }
 
@@ -175,10 +172,10 @@ impl LibraryService {
                     new_snap.playlists = playlists.clone();
                     new_snap
                 });
-            },
+            }
             Err(e) => {
                 error!("Failed to refresh playlists: {}", e);
-            },
+            }
         }
     }
 
@@ -193,13 +190,13 @@ impl LibraryService {
         loop {
             match self.scan_progress_rx.try_recv() {
                 Ok(progress) => latest_progress = Some(progress),
-                Err(crossbeam::channel::TryRecvError::Empty) => break, // No more data right now
+                Err(crossbeam::channel::TryRecvError::Empty) => break,    // No more data right now
                 Err(crossbeam::channel::TryRecvError::Disconnected) => {
                     // Channel disconnected — the scan thread has terminated.
                     // This is a terminal condition for the scan, not an error.
                     log::debug!("Scan progress channel disconnected (scan thread terminated)");
                     break;
-                },
+                }
             }
         }
 
@@ -291,7 +288,7 @@ impl LibraryService {
                 let msg = format!("Search failed: {}", e);
                 warn!("{}", msg);
                 Err(msg)
-            },
+            }
         }
     }
 
@@ -302,16 +299,14 @@ impl LibraryService {
                 self.mark_db_dirty();
                 self.refresh_playlists();
                 Ok(id)
-            },
+            }
             Err(e) => Err(format!("Failed to create playlist: {}", e)),
         }
     }
 
     /// Add a track to a playlist.
     pub fn add_track_to_playlist(&self, playlist_id: i64, track_id: i64) -> Result<(), String> {
-        let pos = self
-            .db
-            .get_playlist_tracks(playlist_id)
+        let pos = self.db.get_playlist_tracks(playlist_id)
             .map(|t| t.len() as i32)
             .unwrap_or(0);
 
@@ -319,7 +314,7 @@ impl LibraryService {
             Ok(()) => {
                 self.mark_db_dirty();
                 Ok(())
-            },
+            }
             Err(e) => Err(format!("Failed to add track: {}", e)),
         }
     }
@@ -331,7 +326,7 @@ impl LibraryService {
             Err(e) => {
                 warn!("Failed to get playlist tracks: {}", e);
                 Vec::new()
-            },
+            }
         }
     }
 
@@ -378,31 +373,21 @@ impl LibraryService {
 
         let snapshot = self.snapshot.load();
         let navs = [
-            NavSection::AllTracks,
-            NavSection::MoodDance,
-            NavSection::MoodRomantic,
-            NavSection::MoodSad,
-            NavSection::MoodSufi,
-            NavSection::MoodChill,
-            NavSection::RecentlyPlayed,
-            NavSection::MostPlayed,
+            NavSection::AllTracks, NavSection::MoodDance, NavSection::MoodRomantic,
+            NavSection::MoodSad, NavSection::MoodSufi, NavSection::MoodChill,
+            NavSection::RecentlyPlayed, NavSection::MostPlayed,
         ];
 
         let mut badge_cache = std::collections::HashMap::new();
         for nav in &navs {
             let count = match nav {
-                NavSection::MoodDance
-                | NavSection::MoodRomantic
-                | NavSection::MoodSad
-                | NavSection::MoodSufi
-                | NavSection::MoodChill => {
+                NavSection::MoodDance | NavSection::MoodRomantic | NavSection::MoodSad
+                | NavSection::MoodSufi | NavSection::MoodChill => {
                     // Use mood_matches for consistent filtering (M-08 fix)
-                    snapshot
-                        .tracks
-                        .iter()
-                        .filter(|t| t.mood.as_deref().map_or(false, |m| nav.mood_matches(m)))
-                        .count() as u32
-                },
+                    snapshot.tracks.iter().filter(|t| {
+                        t.mood.as_deref().map_or(false, |m| nav.mood_matches(m))
+                    }).count() as u32
+                }
                 _ => nav.badge_count(&snapshot.tracks).unwrap_or(0),
             };
             badge_cache.insert(format!("{:?}", nav), count);
@@ -437,3 +422,4 @@ impl LibraryService {
         self.db.get_all_track_ids().unwrap_or_default()
     }
 }
+

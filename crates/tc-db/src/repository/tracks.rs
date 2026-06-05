@@ -11,7 +11,6 @@ use rusqlite::params;
 use super::{Database, DbError};
 
 /// Centralized column list for the `tracks` table.
-
 /// Use this constant instead of repeating the 32-column list in every SELECT.
 /// Any schema change to the tracks table only requires updating this single
 /// constant and the `row_to_track()` mapping function.
@@ -30,7 +29,6 @@ pub(crate) fn prefixed_track_columns(prefix: &str) -> String {
 }
 
 /// Map a database row to a Track struct using named column access.
-
 /// Uses column names instead of indices for robustness against
 /// schema changes and column reordering.
 pub(crate) fn row_to_track(row: &rusqlite::Row<'_>) -> Result<Track, rusqlite::Error> {
@@ -71,7 +69,6 @@ pub(crate) fn row_to_track(row: &rusqlite::Row<'_>) -> Result<Track, rusqlite::E
 }
 
 /// Helper: filter and log database row mapping errors consistently.
-
 /// Standardizes error handling across all query_map chains so that
 /// errors are always logged and incomplete results are visible.
 pub(crate) fn log_and_filter<T>(result: Result<T, rusqlite::Error>) -> Option<T> {
@@ -80,11 +77,12 @@ pub(crate) fn log_and_filter<T>(result: Result<T, rusqlite::Error>) -> Option<T>
         Err(e) => {
             log::warn!("Failed to map database row: {}", e);
             None
-        },
+        }
     }
 }
 
 impl Database {
+
     /// Insert a track, using UPSERT to handle conflicts on the `path` column.
     ///
     ///
@@ -147,7 +145,7 @@ impl Database {
         let sql = format!("SELECT {} FROM tracks WHERE id = ?1", TRACK_COLUMNS);
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
-        let result = stmt.query_row(params![id], |row| Ok(row_to_track(row)?));
+        let result = stmt.query_row(params![id], row_to_track);
         match result {
             Ok(track) => Ok(Some(track)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
@@ -159,7 +157,7 @@ impl Database {
         let sql = format!("SELECT {} FROM tracks WHERE path = ?1", TRACK_COLUMNS);
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
-        let result = stmt.query_row(params![path], |row| Ok(row_to_track(row)?));
+        let result = stmt.query_row(params![path], row_to_track);
         match result {
             Ok(track) => Ok(Some(track)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
@@ -169,9 +167,7 @@ impl Database {
 
     pub fn search_tracks(&self, query: &str, limit: i64) -> Result<Vec<Track>, DbError> {
         if limit < 0 {
-            return Err(DbError::Validation(
-                "Search limit must not be negative".into(),
-            ));
+            return Err(DbError::Validation("Search limit must not be negative".into()));
         }
         // special to FTS5 (quotes, colons, asterisks) and split on
         // whitespace to AND individual tokens.  Each token gets a
@@ -183,15 +179,10 @@ impl Database {
                 // Strip FTS5-special characters (quotes, colons, asterisks) but
                 // preserve hyphens and apostrophes within words, as they are
                 // common in track/artist names (e.g., "Rock-n-Roll", "O'Brien").
-                let cleaned: String = t
-                    .chars()
-                    .filter(|c| {
-                        c.is_alphanumeric() || *c == '-' || *c == '\'' || *c == '.' || *c == '&'
-                    })
+                let cleaned: String = t.chars()
+                    .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '\'' || *c == '.' || *c == '&')
                     .collect();
-                if cleaned.is_empty() {
-                    return String::new();
-                }
+                if cleaned.is_empty() { return String::new(); }
                 format!("{}*", cleaned)
             })
             .filter(|t| !t.is_empty())
@@ -207,7 +198,9 @@ impl Database {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map(params![fts_query, limit], |row| row_to_track(row))?
+            .query_map(params![fts_query, limit], |row| {
+                row_to_track(row)
+            })?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
@@ -220,28 +213,26 @@ impl Database {
         if offset < 0 {
             return Err(DbError::Validation("Offset must not be negative".into()));
         }
-        let sql = format!(
-            "SELECT {} FROM tracks ORDER BY title LIMIT ?1 OFFSET ?2",
-            TRACK_COLUMNS
-        );
+        let sql = format!("SELECT {} FROM tracks ORDER BY title LIMIT ?1 OFFSET ?2", TRACK_COLUMNS);
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map(params![limit, offset], |row| row_to_track(row))?
+            .query_map(params![limit, offset], |row| {
+                row_to_track(row)
+            })?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
     }
 
     pub fn get_tracks_by_album(&self, album: &str) -> Result<Vec<Track>, DbError> {
-        let sql = format!(
-            "SELECT {} FROM tracks WHERE album = ?1 ORDER BY disc_number, track_number",
-            TRACK_COLUMNS
-        );
+        let sql = format!("SELECT {} FROM tracks WHERE album = ?1 ORDER BY disc_number, track_number", TRACK_COLUMNS);
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map(params![album], |row| row_to_track(row))?
+            .query_map(params![album], |row| {
+                row_to_track(row)
+            })?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
@@ -272,8 +263,10 @@ impl Database {
     }
 
     pub fn update_bpm(&self, id: i64, bpm: f64) -> Result<(), DbError> {
-        self.write_lock()?
-            .execute("UPDATE tracks SET bpm = ?1 WHERE id = ?2", params![bpm, id])?;
+        self.write_lock()?.execute(
+            "UPDATE tracks SET bpm = ?1 WHERE id = ?2",
+            params![bpm, id],
+        )?;
         Ok(())
     }
 
@@ -337,7 +330,7 @@ impl Database {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map([], |row| row_to_track(row))?
+            .query_map([], row_to_track)?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
@@ -376,12 +369,7 @@ impl Database {
     /// Each field is updated independently: passing `Some(value)` updates the
     /// column, while `None` leaves the existing value unchanged. This prevents
     /// synced lyrics from accidentally overwriting unsynced text or vice versa.
-    pub fn update_lyrics(
-        &self,
-        id: i64,
-        synced: Option<&str>,
-        unsynced: Option<&str>,
-    ) -> Result<(), DbError> {
+    pub fn update_lyrics(&self, id: i64, synced: Option<&str>, unsynced: Option<&str>) -> Result<(), DbError> {
         let conn = self.write_lock()?;
         if let Some(synced_text) = synced {
             conn.execute(
@@ -426,34 +414,16 @@ impl Database {
              lyrics_unsynced=COALESCE(NULLIF(?26, ''), lyrics_unsynced), \
              date_scanned=?27 WHERE path=?28",
             params![
-                track.title,
-                track.artist,
-                track.album,
-                track.album_artist,
-                track.genre,
-                track.year,
-                track.track_number,
-                track.disc_number,
-                track.duration_secs,
-                track.sample_rate,
-                track.channels,
-                track.bitrate_kbps,
-                track.format,
-                track.file_size,
-                track.file_modified,
-                track.crc32,
-                track.bpm,
-                track.mood,
-                track.replaygain_track_db,
-                track.replaygain_album_db,
-                track.replaygain_track_peak,
-                track.replaygain_album_peak,
-                track.ebu_r128_loudness,
-                track.ebu_r128_peak,
-                track.lyrics_synced,
-                track.lyrics_unsynced,
-                track.date_scanned,
-                track.path,
+                track.title, track.artist, track.album, track.album_artist,
+                track.genre, track.year, track.track_number, track.disc_number,
+                track.duration_secs, track.sample_rate, track.channels, track.bitrate_kbps,
+                track.format, track.file_size, track.file_modified, track.crc32,
+                track.bpm, track.mood,
+                track.replaygain_track_db, track.replaygain_album_db,
+                track.replaygain_track_peak, track.replaygain_album_peak,
+                track.ebu_r128_loudness, track.ebu_r128_peak,
+                track.lyrics_synced, track.lyrics_unsynced,
+                track.date_scanned, track.path,
             ],
         )?;
         // FTS is kept in sync by the tracks_au trigger, so no manual FTS
@@ -473,7 +443,7 @@ impl Database {
     pub fn get_tracks_with_mtime(&self) -> Result<Vec<(i64, String, i64)>, DbError> {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(
-            "SELECT id, path, file_modified FROM tracks WHERE file_modified IS NOT NULL",
+            "SELECT id, path, file_modified FROM tracks WHERE file_modified IS NOT NULL"
         )?;
         let results = stmt
             .query_map([], |row| {
@@ -495,9 +465,7 @@ impl Database {
     /// counters and cleans up zombie albums (albums with no remaining tracks).
     pub fn cleanup_missing_tracks(&self, existing_paths: &[&str]) -> Result<usize, DbError> {
         if existing_paths.is_empty() {
-            log::warn!(
-                "cleanup_missing_tracks called with empty paths — refusing to delete all tracks"
-            );
+            log::warn!("cleanup_missing_tracks called with empty paths — refusing to delete all tracks");
             return Ok(0);
         }
 
@@ -509,10 +477,7 @@ impl Database {
         let conn = self.write_lock()?;
         let tx = conn.unchecked_transaction().map_err(DbError::Sqlite)?;
 
-        tx.execute(
-            "CREATE TEMP TABLE IF NOT EXISTS _existing_paths (path TEXT NOT NULL)",
-            [],
-        )?;
+        tx.execute("CREATE TEMP TABLE IF NOT EXISTS _existing_paths (path TEXT NOT NULL)", [])?;
         tx.execute("DELETE FROM _existing_paths", [])?;
 
         for chunk in existing_paths.chunks(BATCH_SIZE) {
@@ -554,8 +519,7 @@ impl Database {
              WHERE album IS NOT NULL AND album != '' \
              GROUP BY album, album_artist)",
             [],
-        )
-        .ok(); // Best-effort cleanup
+        ).ok(); // Best-effort cleanup
 
         tx.commit().map_err(DbError::Sqlite)?;
         Ok(deleted)
@@ -563,14 +527,11 @@ impl Database {
 
     /// Get tracks that haven't been analyzed yet (no BPM or mood)
     pub fn get_unanalyzed_tracks(&self) -> Result<Vec<Track>, DbError> {
-        let sql = format!(
-            "SELECT {} FROM tracks WHERE bpm IS NULL OR mood IS NULL",
-            TRACK_COLUMNS
-        );
+        let sql = format!("SELECT {} FROM tracks WHERE bpm IS NULL OR mood IS NULL", TRACK_COLUMNS);
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map([], |row| row_to_track(row))?
+            .query_map([], row_to_track)?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
@@ -578,14 +539,11 @@ impl Database {
 
     /// Get all tracks by a specific artist
     pub fn get_tracks_by_artist(&self, artist: &str) -> Result<Vec<Track>, DbError> {
-        let sql = format!(
-            "SELECT {} FROM tracks WHERE artist = ?1 ORDER BY album, disc_number, track_number",
-            TRACK_COLUMNS
-        );
+        let sql = format!("SELECT {} FROM tracks WHERE artist = ?1 ORDER BY album, disc_number, track_number", TRACK_COLUMNS);
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map(params![artist], |row| row_to_track(row))?
+            .query_map(params![artist], row_to_track)?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
@@ -621,9 +579,9 @@ impl Database {
              date_scanned=excluded.date_scanned"
         ).map_err(DbError::Sqlite)?;
 
-        let mut id_stmt = tx
-            .prepare_cached("SELECT id FROM tracks WHERE path = ?1")
-            .map_err(DbError::Sqlite)?;
+        let mut id_stmt = tx.prepare_cached(
+            "SELECT id FROM tracks WHERE path = ?1"
+        ).map_err(DbError::Sqlite)?;
 
         let mut results = Vec::with_capacity(tracks.len());
         for (i, track) in tracks.iter().enumerate() {
@@ -632,42 +590,24 @@ impl Database {
                 continue;
             }
             match stmt.execute(params![
-                track.path,
-                track.title,
-                track.artist,
-                track.album,
-                track.album_artist,
-                track.genre,
-                track.year,
-                track.track_number,
-                track.disc_number,
-                track.duration_secs,
-                track.sample_rate,
-                track.channels,
-                track.bitrate_kbps,
-                track.format,
-                track.file_size,
-                track.file_modified,
-                track.crc32,
-                track.replaygain_track_db,
-                track.replaygain_album_db,
-                track.replaygain_track_peak,
-                track.replaygain_album_peak,
-                track.ebu_r128_loudness,
-                track.ebu_r128_peak,
-                track.bpm,
-                track.mood,
-                track.play_count,
+                track.path, track.title, track.artist, track.album, track.album_artist,
+                track.genre, track.year, track.track_number, track.disc_number,
+                track.duration_secs, track.sample_rate, track.channels, track.bitrate_kbps,
+                track.format, track.file_size, track.file_modified, track.crc32,
+                track.replaygain_track_db, track.replaygain_album_db,
+                track.replaygain_track_peak, track.replaygain_album_peak,
+                track.ebu_r128_loudness, track.ebu_r128_peak,
+                track.bpm, track.mood, track.play_count,
                 track.date_scanned,
             ]) {
                 Ok(_) => {
                     if let Ok(id) = id_stmt.query_row(params![track.path], |r| r.get::<_, i64>(0)) {
                         results.push((i, id));
                     }
-                },
+                }
                 Err(e) => {
                     log::warn!("Batch insert failed for track {}: {}", track.path, e);
-                },
+                }
             }
         }
 
@@ -685,10 +625,7 @@ impl Database {
     ///
     /// preserving existing non-NULL values when the new value is NULL.
     /// This matches the behavior of `update_track_preserving_userdata()`.
-    pub fn update_tracks_batch_preserving_userdata(
-        &self,
-        tracks: &[Track],
-    ) -> Result<usize, DbError> {
+    pub fn update_tracks_batch_preserving_userdata(&self, tracks: &[Track]) -> Result<usize, DbError> {
         let conn = self.write_lock()?;
         let tx = conn.unchecked_transaction().map_err(DbError::Sqlite)?;
 
@@ -712,45 +649,27 @@ impl Database {
         let mut updated = 0;
         for track in tracks {
             match stmt.execute(params![
-                track.title,
-                track.artist,
-                track.album,
-                track.album_artist,
-                track.genre,
-                track.year,
-                track.track_number,
-                track.disc_number,
-                track.duration_secs,
-                track.sample_rate,
-                track.channels,
-                track.bitrate_kbps,
-                track.format,
-                track.file_size,
-                track.file_modified,
-                track.crc32,
-                track.bpm,
-                track.mood,
-                track.replaygain_track_db,
-                track.replaygain_album_db,
-                track.replaygain_track_peak,
-                track.replaygain_album_peak,
-                track.ebu_r128_loudness,
-                track.ebu_r128_peak,
-                track.lyrics_synced,
-                track.lyrics_unsynced,
-                track.date_scanned,
-                track.path,
+                track.title, track.artist, track.album, track.album_artist,
+                track.genre, track.year, track.track_number, track.disc_number,
+                track.duration_secs, track.sample_rate, track.channels, track.bitrate_kbps,
+                track.format, track.file_size, track.file_modified, track.crc32,
+                track.bpm, track.mood,
+                track.replaygain_track_db, track.replaygain_album_db,
+                track.replaygain_track_peak, track.replaygain_album_peak,
+                track.ebu_r128_loudness, track.ebu_r128_peak,
+                track.lyrics_synced, track.lyrics_unsynced,
+                track.date_scanned, track.path,
             ]) {
                 Ok(rows) => updated += rows,
                 Err(e) => {
                     log::warn!("Batch update failed for track {}: {}", track.path, e);
-                },
+                }
             }
         }
 
         drop(stmt);
         tx.commit().map_err(DbError::Sqlite)?;
-        Ok(updated as usize)
+        Ok(updated)
     }
 }
 
@@ -846,30 +765,11 @@ pub(crate) mod tests {
 
         // Analysis data should be preserved, only file metadata updated
         let fetched = db.get_track(id).unwrap().unwrap();
-        assert_eq!(
-            fetched.title, "Test Song Updated",
-            "File metadata should be updated"
-        );
-        assert_eq!(
-            fetched.bpm,
-            Some(120.0),
-            "BPM should be preserved on re-insert"
-        );
-        assert_eq!(
-            fetched.mood.as_deref(),
-            Some("happy"),
-            "Mood should be preserved on re-insert"
-        );
-        assert_eq!(
-            fetched.replaygain_track_db,
-            Some(-5.0),
-            "ReplayGain should be preserved on re-insert"
-        );
-        assert_eq!(
-            fetched.ebu_r128_loudness,
-            Some(-10.0),
-            "EBU R128 should be preserved on re-insert"
-        );
+        assert_eq!(fetched.title, "Test Song Updated", "File metadata should be updated");
+        assert_eq!(fetched.bpm, Some(120.0), "BPM should be preserved on re-insert");
+        assert_eq!(fetched.mood.as_deref(), Some("happy"), "Mood should be preserved on re-insert");
+        assert_eq!(fetched.replaygain_track_db, Some(-5.0), "ReplayGain should be preserved on re-insert");
+        assert_eq!(fetched.ebu_r128_loudness, Some(-10.0), "EBU R128 should be preserved on re-insert");
     }
 
     #[test]
@@ -888,16 +788,8 @@ pub(crate) mod tests {
         // Analysis data should be preserved
         let fetched = db.get_track(id).unwrap().unwrap();
         assert_eq!(fetched.title, "Test Song Updated");
-        assert_eq!(
-            fetched.bpm,
-            Some(120.0),
-            "BPM should be preserved in batch upsert"
-        );
-        assert_eq!(
-            fetched.mood.as_deref(),
-            Some("happy"),
-            "Mood should be preserved in batch upsert"
-        );
+        assert_eq!(fetched.bpm, Some(120.0), "BPM should be preserved in batch upsert");
+        assert_eq!(fetched.mood.as_deref(), Some("happy"), "Mood should be preserved in batch upsert");
     }
 
     #[test]
@@ -948,9 +840,7 @@ pub(crate) mod tests {
         let id1 = db.insert_track(&track1).unwrap();
         let id2 = db.insert_track(&track2).unwrap();
 
-        let playlist_id = db
-            .create_playlist("My Playlist", None, false, None)
-            .unwrap();
+        let playlist_id = db.create_playlist("My Playlist", None, false, None).unwrap();
         db.add_track_to_playlist(playlist_id, id1, 0).unwrap();
         db.add_track_to_playlist(playlist_id, id2, 1).unwrap();
 
@@ -962,10 +852,7 @@ pub(crate) mod tests {
 
         // Playlist counters should be updated
         let playlists = db.get_all_playlists().unwrap();
-        assert_eq!(
-            playlists[0].track_count, 1,
-            "Playlist counter should be decremented after track deletion"
-        );
+        assert_eq!(playlists[0].track_count, 1, "Playlist counter should be decremented after track deletion");
     }
 
     #[test]
@@ -984,11 +871,7 @@ pub(crate) mod tests {
         let fetched = db.get_track(id).unwrap().unwrap();
         assert_eq!(fetched.title, "Updated Title");
         assert_eq!(fetched.bpm, Some(120.0), "BPM should be preserved");
-        assert_eq!(
-            fetched.mood.as_deref(),
-            Some("happy"),
-            "Mood should be preserved"
-        );
+        assert_eq!(fetched.mood.as_deref(), Some("happy"), "Mood should be preserved");
     }
 
     #[test]
@@ -999,20 +882,14 @@ pub(crate) mod tests {
         db.insert_track(&track).unwrap();
 
         let unanalyzed = db.get_unanalyzed_tracks().unwrap();
-        assert_eq!(
-            unanalyzed.len(),
-            1,
-            "Track without analysis should be returned"
-        );
+        assert_eq!(unanalyzed.len(), 1, "Track without analysis should be returned");
 
         let id = unanalyzed[0].id;
         db.update_bpm(id, 120.0).unwrap();
         db.update_mood(id, "happy").unwrap();
 
         let unanalyzed = db.get_unanalyzed_tracks().unwrap();
-        assert!(
-            unanalyzed.is_empty(),
-            "Track with analysis should not be returned"
-        );
+        assert!(unanalyzed.is_empty(), "Track with analysis should not be returned");
     }
 }
+

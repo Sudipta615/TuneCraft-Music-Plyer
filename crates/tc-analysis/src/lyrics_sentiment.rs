@@ -46,10 +46,7 @@
 
 /// Sentiment tag for a lexicon entry.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Tag {
-    Romantic,
-    Sad,
-}
+enum Tag { Romantic, Sad }
 
 /// A single lexicon entry: (lowercase token, tag).
 type Entry = (&'static str, Tag);
@@ -57,7 +54,6 @@ type Entry = (&'static str, Tag);
 use Tag::{Romantic as R, Sad as S};
 
 /// The valence lexicon.
-
 /// Rules for adding entries:
 /// - All tokens **must** be lowercase ASCII or Unicode NFD-normalised.
 /// - Include both Devanagari and common romanised forms for Hindi/Urdu words.
@@ -67,367 +63,372 @@ static LEXICON: &[Entry] = &[
     // -----------------------------------------------------------------------
     // ROMANTIC — Hindi/Urdu (Devanagari)
     // -----------------------------------------------------------------------
-    ("प्यार", R),    // pyaar — love
-    ("प्रेम", R),     // prem — love (Sanskrit-origin)
-    ("इश्क़", R),     // ishq — passionate love
-    ("इश्क", R),     // ishq (without nukta)
-    ("मोहब्बत", R),  // mohabbat — love/affection
-    ("मोहब्बतें", R),  // mohabbaten — loves
-    ("दिलरुबा", R),  // dilruba — heart-stealer (term of endearment)
-    ("जानेमन", R),   // jaaneman — darling
-    ("जानम", R),    // jaanam — beloved
-    ("महबूब", R),    // mahboob — beloved
-    ("महबूबा", R),   // mahbooba — beloved (f)
-    ("हमसफ़र", R),   // humsafar — companion/life partner
-    ("हमसफर", R),   // humsafar (without nukta)
-    ("साथी", R),    // saathi — companion
-    ("दुल्हन", R),    // dulhan — bride
-    ("दूल्हा", R),    // dulha — groom
-    ("सजना", R),    // sajna — beloved
-    ("सजनी", R),    // sajni — beloved (f)
-    ("सनम", R),     // sanam — sweetheart
-    ("चाहत", R),    // chaahat — desire/love
-    ("चाहना", R),   // chahna — to love/desire
-    ("आशिक़", R),    // aashiq — lover
-    ("आशिक", R),    // aashiq (without nukta)
-    ("माशूक़", R),    // maashuq — beloved
-    ("रोमांस", R),   // romance (loanword)
-    ("दिल", R),     // dil — heart (romantic context dominant)
-    ("दिलकश", R),   // dilkash — charming
-    ("मिलन", R),    // milan — union/meeting (of lovers)
-    ("रात", R),     // raat — night (romantic context in Bollywood)
-    ("चाँद", R),     // chaand — moon (romantic symbol)
-    ("चांद", R),     // chaand (alt spelling)
-    ("सितारे", R),   // sitaare — stars (romantic)
-    ("ख़्वाब", R),    // khwaab — dream (romantic)
-    ("ख्वाब", R),    // khwaab (without nukta)
-    ("हसीन", R),    // haseen — beautiful
-    ("हसीना", R),   // haseena — beautiful woman
-    ("खूबसूरत", R),   // khoobsoorat — beautiful
-    ("नज़र", R),     // nazar — gaze/glance (romantic)
-    ("नजर", R),     // nazar (without nukta)
-    ("मुस्कान", R),   // muskaan — smile
-    ("हँसी", R),     // hansi — laughter
-    ("पहली", R),    // pehli — first (first love context)
-    ("पहला", R),    // pehla — first
-    ("मेरी जान", R), // meri jaan — my life (endearment)
-    ("बाहें", R),     // baahen — arms (embrace)
-    ("आग़ोश", R),    // aaghosh — embrace/lap
-    ("बोसा", R),    // bosa — kiss
-    ("अधर", R),     // adhar — lips (poetic)
-    ("नैन", R),      // nain — eyes (poetic/romantic)
-    ("अँखियाँ", R),   // ankhiyaan — eyes (poetic)
-    ("रूह", R),      // rooh — soul (in romantic context: "meri rooh")
-    ("वफ़ा", R),     // wafa — faithfulness/loyalty (in love)
-    ("वफा", R),     // wafa (without nukta)
-    ("इंतज़ार", R),   // intezaar — waiting (for beloved)
-    ("इंतजार", R),   // intezaar (without nukta)
+    ("प्यार",      R), // pyaar — love
+    ("प्रेम",      R), // prem — love (Sanskrit-origin)
+    ("इश्क़",      R), // ishq — passionate love
+    ("इश्क",       R), // ishq (without nukta)
+    ("मोहब्बत",    R), // mohabbat — love/affection
+    ("मोहब्बतें",  R), // mohabbaten — loves
+    ("दिलरुबा",    R), // dilruba — heart-stealer (term of endearment)
+    ("जानेमन",     R), // jaaneman — darling
+    ("जानम",       R), // jaanam — beloved
+    ("महबूब",      R), // mahboob — beloved
+    ("महबूबा",     R), // mahbooba — beloved (f)
+    ("हमसफ़र",     R), // humsafar — companion/life partner
+    ("हमसफर",      R), // humsafar (without nukta)
+    ("साथी",       R), // saathi — companion
+    ("दुल्हन",     R), // dulhan — bride
+    ("दूल्हा",     R), // dulha — groom
+    ("सजना",       R), // sajna — beloved
+    ("सजनी",       R), // sajni — beloved (f)
+    ("सनम",        R), // sanam — sweetheart
+    ("चाहत",       R), // chaahat — desire/love
+    ("चाहना",      R), // chahna — to love/desire
+    ("आशिक़",      R), // aashiq — lover
+    ("आशिक",       R), // aashiq (without nukta)
+    ("माशूक़",     R), // maashuq — beloved
+    ("रोमांस",     R), // romance (loanword)
+    ("दिल",        R), // dil — heart (romantic context dominant)
+    ("दिलकश",      R), // dilkash — charming
+    ("मिलन",       R), // milan — union/meeting (of lovers)
+    ("रात",        R), // raat — night (romantic context in Bollywood)
+    ("चाँद",       R), // chaand — moon (romantic symbol)
+    ("चांद",       R), // chaand (alt spelling)
+    ("सितारे",     R), // sitaare — stars (romantic)
+    ("ख़्वाब",     R), // khwaab — dream (romantic)
+    ("ख्वाब",      R), // khwaab (without nukta)
+    ("हसीन",       R), // haseen — beautiful
+    ("हसीना",      R), // haseena — beautiful woman
+    ("खूबसूरत",    R), // khoobsoorat — beautiful
+    ("नज़र",       R), // nazar — gaze/glance (romantic)
+    ("नजर",        R), // nazar (without nukta)
+    ("मुस्कान",    R), // muskaan — smile
+    ("हँसी",       R), // hansi — laughter
+    ("पहली",       R), // pehli — first (first love context)
+    ("पहला",       R), // pehla — first
+    ("मेरी जान",   R), // meri jaan — my life (endearment)
+    ("बाहें",      R), // baahen — arms (embrace)
+    ("आग़ोश",      R), // aaghosh — embrace/lap
+    ("बोसा",       R), // bosa — kiss
+    ("अधर",        R), // adhar — lips (poetic)
+    ("नैन",        R), // nain — eyes (poetic/romantic)
+    ("अँखियाँ",    R), // ankhiyaan — eyes (poetic)
+    ("रूह",        R), // rooh — soul (in romantic context: "meri rooh")
+    ("वफ़ा",       R), // wafa — faithfulness/loyalty (in love)
+    ("वफा",        R), // wafa (without nukta)
+    ("इंतज़ार",    R), // intezaar — waiting (for beloved)
+    ("इंतजार",     R), // intezaar (without nukta)
+
     // -----------------------------------------------------------------------
     // ROMANTIC — Hindi/Urdu romanised
     // -----------------------------------------------------------------------
-    ("pyaar", R),
-    ("pyar", R),
-    ("prem", R),
-    ("ishq", R),
-    ("mohabbat", R),
-    ("mohabbatein", R),
-    ("dilruba", R),
-    ("jaaneman", R),
-    ("jaaneman", R),
-    ("jaanam", R),
-    ("janum", R),
-    ("mahboob", R),
-    ("humsafar", R),
-    ("saathi", R),
-    ("saath", R),
-    ("dulhan", R),
-    ("dulha", R),
-    ("sajna", R),
-    ("sajni", R),
-    ("sanam", R),
-    ("chaahat", R),
-    ("chahna", R),
-    ("aashiq", R),
-    ("romance", R),
-    ("romantic", R),
-    ("dil", R),
-    ("milan", R),
-    ("chaand", R),
-    ("chand", R),
-    ("sitaare", R),
-    ("sitare", R),
-    ("khwaab", R),
-    ("khwab", R),
-    ("sapna", R), // dream
-    ("sapne", R),
-    ("haseen", R),
-    ("haseena", R),
-    ("khoobsoorat", R),
-    ("sundar", R), // beautiful
-    ("muskaan", R),
-    ("hansi", R),
-    ("pehla", R),
-    ("pehli", R),
-    ("baahein", R),
-    ("baahon", R),
-    ("bosa", R),
-    ("nain", R),
-    ("ankhiyaan", R),
-    ("aankhein", R),
-    ("rooh", R),
-    ("wafa", R),
-    ("intezaar", R),
-    ("tera", R), // yours (intimate)
-    ("tere", R),
-    ("teri", R),
-    ("mera", R), // mine (intimate — common in love songs)
-    ("mere", R),
-    ("meri", R),
-    ("tujhse", R), // from you
-    ("tujhe", R),  // to you
-    ("tumse", R),
-    ("tumhare", R),
-    ("tumhari", R),
-    ("milna", R), // to meet
-    ("mile", R),
+    ("pyaar",      R),
+    ("pyar",       R),
+    ("prem",       R),
+    ("ishq",       R),
+    ("mohabbat",   R),
+    ("mohabbatein",R),
+    ("dilruba",    R),
+    ("jaaneman",   R),
+    ("jaaneman",   R),
+    ("jaanam",     R),
+    ("janum",      R),
+    ("mahboob",    R),
+    ("humsafar",   R),
+    ("saathi",     R),
+    ("saath",      R),
+    ("dulhan",     R),
+    ("dulha",      R),
+    ("sajna",      R),
+    ("sajni",      R),
+    ("sanam",      R),
+    ("chaahat",    R),
+    ("chahna",     R),
+    ("aashiq",     R),
+    ("romance",    R),
+    ("romantic",   R),
+    ("dil",        R),
+    ("milan",      R),
+    ("chaand",     R),
+    ("chand",      R),
+    ("sitaare",    R),
+    ("sitare",     R),
+    ("khwaab",     R),
+    ("khwab",      R),
+    ("sapna",      R), // dream
+    ("sapne",      R),
+    ("haseen",     R),
+    ("haseena",    R),
+    ("khoobsoorat",R),
+    ("sundar",     R), // beautiful
+    ("muskaan",    R),
+    ("hansi",      R),
+    ("pehla",      R),
+    ("pehli",      R),
+    ("baahein",    R),
+    ("baahon",     R),
+    ("bosa",       R),
+    ("nain",       R),
+    ("ankhiyaan",  R),
+    ("aankhein",   R),
+    ("rooh",       R),
+    ("wafa",       R),
+    ("intezaar",   R),
+    ("tera",       R), // yours (intimate)
+    ("tere",       R),
+    ("teri",       R),
+    ("mera",       R), // mine (intimate — common in love songs)
+    ("mere",       R),
+    ("meri",       R),
+    ("tujhse",     R), // from you
+    ("tujhe",      R), // to you
+    ("tumse",      R),
+    ("tumhare",    R),
+    ("tumhari",    R),
+    ("milna",      R), // to meet
+    ("mile",       R),
+
     // -----------------------------------------------------------------------
     // ROMANTIC — English
     // -----------------------------------------------------------------------
-    ("love", R),
-    ("loved", R),
-    ("lover", R),
-    ("lovely", R),
-    ("romance", R),
-    ("romantic", R),
-    ("darling", R),
+    ("love",       R),
+    ("loved",      R),
+    ("lover",      R),
+    ("lovely",     R),
+    ("romance",    R),
+    ("romantic",   R),
+    ("darling",    R),
     ("sweetheart", R),
-    ("honey", R),
-    ("baby", R),
-    ("babe", R),
-    ("kiss", R),
-    ("kissed", R),
-    ("kisses", R),
-    ("embrace", R),
-    ("hold", R), // "hold me"
-    ("holding", R),
-    ("arms", R), // "in your arms"
-    ("heart", R),
-    ("heartbeat", R),
-    ("forever", R),
-    ("always", R),
-    ("together", R),
-    ("destiny", R),
-    ("soul", R), // "my soul"
-    ("dream", R),
-    ("dreaming", R),
-    ("dreams", R),
-    ("beautiful", R),
-    ("gorgeous", R),
-    ("smile", R),
-    ("smiling", R),
-    ("warmth", R),
-    ("tender", R),
-    ("gently", R),
-    ("passion", R),
+    ("honey",      R),
+    ("baby",       R),
+    ("babe",       R),
+    ("kiss",       R),
+    ("kissed",     R),
+    ("kisses",     R),
+    ("embrace",    R),
+    ("hold",       R),  // "hold me"
+    ("holding",    R),
+    ("arms",       R),  // "in your arms"
+    ("heart",      R),
+    ("heartbeat",  R),
+    ("forever",    R),
+    ("always",     R),
+    ("together",   R),
+    ("destiny",    R),
+    ("soul",       R),  // "my soul"
+    ("dream",      R),
+    ("dreaming",   R),
+    ("dreams",     R),
+    ("beautiful",  R),
+    ("gorgeous",   R),
+    ("smile",      R),
+    ("smiling",    R),
+    ("warmth",     R),
+    ("tender",     R),
+    ("gently",     R),
+    ("passion",    R),
     ("passionate", R),
-    ("adore", R),
-    ("adoring", R),
-    ("cherish", R),
-    ("cherished", R),
-    ("devoted", R),
-    ("devotion", R),
-    ("soulmate", R),
-    ("forever", R),
-    ("eternity", R),
-    ("eternal", R),
-    ("moonlight", R),
-    ("starlight", R),
-    ("candlelight", R),
-    ("tonight", R), // "tonight with you"
-    ("dance", R),   // "dance with me"
-    ("dancing", R),
+    ("adore",      R),
+    ("adoring",    R),
+    ("cherish",    R),
+    ("cherished",  R),
+    ("devoted",    R),
+    ("devotion",   R),
+    ("soulmate",   R),
+    ("forever",    R),
+    ("eternity",   R),
+    ("eternal",    R),
+    ("moonlight",  R),
+    ("starlight",  R),
+    ("candlelight",R),
+    ("tonight",    R),  // "tonight with you"
+    ("dance",      R),  // "dance with me"
+    ("dancing",    R),
+
     // -----------------------------------------------------------------------
     // SAD — Hindi/Urdu (Devanagari)
     // -----------------------------------------------------------------------
-    ("दर्द", S),     // dard — pain
-    ("ग़म", S),      // gham — sorrow
-    ("गम", S),      // gham (without nukta)
-    ("उदास", S),    // udaas — sad
-    ("उदासी", S),   // udaasi — sadness
-    ("तन्हा", S),    // tanha — lonely
-    ("तन्हाई", S),   // tanhai — loneliness
-    ("अकेला", S),    // akela — alone (m)
-    ("अकेली", S),    // akeli — alone (f)
-    ("रोना", S),    // rona — to cry
-    ("रो", S),      // ro — cry (imperative)
-    ("आँसू", S),      // aansu — tears
-    ("आंसू", S),      // aansu (alt)
-    ("आँखें", S),      // aankhein — eyes (in sad context: "aankhein bhar aayi")
-    ("बिछड़", S),    // bichad — separation
-    ("बिछड़ना", S),  // bichadna — to part/separate
-    ("जुदाई", S),    // judaai — separation
-    ("दूरी", S),     // doori — distance
-    ("खोना", S),    // khona — to lose
-    ("खोया", S),    // khoya — lost
-    ("छोड़", S),     // chod — leave/abandon
-    ("छोड़ना", S),   // chodna — to leave
-    ("चला गया", S), // chala gaya — went away
-    ("चली गई", S),  // chali gayi — went away (f)
-    ("वापस", S),    // waapas — return (longing to return)
-    ("याद", S),     // yaad — memory/remembrance (used in loss context)
-    ("यादें", S),     // yaadein — memories
-    ("बेवफ़ा", S),    // bewafa — unfaithful
-    ("बेवफा", S),    // bewafa (without nukta)
-    ("धोखा", S),    // dhokha — betrayal
-    ("टूटा", S),     // toota — broken
-    ("टूटे", S),      // toote — broken (pl)
-    ("तकलीफ़", S),   // takleef — suffering/pain
-    ("तकलीफ", S),   // takleef (without nukta)
-    ("मुश्किल", S),   // mushkil — difficult/trouble
-    ("परेशान", S),   // pareshan — troubled/distressed
-    ("सिसकी", S),   // siski — sob
-    ("बेकल", S),     // bekal — restless/distressed
-    ("बेसहारा", S),  // besahara — helpless/abandoned
-    ("राह", S),     // raah — path (waiting on the path — sad context)
-    ("इंतज़ार", S),   // intezaar — waiting (also sad: waiting endlessly)
-    ("रात भर", S),  // raat bhar — all night (sleepless sadness)
-    ("सन्नाटा", S),  // sannata — silence/emptiness
-    ("खालीपन", S),  // khaalipan — emptiness
-    ("उम्मीद", S),   // umeed — hope (in context of fading hope)
-    ("अफ़सोस", S),   // afsos — regret
-    ("अफसोस", S),   // afsos (without nukta)
-    ("पश्चाताप", S), // pashchatap — remorse
+    ("दर्द",       S), // dard — pain
+    ("ग़म",        S), // gham — sorrow
+    ("गम",         S), // gham (without nukta)
+    ("उदास",       S), // udaas — sad
+    ("उदासी",      S), // udaasi — sadness
+    ("तन्हा",      S), // tanha — lonely
+    ("तन्हाई",     S), // tanhai — loneliness
+    ("अकेला",      S), // akela — alone (m)
+    ("अकेली",      S), // akeli — alone (f)
+    ("रोना",       S), // rona — to cry
+    ("रो",         S), // ro — cry (imperative)
+    ("आँसू",       S), // aansu — tears
+    ("आंसू",       S), // aansu (alt)
+    ("आँखें",      S), // aankhein — eyes (in sad context: "aankhein bhar aayi")
+    ("बिछड़",      S), // bichad — separation
+    ("बिछड़ना",    S), // bichadna — to part/separate
+    ("जुदाई",      S), // judaai — separation
+    ("दूरी",       S), // doori — distance
+    ("खोना",       S), // khona — to lose
+    ("खोया",       S), // khoya — lost
+    ("छोड़",       S), // chod — leave/abandon
+    ("छोड़ना",     S), // chodna — to leave
+    ("चला गया",    S), // chala gaya — went away
+    ("चली गई",     S), // chali gayi — went away (f)
+    ("वापस",       S), // waapas — return (longing to return)
+    ("याद",        S), // yaad — memory/remembrance (used in loss context)
+    ("यादें",      S), // yaadein — memories
+    ("बेवफ़ा",     S), // bewafa — unfaithful
+    ("बेवफा",      S), // bewafa (without nukta)
+    ("धोखा",       S), // dhokha — betrayal
+    ("टूटा",       S), // toota — broken
+    ("टूटे",       S), // toote — broken (pl)
+    ("तकलीफ़",     S), // takleef — suffering/pain
+    ("तकलीफ",      S), // takleef (without nukta)
+    ("मुश्किल",    S), // mushkil — difficult/trouble
+    ("परेशान",     S), // pareshan — troubled/distressed
+    ("सिसकी",      S), // siski — sob
+    ("बेकल",       S), // bekal — restless/distressed
+    ("बेसहारा",    S), // besahara — helpless/abandoned
+    ("राह",        S), // raah — path (waiting on the path — sad context)
+    ("इंतज़ार",    S), // intezaar — waiting (also sad: waiting endlessly)
+    ("रात भर",     S), // raat bhar — all night (sleepless sadness)
+    ("सन्नाटा",    S), // sannata — silence/emptiness
+    ("खालीपन",     S), // khaalipan — emptiness
+    ("उम्मीद",     S), // umeed — hope (in context of fading hope)
+    ("अफ़सोस",     S), // afsos — regret
+    ("अफसोस",      S), // afsos (without nukta)
+    ("पश्चाताप",   S), // pashchatap — remorse
+
     // -----------------------------------------------------------------------
     // SAD — Hindi/Urdu romanised
     // -----------------------------------------------------------------------
-    ("dard", S),
-    ("gham", S),
-    ("udaas", S),
-    ("udaasi", S),
-    ("tanha", S),
-    ("tanhai", S),
-    ("akela", S),
-    ("akeli", S),
-    ("rona", S),
-    ("aansu", S),
-    ("ansu", S),
-    ("bichadna", S),
-    ("bichad", S),
-    ("judaai", S),
-    ("judai", S),
-    ("doori", S),
-    ("khona", S),
-    ("khoya", S),
-    ("chhoda", S),
-    ("chodna", S),
-    ("yaad", S),
-    ("yaadein", S),
-    ("yaaden", S),
-    ("bewafa", S),
-    ("dhokha", S),
-    ("toota", S),
-    ("toote", S),
-    ("takleef", S),
-    ("mushkil", S),
-    ("pareshan", S),
-    ("siski", S),
-    ("besahara", S),
-    ("sannata", S),
-    ("khaalipan", S),
-    ("khali", S), // empty
-    ("afsos", S),
-    ("rote", S), // crying (rote hain)
-    ("roti", S),
-    ("tadap", S), // longing/ache
-    ("tadapna", S),
-    ("bikharna", S), // to shatter
-    ("bikhar", S),
-    ("toot", S),    // break
-    ("alvida", S),  // goodbye (farewell — sad)
-    ("rukhsat", S), // farewell
-    ("kho", S),     // lose / lost
-    ("haarna", S),  // to lose/be defeated
-    ("haar", S),    // defeat/loss
-    ("zindagi", S), // life (often in sad songs: "zindagi ne...")
-    ("andhere", S), // darkness
-    ("andhera", S),
-    ("raat", S), // night (also sad: sleepless nights)
+    ("dard",       S),
+    ("gham",       S),
+    ("udaas",      S),
+    ("udaasi",     S),
+    ("tanha",      S),
+    ("tanhai",     S),
+    ("akela",      S),
+    ("akeli",      S),
+    ("rona",       S),
+    ("aansu",      S),
+    ("ansu",       S),
+    ("bichadna",   S),
+    ("bichad",     S),
+    ("judaai",     S),
+    ("judai",      S),
+    ("doori",      S),
+    ("khona",      S),
+    ("khoya",      S),
+    ("chhoda",     S),
+    ("chodna",     S),
+    ("yaad",       S),
+    ("yaadein",    S),
+    ("yaaden",     S),
+    ("bewafa",     S),
+    ("dhokha",     S),
+    ("toota",      S),
+    ("toote",      S),
+    ("takleef",    S),
+    ("mushkil",    S),
+    ("pareshan",   S),
+    ("siski",      S),
+    ("besahara",   S),
+    ("sannata",    S),
+    ("khaalipan",  S),
+    ("khali",      S),  // empty
+    ("afsos",      S),
+    ("rote",       S),  // crying (rote hain)
+    ("roti",       S),
+    ("tadap",      S),  // longing/ache
+    ("tadapna",    S),
+    ("bikharna",   S),  // to shatter
+    ("bikhar",     S),
+    ("toot",       S),  // break
+    ("alvida",     S),  // goodbye (farewell — sad)
+    ("rukhsat",    S),  // farewell
+    ("kho",        S),  // lose / lost
+    ("haarna",     S),  // to lose/be defeated
+    ("haar",       S),  // defeat/loss
+    ("zindagi",    S),  // life (often in sad songs: "zindagi ne...")
+    ("andhere",    S),  // darkness
+    ("andhera",    S),
+    ("raat",       S),  // night (also sad: sleepless nights)
+
     // -----------------------------------------------------------------------
     // SAD — English
     // -----------------------------------------------------------------------
-    ("sad", S),
-    ("sadness", S),
-    ("sorrow", S),
-    ("sorrowful", S),
-    ("grief", S),
-    ("grieve", S),
-    ("cry", S),
-    ("crying", S),
-    ("tears", S),
-    ("tear", S), // a tear (drop)
-    ("weep", S),
-    ("weeping", S),
-    ("pain", S),
-    ("painful", S),
-    ("hurt", S),
-    ("hurting", S),
-    ("broken", S),
+    ("sad",        S),
+    ("sadness",    S),
+    ("sorrow",     S),
+    ("sorrowful",  S),
+    ("grief",      S),
+    ("grieve",     S),
+    ("cry",        S),
+    ("crying",     S),
+    ("tears",      S),
+    ("tear",       S),  // a tear (drop)
+    ("weep",       S),
+    ("weeping",    S),
+    ("pain",       S),
+    ("painful",    S),
+    ("hurt",       S),
+    ("hurting",    S),
+    ("broken",     S),
     ("heartbreak", S),
-    ("heartbroken", S),
-    ("shattered", S),
-    ("alone", S),
-    ("lonely", S),
+    ("heartbroken",S),
+    ("shattered",  S),
+    ("alone",      S),
+    ("lonely",     S),
     ("loneliness", S),
-    ("empty", S),
-    ("emptiness", S),
-    ("missing", S), // "missing you"
-    ("miss", S),
-    ("gone", S),
-    ("lost", S),
-    ("losing", S),
-    ("leave", S),
-    ("leaving", S),
-    ("left", S), // "you left me"
-    ("goodbye", S),
-    ("farewell", S),
-    ("apart", S),
-    ("distance", S),
-    ("apart", S),
-    ("apart", S),
-    ("darkness", S),
-    ("dark", S),
-    ("shadow", S),
-    ("shadows", S),
-    ("silence", S),
-    ("silent", S),
-    ("cold", S), // "cold and empty"
-    ("numb", S),
-    ("regret", S),
-    ("regrets", S),
-    ("mistake", S),
-    ("mistakes", S),
-    ("betrayal", S),
-    ("betrayed", S),
-    ("lied", S),
-    ("lies", S),
-    ("deceived", S),
-    ("abandoned", S),
-    ("helpless", S),
-    ("hopeless", S),
-    ("despair", S),
-    ("mourning", S),
-    ("mourn", S),
-    ("moaning", S), // moan of grief
-    ("ache", S),
-    ("aching", S),
-    ("bleed", S),
-    ("bleeding", S),
-    ("suffocate", S),
-    ("suffocating", S),
-    ("drown", S),
-    ("drowning", S),
-    ("fading", S),
-    ("fade", S),
+    ("empty",      S),
+    ("emptiness",  S),
+    ("missing",    S),  // "missing you"
+    ("miss",       S),
+    ("gone",       S),
+    ("lost",       S),
+    ("losing",     S),
+    ("leave",      S),
+    ("leaving",    S),
+    ("left",       S),  // "you left me"
+    ("goodbye",    S),
+    ("farewell",   S),
+    ("apart",      S),
+    ("distance",   S),
+    ("apart",      S),
+    ("apart",      S),
+    ("darkness",   S),
+    ("dark",       S),
+    ("shadow",     S),
+    ("shadows",    S),
+    ("silence",    S),
+    ("silent",     S),
+    ("cold",       S),  // "cold and empty"
+    ("numb",       S),
+    ("regret",     S),
+    ("regrets",    S),
+    ("mistake",    S),
+    ("mistakes",   S),
+    ("betrayal",   S),
+    ("betrayed",   S),
+    ("lied",       S),
+    ("lies",       S),
+    ("deceived",   S),
+    ("abandoned",  S),
+    ("helpless",   S),
+    ("hopeless",   S),
+    ("despair",    S),
+    ("mourning",   S),
+    ("mourn",      S),
+    ("moaning",    S),  // moan of grief
+    ("ache",       S),
+    ("aching",     S),
+    ("bleed",      S),
+    ("bleeding",   S),
+    ("suffocate",  S),
+    ("suffocating",S),
+    ("drown",      S),
+    ("drowning",   S),
+    ("fading",     S),
+    ("fade",       S),
 ];
 
 // ---------------------------------------------------------------------------
@@ -462,7 +463,6 @@ pub struct SentimentResult {
 // ---------------------------------------------------------------------------
 
 /// Lightweight lyrics sentiment analyser.
-
 /// Instantiate once per process (the lexicon is static), then call
 /// [`LyricsSentiment::analyse`] for each track.
 pub struct LyricsSentiment {
@@ -477,7 +477,7 @@ impl LyricsSentiment {
     pub fn new() -> Self {
         let mut sorted: Vec<(&'static str, Tag)> = LEXICON.to_vec();
         sorted.sort_unstable_by_key(|e| e.0);
-        sorted.dedup_by_key(|e| e.0); // remove duplicate tokens (same word, same tag)
+        sorted.dedup_by_key(|e| e.0);  // remove duplicate tokens (same word, same tag)
         Self { sorted }
     }
 
@@ -507,43 +507,21 @@ impl LyricsSentiment {
         // We keep Unicode letters together (Devanagari words don't have
         // internal spaces, so they arrive as whole tokens after split).
         for raw_token in stripped.split(|c: char| {
-            c.is_whitespace()
-                || matches!(
-                    c,
-                    ',' | '.'
-                        | '!'
-                        | '?'
-                        | ';'
-                        | ':'
-                        | '"'
-                        | '\''
-                        | '('
-                        | ')'
-                        | '['
-                        | ']'
-                        | '|'
-                        | '/'
-                        | '\\'
-                        | '-'
-                        | '_'
-                        | '~'
-                )
+            c.is_whitespace() || matches!(c, ',' | '.' | '!' | '?' | ';' | ':' |
+                                            '"' | '\'' | '(' | ')' | '[' | ']' |
+                                            '|' | '/' | '\\' | '-' | '_' | '~')
         }) {
-            if raw_token.is_empty() {
-                continue;
-            }
+            if raw_token.is_empty() { continue; }
 
             // Lowercase for ASCII; Devanagari has no case so to_lowercase is a no-op.
             let lower = raw_token.to_lowercase();
             let token = lower.trim();
-            if token.is_empty() {
-                continue;
-            }
+            if token.is_empty() { continue; }
 
             match self.lookup(token) {
                 Some(Tag::Romantic) => romantic_hits += 1,
-                Some(Tag::Sad) => sad_hits += 1,
-                None => {},
+                Some(Tag::Sad)      => sad_hits += 1,
+                None => {}
             }
         }
 
@@ -553,8 +531,9 @@ impl LyricsSentiment {
         let score = (romantic_hits as f64 - sad_hits as f64) / (total as f64 + 1.0);
 
         // Confidence: how decisive is the split?
-        let confidence =
-            ((romantic_hits as f64 - sad_hits as f64).abs() / (total as f64 + 1.0)).min(1.0);
+        let confidence = ((romantic_hits as f64 - sad_hits as f64).abs()
+                         / (total as f64 + 1.0))
+                        .min(1.0);
 
         const CONFIDENCE_THRESHOLD: f64 = 0.15;
 
@@ -566,19 +545,12 @@ impl LyricsSentiment {
             Sentiment::Sad
         };
 
-        SentimentResult {
-            sentiment,
-            confidence,
-            romantic_hits,
-            sad_hits,
-        }
+        SentimentResult { sentiment, confidence, romantic_hits, sad_hits }
     }
 }
 
 impl Default for LyricsSentiment {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 /// Strip LRC-format timestamps (`[mm:ss.xx]`, `[mm:ss:xx]`) from lyrics text.
@@ -594,12 +566,10 @@ fn strip_lrc_timestamps(text: &str) -> String {
             '[' => {
                 in_bracket = true;
                 bracket_buf.clear();
-            },
+            }
             ']' if in_bracket => {
                 // Only suppress if the bracket content looks like a timestamp.
-                let is_ts = bracket_buf
-                    .chars()
-                    .all(|c| c.is_ascii_digit() || c == ':' || c == '.');
+                let is_ts = bracket_buf.chars().all(|c| c.is_ascii_digit() || c == ':' || c == '.');
                 if !is_ts {
                     // Not a timestamp (e.g. "[Chorus]") — keep it.
                     out.push('[');
@@ -608,13 +578,13 @@ fn strip_lrc_timestamps(text: &str) -> String {
                 }
                 in_bracket = false;
                 bracket_buf.clear();
-            },
+            }
             _ if in_bracket => {
                 bracket_buf.push(ch);
-            },
+            }
             _ => {
                 out.push(ch);
-            },
+            }
         }
     }
     // Unclosed bracket — flush.
@@ -633,9 +603,7 @@ fn strip_lrc_timestamps(text: &str) -> String {
 mod tests {
     use super::*;
 
-    fn analyser() -> LyricsSentiment {
-        LyricsSentiment::new()
-    }
+    fn analyser() -> LyricsSentiment { LyricsSentiment::new() }
 
     // --- construction ---
 
@@ -650,10 +618,7 @@ mod tests {
     fn test_lrc_timestamp_stripped() {
         let text = "[00:12.34]Tere bina\n[00:15.00]zindagi se";
         let stripped = strip_lrc_timestamps(text);
-        assert!(
-            !stripped.contains("[00:12.34]"),
-            "timestamp should be removed"
-        );
+        assert!(!stripped.contains("[00:12.34]"), "timestamp should be removed");
         assert!(stripped.contains("Tere bina"), "lyric text should remain");
     }
 
@@ -661,10 +626,7 @@ mod tests {
     fn test_section_label_kept() {
         let text = "[Chorus]\npyaar ka rang";
         let stripped = strip_lrc_timestamps(text);
-        assert!(
-            stripped.contains("[Chorus]"),
-            "section label should be kept"
-        );
+        assert!(stripped.contains("[Chorus]"), "section label should be kept");
     }
 
     // --- basic sentiment ---
@@ -672,76 +634,39 @@ mod tests {
     #[test]
     fn test_clearly_romantic_english() {
         let r = analyser().analyse("love darling kiss forever beautiful dream soul soulmate");
-        assert_eq!(
-            r.sentiment,
-            Sentiment::Romantic,
-            "hits: R={} S={}",
-            r.romantic_hits,
-            r.sad_hits
-        );
+        assert_eq!(r.sentiment, Sentiment::Romantic, "hits: R={} S={}", r.romantic_hits, r.sad_hits);
         assert!(r.romantic_hits > r.sad_hits);
     }
 
     #[test]
     fn test_clearly_sad_english() {
-        let r = analyser()
-            .analyse("crying tears pain broken lonely heartbroken darkness despair alone");
-        assert_eq!(
-            r.sentiment,
-            Sentiment::Sad,
-            "hits: R={} S={}",
-            r.romantic_hits,
-            r.sad_hits
-        );
+        let r = analyser().analyse("crying tears pain broken lonely heartbroken darkness despair alone");
+        assert_eq!(r.sentiment, Sentiment::Sad, "hits: R={} S={}", r.romantic_hits, r.sad_hits);
         assert!(r.sad_hits > r.romantic_hits);
     }
 
     #[test]
     fn test_clearly_romantic_romanised_hindi() {
         let r = analyser().analyse("pyaar mohabbat jaanam sanam dil ishq teri meri");
-        assert_eq!(
-            r.sentiment,
-            Sentiment::Romantic,
-            "hits: R={} S={}",
-            r.romantic_hits,
-            r.sad_hits
-        );
+        assert_eq!(r.sentiment, Sentiment::Romantic, "hits: R={} S={}", r.romantic_hits, r.sad_hits);
     }
 
     #[test]
     fn test_clearly_sad_romanised_hindi() {
         let r = analyser().analyse("dard gham udaas tanha aansu judaai dhokha toota bereham");
-        assert_eq!(
-            r.sentiment,
-            Sentiment::Sad,
-            "hits: R={} S={}",
-            r.romantic_hits,
-            r.sad_hits
-        );
+        assert_eq!(r.sentiment, Sentiment::Sad, "hits: R={} S={}", r.romantic_hits, r.sad_hits);
     }
 
     #[test]
     fn test_clearly_romantic_devanagari() {
         let r = analyser().analyse("प्यार इश्क़ मोहब्बत जानम दिल");
-        assert_eq!(
-            r.sentiment,
-            Sentiment::Romantic,
-            "hits: R={} S={}",
-            r.romantic_hits,
-            r.sad_hits
-        );
+        assert_eq!(r.sentiment, Sentiment::Romantic, "hits: R={} S={}", r.romantic_hits, r.sad_hits);
     }
 
     #[test]
     fn test_clearly_sad_devanagari() {
         let r = analyser().analyse("दर्द ग़म उदास तन्हा आँसू");
-        assert_eq!(
-            r.sentiment,
-            Sentiment::Sad,
-            "hits: R={} S={}",
-            r.romantic_hits,
-            r.sad_hits
-        );
+        assert_eq!(r.sentiment, Sentiment::Sad, "hits: R={} S={}", r.romantic_hits, r.sad_hits);
     }
 
     // --- ambiguity ---
@@ -802,11 +727,8 @@ mod tests {
         ];
         for text in &cases {
             let r = analyser().analyse(text);
-            assert!(
-                r.confidence >= 0.0 && r.confidence <= 1.0,
-                "confidence out of range for: {:?}",
-                text
-            );
+            assert!(r.confidence >= 0.0 && r.confidence <= 1.0,
+                "confidence out of range for: {:?}", text);
         }
     }
 }

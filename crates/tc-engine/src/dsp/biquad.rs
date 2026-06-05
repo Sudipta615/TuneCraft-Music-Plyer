@@ -6,6 +6,7 @@
 use crate::buffer::AudioFrame;
 use std::f64::consts::PI;
 
+
 /// Biquad filter coefficients (normalised, a0 = 1)
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BiquadCoeffs {
@@ -37,10 +38,7 @@ impl BiquadCoeffs {
     fn validate_params(sample_rate: f64, freq: f64, q: f64) -> (f64, f64, f64) {
         // Ensure minimum sample rate to prevent division by zero
         let sr = if sample_rate <= 0.0 || !sample_rate.is_finite() {
-            log::warn!(
-                "Biquad: invalid sample_rate {}, clamping to 44100",
-                sample_rate
-            );
+            log::warn!("Biquad: invalid sample_rate {}, clamping to 44100", sample_rate);
             44100.0
         } else {
             sample_rate
@@ -248,6 +246,7 @@ impl BiquadCoeffs {
     }
 }
 
+
 /// Supported biquad filter topologies
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FilterType {
@@ -263,7 +262,13 @@ pub enum FilterType {
 
 impl FilterType {
     /// Compute coefficients for this filter type at the given parameters
-    pub fn compute_coeffs(self, sample_rate: f64, freq: f64, gain_db: f64, q: f64) -> BiquadCoeffs {
+    pub fn compute_coeffs(
+        self,
+        sample_rate: f64,
+        freq: f64,
+        gain_db: f64,
+        q: f64,
+    ) -> BiquadCoeffs {
         match self {
             Self::Lowpass => BiquadCoeffs::lowpass(sample_rate, freq, q),
             Self::Highpass => BiquadCoeffs::highpass(sample_rate, freq, q),
@@ -276,6 +281,7 @@ impl FilterType {
         }
     }
 }
+
 
 /// Biquad filter state (Direct Form II Transposed)
 #[derive(Debug, Clone, Copy, Default)]
@@ -301,6 +307,7 @@ impl BiquadState {
         self.z2 = 0.0;
     }
 }
+
 
 /// A biquad filter that smoothly interpolates between coefficient sets,
 /// avoiding zipper noise when parameters change during playback.
@@ -365,12 +372,7 @@ impl SmoothedBiquad {
             // Mono: only process channel 0
             frame.channels[0] = self.states[0].process(frame.channels[0], &self.current);
         } else {
-            for (ch, state) in self
-                .states
-                .iter_mut()
-                .enumerate()
-                .take(frame.num_channels as usize)
-            {
+            for (ch, state) in self.states.iter_mut().enumerate().take(frame.num_channels as usize) {
                 frame.channels[ch] = state.process(frame.channels[ch], &self.current);
             }
         }
@@ -449,11 +451,7 @@ mod tests {
             output = state.process(1.0, &coeffs);
         }
         // Lowpass at 1kHz should pass DC (output close to 1.0 after settling)
-        assert!(
-            output > 0.5,
-            "DC should pass through lowpass, got {}",
-            output
-        );
+        assert!(output > 0.5, "DC should pass through lowpass, got {}", output);
     }
 
     #[test]
@@ -479,3 +477,4 @@ mod tests {
         assert!(coeffs.b0 != 0.0);
     }
 }
+

@@ -40,8 +40,8 @@ use crossbeam::channel::{self, Receiver, Sender};
 use log::{error, info, warn};
 
 use crate::buffer::{
-    EngineCommand, FixedFrameBuffer, PlaybackInfo, PlaybackState, DEFAULT_SAMPLE_RATE,
-    OUTPUT_BUFFER_FRAMES,
+    EngineCommand, FixedFrameBuffer,
+    PlaybackInfo, PlaybackState, DEFAULT_SAMPLE_RATE, OUTPUT_BUFFER_FRAMES,
 };
 use crate::decode::{DecodeInfo, SymphoniaDecoder};
 use crate::dsp::pipeline::DspPipeline;
@@ -165,15 +165,12 @@ impl AudioEngine {
     pub fn new(config: EngineConfig) -> Result<Self, EngineError> {
         let output_buffer = Arc::new(
             FixedFrameBuffer::new(OUTPUT_BUFFER_FRAMES)
-                .map_err(|e| EngineError::Config(format!("Output buffer: {}", e)))?,
+                .map_err(|e| EngineError::Config(format!("Output buffer: {}", e)))?
         );
         let (cmd_tx, cmd_rx) = channel::bounded(256);
         let output_sample_rate = Self::detect_output_sample_rate().unwrap_or(DEFAULT_SAMPLE_RATE);
         let pipeline = DspPipeline::from_config(&config, output_sample_rate as f64);
-        let info = PlaybackInfo {
-            sample_rate: output_sample_rate,
-            ..Default::default()
-        };
+        let info = PlaybackInfo { sample_rate: output_sample_rate, ..Default::default() };
 
         Ok(Self {
             output_buffer,
@@ -239,22 +236,16 @@ impl AudioEngine {
         self.audio_output = Some(output);
 
         self.running.store(true, Ordering::Release);
-        self.pipeline
-            .set_sample_rate(self.output_sample_rate as f64);
+        self.pipeline.set_sample_rate(self.output_sample_rate as f64);
         self.update_playback_state(PlaybackState::Stopped);
         self.stream_recovery_attempts = 0;
-        info!(
-            "Audio engine started (output rate: {} Hz)",
-            self.output_sample_rate
-        );
+        info!("Audio engine started (output rate: {} Hz)", self.output_sample_rate);
         Ok(())
     }
 
     pub fn stop(&mut self) {
         self.running.store(false, Ordering::Release);
-        if let Some(mut output) = self.audio_output.take() {
-            output.stop();
-        }
+        if let Some(mut output) = self.audio_output.take() { output.stop(); }
         self.stream = None;
         self.crossfade_triggered = false;
         self.next_track_path = None;
@@ -302,9 +293,7 @@ impl AudioEngine {
         if let Some(ref output) = self.audio_output {
             output.pause();
         }
-        unsafe {
-            self.output_buffer.reset();
-        }
+        unsafe { self.output_buffer.reset(); }
         self.pipeline.reset();
         // Re-apply the current volume after reset, which resets GainProcessor to 1.0.
         // Without this, each new track plays at full volume until the next SetVolume command.
@@ -323,12 +312,9 @@ impl AudioEngine {
                 pb.sample_rate = info.sample_rate;
                 pb.track_id = self.current_track_id;
                 pb.speed = self.speed;
-            },
+            }
             Err(e) => {
-                error!(
-                    "PlaybackInfo RwLock poisoned during load_track; restarting engine state: {}",
-                    e
-                );
+                error!("PlaybackInfo RwLock poisoned during load_track; restarting engine state: {}", e);
                 *e.into_inner() = PlaybackInfo {
                     duration_secs: info.duration_secs,
                     sample_rate: info.sample_rate,
@@ -336,13 +322,10 @@ impl AudioEngine {
                     speed: self.speed,
                     ..Default::default()
                 };
-            },
+            }
         }
 
-        info!(
-            "Loaded track: {} Hz, {} ch, {:.1}s",
-            info.sample_rate, info.channels, info.duration_secs
-        );
+        info!("Loaded track: {} Hz, {} ch, {:.1}s", info.sample_rate, info.channels, info.duration_secs);
         Ok(info)
     }
 
@@ -381,9 +364,7 @@ impl AudioEngine {
         if now.duration_since(self.last_cpu_reset) >= Duration::from_secs(2) {
             let cpu_pct = if self.total_time.as_nanos() > 0 {
                 (self.dsp_time.as_nanos() as f64 / self.total_time.as_nanos() as f64) * 100.0
-            } else {
-                0.0
-            };
+            } else { 0.0 };
 
             let resampler_disabled = self.is_resampler_disabled();
             let convolution_ir_needs_reload = self.pipeline.convolution_ir_needs_reload();
@@ -393,17 +374,14 @@ impl AudioEngine {
                     pb.cpu_usage_pct = cpu_pct;
                     pb.resampler_disabled = resampler_disabled;
                     pb.convolution_ir_needs_reload = convolution_ir_needs_reload;
-                },
+                }
                 Err(e) => {
-                    error!(
-                        "PlaybackInfo RwLock poisoned during CPU update; resetting: {}",
-                        e
-                    );
+                    error!("PlaybackInfo RwLock poisoned during CPU update; resetting: {}", e);
                     let mut pb = e.into_inner();
                     pb.cpu_usage_pct = cpu_pct;
                     pb.resampler_disabled = resampler_disabled;
                     pb.convolution_ir_needs_reload = convolution_ir_needs_reload;
-                },
+                }
             }
             self.dsp_time = Duration::ZERO;
             self.total_time = Duration::ZERO;
@@ -413,11 +391,8 @@ impl AudioEngine {
 
     pub fn playback_info(&self) -> PlaybackInfo {
         match self.playback_info.read() {
-            Ok(pb) => pb.clone(),
-            Err(e) => {
-                error!("PlaybackInfo RwLock poisoned in read");
-                e.into_inner().clone()
-            },
+            Ok(pb)  => pb.clone(),
+            Err(e)  => { error!("PlaybackInfo RwLock poisoned in read"); e.into_inner().clone() }
         }
     }
 
@@ -425,37 +400,27 @@ impl AudioEngine {
         Arc::clone(&self.playback_info)
     }
 
-    pub fn pipeline_mut(&mut self) -> &mut DspPipeline {
-        &mut self.pipeline
-    }
-    pub fn pipeline(&self) -> &DspPipeline {
-        &self.pipeline
-    }
+    pub fn pipeline_mut(&mut self) -> &mut DspPipeline { &mut self.pipeline }
+    pub fn pipeline(&self)     -> &DspPipeline { &self.pipeline }
 
     pub fn set_config(&mut self, config: EngineConfig) {
         let p = &mut self.pipeline;
         p.set_eq_enabled(config.eq.enabled);
         p.set_loudness_mode(match config.loudness.mode {
             tc_config::LoudnessMode::Off => crate::dsp::loudness::LoudnessMode::Off,
-            tc_config::LoudnessMode::TrackReplayGain => {
-                crate::dsp::loudness::LoudnessMode::TrackReplayGain
-            },
-            tc_config::LoudnessMode::AlbumReplayGain => {
-                crate::dsp::loudness::LoudnessMode::AlbumReplayGain
-            },
+            tc_config::LoudnessMode::TrackReplayGain => crate::dsp::loudness::LoudnessMode::TrackReplayGain,
+            tc_config::LoudnessMode::AlbumReplayGain => crate::dsp::loudness::LoudnessMode::AlbumReplayGain,
             tc_config::LoudnessMode::EbuR128 => crate::dsp::loudness::LoudnessMode::EbuR128,
         });
         p.set_stereo_width(config.stereo_enhancer.width);
-        p.stereo_enhancer_mut()
-            .set_enabled(config.stereo_enhancer.enabled);
+        p.stereo_enhancer_mut().set_enabled(config.stereo_enhancer.enabled);
         p.set_dither_enabled(config.dither_enabled);
         p.limiter_mut().set_enabled(config.limiter.enabled);
         if config.crossfade.enabled != self.config.crossfade.enabled
             || config.crossfade.duration_ms != self.config.crossfade.duration_ms
         {
             p.mixer_mut().set_enabled(config.crossfade.enabled);
-            p.mixer_mut()
-                .set_duration_ms(config.crossfade.duration_ms, self.output_sample_rate as f64);
+            p.mixer_mut().set_duration_ms(config.crossfade.duration_ms, self.output_sample_rate as f64);
         }
         if config.performance_mode != self.config.performance_mode {
             self.pipeline = DspPipeline::from_config(&config, self.output_sample_rate as f64);
@@ -463,9 +428,7 @@ impl AudioEngine {
         self.config = config;
     }
 
-    pub fn is_running(&self) -> bool {
-        self.running.load(Ordering::Acquire)
-    }
+    pub fn is_running(&self) -> bool { self.running.load(Ordering::Acquire) }
 
     pub fn set_track_id(&mut self, id: u64) {
         self.current_track_id = Some(id);
@@ -477,12 +440,10 @@ impl AudioEngine {
         match &self.stream {
             Some(PlaybackStream::Single { resampler, .. }) => {
                 resampler.as_ref().map_or(false, |r| r.is_disabled())
-            },
-            Some(PlaybackStream::Transitioning {
-                incoming_resampler, ..
-            }) => incoming_resampler
-                .as_ref()
-                .map_or(false, |r| r.is_disabled()),
+            }
+            Some(PlaybackStream::Transitioning { incoming_resampler, .. }) => {
+                incoming_resampler.as_ref().map_or(false, |r| r.is_disabled())
+            }
             None => false,
         }
     }
@@ -494,7 +455,5 @@ impl AudioEngine {
 }
 
 impl Drop for AudioEngine {
-    fn drop(&mut self) {
-        self.stop();
-    }
+    fn drop(&mut self) { self.stop(); }
 }

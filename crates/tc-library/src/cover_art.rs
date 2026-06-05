@@ -44,12 +44,13 @@ impl LibraryManager {
             visual.media_type.clone()
         };
         let data_hash = format!("{:x}", crc32fast::hash(data));
-        let (width, height) = image::ImageReader::new(std::io::Cursor::new(data.as_ref()))
-            .with_guessed_format()
-            .ok()
-            .and_then(|r| r.into_dimensions().ok())
-            .map(|(w, h)| (w as i32, h as i32))
-            .unwrap_or((0, 0));
+        let (width, height) =
+            image::ImageReader::new(std::io::Cursor::new(data.as_ref()))
+                .with_guessed_format()
+                .ok()
+                .and_then(|r| r.into_dimensions().ok())
+                .map(|(w, h)| (w as i32, h as i32))
+                .unwrap_or((0, 0));
         Some(CoverArtData {
             data: data.to_vec(),
             mime_type,
@@ -75,13 +76,18 @@ impl LibraryManager {
             None => return Ok(None),
         };
 
-        let album_id = self.db.get_track(track_id).ok().flatten().and_then(|t| {
-            let album = t.album.as_deref()?;
-            self.db
-                .get_album_id(album, t.album_artist.as_deref())
-                .ok()
-                .flatten()
-        });
+        let album_id = self
+            .db
+            .get_track(track_id)
+            .ok()
+            .flatten()
+            .and_then(|t| {
+                let album = t.album.as_deref()?;
+                self.db
+                    .get_album_id(album, t.album_artist.as_deref())
+                    .ok()
+                    .flatten()
+            });
 
         let id = self.db.insert_cover_art(
             album_id,
@@ -96,14 +102,12 @@ impl LibraryManager {
 
         info!(
             "Extracted cover art for track {} ({} bytes, {}×{})",
-            track_id,
-            art.data.len(),
-            art.width,
-            art.height
+            track_id, art.data.len(), art.width, art.height
         );
         Ok(Some(id))
     }
 }
+
 
 pub fn detect_image_mime(data: &[u8]) -> String {
     if data.len() >= 3 && data[0..3] == [0xFF, 0xD8, 0xFF] {
@@ -129,3 +133,4 @@ pub fn detect_image_mime(data: &[u8]) -> String {
     // garbled images. Return a neutral octet-stream MIME type instead.
     "application/octet-stream".to_string()
 }
+

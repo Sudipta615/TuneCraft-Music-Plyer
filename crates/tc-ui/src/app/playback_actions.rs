@@ -1,7 +1,7 @@
 //! Playback delegation methods for TuneCraftApp.
 
-use super::ToastLevel;
 use super::TuneCraftApp;
+use super::ToastLevel;
 
 impl TuneCraftApp {
     pub fn play_track(&mut self, track_id: i64) {
@@ -49,7 +49,7 @@ impl TuneCraftApp {
         match self.ctx.playback.navigate_next() {
             Some(track_id) => {
                 self.play_track(track_id);
-            },
+            }
             None => {
                 if self.play_queue.is_empty() {
                     // Truly empty queue — full stop
@@ -62,7 +62,7 @@ impl TuneCraftApp {
                     }
                 }
                 self.sync_from_playback_service();
-            },
+            }
         }
     }
 
@@ -77,8 +77,8 @@ impl TuneCraftApp {
                 } else {
                     self.play_track(track_id);
                 }
-            },
-            None => {},
+            }
+            None => {}
         }
     }
 
@@ -93,10 +93,7 @@ impl TuneCraftApp {
 
     pub fn toggle_favorite(&mut self) {
         if let Some(track_id) = self.current_track_id {
-            let new_state = self
-                .ctx
-                .library
-                .toggle_favorite(track_id, self.is_favorited);
+            let new_state = self.ctx.library.toggle_favorite(track_id, self.is_favorited);
             self.is_favorited = new_state;
             self.ctx.playback.set_favorited(new_state);
         }
@@ -123,17 +120,14 @@ impl TuneCraftApp {
         self.shuffle = !self.shuffle;
         self.ctx.playback.set_shuffle(self.shuffle);
         let shuffle = self.shuffle;
-        self.ctx.config.write(|c| {
-            c.playback.shuffle = shuffle;
-        });
+        self.ctx.config.write(|c| { c.playback.shuffle = shuffle; });
         self.sync_from_playback_service();
     }
 
     pub fn set_repeat(&mut self, repeat: super::RepeatMode) {
         self.repeat = repeat;
         self.ctx.playback.set_repeat(repeat);
-        self.ctx.config.write(|c| {
-            c.playback.repeat = repeat;
-        });
+        self.ctx.config.write(|c| { c.playback.repeat = repeat; });
     }
 }
+

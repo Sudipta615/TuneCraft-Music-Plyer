@@ -9,12 +9,12 @@
 //!
 //! `Connection::emit_signal()` with `zbus::message::Builder::signal()`.
 
-use parking_lot::Mutex;
 use std::sync::Arc;
+use parking_lot::Mutex;
 use zbus::zvariant::Value;
 
-use super::MprisState;
 use crate::types::{MprisPlaybackStatus, MprisPropertyChanged};
+use super::MprisState;
 
 /// Emit a PropertiesChanged signal using the zbus v4 message builder API.
 fn send_properties_changed(
@@ -25,12 +25,8 @@ fn send_properties_changed(
     invalidated: Vec<&str>,
 ) -> Result<(), zbus::Error> {
     #[allow(deprecated)] // zbus v4.4 deprecated Builder::signal; replacement API not yet stable
-    let msg = zbus::message::Builder::signal(
-        path,
-        "org.freedesktop.DBus.Properties",
-        "PropertiesChanged",
-    )?
-    .build(&(iface_name, changed_props, invalidated))?;
+    let msg = zbus::message::Builder::signal(path, "org.freedesktop.DBus.Properties", "PropertiesChanged")?
+        .build(&(iface_name, changed_props, invalidated))?;
     conn.send(&msg)?;
     Ok(())
 }
@@ -52,42 +48,37 @@ pub(crate) fn emit_properties_changed(
                     MprisPlaybackStatus::Playing => "Playing",
                     MprisPlaybackStatus::Paused => "Paused",
                     MprisPlaybackStatus::Stopped => "Stopped",
-                }
-                .to_string()
+                }.to_string()
             };
             let mut map = std::collections::HashMap::<&str, Value>::new();
             map.insert("PlaybackStatus", Value::Str(status_str.into()));
             send_properties_changed(conn, path, iface_name, map, vec![])?;
-        },
+        }
         MprisPropertyChanged::TrackMetadata => {
             // Invalidate so clients re-query the full metadata dict.
-            send_properties_changed(
-                conn,
-                path,
-                iface_name,
-                std::collections::HashMap::new(),
-                vec!["Metadata"],
-            )?;
-        },
+            send_properties_changed(conn, path, iface_name,
+                std::collections::HashMap::new(), vec!["Metadata"])?;
+        }
         MprisPropertyChanged::Volume => {
             let vol = state.lock().volume;
             let mut map = std::collections::HashMap::<&str, Value>::new();
             map.insert("Volume", Value::F64(vol));
             send_properties_changed(conn, path, iface_name, map, vec![])?;
-        },
+        }
         MprisPropertyChanged::Shuffle => {
             let shuffle = state.lock().shuffle;
             let mut map = std::collections::HashMap::<&str, Value>::new();
             map.insert("Shuffle", Value::Bool(shuffle));
             send_properties_changed(conn, path, iface_name, map, vec![])?;
-        },
+        }
         MprisPropertyChanged::LoopStatus => {
             let loop_status = state.lock().loop_status.clone();
             let mut map = std::collections::HashMap::<&str, Value>::new();
             map.insert("LoopStatus", Value::Str(loop_status.into()));
             send_properties_changed(conn, path, iface_name, map, vec![])?;
-        },
+        }
     }
 
     Ok(())
 }
+

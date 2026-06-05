@@ -75,16 +75,11 @@ impl Dither {
             .unwrap_or(0x12345678_9ABCDEF0);
         // L11: Mix in the per-instance counter so two Dither instances created
         // within the same nanosecond produce different seeds.
-        let seed = ns
-            .wrapping_add(instance_id.wrapping_mul(0x9E3779B97F4A7C15))
+        let seed = ns.wrapping_add(instance_id.wrapping_mul(0x9E3779B97F4A7C15))
             .wrapping_mul(0x5851F42D4C957F2D);
 
         // if the seed comes out 0, reinitialize with a non-zero fallback.
-        if seed == 0 {
-            0x12345678_9ABCDEF0
-        } else {
-            seed
-        }
+        if seed == 0 { 0x12345678_9ABCDEF0 } else { seed }
     }
 
     /// xorshift64 PRNG — fast, one multiplication, three shifts.
@@ -130,7 +125,7 @@ impl Dither {
                 let noise_l = Self::next_random_f64(&mut self.rng_state_left) * half_lsb;
                 let noise_r = Self::next_random_f64(&mut self.rng_state_right) * half_lsb;
                 (left + noise_l, right + noise_r)
-            },
+            }
 
             DitherType::Triangular => {
                 // TPDF: sum of two independent rectangular noise sources
@@ -139,26 +134,18 @@ impl Dither {
                 // that introduced a DC bias of -0.5 LSB. The formula
                 // `(rng1 + rng2) * half_lsb` produces a triangular distribution
                 // with mean 0, which is the correct TPDF dither.
-                let noise_l = (Self::next_random_f64(&mut self.rng_state_left)
-                    + Self::next_random_f64(&mut self.rng_state_left))
-                    * half_lsb;
-                let noise_r = (Self::next_random_f64(&mut self.rng_state_right)
-                    + Self::next_random_f64(&mut self.rng_state_right))
-                    * half_lsb;
+                let noise_l = (Self::next_random_f64(&mut self.rng_state_left) + Self::next_random_f64(&mut self.rng_state_left)) * half_lsb;
+                let noise_r = (Self::next_random_f64(&mut self.rng_state_right) + Self::next_random_f64(&mut self.rng_state_right)) * half_lsb;
                 (left + noise_l, right + noise_r)
-            },
+            }
 
             DitherType::NoiseShaped => {
                 // TPDF with first-order high-pass noise shaping
                 // Feeds quantization error back with a negative coefficient
                 // to push dither energy into less audible high frequencies.
 
-                let noise_l = (Self::next_random_f64(&mut self.rng_state_left)
-                    + Self::next_random_f64(&mut self.rng_state_left))
-                    * half_lsb;
-                let noise_r = (Self::next_random_f64(&mut self.rng_state_right)
-                    + Self::next_random_f64(&mut self.rng_state_right))
-                    * half_lsb;
+                let noise_l = (Self::next_random_f64(&mut self.rng_state_left) + Self::next_random_f64(&mut self.rng_state_left)) * half_lsb;
+                let noise_r = (Self::next_random_f64(&mut self.rng_state_right) + Self::next_random_f64(&mut self.rng_state_right)) * half_lsb;
                 let shaped_l = left + noise_l - self.shape_left * 0.5;
                 let shaped_r = right + noise_r - self.shape_right * 0.5;
 
@@ -169,8 +156,11 @@ impl Dither {
                 self.shape_left = q_l - shaped_l + self.shape_left * 0.5;
                 self.shape_right = q_r - shaped_r + self.shape_right * 0.5;
 
-                return (q_l.clamp(-1.0, 1.0), q_r.clamp(-1.0, 1.0));
-            },
+                return (
+                    q_l.clamp(-1.0, 1.0),
+                    q_r.clamp(-1.0, 1.0),
+                );
+            }
         };
 
         // Quantize
@@ -205,16 +195,8 @@ mod tests {
         let mut dither = Dither::new(DitherType::Triangular, 16);
         for _ in 0..10000 {
             let (l, r) = dither.process(0.5, -0.5);
-            assert!(
-                l.abs() <= 1.0,
-                "Dithered output should be bounded, got {}",
-                l
-            );
-            assert!(
-                r.abs() <= 1.0,
-                "Dithered output should be bounded, got {}",
-                r
-            );
+            assert!(l.abs() <= 1.0, "Dithered output should be bounded, got {}", l);
+            assert!(r.abs() <= 1.0, "Dithered output should be bounded, got {}", r);
         }
     }
 
@@ -272,14 +254,8 @@ mod tests {
         let mut dither = Dither::new(DitherType::Rectangular, 16);
         for _ in 0..10000 {
             let (l, r) = dither.process(0.5, 0.5);
-            assert!(
-                l.abs() <= 1.0,
-                "Rectangular dither output should be bounded"
-            );
-            assert!(
-                r.abs() <= 1.0,
-                "Rectangular dither output should be bounded"
-            );
+            assert!(l.abs() <= 1.0, "Rectangular dither output should be bounded");
+            assert!(r.abs() <= 1.0, "Rectangular dither output should be bounded");
         }
     }
 
@@ -294,3 +270,4 @@ mod tests {
         }
     }
 }
+

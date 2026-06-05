@@ -8,13 +8,13 @@
 //! to use `&str` parameters (matching zbus v4 expectations) instead of
 //! `String` where the v0.9.8 code used `&str`.
 
-use parking_lot::Mutex;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
+use parking_lot::Mutex;
 
-use super::signals;
-use super::MprisState;
 use crate::types::{MediaKeyAction, MprisPlaybackStatus, MprisPropertyChanged};
+use super::MprisState;
+use super::signals;
 
 /// Run the D-Bus server, serving MPRIS interfaces.
 pub(crate) fn run_dbus_server(
@@ -135,6 +135,7 @@ pub(crate) fn run_dbus_server(
         }
 
         fn seek(&self, offset: i64) -> zbus::fdo::Result<()> {
+
             // to the main thread via MediaKeyAction::Seek. Positive = forward,
             // negative = backward. The engine handles clamping.
             let _ = self.action_tx.send(MediaKeyAction::Seek(offset));
@@ -142,23 +143,17 @@ pub(crate) fn run_dbus_server(
         }
 
         fn set_position(&self, track_id: &str, position: i64) -> zbus::fdo::Result<()> {
+
             // track_id matches the current track and forwards the absolute
             // position (microseconds) to the main thread.
             let current_track = {
                 let state = self.state.lock();
-                state
-                    .track_info
-                    .track_id
-                    .clone()
+                state.track_info.track_id.clone()
                     .unwrap_or_else(|| "/org/mpris/MediaPlayer2/TrackList/NoTrack".to_string())
             };
             if track_id != current_track {
                 // MPRIS spec: If the TrackId is not the current track, do nothing
-                log::debug!(
-                    "SetPosition ignored: track_id {} != current {}",
-                    track_id,
-                    current_track
-                );
+                log::debug!("SetPosition ignored: track_id {} != current {}", track_id, current_track);
                 return Ok(());
             }
             if position < 0 {
@@ -173,15 +168,14 @@ pub(crate) fn run_dbus_server(
         }
 
         fn open_uri(&self, uri: &str) -> zbus::fdo::Result<()> {
+
             // Non-file URIs return NotSupported per MPRIS spec.
             if !uri.starts_with("file://") {
                 return Err(zbus::fdo::Error::NotSupported(
                     "Only file:// URIs are supported".to_string(),
                 ));
             }
-            let _ = self
-                .action_tx
-                .send(MediaKeyAction::OpenUri(uri.to_string()));
+            let _ = self.action_tx.send(MediaKeyAction::OpenUri(uri.to_string()));
             Ok(())
         }
 
@@ -203,6 +197,7 @@ pub(crate) fn run_dbus_server(
 
         #[zbus(property)]
         fn set_loop_status(&self, status: &str) -> zbus::Result<()> {
+
             // Valid values per MPRIS spec: "None", "Track", "Playlist"
             //
             // NOTE: Returns zbus::Result (not zbus::fdo::Result) to work around
@@ -212,18 +207,14 @@ pub(crate) fn run_dbus_server(
             // types align correctly.
             match status {
                 "None" | "Track" | "Playlist" => {
-                    let _ = self
-                        .action_tx
-                        .send(MediaKeyAction::SetLoopStatus(status.to_string()));
+                    let _ = self.action_tx.send(MediaKeyAction::SetLoopStatus(status.to_string()));
                     let mut state = self.state.lock();
                     state.loop_status = status.to_string();
                     Ok(())
-                },
-                _ => Err(zbus::fdo::Error::InvalidArgs(format!(
-                    "Invalid LoopStatus '{}'. Must be None, Track, or Playlist.",
-                    status
-                ))
-                .into()),
+                }
+                _ => Err(zbus::fdo::Error::InvalidArgs(
+                    format!("Invalid LoopStatus '{}'. Must be None, Track, or Playlist.", status)
+                ).into()),
             }
         }
 
@@ -235,12 +226,11 @@ pub(crate) fn run_dbus_server(
 
         #[zbus(property)]
         fn set_rate(&self, rate: f64) -> zbus::Result<()> {
+
             if rate < 0.25 || rate > 4.0 {
-                return Err(zbus::fdo::Error::InvalidArgs(format!(
-                    "Rate {} out of range [0.25, 4.0]",
-                    rate
-                ))
-                .into());
+                return Err(zbus::fdo::Error::InvalidArgs(
+                    format!("Rate {} out of range [0.25, 4.0]", rate)
+                ).into());
             }
             let _ = self.action_tx.send(MediaKeyAction::SetRate(rate));
             let mut state = self.state.lock();
@@ -256,6 +246,7 @@ pub(crate) fn run_dbus_server(
 
         #[zbus(property)]
         fn set_shuffle(&self, shuffle: bool) -> zbus::Result<()> {
+
             let _ = self.action_tx.send(MediaKeyAction::SetShuffle(shuffle));
             let mut state = self.state.lock();
             state.shuffle = shuffle;
@@ -263,26 +254,21 @@ pub(crate) fn run_dbus_server(
         }
 
         #[zbus(property)]
-        fn metadata(
-            &self,
-        ) -> zbus::fdo::Result<std::collections::HashMap<String, zbus::zvariant::OwnedValue>>
-        {
+        fn metadata(&self) -> zbus::fdo::Result<std::collections::HashMap<String, zbus::zvariant::OwnedValue>> {
             // Extract all values while holding the lock, then drop it before
             // doing ObjectPath conversions (fixes track_id borrow issue).
-            let (track_id, length_us, title, artist, album, art_url) =
-                {
-                    let state = self.state.lock();
-                    (
-                        state.track_info.track_id.clone().unwrap_or_else(|| {
-                            "/org/mpris/MediaPlayer2/TrackList/NoTrack".to_string()
-                        }),
-                        state.track_info.length_microseconds,
-                        state.track_info.title.clone(),
-                        state.track_info.artist.clone(),
-                        state.track_info.album.clone(),
-                        state.track_info.art_url.clone(),
-                    )
-                }; // MutexGuard dropped here
+            let (track_id, length_us, title, artist, album, art_url) = {
+                let state = self.state.lock();
+                (
+                    state.track_info.track_id.clone()
+                        .unwrap_or_else(|| "/org/mpris/MediaPlayer2/TrackList/NoTrack".to_string()),
+                    state.track_info.length_microseconds,
+                    state.track_info.title.clone(),
+                    state.track_info.artist.clone(),
+                    state.track_info.album.clone(),
+                    state.track_info.art_url.clone(),
+                )
+            }; // MutexGuard dropped here
 
             let mut metadata = std::collections::HashMap::new();
 
@@ -299,48 +285,38 @@ pub(crate) fn run_dbus_server(
                 "mpris:trackid".to_string(),
                 zbus::zvariant::Value::new(trackid_path)
                     .try_into()
-                    .map_err(|e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()))?,
+                    .map_err(|e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()))?
             );
 
             if let Some(us) = length_us {
-                metadata.insert(
-                    "mpris:length".to_string(),
-                    zbus::zvariant::Value::new(us).try_into().map_err(
-                        |e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()),
-                    )?,
-                );
+                metadata.insert("mpris:length".to_string(),
+                    zbus::zvariant::Value::new(us)
+                        .try_into()
+                        .map_err(|e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()))?);
             }
             if let Some(t) = title {
-                metadata.insert(
-                    "xesam:title".to_string(),
-                    zbus::zvariant::Value::new(t).try_into().map_err(
-                        |e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()),
-                    )?,
-                );
+                metadata.insert("xesam:title".to_string(),
+                    zbus::zvariant::Value::new(t)
+                        .try_into()
+                        .map_err(|e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()))?);
             }
             if let Some(a) = artist {
-                metadata.insert(
-                    "xesam:artist".to_string(),
-                    zbus::zvariant::Value::new(vec![a]).try_into().map_err(
-                        |e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()),
-                    )?,
-                );
+                metadata.insert("xesam:artist".to_string(),
+                    zbus::zvariant::Value::new(vec![a])
+                        .try_into()
+                        .map_err(|e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()))?);
             }
             if let Some(al) = album {
-                metadata.insert(
-                    "xesam:album".to_string(),
-                    zbus::zvariant::Value::new(al).try_into().map_err(
-                        |e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()),
-                    )?,
-                );
+                metadata.insert("xesam:album".to_string(),
+                    zbus::zvariant::Value::new(al)
+                        .try_into()
+                        .map_err(|e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()))?);
             }
             if let Some(url) = art_url {
-                metadata.insert(
-                    "mpris:artUrl".to_string(),
-                    zbus::zvariant::Value::new(url).try_into().map_err(
-                        |e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()),
-                    )?,
-                );
+                metadata.insert("mpris:artUrl".to_string(),
+                    zbus::zvariant::Value::new(url)
+                        .try_into()
+                        .map_err(|e: zbus::zvariant::Error| zbus::fdo::Error::Failed(e.to_string()))?);
             }
 
             Ok(metadata)
@@ -354,6 +330,7 @@ pub(crate) fn run_dbus_server(
 
         #[zbus(property)]
         fn set_volume(&self, volume: f64) -> zbus::Result<()> {
+
             // MPRIS allows values > 1.0 for amplification but we cap at 1.0.
             // NOTE: Returns zbus::Result — see set_loop_status for rationale.
             let clamped = volume.clamp(0.0, 1.0);
@@ -427,12 +404,7 @@ pub(crate) fn run_dbus_server(
         .serve_at(object_path, root_iface)
         .map_err(|e| format!("Failed to serve MediaPlayer2 at {}: {}", object_path, e))?
         .serve_at(object_path, player_iface)
-        .map_err(|e| {
-            format!(
-                "Failed to serve MediaPlayer2.Player at {}: {}",
-                object_path, e
-            )
-        })?
+        .map_err(|e| format!("Failed to serve MediaPlayer2.Player at {}: {}", object_path, e))?
         .build()
         .map_err(|e| format!("Failed to build D-Bus connection: {}", e))?;
 
@@ -446,16 +418,17 @@ pub(crate) fn run_dbus_server(
                 if let Err(e) = signals::emit_properties_changed(&conn, state, changed) {
                     log::debug!("Failed to emit PropertiesChanged: {}", e);
                 }
-            },
+            }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                 // Normal timeout — continue loop
-            },
+            }
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                 log::info!("MPRIS notification channel closed, shutting down");
                 break;
-            },
+            }
         }
     }
 
     Ok(())
 }
+

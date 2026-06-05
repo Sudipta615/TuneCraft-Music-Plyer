@@ -55,11 +55,12 @@ impl CpalOutput {
     /// Create a new cpal output
     pub fn new(buffer: Arc<FixedFrameBuffer>) -> Result<Self, OutputError> {
         let host = cpal::default_host();
-        let device = host.default_output_device().ok_or(OutputError::NoDevice)?;
+        let device = host
+            .default_output_device()
+            .ok_or(OutputError::NoDevice)?;
 
         // Use the device's default config instead of max-sample-rate.
-        let default_config = device
-            .default_output_config()
+        let default_config = device.default_output_config()
             .map_err(|e| OutputError::StreamOpen(format!("Cannot get default config: {}", e)))?;
 
         let target_sample_rate = default_config.sample_rate().0;
@@ -71,26 +72,17 @@ impl CpalOutput {
 
         let config = supported_configs
             .iter()
-            .find(|c| {
-                c.sample_format() == SampleFormat::F32
-                    && c.min_sample_rate().0 <= target_sample_rate
-                    && c.max_sample_rate().0 >= target_sample_rate
-            })
+            .find(|c| c.sample_format() == SampleFormat::F32 && c.min_sample_rate().0 <= target_sample_rate && c.max_sample_rate().0 >= target_sample_rate)
             .map(|c| c.with_sample_rate(cpal::SampleRate(target_sample_rate)))
             .or_else(|| {
-                supported_configs
-                    .iter()
-                    .find(|c| c.sample_format() == SampleFormat::F32)
-                    .map(|c| c.with_sample_rate(cpal::SampleRate(c.min_sample_rate().0)))
+                supported_configs.iter().find(|c| {
+                    c.sample_format() == SampleFormat::F32
+                }).map(|c| c.with_sample_rate(cpal::SampleRate(c.min_sample_rate().0)))
             })
             .or_else(|| {
-                supported_configs
-                    .iter()
-                    .find(|c| {
-                        c.sample_format() == SampleFormat::I16
-                            || c.sample_format() == SampleFormat::U16
-                    })
-                    .map(|c| c.with_sample_rate(cpal::SampleRate(target_sample_rate)))
+                supported_configs.iter().find(|c| {
+                    c.sample_format() == SampleFormat::I16 || c.sample_format() == SampleFormat::U16
+                }).map(|c| c.with_sample_rate(cpal::SampleRate(target_sample_rate)))
             })
             .ok_or(OutputError::UnsupportedFormat)?;
 
@@ -106,9 +98,7 @@ impl CpalOutput {
 
         log::info!(
             "Audio output: {} Hz, {} ch, {:?}, default buffer size",
-            actual_sample_rate,
-            channels,
-            sample_format
+            actual_sample_rate, channels, sample_format
         );
 
         Ok(Self {
@@ -151,68 +141,45 @@ impl CpalOutput {
                     .build_output_stream(
                         &self.stream_config,
                         move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                            Self::audio_callback(
-                                data,
-                                &buffer,
-                                &paused,
-                                &in_callback,
-                                &underruns,
-                                channels,
-                            );
+                            Self::audio_callback(data, &buffer, &paused, &in_callback, &underruns, channels);
                         },
                         error_callback,
                         None,
                     )
                     .map_err(|e| OutputError::StreamOpen(format!("{}", e)))?
-            },
+            }
             SampleFormat::I16 => {
                 let in_callback = Arc::clone(&in_callback);
                 self.device
                     .build_output_stream(
                         &self.stream_config,
                         move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
-                            Self::audio_callback_i16(
-                                data,
-                                &buffer,
-                                &paused,
-                                &in_callback,
-                                &underruns,
-                                channels,
-                            );
+                            Self::audio_callback_i16(data, &buffer, &paused, &in_callback, &underruns, channels);
                         },
                         error_callback,
                         None,
                     )
                     .map_err(|e| OutputError::StreamOpen(format!("{}", e)))?
-            },
+            }
             SampleFormat::U16 => {
                 let in_callback = Arc::clone(&in_callback);
                 self.device
                     .build_output_stream(
                         &self.stream_config,
                         move |data: &mut [u16], _: &cpal::OutputCallbackInfo| {
-                            Self::audio_callback_u16(
-                                data,
-                                &buffer,
-                                &paused,
-                                &in_callback,
-                                &underruns,
-                                channels,
-                            );
+                            Self::audio_callback_u16(data, &buffer, &paused, &in_callback, &underruns, channels);
                         },
                         error_callback,
                         None,
                     )
                     .map_err(|e| OutputError::StreamOpen(format!("{}", e)))?
-            },
+            }
             _ => {
                 return Err(OutputError::UnsupportedFormat);
-            },
+            }
         };
 
-        stream
-            .play()
-            .map_err(|e| OutputError::StreamOpen(format!("Play failed: {}", e)))?;
+        stream.play().map_err(|e| OutputError::StreamOpen(format!("Play failed: {}", e)))?;
         self.stream = Some(stream);
 
         // v0.20.0: Escalate the audio callback thread to real-time priority.
@@ -232,10 +199,8 @@ impl CpalOutput {
             use thread_priority::*;
             match set_current_thread_priority(ThreadPriority::Max) {
                 Ok(()) => {
-                    log::info!(
-                        "Audio thread escalated to real-time priority (ThreadPriority::Max)"
-                    );
-                },
+                    log::info!("Audio thread escalated to real-time priority (ThreadPriority::Max)");
+                }
                 Err(e) => {
                     log::warn!(
                         "Failed to set real-time priority for audio thread: {}. \
@@ -243,7 +208,7 @@ impl CpalOutput {
                          On Linux, ensure rtkit permissions or ulimit -r is configured.",
                         e
                     );
-                },
+                }
             }
         }
 
@@ -277,11 +242,11 @@ impl CpalOutput {
                             0.0
                         };
                     }
-                },
+                }
                 None => {
                     frame.fill(0.0);
                     underruns.fetch_add(1, Ordering::SeqCst);
-                },
+                }
             }
         }
     }
@@ -313,11 +278,11 @@ impl CpalOutput {
                         };
                         *sample = (val.clamp(-1.0, 1.0) * 32768.0).clamp(-32768.0, 32767.0) as i16;
                     }
-                },
+                }
                 None => {
                     frame.fill(0);
                     underruns.fetch_add(1, Ordering::SeqCst);
-                },
+                }
             }
         }
     }
@@ -347,14 +312,13 @@ impl CpalOutput {
                         } else {
                             0.0
                         };
-                        *sample =
-                            (val.clamp(-1.0, 1.0) * 32768.0 + 32768.0).clamp(0.0, 65535.0) as u16;
+                        *sample = (val.clamp(-1.0, 1.0) * 32768.0 + 32768.0).clamp(0.0, 65535.0) as u16;
                     }
-                },
+                }
                 None => {
                     frame.fill(32768);
                     underruns.fetch_add(1, Ordering::SeqCst);
-                },
+                }
             }
         }
     }
@@ -421,3 +385,4 @@ impl<'a> Drop for CallbackGuard<'a> {
         self.flag.store(false, Ordering::SeqCst);
     }
 }
+

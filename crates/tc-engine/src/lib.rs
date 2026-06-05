@@ -12,13 +12,11 @@ pub mod output;
 pub use engine::AudioEngine;
 
 pub mod prelude {
-    pub use crate::buffer::{
-        AudioChunk, AudioFrame, BufferError, EngineCommand, FixedFrameBuffer, PlaybackInfo,
-        PlaybackState, DEFAULT_SAMPLE_RATE,
-    };
+    pub use crate::buffer::{AudioFrame, AudioChunk, FixedFrameBuffer, EngineCommand, PlaybackState, PlaybackInfo, DEFAULT_SAMPLE_RATE, BufferError};
     pub use crate::dsp::pipeline::DspPipeline;
     #[cfg(feature = "audio-output")]
     pub use crate::engine::AudioEngine;
     #[cfg(feature = "audio-output")]
     pub use crate::engine::PlaybackStream;
 }
+

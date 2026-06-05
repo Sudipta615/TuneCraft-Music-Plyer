@@ -26,10 +26,7 @@ fn test_playback_stream_is_crossfading_single() {
 #[test]
 fn test_engine_error_display() {
     assert_eq!(format!("{}", EngineError::NoTrackLoaded), "No track loaded");
-    assert_eq!(
-        format!("{}", EngineError::AlreadyRunning),
-        "Engine already running"
-    );
+    assert_eq!(format!("{}", EngineError::AlreadyRunning), "Engine already running");
     assert_eq!(format!("{}", EngineError::NotRunning), "Engine not running");
     assert!(format!("{}", EngineError::Config("bad".into())).contains("bad"));
     assert!(format!("{}", EngineError::StreamRecovery("failed".into())).contains("failed"));
@@ -42,27 +39,16 @@ fn test_engine_new_default() {
     // AudioEngine::new_default should succeed even without an audio device
     // (it falls back to DEFAULT_SAMPLE_RATE when no device is found).
     let result = AudioEngine::new_default();
-    assert!(
-        result.is_ok(),
-        "Engine creation should succeed: {:?}",
-        result
-    );
+    assert!(result.is_ok(), "Engine creation should succeed: {:?}", result);
     let engine = result.unwrap();
-    assert!(
-        !engine.is_running(),
-        "Engine should not be running after creation"
-    );
+    assert!(!engine.is_running(), "Engine should not be running after creation");
 }
 
 #[test]
 fn test_engine_new_with_config() {
     let config = EngineConfig::default();
     let result = AudioEngine::new(config);
-    assert!(
-        result.is_ok(),
-        "Engine creation with config should succeed: {:?}",
-        result
-    );
+    assert!(result.is_ok(), "Engine creation with config should succeed: {:?}", result);
 }
 
 #[test]

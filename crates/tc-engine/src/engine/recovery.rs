@@ -15,9 +15,9 @@ use crate::buffer::{FixedFrameBuffer, DEFAULT_SAMPLE_RATE, OUTPUT_BUFFER_FRAMES}
 use crate::dsp::resampler::AudioResampler;
 use crate::output::CpalOutput;
 
+use super::{AudioEngine, EngineError};
 #[cfg(feature = "resample")]
 use super::PlaybackStream;
-use super::{AudioEngine, EngineError};
 
 impl AudioEngine {
     /// Attempt to recover the audio output stream after a device change
@@ -48,8 +48,8 @@ impl AudioEngine {
         std::thread::sleep(Duration::from_millis(100));
 
         // Re-detect the output device and sample rate.
-        let new_output_sample_rate =
-            Self::detect_output_sample_rate().unwrap_or(DEFAULT_SAMPLE_RATE);
+        let new_output_sample_rate = Self::detect_output_sample_rate()
+            .unwrap_or(DEFAULT_SAMPLE_RATE);
 
         let old_rate = self.output_sample_rate;
         let sample_rate_changed = new_output_sample_rate != old_rate;
@@ -57,7 +57,7 @@ impl AudioEngine {
         // Create a new output buffer and CpalOutput.
         let new_buffer = Arc::new(
             FixedFrameBuffer::new(OUTPUT_BUFFER_FRAMES)
-                .map_err(|e| EngineError::Config(format!("Output buffer: {}", e)))?,
+                .map_err(|e| EngineError::Config(format!("Output buffer: {}", e)))?
         );
 
         let mut new_output = CpalOutput::new(Arc::clone(&new_buffer))?;
@@ -95,7 +95,7 @@ impl AudioEngine {
                             actual_rate as f64,
                             self.speed,
                         );
-                    },
+                    }
                     PlaybackStream::Transitioning {
                         outgoing_decoder,
                         outgoing_resampler,
@@ -119,16 +119,13 @@ impl AudioEngine {
                             actual_rate as f64,
                             self.speed,
                         );
-                    },
+                    }
                 }
             }
         }
 
         self.successful_playback_ticks = 0; // Reset the stability timer on recovery
-        info!(
-            "Stream recovery successful (output rate: {} Hz)",
-            actual_rate
-        );
+        info!("Stream recovery successful (output rate: {} Hz)", actual_rate);
         Ok(())
     }
 
@@ -150,10 +147,7 @@ impl AudioEngine {
             // High underrun count can indicate stream issues.
             let underruns = output.take_underruns();
             if underruns > 1000 {
-                warn!(
-                    "High underrun count ({}) detected; may indicate device issue",
-                    underruns
-                );
+                warn!("High underrun count ({}) detected; may indicate device issue", underruns);
             }
         }
     }
@@ -178,10 +172,10 @@ pub(super) fn build_resampler(
                 r.set_speed(speed);
             }
             Some(r)
-        },
+        }
         Err(e) => {
             warn!("Failed to create resampler: {}", e);
             None
-        },
+        }
     }
 }

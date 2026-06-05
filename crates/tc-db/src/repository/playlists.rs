@@ -3,10 +3,11 @@
 use crate::models::*;
 use rusqlite::params;
 
-use super::tracks::{log_and_filter, prefixed_track_columns, row_to_track};
 use super::{Database, DbError};
+use super::tracks::{row_to_track, log_and_filter, prefixed_track_columns};
 
 impl Database {
+
     pub fn create_playlist(
         &self,
         name: &str,
@@ -15,9 +16,7 @@ impl Database {
         smart_rules: Option<&str>,
     ) -> Result<i64, DbError> {
         if name.is_empty() {
-            return Err(DbError::Validation(
-                "Playlist name must not be empty".into(),
-            ));
+            return Err(DbError::Validation("Playlist name must not be empty".into()));
         }
 
         let conn = self.write_lock()?;
@@ -42,9 +41,7 @@ impl Database {
 
         if let Some(new_name) = name {
             if new_name.is_empty() {
-                return Err(DbError::Validation(
-                    "Playlist name must not be empty".into(),
-                ));
+                return Err(DbError::Validation("Playlist name must not be empty".into()));
             }
             conn.execute(
                 "UPDATE playlists SET name = ?1, date_modified = CURRENT_TIMESTAMP WHERE id = ?2",
@@ -118,9 +115,9 @@ impl Database {
                 |r| r.get(0),
             )
             .map_err(|e| match e {
-                rusqlite::Error::QueryReturnedNoRows => {
-                    DbError::NotFound(format!("Track with id {} does not exist", track_id))
-                },
+                rusqlite::Error::QueryReturnedNoRows => DbError::NotFound(
+                    format!("Track with id {} does not exist", track_id)
+                ),
                 other => DbError::Sqlite(other),
             })?;
 
@@ -181,7 +178,9 @@ impl Database {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
-            .query_map(params![playlist_id], |row| row_to_track(row))?
+            .query_map(params![playlist_id], |row| {
+                row_to_track(row)
+            })?
             .filter_map(log_and_filter)
             .collect();
         Ok(tracks)
@@ -197,31 +196,21 @@ mod tests {
     fn test_validation_empty_playlist_name() {
         let db = Database::open_in_memory().unwrap();
         let result = db.create_playlist("", None, false, None);
-        assert!(
-            result.is_err(),
-            "Empty playlist name should fail validation"
-        );
+        assert!(result.is_err(), "Empty playlist name should fail validation");
     }
 
     #[test]
     fn test_playlist_crud() {
         let db = Database::open_in_memory().unwrap();
 
-        let playlist_id = db
-            .create_playlist("My Playlist", Some("A test playlist"), false, None)
-            .unwrap();
+        let playlist_id = db.create_playlist("My Playlist", Some("A test playlist"), false, None).unwrap();
         assert!(playlist_id > 0);
 
         let playlists = db.get_all_playlists().unwrap();
         assert_eq!(playlists.len(), 1);
         assert_eq!(playlists[0].name, "My Playlist");
 
-        db.update_playlist(
-            playlist_id,
-            Some("Renamed Playlist"),
-            Some("Updated description"),
-        )
-        .unwrap();
+        db.update_playlist(playlist_id, Some("Renamed Playlist"), Some("Updated description")).unwrap();
         let playlists = db.get_all_playlists().unwrap();
         assert_eq!(playlists[0].name, "Renamed Playlist");
 
@@ -236,9 +225,7 @@ mod tests {
 
         let track = make_test_track("/music/test.flac", "Test Song");
         let track_id = db.insert_track(&track).unwrap();
-        let playlist_id = db
-            .create_playlist("My Playlist", None, false, None)
-            .unwrap();
+        let playlist_id = db.create_playlist("My Playlist", None, false, None).unwrap();
 
         db.add_track_to_playlist(playlist_id, track_id, 0).unwrap();
 
@@ -264,15 +251,11 @@ mod tests {
     #[test]
     fn test_add_nonexistent_track_to_playlist() {
         let db = Database::open_in_memory().unwrap();
-        let playlist_id = db
-            .create_playlist("My Playlist", None, false, None)
-            .unwrap();
+        let playlist_id = db.create_playlist("My Playlist", None, false, None).unwrap();
 
         // Try to add a track that doesn't exist
         let result = db.add_track_to_playlist(playlist_id, 99999, 0);
-        assert!(
-            result.is_err(),
-            "Adding non-existent track should return an error"
-        );
+        assert!(result.is_err(), "Adding non-existent track should return an error");
     }
 }
+

@@ -98,10 +98,7 @@ impl LookaheadLimiter {
     /// Set the ceiling in dB. Must be <= 0 dBFS; non-finite or positive values are clamped.
     pub fn set_ceiling_db(&mut self, ceiling_db: f64) {
         if !ceiling_db.is_finite() {
-            log::warn!(
-                "LookaheadLimiter: non-finite ceiling_db {}; using -0.3",
-                ceiling_db
-            );
+            log::warn!("LookaheadLimiter: non-finite ceiling_db {}; using -0.3", ceiling_db);
             self.ceiling_linear = 10.0_f64.powf(-0.3 / 20.0);
             return;
         }
@@ -116,10 +113,7 @@ impl LookaheadLimiter {
     /// Set attack time in seconds. Non-positive/non-finite values are clamped to 0.1 ms.
     pub fn set_attack(&mut self, secs: f64) {
         if !secs.is_finite() || secs <= 0.0 {
-            log::warn!(
-                "LookaheadLimiter: invalid attack {}; clamping to 0.0001s",
-                secs
-            );
+            log::warn!("LookaheadLimiter: invalid attack {}; clamping to 0.0001s", secs);
         }
         self.attack_secs = secs.max(0.0001);
         self.attack_coeff = (-1.0 / (self.attack_secs * self.sample_rate)).exp();
@@ -128,10 +122,7 @@ impl LookaheadLimiter {
     /// Set release time in seconds. Non-positive/non-finite values are clamped to 1 ms.
     pub fn set_release(&mut self, secs: f64) {
         if !secs.is_finite() || secs <= 0.0 {
-            log::warn!(
-                "LookaheadLimiter: invalid release {}; clamping to 0.001s",
-                secs
-            );
+            log::warn!("LookaheadLimiter: invalid release {}; clamping to 0.001s", secs);
         }
         self.release_secs = secs.max(0.001);
         self.release_coeff = (-1.0 / (self.release_secs * self.sample_rate)).exp();
@@ -291,3 +282,4 @@ mod tests {
         assert!((limiter.current_gain() - 1.0).abs() < 1e-10);
     }
 }
+

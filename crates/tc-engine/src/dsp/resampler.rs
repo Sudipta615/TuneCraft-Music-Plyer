@@ -17,15 +17,9 @@ use tc_config::ResamplerQuality;
 #[derive(Debug, thiserror::Error)]
 pub enum ResamplerError {
     #[error("Failed to create {quality:?} resampler: {reason}")]
-    CreationFailed {
-        quality: ResamplerQuality,
-        reason: String,
-    },
+    CreationFailed { quality: ResamplerQuality, reason: String },
     #[error("Invalid sample rate: source={source_rate}, output={output_rate}")]
-    InvalidRates {
-        source_rate: usize,
-        output_rate: usize,
-    },
+    InvalidRates { source_rate: usize, output_rate: usize },
 }
 
 /// Number of channels (stereo)
@@ -145,10 +139,7 @@ impl AudioResampler {
         let src = (source_rate.round() as usize).max(1);
         let out = (output_rate.round() as usize).max(1);
         if source_rate <= 0.0 || output_rate <= 0.0 {
-            return Err(ResamplerError::InvalidRates {
-                source_rate: src,
-                output_rate: out,
-            });
+            return Err(ResamplerError::InvalidRates { source_rate: src, output_rate: out });
         }
         let inner = Self::create_resampler(quality, src, out)?;
         let mut resampler = Self {
@@ -189,7 +180,7 @@ impl AudioResampler {
                         quality,
                         reason: e.to_string(),
                     })
-            },
+            }
             ResamplerQuality::Balanced => {
                 FftFixedIn::new(source_rate, output_rate, CHUNK_SIZE, 2, CHANNELS)
                     .map(ResamplerInner::Balanced)
@@ -197,7 +188,7 @@ impl AudioResampler {
                         quality,
                         reason: e.to_string(),
                     })
-            },
+            }
             ResamplerQuality::Fast => {
                 FftFixedInOut::new(source_rate, output_rate, CHUNK_SIZE, CHANNELS)
                     .map(ResamplerInner::Fast)
@@ -205,7 +196,7 @@ impl AudioResampler {
                         quality,
                         reason: e.to_string(),
                     })
-            },
+            }
         }
     }
 
@@ -227,6 +218,7 @@ impl AudioResampler {
     #[inline]
     pub fn feed(&mut self, left: f64, right: f64) {
         if self.needs_rebuild {
+
             // infinite retry loop that saturates the CPU.
 
             // pass them through to the passthrough path so audio continues
@@ -296,10 +288,10 @@ impl AudioResampler {
             Ok(output_channels) => {
                 let frames_out = output_channels[0].len();
                 self.push_output(&output_channels, frames_out);
-            },
+            }
             Err(e) => {
                 log::warn!("Resampler process error: {}", e);
-            },
+            }
         }
 
         self.input_pos = 0;
@@ -316,7 +308,7 @@ impl AudioResampler {
         // Compact if the read head has advanced far enough to save space.
         if self.output_read_pos > self.output_buffers[0].len() / 2 {
             let avail = self.output_available;
-            let rpos = self.output_read_pos;
+            let rpos  = self.output_read_pos;
             // M4: Clamp `avail` so `rpos + avail` never exceeds the buffer
             // length, preventing a panic in copy_within on underrun.
             let safe_avail = avail.min(self.output_buffers[0].len().saturating_sub(rpos));
@@ -509,20 +501,18 @@ impl AudioResampler {
                 self.needs_rebuild = false;
                 self.rebuild_failures = 0; // Reset failure counter on success (H8)
                 self.disabled = false;
-            },
+            }
             Err(e) => {
                 self.rebuild_failures += 1; // Increment failure counter (H8)
                 log::error!(
                     "Failed to rebuild resampler ({}/{}), will retry on next feed: {}",
-                    self.rebuild_failures,
-                    MAX_REBUILD_FAILURES,
-                    e
+                    self.rebuild_failures, MAX_REBUILD_FAILURES, e
                 );
                 // Keep the existing inner resampler — audio continues but
                 // speed change is not applied until a successful rebuild.
                 // Do NOT clear pending_quality or needs_rebuild so the
                 // rebuild is retried on the next feed() call.
-            },
+            }
         }
     }
 
@@ -626,3 +616,4 @@ mod tests {
         assert!(result.is_err());
     }
 }
+

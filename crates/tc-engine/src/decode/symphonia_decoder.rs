@@ -2,8 +2,6 @@
 //! Supports MP3, FLAC, OGG/Vorbis, WAV, AAC, and more
 //! All decoding is off the audio thread and thread-safe
 
-use std::fs::File;
-use std::path::Path;
 use symphonia::core::audio::{AudioBufferRef, Signal};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
 use symphonia::core::errors::Error as SymphoniaError;
@@ -12,6 +10,8 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use symphonia::core::units::Time;
+use std::fs::File;
+use std::path::Path;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -64,8 +64,9 @@ pub struct SymphoniaDecoder {
 impl SymphoniaDecoder {
     /// Open a file for decoding
     pub fn open(path: &Path) -> Result<Self, DecodeError> {
-        let file = File::open(path)
-            .map_err(|e| DecodeError::FileOpen(format!("Cannot open {}: {}", path.display(), e)))?;
+        let file = File::open(path).map_err(|e| {
+            DecodeError::FileOpen(format!("Cannot open {}: {}", path.display(), e))
+        })?;
 
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
@@ -151,6 +152,7 @@ impl SymphoniaDecoder {
     /// Reuses the internal `sample_buffer` across calls instead of
     /// allocating a new one on every call.
     pub fn decode_next(&mut self, max_frames: usize) -> Result<DecodedChunk, DecodeError> {
+
         self.sample_buffer.clear();
         let mut frames_decoded = 0;
 
@@ -161,7 +163,7 @@ impl SymphoniaDecoder {
                     if e.kind() == std::io::ErrorKind::UnexpectedEof =>
                 {
                     break;
-                },
+                }
                 Err(SymphoniaError::ResetRequired) => continue,
                 Err(e) => return Err(DecodeError::Decode(format!("Packet read error: {}", e))),
             };
@@ -172,10 +174,9 @@ impl SymphoniaDecoder {
 
             match self.decoder.decode(&packet) {
                 Ok(decoded) => {
-                    let frames =
-                        Self::extract_samples(decoded, &mut self.sample_buffer, self.info.channels);
+                    let frames = Self::extract_samples(decoded, &mut self.sample_buffer, self.info.channels);
                     frames_decoded += frames;
-                },
+                }
                 Err(SymphoniaError::DecodeError(_)) => continue,
                 Err(e) => return Err(DecodeError::Decode(format!("Decode error: {}", e))),
             }
@@ -194,11 +195,7 @@ impl SymphoniaDecoder {
     }
 
     /// Extract f64 samples from a decoded audio buffer reference
-    fn extract_samples(
-        buffer: AudioBufferRef,
-        output: &mut Vec<f64>,
-        target_channels: usize,
-    ) -> usize {
+    fn extract_samples(buffer: AudioBufferRef, output: &mut Vec<f64>, target_channels: usize) -> usize {
         let frames = buffer.frames();
         let spec = buffer.spec();
         let src_channels = spec.channels.count();
@@ -210,39 +207,39 @@ impl SymphoniaDecoder {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
                     ((*s as f64) - 128.0) / 128.0
                 })
-            },
+            }
             AudioBufferRef::S16(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
                     *s as f64 / 32768.0
                 })
-            },
+            }
             AudioBufferRef::S24(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
                     s.0 as f64 / 8388608.0
                 })
-            },
+            }
             AudioBufferRef::S32(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
                     *s as f64 / 2147483648.0
                 })
-            },
+            }
             AudioBufferRef::F32(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
                     *s as f64
                 })
-            },
+            }
             AudioBufferRef::F64(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
                     *s
                 })
-            },
+            }
             // Handle any additional sample formats
             _ => {
                 // For unsupported formats, output silence
                 for _ in 0..frames * target_channels {
                     output.push(0.0);
                 }
-            },
+            }
         }
         frames
     }
@@ -314,3 +311,4 @@ mod tests {
         assert_eq!(info.channels, 2);
     }
 }
+

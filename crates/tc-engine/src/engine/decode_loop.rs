@@ -25,10 +25,9 @@ impl AudioEngine {
         // We do this by taking the stream, checking the state, and
         // either completing the transition or putting it back.
         let needs_completion = match &self.stream {
-            Some(PlaybackStream::Transitioning {
-                crossfade_frames_remaining,
-                ..
-            }) => *crossfade_frames_remaining == 0,
+            Some(PlaybackStream::Transitioning { crossfade_frames_remaining, .. }) => {
+                *crossfade_frames_remaining == 0
+            }
             _ => false,
         };
 
@@ -37,8 +36,7 @@ impl AudioEngine {
                 incoming_decoder,
                 incoming_resampler,
                 ..
-            }) = self.stream.take()
-            {
+            }) = self.stream.take() {
                 info!("Crossfade transition complete; incoming track is now active");
                 self.source_sample_rate = incoming_decoder.info().sample_rate;
                 self.duration_secs = incoming_decoder.duration_secs();
@@ -66,14 +64,8 @@ impl AudioEngine {
 
         match &mut stream {
             PlaybackStream::Single { decoder, resampler } => {
-                self.decode_single_stream(
-                    decoder,
-                    #[cfg(feature = "resample")]
-                    resampler,
-                    #[cfg(not(feature = "resample"))]
-                    resampler,
-                );
-            },
+                self.decode_single_stream(decoder, #[cfg(feature = "resample")] resampler, #[cfg(not(feature = "resample"))] resampler);
+            }
             PlaybackStream::Transitioning {
                 outgoing_decoder,
                 outgoing_resampler,
@@ -84,19 +76,15 @@ impl AudioEngine {
             } => {
                 self.decode_transitioning_stream(
                     outgoing_decoder,
-                    #[cfg(feature = "resample")]
-                    outgoing_resampler,
-                    #[cfg(not(feature = "resample"))]
-                    outgoing_resampler,
+                    #[cfg(feature = "resample")] outgoing_resampler,
+                    #[cfg(not(feature = "resample"))] outgoing_resampler,
                     incoming_decoder,
-                    #[cfg(feature = "resample")]
-                    incoming_resampler,
-                    #[cfg(not(feature = "resample"))]
-                    incoming_resampler,
+                    #[cfg(feature = "resample")] incoming_resampler,
+                    #[cfg(not(feature = "resample"))] incoming_resampler,
                     crossfade_frames_remaining,
                     *crossfade_total_frames,
                 );
-            },
+            }
         }
 
         self.stream = Some(stream);
@@ -115,7 +103,7 @@ impl AudioEngine {
                     Ok(chunk) => {
                         self.consecutive_decode_errors = 0;
                         Some((chunk, 0))
-                    },
+                    }
                     Err(DecodeError::EndOfStream) => {
                         info!("Track ended");
                         self.position_secs = 0.0;
@@ -132,19 +120,16 @@ impl AudioEngine {
                         // Don't set stream to None here — the UI layer
                         // handles track transitions via PlaybackService.
                         None
-                    },
+                    }
                     Err(e) => {
                         self.consecutive_decode_errors += 1;
-                        warn!(
-                            "Decode error ({}/{}): {}",
-                            self.consecutive_decode_errors, 10, e
-                        );
+                        warn!("Decode error ({}/{}): {}", self.consecutive_decode_errors, 10, e);
                         if self.consecutive_decode_errors >= 10 {
                             error!("Too many consecutive decode errors; stopping playback");
                             self.update_playback_state(PlaybackState::Stopped);
                         }
                         None
-                    },
+                    }
                 }
             });
 
@@ -159,11 +144,8 @@ impl AudioEngine {
 
         let expected_samples = (frames as u64) * (channels as u64);
         if (chunk.samples.len() as u64) < expected_samples {
-            warn!(
-                "Decoder returned inconsistent data: expected {} samples, got {}",
-                expected_samples,
-                chunk.samples.len()
-            );
+            warn!("Decoder returned inconsistent data: expected {} samples, got {}",
+                  expected_samples, chunk.samples.len());
             return;
         }
 
@@ -176,11 +158,7 @@ impl AudioEngine {
                 break;
             }
             let left = chunk.samples[idx];
-            let right = if channels > 1 {
-                chunk.samples[idx + 1]
-            } else {
-                left
-            };
+            let right = if channels > 1 { chunk.samples[idx + 1] } else { left };
 
             // In Single mode, the mixer is in PlayingCurrent state, so
             // process() simply passes through (out_l, out_r) unchanged.
@@ -202,7 +180,7 @@ impl AudioEngine {
                                     stalled_at = Some(i);
                                     break 'outer;
                                 }
-                            },
+                            }
                             None => break,
                         }
                     }
@@ -236,26 +214,17 @@ impl AudioEngine {
             }
         }
 
-        let effective_speed = if self.speed.abs() < 0.01 {
-            0.25
-        } else {
-            self.speed
-        };
+        let effective_speed = if self.speed.abs() < 0.01 { 0.25 } else { self.speed };
         let wall_clock_delta =
             processed_frames as f64 / (self.source_sample_rate as f64 * effective_speed);
         self.position_secs += wall_clock_delta;
 
         match self.playback_info.write() {
-            Ok(mut pb) => {
-                pb.position_secs = self.position_secs;
-            },
+            Ok(mut pb) => { pb.position_secs = self.position_secs; }
             Err(e) => {
-                error!(
-                    "PlaybackInfo RwLock poisoned during decode; resetting: {}",
-                    e
-                );
+                error!("PlaybackInfo RwLock poisoned during decode; resetting: {}", e);
                 e.into_inner().position_secs = self.position_secs;
-            },
+            }
         }
     }
 
@@ -280,34 +249,29 @@ impl AudioEngine {
         crossfade_total_frames: usize,
     ) {
         // Decode chunks from both decoders.
-        let out_chunk: Option<crate::decode::DecodedChunk> =
-            self.pending_chunk.take().map(|(c, _)| c).or_else(|| {
-                match outgoing_decoder.decode_next(4096) {
-                    Ok(c) => Some(c),
-                    Err(DecodeError::EndOfStream) => {
-                        // Outgoing track ended — this is fine during crossfade,
-                        // the mixer will use silence for the remaining outgoing samples.
-                        None
-                    },
-                    Err(_) => None,
+        let out_chunk: Option<crate::decode::DecodedChunk> = self.pending_chunk.take().map(|(c, _)| c).or_else(|| {
+            match outgoing_decoder.decode_next(4096) {
+                Ok(c) => Some(c),
+                Err(DecodeError::EndOfStream) => {
+                    // Outgoing track ended — this is fine during crossfade,
+                    // the mixer will use silence for the remaining outgoing samples.
+                    None
                 }
-            });
+                Err(_) => None,
+            }
+        });
 
-        let in_chunk: Option<crate::decode::DecodedChunk> = self
-            .pending_incoming_chunk
-            .take()
-            .map(|(c, _)| c)
-            .or_else(|| {
-                match incoming_decoder.decode_next(4096) {
-                    Ok(c) => Some(c),
-                    Err(DecodeError::EndOfStream) => {
-                        // Incoming track ended during crossfade — shouldn't normally
-                        // happen since crossfade is at the start of the incoming track.
-                        None
-                    },
-                    Err(_) => None,
+        let in_chunk: Option<crate::decode::DecodedChunk> = self.pending_incoming_chunk.take().map(|(c, _)| c).or_else(|| {
+            match incoming_decoder.decode_next(4096) {
+                Ok(c) => Some(c),
+                Err(DecodeError::EndOfStream) => {
+                    // Incoming track ended during crossfade — shouldn't normally
+                    // happen since crossfade is at the start of the incoming track.
+                    None
                 }
-            });
+                Err(_) => None,
+            }
+        });
 
         // If we have no incoming samples at all, something is wrong.
         // Mark crossfade as complete — the next tick will promote the
@@ -317,17 +281,11 @@ impl AudioEngine {
             return;
         }
 
-        let out_samples = out_chunk
-            .as_ref()
-            .map(|c| c.samples.as_slice())
-            .unwrap_or(&[]);
+        let out_samples = out_chunk.as_ref().map(|c| c.samples.as_slice()).unwrap_or(&[]);
         let out_channels = out_chunk.as_ref().map(|c| c.channels).unwrap_or(2);
         let out_frame_count = out_chunk.as_ref().map(|c| c.frame_count).unwrap_or(0);
 
-        let in_samples = in_chunk
-            .as_ref()
-            .map(|c| c.samples.as_slice())
-            .unwrap_or(&[]);
+        let in_samples = in_chunk.as_ref().map(|c| c.samples.as_slice()).unwrap_or(&[]);
         let in_channels = in_chunk.as_ref().map(|c| c.channels).unwrap_or(2);
         let in_frame_count = in_chunk.as_ref().map(|c| c.frame_count).unwrap_or(0);
 
@@ -346,11 +304,7 @@ impl AudioEngine {
             // Get outgoing samples (or silence if the outgoing stream ended).
             let (out_l, out_r) = if out_idx + out_channels <= out_samples.len() {
                 let l = out_samples[out_idx];
-                let r = if out_channels > 1 {
-                    out_samples[out_idx + 1]
-                } else {
-                    l
-                };
+                let r = if out_channels > 1 { out_samples[out_idx + 1] } else { l };
                 out_idx += out_channels;
                 (l, r)
             } else {
@@ -360,11 +314,7 @@ impl AudioEngine {
             // Get incoming samples (or silence if the incoming stream ended).
             let (in_l, in_r) = if in_idx + in_channels <= in_samples.len() {
                 let l = in_samples[in_idx];
-                let r = if in_channels > 1 {
-                    in_samples[in_idx + 1]
-                } else {
-                    l
-                };
+                let r = if in_channels > 1 { in_samples[in_idx + 1] } else { l };
                 in_idx += in_channels;
                 (l, r)
             } else {
@@ -455,19 +405,16 @@ impl AudioEngine {
                 let (irs_l, irs_r) = self.rs_in_buf.get(rs_idx).copied().unwrap_or((0.0, 0.0));
 
                 // Feed both RESAMPLED streams into the mixer with distinct inputs.
-                let (mixed_l, mixed_r) = self
-                    .pipeline
-                    .mixer_mut()
-                    .process(ors_l, ors_r, irs_l, irs_r);
+                let (mixed_l, mixed_r) = self.pipeline.mixer_mut().process(
+                    ors_l, ors_r,
+                    irs_l, irs_r,
+                );
 
                 // Apply the remaining DSP stages (limiter, volume, dither) to
                 // the mixed output.
                 let (final_l, final_r) = self.pipeline.process_post_mix(mixed_l, mixed_r);
 
-                if !self
-                    .output_buffer
-                    .push(AudioFrame::stereo(final_l, final_r))
-                {
+                if !self.output_buffer.push(AudioFrame::stereo(final_l, final_r)) {
                     // Buffer full — cache partial chunk positions for both
                     // streams so we can resume on the next tick without
                     // dropping audio data.
@@ -501,11 +448,11 @@ impl AudioEngine {
                     // truncation itself (just sets the len).
                     let mut chunk = chunk;
                     chunk.samples = chunk.samples.split_off(stall_out_idx);
-                    chunk.frame_count = chunk
-                        .frame_count
+                    chunk.frame_count = chunk.frame_count
                         .saturating_sub(stall_out_idx / chunk.channels.max(1));
                     self.pending_chunk = Some((
-                        chunk, 0, // Start from beginning of the trimmed chunk
+                        chunk,
+                        0, // Start from beginning of the trimmed chunk
                     ));
                 }
             }
@@ -514,10 +461,12 @@ impl AudioEngine {
                 if let Some(chunk) = in_chunk {
                     let mut chunk = chunk;
                     chunk.samples = chunk.samples.split_off(stall_in_idx);
-                    chunk.frame_count = chunk
-                        .frame_count
+                    chunk.frame_count = chunk.frame_count
                         .saturating_sub(stall_in_idx / chunk.channels.max(1));
-                    self.pending_incoming_chunk = Some((chunk, 0));
+                    self.pending_incoming_chunk = Some((
+                        chunk,
+                        0,
+                    ));
                 }
             }
         } else {
@@ -556,19 +505,15 @@ impl AudioEngine {
                     break;
                 }
 
-                let (out_rs_l, out_rs_r) =
-                    self.drain_out_buf.get(di).copied().unwrap_or((0.0, 0.0));
+                let (out_rs_l, out_rs_r) = self.drain_out_buf.get(di).copied().unwrap_or((0.0, 0.0));
                 let (in_rs_l, in_rs_r) = self.drain_in_buf.get(di).copied().unwrap_or((0.0, 0.0));
 
-                let (mixed_l, mixed_r) = self
-                    .pipeline
-                    .mixer_mut()
-                    .process(out_rs_l, out_rs_r, in_rs_l, in_rs_r);
+                let (mixed_l, mixed_r) = self.pipeline.mixer_mut().process(
+                    out_rs_l, out_rs_r,
+                    in_rs_l, in_rs_r,
+                );
                 let (final_l, final_r) = self.pipeline.process_post_mix(mixed_l, mixed_r);
-                if !self
-                    .output_buffer
-                    .push(AudioFrame::stereo(final_l, final_r))
-                {
+                if !self.output_buffer.push(AudioFrame::stereo(final_l, final_r)) {
                     break;
                 }
                 *crossfade_frames_remaining = crossfade_frames_remaining.saturating_sub(1);
@@ -577,11 +522,7 @@ impl AudioEngine {
         }
 
         // Update position based on the incoming track's progress.
-        let effective_speed = if self.speed.abs() < 0.01 {
-            0.25
-        } else {
-            self.speed
-        };
+        let effective_speed = if self.speed.abs() < 0.01 { 0.25 } else { self.speed };
         let incoming_rate = incoming_decoder.info().sample_rate;
         let wall_clock_delta = processed_frames as f64 / (incoming_rate as f64 * effective_speed);
 
@@ -598,16 +539,13 @@ impl AudioEngine {
             Ok(mut pb) => {
                 pb.position_secs = self.position_secs;
                 pb.duration_secs = self.duration_secs;
-            },
+            }
             Err(e) => {
-                error!(
-                    "PlaybackInfo RwLock poisoned during crossfade decode; resetting: {}",
-                    e
-                );
+                error!("PlaybackInfo RwLock poisoned during crossfade decode; resetting: {}", e);
                 let mut pb = e.into_inner();
                 pb.position_secs = self.position_secs;
                 pb.duration_secs = self.duration_secs;
-            },
+            }
         }
     }
 }

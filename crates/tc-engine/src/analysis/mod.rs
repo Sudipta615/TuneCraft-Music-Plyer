@@ -13,9 +13,7 @@ pub mod spectrum;
 pub mod waveform;
 
 // Re-export the canonical analysis types from tc-analysis
-pub use tc_analysis::{
-    BpmDetector, MoodClassifier, TrackAnalysis, WaveformGenerator as FileWaveformGenerator,
-};
+pub use tc_analysis::{BpmDetector, MoodClassifier, TrackAnalysis, WaveformGenerator as FileWaveformGenerator};
 
 // Re-export engine-internal analysis types
 pub use spectrum::SpectrumAnalyzer;
@@ -176,10 +174,7 @@ mod tests {
         }
         let data = buf.read();
         // All 32 samples should have been captured (decimation=1)
-        let nonzero: Vec<_> = data
-            .iter()
-            .filter(|(l, r)| *l != 0.0 || *r != 0.0)
-            .collect();
+        let nonzero: Vec<_> = data.iter().filter(|(l, r)| *l != 0.0 || *r != 0.0).collect();
         assert_eq!(nonzero.len(), 32);
         // First sample
         assert!((nonzero[0].0 - 0.0).abs() < 1e-12);
@@ -195,10 +190,7 @@ mod tests {
             buf.feed(i as f64, i as f64);
         }
         let data = buf.read();
-        let nonzero: Vec<_> = data
-            .iter()
-            .filter(|(l, r)| *l != 0.0 || *r != 0.0)
-            .collect();
+        let nonzero: Vec<_> = data.iter().filter(|(l, r)| *l != 0.0 || *r != 0.0).collect();
         // Samples at indices 0, 3, 6, 9, ... 27 = 10 samples
         assert_eq!(nonzero.len(), 10);
     }
@@ -233,3 +225,4 @@ mod tests {
         assert!((nonzero[7].0 - 19.0).abs() < 1e-12);
     }
 }
+

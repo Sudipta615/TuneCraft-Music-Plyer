@@ -131,7 +131,10 @@ mod tests {
         let (l, r) = enhancer.process(0.8, 0.2);
         // Width 0 = mono, both channels should be the average
         assert!((l - r).abs() < 1e-10, "Width 0 should produce mono");
-        assert!((l - 0.5).abs() < 1e-10, "Mono should be average of L and R");
+        assert!(
+            (l - 0.5).abs() < 1e-10,
+            "Mono should be average of L and R"
+        );
     }
 
     #[test]
@@ -219,3 +222,4 @@ mod tests {
         );
     }
 }
+

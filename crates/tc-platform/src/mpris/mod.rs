@@ -13,9 +13,9 @@
 mod dbus;
 mod signals;
 
-use parking_lot::Mutex;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::types::{MediaKeyAction, MprisPlaybackStatus, MprisPropertyChanged, MprisTrackInfo};
 
@@ -94,14 +94,15 @@ impl MprisService {
 
         std::thread::Builder::new()
             .name("tunecraft-mpris-dbus".to_string())
-            .spawn(
-                move || match dbus::run_dbus_server(&identity, &action_tx, &state, &notify_rx) {
+            .spawn(move || {
+                match dbus::run_dbus_server(&identity, &action_tx, &state, &notify_rx) {
                     Ok(()) => log::info!("MPRIS D-Bus service stopped"),
                     Err(e) => log::warn!("MPRIS D-Bus service error: {}", e),
-                },
-            )
+                }
+            })
             .map_err(|e| format!("Failed to spawn MPRIS thread: {}", e))?;
 
         Ok(())
     }
 }
+

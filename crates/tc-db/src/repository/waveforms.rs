@@ -6,6 +6,7 @@ use rusqlite::params;
 use super::{Database, DbError};
 
 impl Database {
+
     pub fn save_waveform(
         &self,
         track_id: i64,
@@ -43,3 +44,4 @@ impl Database {
         }
     }
 }
+

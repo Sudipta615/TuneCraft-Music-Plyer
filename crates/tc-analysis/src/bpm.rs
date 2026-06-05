@@ -56,27 +56,21 @@ impl BpmDetector {
     pub fn detect(&self) -> super::BpmResult {
         if self.onset_history.len() < self.min_history {
             // Not enough data for reliable detection.
-            return super::BpmResult {
-                bpm: 120.0,
-                confidence: 0.0,
-            };
+            return super::BpmResult { bpm: 120.0, confidence: 0.0 };
         }
 
         let mean: f64 = self.onset_history.iter().sum::<f64>() / self.onset_history.len() as f64;
 
         // Autocorrelation with mean subtraction (autocovariance)
         let min_lag = (60.0 / 200.0 * self.sample_rate / 512.0) as usize; // 200 BPM max
-        let max_lag = (60.0 / 60.0 * self.sample_rate / 512.0) as usize; // 60 BPM min
+        let max_lag = (1.0 * self.sample_rate / 512.0) as usize;  // 60 BPM min
 
         // Guard: if the lag range is empty (can happen at unusual sample rates or
         // when the history is too short relative to the BPM range), return the
         // default result rather than producing garbage from an uninitialised best_lag.
         let effective_max_lag = max_lag.min(self.onset_history.len() / 2);
         if min_lag > effective_max_lag {
-            return super::BpmResult {
-                bpm: 120.0,
-                confidence: 0.0,
-            };
+            return super::BpmResult { bpm: 120.0, confidence: 0.0 };
         }
 
         let mut best_lag = min_lag;
@@ -119,7 +113,7 @@ impl BpmDetector {
         }
 
         let confidence = if best_corr > 0.0 && second_best_corr > 0.0 {
-            (1.0 - second_best_corr / best_corr).max(0.0).min(1.0)
+            (1.0 - second_best_corr / best_corr).clamp(0.0, 1.0)
         } else if best_corr > 0.0 {
             // Single positive peak with no meaningful second peak — this is
             // a weak detection, not a confident one. Return a low confidence
@@ -202,16 +196,15 @@ mod tests {
         // mean-subtracted autocorrelation (no panic, reasonable output)
         let mut detector = BpmDetector::new(44100.0).unwrap();
         // Feed enough samples to exceed min_history threshold
-        let samples: Vec<(f64, f64)> = (0..441000)
-            .map(|i| {
-                let t = i as f64 / 44100.0;
-                let v = (2.0 * PI * 440.0 * t).sin() * 0.5;
-                (v, v)
-            })
-            .collect();
+        let samples: Vec<(f64, f64)> = (0..441000).map(|i| {
+            let t = i as f64 / 44100.0;
+            let v = (2.0 * PI * 440.0 * t).sin() * 0.5;
+            (v, v)
+        }).collect();
         detector.feed(&samples);
         let result = detector.detect();
         assert!(result.bpm > 0.0);
         assert!(result.confidence >= 0.0 && result.confidence <= 1.0);
     }
 }
+

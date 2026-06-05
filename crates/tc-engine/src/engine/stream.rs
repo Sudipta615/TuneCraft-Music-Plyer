@@ -12,20 +12,13 @@ use super::PlaybackStream;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EngineError {
-    #[error("Output error: {0}")]
-    Output(#[from] OutputError),
-    #[error("Decode error: {0}")]
-    Decode(#[from] DecodeError),
-    #[error("No track loaded")]
-    NoTrackLoaded,
-    #[error("Engine already running")]
-    AlreadyRunning,
-    #[error("Engine not running")]
-    NotRunning,
-    #[error("Configuration error: {0}")]
-    Config(String),
-    #[error("Stream recovery failed: {0}")]
-    StreamRecovery(String),
+    #[error("Output error: {0}")] Output(#[from] OutputError),
+    #[error("Decode error: {0}")] Decode(#[from] DecodeError),
+    #[error("No track loaded")]   NoTrackLoaded,
+    #[error("Engine already running")] AlreadyRunning,
+    #[error("Engine not running")]  NotRunning,
+    #[error("Configuration error: {0}")] Config(String),
+    #[error("Stream recovery failed: {0}")] StreamRecovery(String),
 }
 
 impl PlaybackStream {
@@ -38,9 +31,7 @@ impl PlaybackStream {
     pub fn active_info(&self) -> &DecodeInfo {
         match self {
             PlaybackStream::Single { decoder, .. } => decoder.info(),
-            PlaybackStream::Transitioning {
-                incoming_decoder, ..
-            } => incoming_decoder.info(),
+            PlaybackStream::Transitioning { incoming_decoder, .. } => incoming_decoder.info(),
         }
     }
 
@@ -53,9 +44,7 @@ impl PlaybackStream {
     pub fn outgoing_duration_secs(&self) -> f64 {
         match self {
             PlaybackStream::Single { decoder, .. } => decoder.duration_secs(),
-            PlaybackStream::Transitioning {
-                outgoing_decoder, ..
-            } => outgoing_decoder.duration_secs(),
+            PlaybackStream::Transitioning { outgoing_decoder, .. } => outgoing_decoder.duration_secs(),
         }
     }
 }

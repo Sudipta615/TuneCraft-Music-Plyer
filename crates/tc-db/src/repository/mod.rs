@@ -15,13 +15,13 @@
 //! - [`covers`]      — Cover art data persistence
 //! - [`aggregates`]  — Album/artist/playlist counter reconciliation
 
-mod aggregates;
-mod covers;
-pub(crate) mod eq_presets; // Bug #1 fix: pub(crate) so sibling modules can import from it
-mod favorites;
-mod playlists;
 mod tracks;
+mod playlists;
+mod favorites;
+pub(crate) mod eq_presets;  // Bug #1 fix: pub(crate) so sibling modules can import from it
 mod waveforms;
+mod covers;
+mod aggregates;
 
 use crate::migrations;
 use rusqlite::{params, Connection};
@@ -50,33 +50,33 @@ pub enum DbError {
 static IN_MEMORY_DB_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Thread-safe SQLite database wrapper.
-
+///
 /// Uses a dual-connection pattern with WAL mode to minimize contention:
 /// - **Write connection** (`write_conn`): used for mutations (inserts, updates, deletes)
 /// - **Read connection** (`read_conn`): used for queries (selects)
-
+///
 /// Because WAL mode allows concurrent reads while a write is in progress,
-/// the read connection never blocks on write transactions. This eliminates
-/// the UI freezes that occurred in v0.7.x when the scan thread held the
-/// single connection's Mutex for the entire scan duration.
-
+///   the read connection never blocks on write transactions. This eliminates
+///   the UI freezes that occurred in v0.7.x when the scan thread held the
+///   single connection's Mutex for the entire scan duration.
+///
 /// Both connections are wrapped in `Mutex` for `Send` safety, but the
-/// read Mutex is held only for the duration of a single query, never
-/// for an entire scan loop.
-
+///   read Mutex is held only for the duration of a single query, never
+///   for an entire scan loop.
+///
 /// # Lock Ordering
-
+///
 /// To prevent deadlocks, the following lock ordering MUST be observed:
 /// 1. `write_conn` Mutex — always acquired first if both are needed
 /// 2. `read_conn` Mutex — always acquired after write_conn
-
+///
 /// In practice, the dual-connection design means we never need both locks
-/// simultaneously: read operations use `read_conn`, write operations use
-/// `write_conn`, and WAL mode ensures they don't block each other.
-
+///    simultaneously: read operations use `read_conn`, write operations use
+///    `write_conn`, and WAL mode ensures they don't block each other.
+///
 /// If a future change requires holding both locks (e.g., a transaction
-/// that reads from one and writes to the other), always acquire
-/// `write_conn` first, then `read_conn`.
+///    that reads from one and writes to the other), always acquire
+///    `write_conn` first, then `read_conn`.
 pub struct Database {
     /// Write connection — used for all mutations
     write_conn: Mutex<Connection>,
@@ -101,8 +101,7 @@ impl Database {
         write_conn.execute_batch(
             "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;",
         )?;
-        migrations::run_migrations(&mut write_conn)
-            .map_err(|e| DbError::Migration(e.to_string()))?;
+        migrations::run_migrations(&mut write_conn).map_err(|e| DbError::Migration(e.to_string()))?;
 
         Self::check_version_compatibility(&write_conn)?;
 
@@ -121,7 +120,7 @@ impl Database {
                     e
                 );
                 Connection::open(path).map_err(DbError::Sqlite)?
-            },
+            }
         };
 
         Ok(Self {
@@ -154,8 +153,10 @@ impl Database {
             if let Some(version) = stored_version {
                 let current_version = env!("CARGO_PKG_VERSION");
                 if version.as_str() != current_version {
-                    let stored_parts: Vec<u32> =
-                        version.split('.').filter_map(|s| s.parse().ok()).collect();
+                    let stored_parts: Vec<u32> = version
+                        .split('.')
+                        .filter_map(|s| s.parse().ok())
+                        .collect();
                     let current_parts: Vec<u32> = current_version
                         .split('.')
                         .filter_map(|s| s.parse().ok())
@@ -202,6 +203,7 @@ impl Database {
     /// behavior in tests may differ from production. Test authors
     /// should be aware of this difference.
     pub fn open_in_memory() -> Result<Self, DbError> {
+
         // shared "file:mem?mode=memory&cache=shared" so that parallel test
         // instances each get their own database. The static counter ensures
         // uniqueness; the thread ID is also included as an extra guard.
@@ -215,20 +217,15 @@ impl Database {
 
         let mut write_conn = Connection::open_with_flags(
             &mem_uri,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
-                | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
-                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE | rusqlite::OpenFlags::SQLITE_OPEN_CREATE | rusqlite::OpenFlags::SQLITE_OPEN_URI,
         )?;
         write_conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;")?;
-        migrations::run_migrations(&mut write_conn)
-            .map_err(|e| DbError::Migration(e.to_string()))?;
+        migrations::run_migrations(&mut write_conn).map_err(|e| DbError::Migration(e.to_string()))?;
 
         // Both read and write use the same shared cache, so reads see writes.
         let read_conn = Connection::open_with_flags(
             &mem_uri,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
-                | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
-                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE | rusqlite::OpenFlags::SQLITE_OPEN_CREATE | rusqlite::OpenFlags::SQLITE_OPEN_URI,
         )?;
 
         Ok(Self {
@@ -263,7 +260,7 @@ impl Database {
         F: FnOnce(&rusqlite::Connection) -> Result<T, rusqlite::Error>,
     {
         let conn = self.write_lock()?;
-        f(&*conn).map_err(DbError::Sqlite)
+        f(&conn).map_err(DbError::Sqlite)
     }
 
     /// Execute a closure within a database transaction.
@@ -280,10 +277,8 @@ impl Database {
         E: From<DbError>,
     {
         let conn = self.write_lock().map_err(E::from)?;
-        let tx = conn
-            .unchecked_transaction()
-            .map_err(|e| E::from(DbError::Sqlite(e)))?;
-        let result = f(&*tx)?;
+        let tx = conn.unchecked_transaction().map_err(|e| E::from(DbError::Sqlite(e)))?;
+        let result = f(&tx)?;
         tx.commit().map_err(|e| E::from(DbError::Sqlite(e)))?;
         Ok(result)
     }
@@ -299,3 +294,4 @@ mod tests {
         assert!(db.is_ok(), "Should be able to open in-memory database");
     }
 }
+

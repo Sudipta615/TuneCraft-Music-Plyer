@@ -20,7 +20,7 @@ pub struct Track {
     pub bitrate_kbps: Option<i32>,
     pub format: String,
     pub file_size: i64,
-    pub file_modified: i64, // Unix timestamp
+    pub file_modified: i64,  // Unix timestamp
     pub crc32: Option<u32>,
     pub replaygain_track_db: Option<f64>,
     pub replaygain_album_db: Option<f64>,
@@ -68,7 +68,7 @@ pub struct Playlist {
     pub name: String,
     pub description: Option<String>,
     pub is_smart: bool,
-    pub smart_rules: Option<String>, // JSON
+    pub smart_rules: Option<String>,  // JSON
     pub track_count: i32,
     pub duration_secs: f64,
     pub date_created: NaiveDateTime,
@@ -114,7 +114,7 @@ pub struct LoudnessMeta {
 pub struct WaveformCache {
     pub track_id: i64,
     pub samples_per_pixel: i32,
-    pub data: Vec<u8>, // Serialized min/max pairs
+    pub data: Vec<u8>,  // Serialized min/max pairs
     pub date_generated: NaiveDateTime,
 }
 
@@ -123,7 +123,8 @@ pub struct WaveformCache {
 pub struct EqPreset {
     pub id: i64,
     pub name: String,
-    pub config_json: String, // Serialized EqConfig
+    pub config_json: String,  // Serialized EqConfig
     pub is_builtin: bool,
     pub date_created: NaiveDateTime,
 }
+

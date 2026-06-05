@@ -15,9 +15,7 @@
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-use souvlaki::{
-    MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig,
-};
+use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig};
 
 use crate::types::{MediaKeyAction, MprisPlaybackStatus};
 
@@ -59,7 +57,7 @@ impl CrossPlatformMediaControls {
                 })
                 .map_err(|e| format!("Failed to attach media control handler: {}", e))?;
                 Some(ctrl)
-            },
+            }
             Err(e) => {
                 log::warn!(
                     "Failed to initialize cross-platform media controls: {}. \
@@ -69,13 +67,10 @@ impl CrossPlatformMediaControls {
                     e
                 );
                 None
-            },
+            }
         };
 
-        Ok(Self {
-            controls,
-            action_tx,
-        })
+        Ok(Self { controls, action_tx })
     }
 
     /// Translate a souvlaki MediaControlEvent into our MediaKeyAction
@@ -94,16 +89,18 @@ impl CrossPlatformMediaControls {
                 // Bring window to front — not directly a media key action
                 log::info!("Media control: Raise (bring to front)");
                 return;
-            },
+            }
             MediaControlEvent::Quit => MediaKeyAction::Quit,
-            MediaControlEvent::SetVolume(volume) => MediaKeyAction::SetVolume(volume as f64),
+            MediaControlEvent::SetVolume(volume) => {
+                MediaKeyAction::SetVolume(volume as f64)
+            }
             MediaControlEvent::SetPosition(position) => {
                 let pos_us = position.0.as_micros() as i64;
                 MediaKeyAction::SetPosition {
                     track_id: String::new(),
                     position_us: pos_us,
                 }
-            },
+            }
         };
 
         if let Err(e) = tx.send(action) {

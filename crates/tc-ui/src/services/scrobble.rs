@@ -35,19 +35,15 @@ pub enum ScrobbleEvent {
     /// A listen was successfully recorded to the local journal.
     Recorded { artist: String, track: String },
     /// Recording failed (DB error — should be rare).
-    Failed {
-        artist: String,
-        track: String,
-        error: String,
-    },
+    Failed { artist: String, track: String, error: String },
 }
 
 /// A single completed-listen record to be journalled.
 #[derive(Debug, Clone)]
 pub struct LocalScrobbleEntry {
-    pub track_id: i64,
-    pub artist: String,
-    pub track: String,
+    pub track_id:            i64,
+    pub artist:              String,
+    pub track:               String,
     pub duration_played_secs: f64,
 }
 
@@ -138,15 +134,12 @@ impl ScrobbleService {
 
         match result {
             Ok(()) => {
-                info!(
-                    "Local scrobble recorded: {} – {}",
-                    entry.artist, entry.track
-                );
+                info!("Local scrobble recorded: {} – {}", entry.artist, entry.track);
                 let _ = self.event_tx.send(ScrobbleEvent::Recorded {
                     artist: entry.artist,
                     track: entry.track,
                 });
-            },
+            }
             Err(e) => {
                 warn!("Failed to record local scrobble: {}", e);
                 let _ = self.event_tx.send(ScrobbleEvent::Failed {
@@ -154,7 +147,7 @@ impl ScrobbleService {
                     track: entry.track,
                     error: e.to_string(),
                 });
-            },
+            }
         }
     }
 
@@ -162,7 +155,10 @@ impl ScrobbleService {
     ///
     /// Call once per UI frame.  Returns `None` when the queue is empty.
     pub fn try_recv_event(&self) -> Option<ScrobbleEvent> {
-        self.event_rx.lock().ok().and_then(|rx| rx.try_recv().ok())
+        self.event_rx
+            .lock()
+            .ok()
+            .and_then(|rx| rx.try_recv().ok())
     }
 
     // -----------------------------------------------------------------------
@@ -171,36 +167,33 @@ impl ScrobbleService {
 
     /// Top N most-played tracks (by completed play count).
     pub fn top_tracks(&self, limit: usize) -> Vec<TopTrack> {
-        self.db
-            .with_connection(|conn| {
-                let mut stmt = conn.prepare(
+        self.db.with_connection(|conn| {
+            let mut stmt = conn.prepare(
                 "SELECT t.id, t.title, t.artist, t.album, ls.play_count, ls.total_seconds_listened
                  FROM listening_stats ls
                  JOIN tracks t ON t.id = ls.track_id
                  ORDER BY ls.play_count DESC
                  LIMIT ?1",
             )?;
-                let rows = stmt.query_map(rusqlite::params![limit as i64], |row| {
-                    Ok(TopTrack {
-                        track_id: row.get(0)?,
-                        title: row.get(1)?,
-                        artist: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                        album: row.get(3)?,
-                        play_count: row.get(4)?,
-                        total_seconds_listened: row.get(5)?,
-                    })
-                })?;
-                rows.collect::<Result<Vec<_>, _>>()
-            })
-            .unwrap_or_default()
+            let rows = stmt.query_map(rusqlite::params![limit as i64], |row| {
+                Ok(TopTrack {
+                    track_id:              row.get(0)?,
+                    title:                 row.get(1)?,
+                    artist:                row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                    album:                 row.get(3)?,
+                    play_count:            row.get(4)?,
+                    total_seconds_listened: row.get(5)?,
+                })
+            })?;
+            rows.collect::<Result<Vec<_>, _>>()
+        }).unwrap_or_default()
     }
 
     /// Top N most-listened artists (by total seconds listened).
     pub fn top_artists(&self, limit: usize) -> Vec<TopArtist> {
-        self.db
-            .with_connection(|conn| {
-                let mut stmt = conn.prepare(
-                    "SELECT t.artist,
+        self.db.with_connection(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT t.artist,
                         COUNT(DISTINCT t.id)    AS track_count,
                         SUM(ls.play_count)       AS total_plays,
                         SUM(ls.total_seconds_listened) AS total_secs
@@ -210,76 +203,69 @@ impl ScrobbleService {
                  GROUP BY t.artist
                  ORDER BY total_secs DESC
                  LIMIT ?1",
-                )?;
-                let rows = stmt.query_map(rusqlite::params![limit as i64], |row| {
-                    Ok(TopArtist {
-                        artist: row.get(0)?,
-                        track_count: row.get(1)?,
-                        total_plays: row.get(2)?,
-                        total_seconds_listened: row.get(3)?,
-                    })
-                })?;
-                rows.collect::<Result<Vec<_>, _>>()
-            })
-            .unwrap_or_default()
+            )?;
+            let rows = stmt.query_map(rusqlite::params![limit as i64], |row| {
+                Ok(TopArtist {
+                    artist:                 row.get(0)?,
+                    track_count:            row.get(1)?,
+                    total_plays:            row.get(2)?,
+                    total_seconds_listened: row.get(3)?,
+                })
+            })?;
+            rows.collect::<Result<Vec<_>, _>>()
+        }).unwrap_or_default()
     }
 
     /// Listening history for a date range (Unix timestamps, inclusive).
     ///
     /// Returns one row per scrobble, newest first.
     pub fn history_in_range(&self, from: i64, to: i64) -> Vec<HistoryEntry> {
-        self.db
-            .with_connection(|conn| {
-                let mut stmt = conn.prepare(
-                    "SELECT s.id, s.track_id, t.title, t.artist, t.album,
+        self.db.with_connection(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT s.id, s.track_id, t.title, t.artist, t.album,
                         s.played_at, s.duration_played_secs
                  FROM scrobbles s
                  JOIN tracks t ON t.id = s.track_id
                  WHERE s.played_at BETWEEN ?1 AND ?2
                    AND s.completed = 1
                  ORDER BY s.played_at DESC",
-                )?;
-                let rows = stmt.query_map(rusqlite::params![from, to], |row| {
-                    Ok(HistoryEntry {
-                        scrobble_id: row.get(0)?,
-                        track_id: row.get(1)?,
-                        title: row.get(2)?,
-                        artist: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
-                        album: row.get(4)?,
-                        played_at: row.get(5)?,
-                        duration_played_secs: row.get(6)?,
-                    })
-                })?;
-                rows.collect::<Result<Vec<_>, _>>()
-            })
-            .unwrap_or_default()
+            )?;
+            let rows = stmt.query_map(rusqlite::params![from, to], |row| {
+                Ok(HistoryEntry {
+                    scrobble_id:          row.get(0)?,
+                    track_id:             row.get(1)?,
+                    title:                row.get(2)?,
+                    artist:               row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+                    album:                row.get(4)?,
+                    played_at:            row.get(5)?,
+                    duration_played_secs: row.get(6)?,
+                })
+            })?;
+            rows.collect::<Result<Vec<_>, _>>()
+        }).unwrap_or_default()
     }
 
     /// Total listening time in seconds across all recorded plays.
     pub fn total_listening_secs(&self) -> f64 {
-        self.db
-            .with_connection(|conn| {
-                conn.query_row(
-                    "SELECT COALESCE(SUM(total_seconds_listened), 0.0) FROM listening_stats",
-                    [],
-                    |row| row.get::<_, f64>(0),
-                )
-            })
-            .unwrap_or(0.0)
+        self.db.with_connection(|conn| {
+            conn.query_row(
+                "SELECT COALESCE(SUM(total_seconds_listened), 0.0) FROM listening_stats",
+                [],
+                |row| row.get::<_, f64>(0),
+            )
+        }).unwrap_or(0.0)
     }
 
     /// Number of unique days with at least one completed play (listening streak base).
     pub fn active_day_count(&self) -> u32 {
-        self.db
-            .with_connection(|conn| {
-                conn.query_row(
-                    "SELECT COUNT(DISTINCT date(played_at, 'unixepoch'))
+        self.db.with_connection(|conn| {
+            conn.query_row(
+                "SELECT COUNT(DISTINCT date(played_at, 'unixepoch'))
                  FROM scrobbles WHERE completed = 1",
-                    [],
-                    |row| row.get::<_, u32>(0),
-                )
-            })
-            .unwrap_or(0)
+                [],
+                |row| row.get::<_, u32>(0),
+            )
+        }).unwrap_or(0)
     }
 
     /// Current listening streak: consecutive days ending today with ≥ 1 play.
@@ -297,10 +283,9 @@ impl ScrobbleService {
         // gaps by comparing each day to its predecessor via a window
         // function (LAG).  All arithmetic stays inside a single
         // `with_connection` closure → one DB round-trip.
-        self.db
-            .with_connection(|conn| {
-                conn.query_row(
-                    "WITH listen_days AS (
+        self.db.with_connection(|conn| {
+            conn.query_row(
+                "WITH listen_days AS (
                      SELECT DISTINCT date(played_at, 'unixepoch') AS d
                      FROM scrobbles
                      WHERE completed = 1
@@ -336,19 +321,17 @@ impl ScrobbleService {
                                WHERE gap = 1
                           ) - 1 OR (SELECT MIN(rn) FROM streak_rows WHERE gap = 1) IS NULL)
                      END AS streak",
-                    [],
-                    |row| row.get::<_, u32>(0),
-                )
-            })
-            .unwrap_or(0)
+                [],
+                |row| row.get::<_, u32>(0),
+            )
+        }).unwrap_or(0)
     }
 
     /// "On this day" — tracks played on this calendar day in previous years.
     pub fn on_this_day(&self) -> Vec<HistoryEntry> {
-        self.db
-            .with_connection(|conn| {
-                let mut stmt = conn.prepare(
-                    "SELECT s.id, s.track_id, t.title, t.artist, t.album,
+        self.db.with_connection(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT s.id, s.track_id, t.title, t.artist, t.album,
                         s.played_at, s.duration_played_secs
                  FROM scrobbles s
                  JOIN tracks t ON t.id = s.track_id
@@ -359,21 +342,20 @@ impl ScrobbleService {
                    AND s.completed = 1
                  ORDER BY s.played_at DESC
                  LIMIT 50",
-                )?;
-                let rows = stmt.query_map([], |row| {
-                    Ok(HistoryEntry {
-                        scrobble_id: row.get(0)?,
-                        track_id: row.get(1)?,
-                        title: row.get(2)?,
-                        artist: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
-                        album: row.get(4)?,
-                        played_at: row.get(5)?,
-                        duration_played_secs: row.get(6)?,
-                    })
-                })?;
-                rows.collect::<Result<Vec<_>, _>>()
-            })
-            .unwrap_or_default()
+            )?;
+            let rows = stmt.query_map([], |row| {
+                Ok(HistoryEntry {
+                    scrobble_id:          row.get(0)?,
+                    track_id:             row.get(1)?,
+                    title:                row.get(2)?,
+                    artist:               row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+                    album:                row.get(4)?,
+                    played_at:            row.get(5)?,
+                    duration_played_secs: row.get(6)?,
+                })
+            })?;
+            rows.collect::<Result<Vec<_>, _>>()
+        }).unwrap_or_default()
     }
 }
 
@@ -407,32 +389,32 @@ impl ScrobbleService {
 /// A track entry in the most-played list.
 #[derive(Debug, Clone)]
 pub struct TopTrack {
-    pub track_id: i64,
-    pub title: String,
-    pub artist: String,
-    pub album: Option<String>,
-    pub play_count: u32,
+    pub track_id:              i64,
+    pub title:                 String,
+    pub artist:                String,
+    pub album:                 Option<String>,
+    pub play_count:            u32,
     pub total_seconds_listened: f64,
 }
 
 /// An artist entry in the most-listened list.
 #[derive(Debug, Clone)]
 pub struct TopArtist {
-    pub artist: String,
-    pub track_count: u32,
-    pub total_plays: u32,
+    pub artist:                 String,
+    pub track_count:            u32,
+    pub total_plays:            u32,
     pub total_seconds_listened: f64,
 }
 
 /// One row from the listening history.
 #[derive(Debug, Clone)]
 pub struct HistoryEntry {
-    pub scrobble_id: i64,
-    pub track_id: i64,
-    pub title: String,
-    pub artist: String,
-    pub album: Option<String>,
-    pub played_at: i64, // Unix timestamp
+    pub scrobble_id:          i64,
+    pub track_id:             i64,
+    pub title:                String,
+    pub artist:               String,
+    pub album:                Option<String>,
+    pub played_at:            i64,   // Unix timestamp
     pub duration_played_secs: f64,
 }
 
@@ -481,15 +463,13 @@ mod tests {
             duration_played_secs: 200.0,
         });
 
-        let play_count: u32 = db
-            .with_connection(|conn| {
-                conn.query_row(
-                    "SELECT play_count FROM tracks WHERE id = ?1",
-                    rusqlite::params![track_id],
-                    |r| r.get(0),
-                )
-            })
-            .unwrap();
+        let play_count: u32 = db.with_connection(|conn| {
+            conn.query_row(
+                "SELECT play_count FROM tracks WHERE id = ?1",
+                rusqlite::params![track_id],
+                |r| r.get(0),
+            )
+        }).unwrap();
 
         assert_eq!(play_count, 1, "play_count should be 1 after one record()");
     }
@@ -509,15 +489,13 @@ mod tests {
             });
         }
 
-        let play_count: u32 = db
-            .with_connection(|conn| {
-                conn.query_row(
-                    "SELECT play_count FROM listening_stats WHERE track_id = ?1",
-                    rusqlite::params![track_id],
-                    |r| r.get(0),
-                )
-            })
-            .unwrap();
+        let play_count: u32 = db.with_connection(|conn| {
+            conn.query_row(
+                "SELECT play_count FROM listening_stats WHERE track_id = ?1",
+                rusqlite::params![track_id],
+                |r| r.get(0),
+            )
+        }).unwrap();
 
         assert_eq!(play_count, 5);
     }
@@ -535,15 +513,13 @@ mod tests {
             duration_played_secs: 200.0,
         });
 
-        let count: i64 = db
-            .with_connection(|conn| {
-                conn.query_row(
-                    "SELECT COUNT(*) FROM scrobbles WHERE track_id = ?1",
-                    rusqlite::params![track_id],
-                    |r| r.get(0),
-                )
-            })
-            .unwrap();
+        let count: i64 = db.with_connection(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM scrobbles WHERE track_id = ?1",
+                rusqlite::params![track_id],
+                |r| r.get(0),
+            )
+        }).unwrap();
 
         assert_eq!(count, 0, "disabled service should not write scrobbles");
     }
@@ -566,7 +542,7 @@ mod tests {
             ScrobbleEvent::Recorded { artist, track } => {
                 assert_eq!(artist, "Sunfield");
                 assert_eq!(track, "Golden Hour");
-            },
+            }
             other => panic!("expected Recorded, got {:?}", other),
         }
     }
@@ -578,25 +554,11 @@ mod tests {
         let t2 = insert_test_track(&db, "Track B", "Artist B");
         let svc = ScrobbleService::new(std::sync::Arc::clone(&db), true);
 
-        svc.record(LocalScrobbleEntry {
-            track_id: t1,
-            artist: "Artist A".into(),
-            track: "Track A".into(),
-            duration_played_secs: 180.0,
-        });
-        svc.record(LocalScrobbleEntry {
-            track_id: t2,
-            artist: "Artist B".into(),
-            track: "Track B".into(),
-            duration_played_secs: 240.0,
-        });
+        svc.record(LocalScrobbleEntry { track_id: t1, artist: "Artist A".into(), track: "Track A".into(), duration_played_secs: 180.0 });
+        svc.record(LocalScrobbleEntry { track_id: t2, artist: "Artist B".into(), track: "Track B".into(), duration_played_secs: 240.0 });
 
         let total = svc.total_listening_secs();
-        assert!(
-            (total - 420.0).abs() < 0.01,
-            "total should be 420s, got {}",
-            total
-        );
+        assert!((total - 420.0).abs() < 0.01, "total should be 420s, got {}", total);
     }
 
     #[test]
@@ -608,19 +570,9 @@ mod tests {
 
         // Play t1 three times, t2 once.
         for _ in 0..3 {
-            svc.record(LocalScrobbleEntry {
-                track_id: t1,
-                artist: "Big Artist".into(),
-                track: "Popular Song".into(),
-                duration_played_secs: 200.0,
-            });
+            svc.record(LocalScrobbleEntry { track_id: t1, artist: "Big Artist".into(), track: "Popular Song".into(), duration_played_secs: 200.0 });
         }
-        svc.record(LocalScrobbleEntry {
-            track_id: t2,
-            artist: "Small Artist".into(),
-            track: "Obscure Track".into(),
-            duration_played_secs: 200.0,
-        });
+        svc.record(LocalScrobbleEntry { track_id: t2, artist: "Small Artist".into(), track: "Obscure Track".into(), duration_played_secs: 200.0 });
 
         let top = svc.top_tracks(10);
         assert!(!top.is_empty());
@@ -637,25 +589,10 @@ mod tests {
         let svc = ScrobbleService::new(std::sync::Arc::clone(&db), true);
 
         for _ in 0..4 {
-            svc.record(LocalScrobbleEntry {
-                track_id: t1,
-                artist: "Arijit Singh".into(),
-                track: "Song 1".into(),
-                duration_played_secs: 250.0,
-            });
+            svc.record(LocalScrobbleEntry { track_id: t1, artist: "Arijit Singh".into(), track: "Song 1".into(), duration_played_secs: 250.0 });
         }
-        svc.record(LocalScrobbleEntry {
-            track_id: t2,
-            artist: "Arijit Singh".into(),
-            track: "Song 2".into(),
-            duration_played_secs: 200.0,
-        });
-        svc.record(LocalScrobbleEntry {
-            track_id: t3,
-            artist: "Other Artist".into(),
-            track: "Song 3".into(),
-            duration_played_secs: 180.0,
-        });
+        svc.record(LocalScrobbleEntry { track_id: t2, artist: "Arijit Singh".into(), track: "Song 2".into(), duration_played_secs: 200.0 });
+        svc.record(LocalScrobbleEntry { track_id: t3, artist: "Other Artist".into(), track: "Song 3".into(), duration_played_secs: 180.0 });
 
         let artists = svc.top_artists(10);
         assert!(!artists.is_empty());
@@ -707,34 +644,15 @@ mod tests {
         let track_id = insert_test_track(&db, "Override", "Test");
         let mut svc = ScrobbleService::new(std::sync::Arc::clone(&db), true);
 
-        svc.record(LocalScrobbleEntry {
-            track_id,
-            artist: "Test".into(),
-            track: "Override".into(),
-            duration_played_secs: 200.0,
-        });
+        svc.record(LocalScrobbleEntry { track_id, artist: "Test".into(), track: "Override".into(), duration_played_secs: 200.0 });
         svc.set_enabled(false);
-        svc.record(LocalScrobbleEntry {
-            track_id,
-            artist: "Test".into(),
-            track: "Override".into(),
-            duration_played_secs: 200.0,
-        });
+        svc.record(LocalScrobbleEntry { track_id, artist: "Test".into(), track: "Override".into(), duration_played_secs: 200.0 });
 
-        let count: i64 = db
-            .with_connection(|conn| {
-                conn.query_row(
-                    "SELECT COUNT(*) FROM scrobbles WHERE track_id = ?1",
-                    rusqlite::params![track_id],
-                    |r| r.get(0),
-                )
-            })
-            .unwrap();
+        let count: i64 = db.with_connection(|conn| {
+            conn.query_row("SELECT COUNT(*) FROM scrobbles WHERE track_id = ?1", rusqlite::params![track_id], |r| r.get(0))
+        }).unwrap();
 
-        assert_eq!(
-            count, 1,
-            "only the first (enabled) record should have written"
-        );
+        assert_eq!(count, 1, "only the first (enabled) record should have written");
     }
 
     #[test]
@@ -744,33 +662,21 @@ mod tests {
         let svc = ScrobbleService::new(std::sync::Arc::clone(&db), true);
 
         let t_start = unix_now();
-        svc.record(LocalScrobbleEntry {
-            track_id,
-            artist: "Artist".into(),
-            track: "Timestamp Test".into(),
-            duration_played_secs: 200.0,
-        });
-        svc.record(LocalScrobbleEntry {
-            track_id,
-            artist: "Artist".into(),
-            track: "Timestamp Test".into(),
-            duration_played_secs: 200.0,
-        });
+        svc.record(LocalScrobbleEntry { track_id, artist: "Artist".into(), track: "Timestamp Test".into(), duration_played_secs: 200.0 });
+        svc.record(LocalScrobbleEntry { track_id, artist: "Artist".into(), track: "Timestamp Test".into(), duration_played_secs: 200.0 });
         let t_end = unix_now();
 
-        let (first, last): (i64, i64) = db
-            .with_connection(|conn| {
-                conn.query_row(
+        let (first, last): (i64, i64) = db.with_connection(|conn| {
+            conn.query_row(
                 "SELECT first_played_at, last_played_at FROM listening_stats WHERE track_id = ?1",
                 rusqlite::params![track_id],
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
-            })
-            .unwrap();
+        }).unwrap();
 
         assert!(first >= t_start, "first_played_at should be >= t_start");
-        assert!(last <= t_end, "last_played_at should be <= t_end");
-        assert!(last >= first, "last_played_at should be >= first_played_at");
+        assert!(last  <= t_end,   "last_played_at should be <= t_end");
+        assert!(last  >= first,   "last_played_at should be >= first_played_at");
     }
 
     // ── v0.29.0: Scrobble streak tests ────────────────────────────────────
@@ -785,11 +691,7 @@ mod tests {
         let db = test_db();
         let svc = ScrobbleService::new(db, true);
         // No scrobbles recorded at all.
-        assert_eq!(
-            svc.current_streak_days(),
-            0,
-            "streak should be 0 with no plays"
-        );
+        assert_eq!(svc.current_streak_days(), 0, "streak should be 0 with no plays");
     }
 
     #[test]
@@ -807,11 +709,7 @@ mod tests {
 
         // After recording one play today (system time), streak should be 1.
         let streak = svc.current_streak_days();
-        assert_eq!(
-            streak, 1,
-            "streak should be 1 after playing today, got {}",
-            streak
-        );
+        assert_eq!(streak, 1, "streak should be 1 after playing today, got {}", streak);
     }
 
     #[test]
@@ -841,11 +739,7 @@ mod tests {
         }).unwrap();
 
         let streak = svc.current_streak_days();
-        assert_eq!(
-            streak, 0,
-            "streak should be 0 when last play was yesterday, got {}",
-            streak
-        );
+        assert_eq!(streak, 0, "streak should be 0 when last play was yesterday, got {}", streak);
     }
 
     #[test]
@@ -865,8 +759,7 @@ mod tests {
                  VALUES (?1, ?2, 200.0, 1)",
                 rusqlite::params![track_id, yesterday],
             )
-        })
-        .unwrap();
+        }).unwrap();
 
         // Insert today's scrobble via the normal record() path.
         svc.record(LocalScrobbleEntry {
@@ -877,11 +770,7 @@ mod tests {
         });
 
         let streak = svc.current_streak_days();
-        assert!(
-            streak >= 2,
-            "streak should be >= 2 with consecutive day plays, got {}",
-            streak
-        );
+        assert!(streak >= 2, "streak should be >= 2 with consecutive day plays, got {}", streak);
     }
 
     #[test]
@@ -902,8 +791,7 @@ mod tests {
                  VALUES (?1, ?2, 200.0, 1)",
                 rusqlite::params![track_id, three_days_ago],
             )
-        })
-        .unwrap();
+        }).unwrap();
 
         // Record today.
         svc.record(LocalScrobbleEntry {
@@ -933,10 +821,7 @@ mod tests {
         });
 
         let results = svc.on_this_day();
-        assert!(
-            results.is_empty(),
-            "on_this_day should be empty in first year of use"
-        );
+        assert!(results.is_empty(), "on_this_day should be empty in first year of use");
     }
 
     #[test]
@@ -956,8 +841,7 @@ mod tests {
                  VALUES (?1, ?2, 200.0, 1)",
                 rusqlite::params![track_id, yesterday],
             )
-        })
-        .unwrap();
+        }).unwrap();
 
         // Today's scrobble.
         svc.record(LocalScrobbleEntry {
@@ -968,10 +852,6 @@ mod tests {
         });
 
         let days = svc.active_day_count();
-        assert!(
-            days >= 2,
-            "active_day_count should be >= 2 with plays on two days, got {}",
-            days
-        );
+        assert!(days >= 2, "active_day_count should be >= 2 with plays on two days, got {}", days);
     }
 }

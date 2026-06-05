@@ -60,10 +60,8 @@ pub struct LyricsClient {
 impl LyricsClient {
     /// Create a new lyrics client pointing to the default LRCLIB instance
     pub fn new() -> Self {
-        let user_agent = format!(
-            "TuneCraft/{} (https://github.com/tunecraft)",
-            env!("CARGO_PKG_VERSION")
-        );
+
+        let user_agent = format!("TuneCraft/{} (https://github.com/tunecraft)", env!("CARGO_PKG_VERSION"));
         let client = reqwest::Client::builder()
             .user_agent(user_agent)
             .build()
@@ -79,6 +77,7 @@ impl LyricsClient {
 
     /// Create a lyrics client with a custom LRCLIB API base URL
     pub fn with_base_url(base_url: String) -> Self {
+
         let user_agent = format!("TuneCraft/{}", env!("CARGO_PKG_VERSION"));
         let client = reqwest::Client::builder()
             .user_agent(user_agent)
@@ -87,7 +86,10 @@ impl LyricsClient {
                 log::error!("Failed to build HTTP client for LyricsClient: {}", e);
                 reqwest::Client::new()
             });
-        Self { client, base_url }
+        Self {
+            client,
+            base_url,
+        }
     }
 
     /// Search for lyrics by artist and title using the LRCLIB API.
@@ -99,7 +101,9 @@ impl LyricsClient {
         let response = self
             .client
             .get(&url)
-            .query(&[("q", format!("{} {}", artist, title))])
+            .query(&[
+                ("q", format!("{} {}", artist, title)),
+            ])
             .send()
             .await?;
 
@@ -134,7 +138,7 @@ impl LyricsClient {
                     Err(e) => {
                         log::warn!("Failed to parse LRC synced lyrics: {}", e);
                         None
-                    },
+                    }
                 }
             })
             .flatten();
@@ -211,6 +215,7 @@ impl LyricsClient {
         artist: &str,
         title: &str,
     ) -> Option<&'a LrclibSearchResult> {
+
         // results instead of indexing results[0] as a fallback.
         if results.is_empty() {
             return None;
@@ -260,7 +265,10 @@ impl LyricsClient {
             s
         };
 
-        results.iter().max_by_key(|r| score(r)).or(results.first())
+        results
+            .iter()
+            .max_by_key(|r| score(r))
+            .or(results.first())
     }
 
     /// Parse LRC format synced lyrics into structured lines
@@ -325,10 +333,7 @@ impl LyricsClient {
             if !timestamps.is_empty() {
                 let text = rest.trim().to_string();
                 for timestamp_ms in timestamps {
-                    lines.push(SyncedLyricLine {
-                        timestamp_ms,
-                        text: text.clone(),
-                    });
+                    lines.push(SyncedLyricLine { timestamp_ms, text: text.clone() });
                 }
             }
         }
@@ -408,18 +413,9 @@ mod tests {
     #[test]
     fn test_find_current_line() {
         let lines = vec![
-            SyncedLyricLine {
-                timestamp_ms: 5000,
-                text: "Line 1".into(),
-            },
-            SyncedLyricLine {
-                timestamp_ms: 10000,
-                text: "Line 2".into(),
-            },
-            SyncedLyricLine {
-                timestamp_ms: 15000,
-                text: "Line 3".into(),
-            },
+            SyncedLyricLine { timestamp_ms: 5000, text: "Line 1".into() },
+            SyncedLyricLine { timestamp_ms: 10000, text: "Line 2".into() },
+            SyncedLyricLine { timestamp_ms: 15000, text: "Line 3".into() },
         ];
 
         assert_eq!(LyricsClient::find_current_line(&lines, 3000), None);
@@ -461,9 +457,8 @@ mod tests {
             },
         ];
 
-        let best = client
-            .find_best_match(&results, "Test Artist", "Test Song")
-            .unwrap();
+        let best = client.find_best_match(&results, "Test Artist", "Test Song").unwrap();
         assert_eq!(best.id, 2);
     }
 }
+

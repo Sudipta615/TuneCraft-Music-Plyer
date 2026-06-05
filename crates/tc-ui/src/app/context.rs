@@ -10,12 +10,13 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use log::{error, info, warn};
+use log::{info, warn, error};
 use tokio::runtime::Runtime;
 
 use crate::services::{
-    playback::EngineHandle, ConfigService, EqService, LibraryService, LyricsService,
-    PlatformService, PlaybackService, ScrobbleService,
+    PlaybackService, LibraryService, EqService,
+    ScrobbleService, LyricsService, ConfigService, PlatformService,
+    playback::EngineHandle,
 };
 
 /// The shared application context that connects UI to all backends via services.
@@ -82,7 +83,9 @@ impl AppContext {
         let config = Arc::new(std::sync::RwLock::new(config));
 
         let db_path = dirs::data_dir()
-            .or_else(|| dirs::home_dir().map(|h| h.join(".local/share")))
+            .or_else(|| {
+                dirs::home_dir().map(|h| h.join(".local/share"))
+            })
             .ok_or_else(|| {
                 "Cannot determine a suitable data directory. \
                  Set XDG_DATA_HOME or HOME so TuneCraft knows where to store \
@@ -100,8 +103,9 @@ impl AppContext {
         let db = Arc::new(db);
         info!("Database opened at {}", db_path.display());
 
-        let tokio_runtime =
-            Arc::new(Runtime::new().map_err(|e| format!("Failed to create tokio runtime: {}", e))?);
+        let tokio_runtime = Arc::new(
+            Runtime::new().map_err(|e| format!("Failed to create tokio runtime: {}", e))?
+        );
 
         let (mut platform, media_key_rx) = tc_platform::PlatformIntegration::new()?;
         if let Err(e) = platform.register_mpris("TuneCraft") {
@@ -116,19 +120,20 @@ impl AppContext {
 
         // Local offline scrobble service — reads scrobble.enabled from config
         // to allow the user to disable play-count tracking entirely if they wish.
-        let scrobble_enabled = config.read().map(|c| c.scrobble.enabled).unwrap_or(true); // default: enabled (local-only, no privacy concern)
-        let scrobble = Arc::new(ScrobbleService::new(Arc::clone(&db), scrobble_enabled));
-
-        let lyrics_client = Arc::new(tc_lyrics::LyricsClient::new());
-        let lyrics = Arc::new(LyricsService::new(
-            lyrics_client,
-            Arc::clone(&tokio_runtime),
+        let scrobble_enabled = config.read()
+            .map(|c| c.scrobble.enabled)
+            .unwrap_or(true);  // default: enabled (local-only, no privacy concern)
+        let scrobble = Arc::new(ScrobbleService::new(
+            Arc::clone(&db),
+            scrobble_enabled,
         ));
 
-        let library_config = config
-            .read()
-            .map(|c| c.library.clone())
-            .unwrap_or_else(|_| tc_config::LibraryConfig::with_system_defaults());
+        let lyrics_client = Arc::new(tc_lyrics::LyricsClient::new());
+        let lyrics = Arc::new(LyricsService::new(lyrics_client, Arc::clone(&tokio_runtime)));
+
+        let library_config = config.read().map(|c| c.library.clone()).unwrap_or_else(|_| {
+            tc_config::LibraryConfig::with_system_defaults()
+        });
         let library = Arc::new(tc_library::LibraryManager::new(
             Arc::clone(&db),
             library_config,
@@ -139,10 +144,7 @@ impl AppContext {
 
         let (scan_progress_tx, scan_progress_rx) = crossbeam::channel::bounded(64);
 
-        let should_scan = config
-            .read()
-            .map(|c| c.library.scan_on_startup)
-            .unwrap_or(false);
+        let should_scan = config.read().map(|c| c.library.scan_on_startup).unwrap_or(false);
         if should_scan {
             info!("Starting library scan...");
             let lib_clone = Arc::clone(&library);
@@ -151,9 +153,7 @@ impl AppContext {
             scan_done.store(false, Ordering::Relaxed);
             std::thread::spawn(move || {
                 match lib_clone.scan(|progress| {
-                    if progress.files_processed % 10 == 0
-                        || progress.files_processed == progress.files_found
-                    {
+                    if progress.files_processed % 10 == 0 || progress.files_processed == progress.files_found {
                         let _ = scan_progress_tx.send(progress.clone());
                     }
                 }) {
@@ -162,11 +162,11 @@ impl AppContext {
                             "Scan complete: {} files found, {} added, {} updated",
                             progress.files_found, progress.files_added, progress.files_updated
                         );
-                    },
+                    }
                     Err(e) => {
                         error!("Library scan failed: {}", e);
                         scan_fail_flag.store(true, Ordering::Relaxed);
-                    },
+                    }
                 }
                 scan_done.store(true, Ordering::Relaxed);
             });
@@ -176,8 +176,7 @@ impl AppContext {
 
         let config_service = Arc::new(ConfigService::new(Arc::clone(&config)));
 
-        let tracks_per_page = config
-            .read()
+        let tracks_per_page = config.read()
             .map(|c| c.library.tracks_per_page)
             .unwrap_or(500);
         let library_service = Arc::new(LibraryService::new(
@@ -220,8 +219,7 @@ impl AppContext {
             let cmd_tx = engine.send_command_channel();
             let playback_info = engine.playback_info_arc();
 
-            let engine_handle =
-                EngineHandle::new(cmd_tx.clone(), playback_info, Arc::clone(&engine_running));
+            let engine_handle = EngineHandle::new(cmd_tx.clone(), playback_info, Arc::clone(&engine_running));
             let engine_mutex = Arc::new(std::sync::Mutex::new(engine));
 
             let engine_clone = Arc::clone(&engine_mutex);
@@ -240,13 +238,7 @@ impl AppContext {
                 })
                 .map_err(|e| format!("Failed to spawn engine tick thread: {}", e))?;
 
-            (
-                engine_handle,
-                engine_mutex,
-                engine_running,
-                cmd_tx,
-                Some(engine_thread_handle),
-            )
+            (engine_handle, engine_mutex, engine_running, cmd_tx, Some(engine_thread_handle))
         };
 
         #[cfg(feature = "audio-output")]
@@ -275,7 +267,11 @@ impl AppContext {
 
         #[cfg(feature = "audio-output")]
         let eq = Arc::new(EqService::new(
-            cmd_tx, eq_enabled, eq_preamp, eq_dither, eq_bands,
+            cmd_tx,
+            eq_enabled,
+            eq_preamp,
+            eq_dither,
+            eq_bands,
         ));
 
         #[cfg(not(feature = "audio-output"))]

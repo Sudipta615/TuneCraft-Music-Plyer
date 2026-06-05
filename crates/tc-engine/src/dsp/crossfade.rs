@@ -188,12 +188,12 @@ impl TrackMixer {
                 let cos_t = (std::f64::consts::FRAC_PI_2 * t).cos();
                 let sin_t = (std::f64::consts::FRAC_PI_2 * t).sin();
                 (cos_t, sin_t)
-            },
+            }
             CrossfadeCurve::SCurve => {
                 // S-curve: smoothstep for the most natural transition
                 let s = t * t * (3.0 - 2.0 * t);
                 (1.0 - s, s)
-            },
+            }
         }
     }
 
@@ -233,14 +233,15 @@ impl TrackMixer {
                 let (out_gain, in_gain) = self.compute_gains(t);
 
                 // Use outgoing buffer if available, otherwise use current track samples
-                let (out_l, out_r) = if self.outgoing_pos < self.outgoing_buffer_left.len() {
-                    let l = self.outgoing_buffer_left[self.outgoing_pos];
-                    let r = self.outgoing_buffer_right[self.outgoing_pos];
-                    self.outgoing_pos += 1;
-                    (l, r)
-                } else {
-                    (current_left, current_right)
-                };
+                let (out_l, out_r) =
+                    if self.outgoing_pos < self.outgoing_buffer_left.len() {
+                        let l = self.outgoing_buffer_left[self.outgoing_pos];
+                        let r = self.outgoing_buffer_right[self.outgoing_pos];
+                        self.outgoing_pos += 1;
+                        (l, r)
+                    } else {
+                        (current_left, current_right)
+                    };
 
                 let mixed_l = out_l * out_gain + next_left * in_gain;
                 let mixed_r = out_r * out_gain + next_right * in_gain;
@@ -254,7 +255,7 @@ impl TrackMixer {
                 }
 
                 (mixed_l, mixed_r)
-            },
+            }
         }
     }
 
@@ -324,7 +325,8 @@ mod tests {
 
     #[test]
     fn test_linear_crossfade_dips_at_center() {
-        let (out_gain, in_gain) = TrackMixer::compute_gains_for_curve(0.5, CrossfadeCurve::Linear);
+        let (out_gain, in_gain) =
+            TrackMixer::compute_gains_for_curve(0.5, CrossfadeCurve::Linear);
         // Linear at center: both 0.5
         assert!((out_gain - 0.5).abs() < 0.01);
         assert!((in_gain - 0.5).abs() < 0.01);
@@ -363,10 +365,7 @@ mod tests {
     fn test_crossfade_start_and_end_gains() {
         // At t=0: outgoing should be full, incoming should be silent
         let (out0, in0) = TrackMixer::compute_gains_for_curve(0.0, CrossfadeCurve::EqualPower);
-        assert!(
-            (out0 - 1.0).abs() < 1e-10,
-            "Outgoing at start should be 1.0"
-        );
+        assert!((out0 - 1.0).abs() < 1e-10, "Outgoing at start should be 1.0");
         assert!((in0 - 0.0).abs() < 1e-10, "Incoming at start should be 0.0");
 
         // At t=1: outgoing should be silent, incoming should be full
@@ -407,3 +406,4 @@ mod tests {
         assert_eq!(mixer.state(), MixerState::PlayingNext);
     }
 }
+

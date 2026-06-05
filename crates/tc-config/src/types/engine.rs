@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::enums::{CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, ResamplerQuality};
+use super::enums::{
+    CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, ResamplerQuality,
+};
 
 /// A single parametric EQ band configuration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -29,12 +31,8 @@ pub struct EqBand {
 }
 
 impl EqBand {
-    fn default_frequency() -> f64 {
-        1000.0
-    }
-    fn default_q() -> f64 {
-        1.414
-    }
+    fn default_frequency() -> f64 { 1000.0 }
+    fn default_q() -> f64 { 1.414 }
 
     /// Validate this EQ band's parameters, clamping out-of-range values.
     /// Returns a list of warnings for any values that were clamped.
@@ -151,9 +149,7 @@ pub struct EqConfig {
 }
 
 impl EqConfig {
-    fn default_headroom_db() -> f64 {
-        1.0
-    }
+    fn default_headroom_db() -> f64 { 1.0 }
 
     /// Create an EQ config with a specified number of evenly-spaced bands.
     /// Frequencies are logarithmically spaced from 31 Hz to 16000 Hz.
@@ -175,11 +171,7 @@ impl EqConfig {
 
         let bands: Vec<EqBand> = (0..n)
             .map(|i| {
-                let t = if n > 1 {
-                    i as f64 / (n - 1) as f64
-                } else {
-                    0.5
-                };
+                let t = if n > 1 { i as f64 / (n - 1) as f64 } else { 0.5 };
                 let freq = (log_min + t * (log_max - log_min)).exp();
                 EqBand {
                     enabled: false,
@@ -213,16 +205,10 @@ impl EqConfig {
             ));
             self.preamp_db = 0.0;
         } else if self.preamp_db < -20.0 {
-            warnings.push(format!(
-                "EQ preamp ({:.2} dB) below -20 dB, clamped",
-                self.preamp_db
-            ));
+            warnings.push(format!("EQ preamp ({:.2} dB) below -20 dB, clamped", self.preamp_db));
             self.preamp_db = -20.0;
         } else if self.preamp_db > 20.0 {
-            warnings.push(format!(
-                "EQ preamp ({:.2} dB) above +20 dB, clamped",
-                self.preamp_db
-            ));
+            warnings.push(format!("EQ preamp ({:.2} dB) above +20 dB, clamped", self.preamp_db));
             self.preamp_db = 20.0;
         }
 
@@ -234,16 +220,10 @@ impl EqConfig {
             ));
             self.post_gain_db = 0.0;
         } else if self.post_gain_db < -20.0 {
-            warnings.push(format!(
-                "EQ post_gain ({:.2} dB) below -20 dB, clamped",
-                self.post_gain_db
-            ));
+            warnings.push(format!("EQ post_gain ({:.2} dB) below -20 dB, clamped", self.post_gain_db));
             self.post_gain_db = -20.0;
         } else if self.post_gain_db > 20.0 {
-            warnings.push(format!(
-                "EQ post_gain ({:.2} dB) above +20 dB, clamped",
-                self.post_gain_db
-            ));
+            warnings.push(format!("EQ post_gain ({:.2} dB) above +20 dB, clamped", self.post_gain_db));
             self.post_gain_db = 20.0;
         }
 
@@ -270,20 +250,16 @@ impl EqConfig {
 impl Default for EqConfig {
     fn default() -> Self {
         // Default 10-band EQ at standard ISO frequencies
-        let frequencies = [
-            31.0, 62.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
-        ];
-        let bands = frequencies
-            .iter()
-            .map(|&freq| EqBand {
-                enabled: false,
-                filter_type: FilterType::Peaking,
-                frequency: freq,
-                gain_db: 0.0,
-                q: 1.414,
-                slope: None,
-            })
-            .collect();
+        let frequencies = [31.0, 62.0, 125.0, 250.0, 500.0,
+                          1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
+        let bands = frequencies.iter().map(|&freq| EqBand {
+            enabled: false,
+            filter_type: FilterType::Peaking,
+            frequency: freq,
+            gain_db: 0.0,
+            q: 1.414,
+            slope: None,
+        }).collect();
         Self {
             enabled: false,
             bands,
@@ -312,15 +288,9 @@ pub struct LoudnessConfig {
 }
 
 impl LoudnessConfig {
-    fn default_target_lufs() -> f64 {
-        -23.0
-    }
-    fn default_true_peak_guard() -> bool {
-        true
-    }
-    fn default_true_peak_dbtp() -> f64 {
-        -1.0
-    }
+    fn default_target_lufs() -> f64 { -23.0 }
+    fn default_true_peak_guard() -> bool { true }
+    fn default_true_peak_dbtp() -> f64 { -1.0 }
 
     /// Validate loudness config values.
     pub fn validate(&mut self) -> Vec<String> {
@@ -403,21 +373,11 @@ pub struct LimiterConfig {
 }
 
 impl LimiterConfig {
-    fn default_enabled() -> bool {
-        true
-    }
-    fn default_ceiling_db() -> f64 {
-        -0.3
-    }
-    fn default_attack_ms() -> f64 {
-        5.0
-    }
-    fn default_release_ms() -> f64 {
-        50.0
-    }
-    fn default_lookahead_ms() -> f64 {
-        5.0
-    }
+    fn default_enabled() -> bool { true }
+    fn default_ceiling_db() -> f64 { -0.3 }
+    fn default_attack_ms() -> f64 { 5.0 }
+    fn default_release_ms() -> f64 { 50.0 }
+    fn default_lookahead_ms() -> f64 { 5.0 }
 
     /// Validate limiter config values.
     pub fn validate(&mut self) -> Vec<String> {
@@ -427,34 +387,22 @@ impl LimiterConfig {
             warnings.push("Limiter ceiling_db is NaN/inf, resetting to -0.3".to_string());
             self.ceiling_db = -0.3;
         } else if self.ceiling_db > 0.0 {
-            warnings.push(format!(
-                "Limiter ceiling_db ({:.2}) must be <= 0 dB, clamped",
-                self.ceiling_db
-            ));
+            warnings.push(format!("Limiter ceiling_db ({:.2}) must be <= 0 dB, clamped", self.ceiling_db));
             self.ceiling_db = 0.0;
         }
 
         if self.attack_ms <= 0.0 || self.attack_ms.is_nan() {
-            warnings.push(format!(
-                "Limiter attack_ms ({:.2}) must be > 0, resetting to 5.0",
-                self.attack_ms
-            ));
+            warnings.push(format!("Limiter attack_ms ({:.2}) must be > 0, resetting to 5.0", self.attack_ms));
             self.attack_ms = 5.0;
         }
 
         if self.release_ms <= 0.0 || self.release_ms.is_nan() {
-            warnings.push(format!(
-                "Limiter release_ms ({:.2}) must be > 0, resetting to 50.0",
-                self.release_ms
-            ));
+            warnings.push(format!("Limiter release_ms ({:.2}) must be > 0, resetting to 50.0", self.release_ms));
             self.release_ms = 50.0;
         }
 
         if self.lookahead_ms < 0.0 || self.lookahead_ms.is_nan() {
-            warnings.push(format!(
-                "Limiter lookahead_ms ({:.2}) must be >= 0, resetting to 5.0",
-                self.lookahead_ms
-            ));
+            warnings.push(format!("Limiter lookahead_ms ({:.2}) must be >= 0, resetting to 5.0", self.lookahead_ms));
             self.lookahead_ms = 5.0;
         }
 
@@ -491,12 +439,8 @@ pub struct CrossfadeConfig {
 }
 
 impl CrossfadeConfig {
-    fn default_duration_ms() -> u64 {
-        2000
-    }
-    fn default_smart_boundaries() -> bool {
-        true
-    }
+    fn default_duration_ms() -> u64 { 2000 }
+    fn default_smart_boundaries() -> bool { true }
 
     /// Validate crossfade config.
     pub fn validate(&mut self) -> Vec<String> {
@@ -505,10 +449,7 @@ impl CrossfadeConfig {
             warnings.push("Crossfade duration_ms is 0, resetting to 2000".to_string());
             self.duration_ms = 2000;
         } else if self.duration_ms > 30000 {
-            warnings.push(format!(
-                "Crossfade duration_ms ({}) exceeds 30000, clamped",
-                self.duration_ms
-            ));
+            warnings.push(format!("Crossfade duration_ms ({}) exceeds 30000, clamped", self.duration_ms));
             self.duration_ms = 30000;
         }
         warnings
@@ -543,21 +484,14 @@ pub struct ConvolutionConfig {
 }
 
 impl ConvolutionConfig {
-    fn default_wet_mix() -> f64 {
-        1.0
-    }
-    fn default_auto_disable_low_power() -> bool {
-        true
-    }
+    fn default_wet_mix() -> f64 { 1.0 }
+    fn default_auto_disable_low_power() -> bool { true }
 
     /// Validate convolution config.
     pub fn validate(&mut self) -> Vec<String> {
         let mut warnings = Vec::new();
         if self.wet_mix.is_nan() || self.wet_mix.is_infinite() {
-            warnings.push(format!(
-                "Convolution wet_mix ({:.2}) is NaN/inf, resetting to 1.0",
-                self.wet_mix
-            ));
+            warnings.push(format!("Convolution wet_mix ({:.2}) is NaN/inf, resetting to 1.0", self.wet_mix));
             self.wet_mix = 1.0;
         } else {
             self.wet_mix = self.wet_mix.clamp(0.0, 1.0);
@@ -589,18 +523,13 @@ pub struct StereoEnhancerConfig {
 }
 
 impl StereoEnhancerConfig {
-    fn default_width() -> f64 {
-        1.0
-    }
+    fn default_width() -> f64 { 1.0 }
 
     /// Validate stereo enhancer config.
     pub fn validate(&mut self) -> Vec<String> {
         let mut warnings = Vec::new();
         if self.width.is_nan() || self.width.is_infinite() {
-            warnings.push(format!(
-                "StereoEnhancer width ({:.2}) is NaN/inf, resetting to 1.0",
-                self.width
-            ));
+            warnings.push(format!("StereoEnhancer width ({:.2}) is NaN/inf, resetting to 1.0", self.width));
             self.width = 1.0;
         } else {
             self.width = self.width.clamp(0.0, 2.0);
@@ -650,21 +579,11 @@ pub struct EngineConfig {
 }
 
 impl EngineConfig {
-    fn default_gapless_enabled() -> bool {
-        true
-    }
-    fn default_seek_fade_ms() -> u64 {
-        10
-    }
-    fn default_volume_fade_ms() -> u64 {
-        50
-    }
-    fn default_dither_enabled() -> bool {
-        true
-    }
-    fn default_denormal_prevention() -> bool {
-        true
-    }
+    fn default_gapless_enabled() -> bool { true }
+    fn default_seek_fade_ms() -> u64 { 10 }
+    fn default_volume_fade_ms() -> u64 { 50 }
+    fn default_dither_enabled() -> bool { true }
+    fn default_denormal_prevention() -> bool { true }
 
     /// Apply performance mode suggestions (defaults for new users).
     ///
@@ -688,10 +607,10 @@ impl EngineConfig {
             PerformanceMode::UltraQuality => {
                 self.resampler_quality = ResamplerQuality::HighQuality;
                 // dither_enabled is suggested but not forced
-            },
+            }
             PerformanceMode::Balanced => {
                 self.resampler_quality = ResamplerQuality::Balanced;
-            },
+            }
             PerformanceMode::LowPower => {
                 self.resampler_quality = ResamplerQuality::Fast;
                 // For LowPower, convolution and stereo enhancer are suggestions
@@ -702,7 +621,7 @@ impl EngineConfig {
                 if self.stereo_enhancer.width > 0.0 && !self.stereo_enhancer.enabled {
                     // Only suggest disabling if not already explicitly enabled
                 }
-            },
+            }
         }
     }
 
@@ -718,18 +637,12 @@ impl EngineConfig {
         warnings.extend(self.stereo_enhancer.validate());
 
         if self.seek_fade_ms > 5000 {
-            warnings.push(format!(
-                "seek_fade_ms ({}) exceeds 5000, clamped",
-                self.seek_fade_ms
-            ));
+            warnings.push(format!("seek_fade_ms ({}) exceeds 5000, clamped", self.seek_fade_ms));
             self.seek_fade_ms = 5000;
         }
 
         if self.volume_fade_ms > 5000 {
-            warnings.push(format!(
-                "volume_fade_ms ({}) exceeds 5000, clamped",
-                self.volume_fade_ms
-            ));
+            warnings.push(format!("volume_fade_ms ({}) exceeds 5000, clamped", self.volume_fade_ms));
             self.volume_fade_ms = 5000;
         }
 
@@ -756,3 +669,4 @@ impl Default for EngineConfig {
         }
     }
 }
+

@@ -12,16 +12,16 @@
 mod cover_art;
 mod metadata;
 
-use log::{info, warn};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::{Duration, Instant, UNIX_EPOCH};
-use tc_config::LibraryConfig;
 use tc_db::{models::Track, Database};
-use thiserror::Error;
+use tc_config::LibraryConfig;
 use walkdir::WalkDir;
+use log::{info, warn};
+use thiserror::Error;
 
 pub use cover_art::{detect_image_mime, CoverArtData};
 
@@ -222,7 +222,7 @@ impl LibraryManager {
                     progress.files_processed += 1;
                     progress.files_failed += 1;
                     continue;
-                },
+                }
             };
             let file_size = file_metadata.len() as i64;
             let file_modified = file_metadata
@@ -247,7 +247,7 @@ impl LibraryManager {
                         progress.files_processed += 1;
                         progress.files_failed += 1;
                         continue;
-                    },
+                    }
                 }
             } else {
                 // New file — combined probe for metadata + cover art
@@ -255,13 +255,13 @@ impl LibraryManager {
                     Ok((track, cover)) => {
                         new_tracks.push(track);
                         pending_cover_art.push(cover);
-                    },
+                    }
                     Err(e) => {
                         warn!("Failed to extract info for {}: {}", path.display(), e);
                         progress.files_processed += 1;
                         progress.files_failed += 1;
                         continue;
-                    },
+                    }
                 }
             }
 
@@ -302,13 +302,18 @@ impl LibraryManager {
                 return Err(LibraryError::Cancelled);
             }
 
-            let album_id = self.db.get_track(*track_id).ok().flatten().and_then(|t| {
-                let album = t.album.as_deref()?;
-                self.db
-                    .get_album_id(album, t.album_artist.as_deref())
-                    .ok()
-                    .flatten()
-            });
+            let album_id = self
+                .db
+                .get_track(*track_id)
+                .ok()
+                .flatten()
+                .and_then(|t| {
+                    let album = t.album.as_deref()?;
+                    self.db
+                        .get_album_id(album, t.album_artist.as_deref())
+                        .ok()
+                        .flatten()
+                });
 
             match self.db.insert_cover_art(
                 album_id,
@@ -323,15 +328,12 @@ impl LibraryManager {
                 Ok(_) => {
                     info!(
                         "Stored cover art for track {} ({} bytes, {}×{})",
-                        track_id,
-                        art.data.len(),
-                        art.width,
-                        art.height
+                        track_id, art.data.len(), art.width, art.height
                     );
-                },
+                }
                 Err(e) => {
                     warn!("Failed to persist cover art for {}: {}", path.display(), e);
-                },
+                }
             }
         }
 
@@ -344,16 +346,13 @@ impl LibraryManager {
             Ok(removed) => {
                 progress.files_removed = removed as u32;
                 info!("Removed {} tracks with missing files", removed);
-            },
+            }
             Err(e) => warn!("Failed to cleanup missing tracks: {}", e),
         }
 
         info!(
             "Scan complete: {} added, {} updated, {} removed, {} failed",
-            progress.files_added,
-            progress.files_updated,
-            progress.files_removed,
-            progress.files_failed
+            progress.files_added, progress.files_updated, progress.files_removed, progress.files_failed
         );
 
         // Final callback so UI reaches 100%
@@ -362,6 +361,7 @@ impl LibraryManager {
 
         Ok(progress)
     }
+
 
     fn flush_new_batch(
         &self,
@@ -377,8 +377,7 @@ impl LibraryManager {
                 if failed > 0 {
                     warn!(
                         "Batch insert: {} of {} tracks failed",
-                        failed,
-                        new_tracks.len()
+                        failed, new_tracks.len()
                     );
                     progress.files_failed += failed as u32;
                 }
@@ -393,7 +392,7 @@ impl LibraryManager {
                         }
                     }
                 }
-            },
+            }
             Err(e) => {
                 warn!(
                     "Batch insert failed (all {} tracks lost): {}",
@@ -401,7 +400,7 @@ impl LibraryManager {
                     e
                 );
                 progress.files_failed += new_tracks.len() as u32;
-            },
+            }
         }
         new_tracks.clear();
         pending_cover_art.clear();
@@ -420,7 +419,7 @@ impl LibraryManager {
                     e
                 );
                 progress.files_failed += updated_tracks.len() as u32;
-            },
+            }
         }
         updated_tracks.clear();
     }
@@ -435,6 +434,7 @@ impl LibraryManager {
         self.config = config;
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -452,14 +452,8 @@ mod tests {
     #[test]
     fn test_detect_image_mime() {
         assert_eq!(detect_image_mime(&[0xFF, 0xD8, 0xFF, 0xE0]), "image/jpeg");
-        assert_eq!(
-            detect_image_mime(&[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
-            "image/png"
-        );
-        assert_eq!(
-            detect_image_mime(&[0x47, 0x49, 0x46, 0x38, 0x39, 0x61]),
-            "image/gif"
-        );
+        assert_eq!(detect_image_mime(&[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), "image/png");
+        assert_eq!(detect_image_mime(&[0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), "image/gif");
         assert_eq!(detect_image_mime(&[0x42, 0x4D, 0x00, 0x00]), "image/bmp");
         assert_eq!(detect_image_mime(&[0x00, 0x01, 0x02]), "image/jpeg");
     }
@@ -478,3 +472,4 @@ mod tests {
         assert_eq!(p.files_failed, 1);
     }
 }
+

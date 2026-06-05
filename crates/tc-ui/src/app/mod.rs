@@ -43,14 +43,15 @@ use crate::services::ScrobbleService;
 use crate::sidebar::NavSection;
 use crate::theme::TuneCraftColors;
 
-pub use tc_config::RepeatMode;
-pub use tc_db::{Playlist, Track};
+pub use tc_db::{Track, Playlist};
 pub use tc_engine::buffer::{EngineCommand, PlaybackInfo, PlaybackState as EnginePlaybackState};
+pub use tc_config::RepeatMode;
 
 pub use context::AppContext;
 pub use toasts::ToastLevel;
 
 use crate::services::scrobble::ScrobbleEvent;
+
 
 /// The main TuneCraft application state.
 
@@ -133,6 +134,7 @@ pub struct TuneCraftApp {
 
     pub(crate) scrobble_event_rx: Option<tokio::sync::mpsc::UnboundedReceiver<ScrobbleEvent>>,
 
+
     pub(crate) last_synced_playback_version: u64,
 
     pub sort_ascending: bool,
@@ -166,28 +168,17 @@ impl TuneCraftApp {
 
         let scrobble_event_rx = ctx.scrobble.take_event_receiver();
 
-        let (eq_enabled, eq_preamp, eq_dither, eq_bands) = ctx
-            .config
-            .read(|c| {
-                let mut bands = [0.0; 10];
-                for (i, band) in c.engine.eq.bands.iter().enumerate() {
-                    if i < 10 {
-                        bands[i] = band.gain_db;
-                    }
+        let (eq_enabled, eq_preamp, eq_dither, eq_bands) = ctx.config.read(|c| {
+            let mut bands = [0.0; 10];
+            for (i, band) in c.engine.eq.bands.iter().enumerate() {
+                if i < 10 {
+                    bands[i] = band.gain_db;
                 }
-                (
-                    c.engine.eq.enabled,
-                    c.engine.eq.preamp_db,
-                    c.engine.dither_enabled,
-                    bands,
-                )
-            })
-            .unwrap_or((false, 0.0, true, [0.0; 10]));
+            }
+            (c.engine.eq.enabled, c.engine.eq.preamp_db, c.engine.dither_enabled, bands)
+        }).unwrap_or((false, 0.0, true, [0.0; 10]));
 
-        let tracks_per_page = ctx
-            .config
-            .read(|c| c.library.tracks_per_page)
-            .unwrap_or(500);
+        let tracks_per_page = ctx.config.read(|c| c.library.tracks_per_page).unwrap_or(500);
 
         let lib_snapshot = ctx.library.snapshot();
         let tracks = lib_snapshot.tracks.clone();
@@ -198,16 +189,18 @@ impl TuneCraftApp {
         let status_message = lib_snapshot.status_message.clone();
         drop(lib_snapshot);
 
-        let dark_mode = ctx
-            .config
-            .read(|c| match c.ui.theme {
+        let dark_mode = ctx.config.read(|c| {
+            match c.ui.theme {
                 tc_config::Theme::Dark => true,
                 tc_config::Theme::Light => false,
                 tc_config::Theme::System => true,
-            })
-            .unwrap_or(true);
+            }
+        }).unwrap_or(true);
 
-        let theme_needs_detection = matches!(ctx.config.theme(), tc_config::Theme::System);
+        let theme_needs_detection = matches!(
+            ctx.config.theme(),
+            tc_config::Theme::System
+        );
 
         let initial_queue: Vec<i64> = ctx.library.get_all_track_ids();
         ctx.playback.set_play_queue(initial_queue.clone());
@@ -295,6 +288,7 @@ impl TuneCraftApp {
         }
     }
 
+
     pub fn colors(&self) -> TuneCraftColors {
         if self.dark_mode {
             TuneCraftColors::dark()
@@ -304,8 +298,9 @@ impl TuneCraftApp {
     }
 
     pub fn current_track(&self) -> Option<&Track> {
-        self.current_track_id
-            .and_then(|id| self.tracks.iter().find(|t| t.id == id))
+        self.current_track_id.and_then(|id| {
+            self.tracks.iter().find(|t| t.id == id)
+        })
     }
 }
 
@@ -346,22 +341,18 @@ impl eframe::App for TuneCraftApp {
 
         // theme toggles take effect immediately.  When `dark_mode` changes we
         // current palette and would otherwise serve stale values.
-        let config_dark_mode = self
-            .ctx
-            .config
-            .read(|c| {
-                match c.ui.theme {
-                    tc_config::Theme::Dark => true,
-                    tc_config::Theme::Light => false,
-                    tc_config::Theme::System => self.dark_mode, // keep existing detection
-                }
-            })
-            .unwrap_or(self.dark_mode);
+        let config_dark_mode = self.ctx.config.read(|c| {
+            match c.ui.theme {
+                tc_config::Theme::Dark => true,
+                tc_config::Theme::Light => false,
+                tc_config::Theme::System => self.dark_mode, // keep existing detection
+            }
+        }).unwrap_or(self.dark_mode);
 
         if config_dark_mode != self.dark_mode {
             self.dark_mode = config_dark_mode;
-            self.colors_cache = None; // force re-render with new palette
-            self.badge_cache.clear(); // badges use theme colours; invalidate
+            self.colors_cache = None;   // force re-render with new palette
+            self.badge_cache.clear();   // badges use theme colours; invalidate
         }
 
         if self.colors_cache.is_none() {
@@ -377,11 +368,7 @@ impl eframe::App for TuneCraftApp {
         egui::SidePanel::left("sidebar")
             .min_width(180.0)
             .max_width(260.0)
-            .default_width(if ctx.screen_rect().width() < 700.0 {
-                180.0
-            } else {
-                240.0
-            })
+            .default_width(if ctx.screen_rect().width() < 700.0 { 180.0 } else { 240.0 })
             .show(ctx, |ui| {
                 crate::sidebar::draw(self, ui);
             });
@@ -492,13 +479,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(Vec2::new(1200.0, 800.0))
             .with_min_inner_size(Vec2::new(800.0, 600.0))
-            .with_icon(
-                eframe::icon_data::from_png_bytes(include_bytes!("../../icon.png"))
-                    .unwrap_or_default(),
-            ),
+            .with_icon(eframe::icon_data::from_png_bytes(include_bytes!("../../icon.png")).unwrap_or_default()),
         ..Default::default()
     };
 
-    eframe::run_native("TuneCraft", options, Box::new(|_cc| Ok(Box::new(app))))
-        .map_err(|e| format!("eframe error: {}", e).into())
+    eframe::run_native(
+        "TuneCraft",
+        options,
+        Box::new(|_cc| Ok(Box::new(app))),
+    ).map_err(|e| format!("eframe error: {}", e).into())
 }
+

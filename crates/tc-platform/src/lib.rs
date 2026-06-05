@@ -20,27 +20,31 @@
 //! reporting that souvlaki does not expose.
 
 // Submodules
-mod media_control;
-mod media_keys;
-mod notifications;
-mod shortcuts;
 mod types;
+mod media_keys;
+mod shortcuts;
+mod notifications;
+mod media_control;
 
 #[cfg(target_os = "linux")]
 pub mod mpris;
 
 // Re-exports: maintain backward-compatible public API
-pub use media_control::CrossPlatformMediaControls;
-pub use media_keys::MediaKeyReceiver;
-pub use notifications::{applescript_escape, xml_escape};
-pub use shortcuts::default_shortcuts;
 pub use types::{
-    KeyboardShortcut, MediaKeyAction, MprisPlaybackStatus, MprisPropertyChanged, MprisTrackInfo,
     PlatformError,
+    MediaKeyAction,
+    MprisPlaybackStatus,
+    MprisTrackInfo,
+    MprisPropertyChanged,
+    KeyboardShortcut,
 };
+pub use media_keys::MediaKeyReceiver;
+pub use media_control::CrossPlatformMediaControls;
+pub use shortcuts::default_shortcuts;
+pub use notifications::{applescript_escape, xml_escape};
 
-use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{self, Sender};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 /// Platform integration handle
@@ -94,7 +98,7 @@ impl PlatformIntegration {
             Ok(ctrl) => {
                 log::info!("Cross-platform media controls initialized successfully");
                 Some(ctrl)
-            },
+            }
             Err(e) => {
                 log::warn!(
                     "Cross-platform media controls initialization failed: {}. \
@@ -102,7 +106,7 @@ impl PlatformIntegration {
                     e
                 );
                 None
-            },
+            }
         };
 
         let integration = Self {
@@ -164,8 +168,7 @@ impl PlatformIntegration {
     pub fn set_mpris_track(&mut self, info: MprisTrackInfo) {
         // Update cross-platform media controls.
         if let Some(ref mut ctrl) = self.media_controls {
-            let duration = info
-                .length_microseconds
+            let duration = info.length_microseconds
                 .map(|us| std::time::Duration::from_micros(us as u64));
             ctrl.set_metadata(
                 info.title.as_deref(),
@@ -263,9 +266,7 @@ impl PlatformIntegration {
     /// This returns true on all platforms where souvlaki successfully
     /// initialized, not just Linux.
     pub fn is_media_controls_available(&self) -> bool {
-        self.media_controls
-            .as_ref()
-            .map_or(false, |c| c.is_available())
+        self.media_controls.as_ref().map_or(false, |c| c.is_available())
     }
 
     /// Attempt to register MPRIS on D-Bus (Linux only)
@@ -283,7 +284,7 @@ impl PlatformIntegration {
                 log::info!("MPRIS D-Bus service started for '{}'", identity);
                 self.mpris_registered = true;
                 Ok(())
-            },
+            }
             Err(e) => {
                 log::warn!("MPRIS D-Bus service failed to start: {}", e);
                 self.mpris_registered = false;
@@ -291,7 +292,7 @@ impl PlatformIntegration {
                     "MPRIS D-Bus service failed to start for '{}': {}",
                     identity, e
                 )))
-            },
+            }
         }
     }
 
@@ -303,11 +304,7 @@ impl PlatformIntegration {
     /// Ok if they are, Err only if neither MPRIS nor souvlaki is working.
     #[cfg(not(target_os = "linux"))]
     pub fn register_mpris(&mut self, identity: &str) -> Result<(), PlatformError> {
-        if self
-            .media_controls
-            .as_ref()
-            .map_or(false, |c| c.is_available())
-        {
+        if self.media_controls.as_ref().map_or(false, |c| c.is_available()) {
             log::info!(
                 "Cross-platform media controls active for '{}' (no MPRIS D-Bus needed on this platform)",
                 identity
@@ -315,7 +312,9 @@ impl PlatformIntegration {
             self.mpris_registered = true;
             Ok(())
         } else {
-            log::warn!("Neither MPRIS D-Bus nor cross-platform media controls are available");
+            log::warn!(
+                "Neither MPRIS D-Bus nor cross-platform media controls are available"
+            );
             Err(PlatformError::NotAvailable(
                 "Neither MPRIS D-Bus nor cross-platform media controls are available on this platform".to_string()
             ))
@@ -345,7 +344,7 @@ impl PlatformIntegration {
         // Update cross-platform media controls.
         if let Some(ref mut ctrl) = self.media_controls {
             ctrl.set_position(std::time::Duration::from_micros(
-                position_microseconds.max(0) as u64,
+                position_microseconds.max(0) as u64
             ));
         }
     }
@@ -440,9 +439,7 @@ mod tests {
     fn test_custom_shortcut() {
         let (mut platform, _rx) = PlatformIntegration::new().unwrap();
         platform.add_shortcut(
-            KeyboardShortcut::new("P", MediaKeyAction::PlayPause)
-                .ctrl()
-                .alt(),
+            KeyboardShortcut::new("P", MediaKeyAction::PlayPause).ctrl().alt()
         );
 
         let action = platform.process_key_event("P", true, true, false, false);

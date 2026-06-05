@@ -14,19 +14,17 @@ impl AudioEngine {
             Err(e) => {
                 error!("PlaybackInfo RwLock poisoned in current_state; using Stopped");
                 e.into_inner().state
-            },
+            }
         }
     }
 
     pub(super) fn update_playback_state(&self, state: PlaybackState) {
         match self.playback_info.write() {
-            Ok(mut pb) => {
-                pb.state = state;
-            },
+            Ok(mut pb) => { pb.state = state; }
             Err(e) => {
                 error!("PlaybackInfo RwLock poisoned in update_playback_state; resetting");
                 e.into_inner().state = state;
-            },
+            }
         }
     }
 
@@ -37,7 +35,7 @@ impl AudioEngine {
             Err(e) => {
                 error!("PlaybackInfo RwLock poisoned; resetting and continuing");
                 f(&mut e.into_inner());
-            },
+            }
         }
     }
 }

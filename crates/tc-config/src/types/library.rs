@@ -26,18 +26,10 @@ pub struct LibraryConfig {
 }
 
 impl LibraryConfig {
-    fn default_scan_on_startup() -> bool {
-        true
-    }
-    fn default_cover_art_cache_size_mb() -> u64 {
-        100
-    }
-    fn default_waveform_cache_size_mb() -> u64 {
-        50
-    }
-    fn default_tracks_per_page() -> usize {
-        500
-    }
+    fn default_scan_on_startup() -> bool { true }
+    fn default_cover_art_cache_size_mb() -> u64 { 100 }
+    fn default_waveform_cache_size_mb() -> u64 { 50 }
+    fn default_tracks_per_page() -> usize { 500 }
 
     /// Create a LibraryConfig with system-specific default paths.
     ///
@@ -46,7 +38,9 @@ impl LibraryConfig {
     /// and is therefore non-deterministic and performs I/O.
     pub fn with_system_defaults() -> Self {
         let music_dir = dirs::audio_dir()
-            .or_else(|| dirs::home_dir().map(|h| h.join("Music")))
+            .or_else(|| {
+                dirs::home_dir().map(|h| h.join("Music"))
+            })
             .unwrap_or_else(|| {
                 log::warn!(
                     "Cannot determine music directory. Falling back to ~/Music/tunecraft. \
@@ -107,3 +101,4 @@ impl Default for LibraryConfig {
         }
     }
 }
+
