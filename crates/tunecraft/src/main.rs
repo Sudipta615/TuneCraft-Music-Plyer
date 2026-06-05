@@ -52,6 +52,7 @@ fn run_gui() -> Result<()> {
 /// Encapsulates the common initialization sequence that was previously
 /// duplicated between `AppContext::init()` and `run_headless()`.
 /// Each step is independent and can fail without leaking resources.
+#[allow(dead_code)]
 struct AppResources {
     config: tc_config::AppConfig,
     db: Arc<tc_db::Database>,

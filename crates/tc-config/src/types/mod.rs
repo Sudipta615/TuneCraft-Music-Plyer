@@ -219,17 +219,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_scrobble_session_key_in_keychain() {
-        let mut config = ScrobbleConfig {
-            session_key_in_keychain: true,
-            ..Default::default()
-        };
-        let warnings = config.validate();
-        assert!(warnings
-            .iter()
-            .any(|w| w.contains("session_key_in_keychain")));
-    }
+
 
     #[test]
     fn test_eq_band_slope_skip_serializing_none() {

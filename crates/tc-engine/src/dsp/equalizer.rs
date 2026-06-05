@@ -398,7 +398,7 @@ mod tests {
         for _ in 0..500 {
             eq.process(0.5, 0.5);
         }
-        let (l, r) = eq.process(0.5, 0.5);
+        let (l, _r) = eq.process(0.5, 0.5);
         assert!(
             (l - 0.5).abs() < 0.05,
             "Zero-gain EQ should be near passthrough"

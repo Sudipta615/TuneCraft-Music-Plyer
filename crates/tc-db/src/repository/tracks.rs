@@ -753,7 +753,6 @@ impl Database {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use chrono::NaiveDateTime;
 
     use super::*;
     use crate::models::Track;
@@ -791,8 +790,8 @@ pub(crate) mod tests {
             lyrics_unsynced: None,
             last_played: None,
             play_count: 0,
-            date_added: NaiveDateTime::from_timestamp_opt(1700000000, 0).unwrap(),
-            date_scanned: NaiveDateTime::from_timestamp_opt(1700000000, 0).unwrap(),
+            date_added: chrono::DateTime::from_timestamp(1700000000, 0).unwrap().naive_utc(),
+            date_scanned: chrono::DateTime::from_timestamp(1700000000, 0).unwrap().naive_utc(),
         }
     }
 

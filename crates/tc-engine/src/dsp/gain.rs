@@ -270,7 +270,7 @@ mod tests {
         let mut gp = GainProcessor::new();
         gp.set_slew_rate(0.5);
         gp.set_gain(0.5);
-        let (l, r) = gp.process_stereo(1.0, 1.0);
+        let (l, _r) = gp.process_stereo(1.0, 1.0);
         assert!(l < 1.0 && l > 0.5);
     }
 

@@ -12,7 +12,7 @@ use tc_config::EngineConfig;
 
 use crate::{
     buffer::{EngineCommand, PlaybackState},
-    engine::{AudioEngine, EngineError, PlaybackStream},
+    engine::{AudioEngine, EngineError},
 };
 
 // ── PlaybackStream tests ──────────────────────────────────────────────────
@@ -48,7 +48,7 @@ fn test_engine_new_default() {
     assert!(
         result.is_ok(),
         "Engine creation should succeed: {:?}",
-        result
+        result.err()
     );
     let engine = result.unwrap();
     assert!(
@@ -64,7 +64,7 @@ fn test_engine_new_with_config() {
     assert!(
         result.is_ok(),
         "Engine creation with config should succeed: {:?}",
-        result
+        result.err()
     );
 }
 

@@ -10,3 +10,6 @@ log = { workspace = true }
 thiserror = { workspace = true }
 dirs = { workspace = true }
 crossbeam = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

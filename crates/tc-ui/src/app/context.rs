@@ -14,8 +14,11 @@ use std::sync::{
 use log::{error, info, warn};
 use tokio::runtime::Runtime;
 
+#[cfg(feature = "audio-output")]
+use crate::services::playback::EngineHandle;
+
 use crate::services::{
-    playback::EngineHandle, ConfigService, EqService, LibraryService, LyricsService,
+    ConfigService, EqService, LibraryService, LyricsService,
     PlatformService, PlaybackService, ScrobbleService,
 };
 

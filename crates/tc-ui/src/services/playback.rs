@@ -13,9 +13,11 @@ use std::sync::{
     Arc,
 };
 
+#[allow(unused_imports)]
 use log::{error, info, warn};
 use tc_config::RepeatMode;
 use tc_db::Track;
+#[allow(unused_imports)]
 use tc_engine::buffer::{EngineCommand, PlaybackInfo, PlaybackState as EnginePlaybackState};
 use tokio::runtime::Runtime;
 
@@ -256,12 +258,12 @@ impl PlaybackService {
     pub fn sync_from_engine(&self) {}
 
     pub fn play_track(&self, track: &Track, is_favorited: bool) {
-        let path = std::path::PathBuf::from(&track.path);
+        let _path = std::path::PathBuf::from(&track.path);
 
         #[cfg(feature = "audio-output")]
         {
             if let Ok(mut eng) = self.engine_mutex.lock() {
-                match eng.load_track(&path) {
+                match eng.load_track(&_path) {
                     Ok(info) => {
                         info!(
                             "Track loaded: {} Hz, {} ch, {:.1}s",

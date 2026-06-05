@@ -340,7 +340,15 @@ mod tests {
 
     /// Helper to create EqService without audio engine.
     fn make_service() -> EqService {
-        EqService::new(false, 0.0, true, [0.0; 10])
+        #[cfg(feature = "audio-output")]
+        {
+            let (tx, _rx) = crossbeam::channel::bounded(1);
+            EqService::new(tx, false, 0.0, true, [0.0; 10])
+        }
+        #[cfg(not(feature = "audio-output"))]
+        {
+            EqService::new(false, 0.0, true, [0.0; 10])
+        }
     }
 
     #[test]
