@@ -36,8 +36,6 @@ pub struct LibrarySnapshot {
     pub status_message: String,
 }
 
-
-
 /// The library service manages all database interactions for the UI.
 /// It provides snapshot-based reads to avoid holding locks across frames,
 /// and batches writes to minimize contention with the scan thread.

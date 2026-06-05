@@ -872,11 +872,7 @@ fn draw_list_view(
                 }
 
                 // Title + Artist (stacked)
-                let title_end_x = if row_vis.show_album {
-                    cx[3]
-                } else {
-                    cx[4]
-                };
+                let title_end_x = if row_vis.show_album { cx[3] } else { cx[4] };
                 let title_max_w = title_end_x - cx[2] - 8.0;
                 let title_font = FontId::proportional(14.0);
                 let artist_font = FontId::proportional(12.0);
