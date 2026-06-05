@@ -672,12 +672,12 @@ fn compute_col_offsets(width: f32, vis: &ColumnVisibility) -> [f32; 6] {
     let col_dur_w = usable_w * dur_frac;
 
     [
-        0.0f32,                                                              // col 0: #
-        col_num_w,                                                           // col 1: art start
-        col_num_w + art_w + art_gap,                                         // col 2: title start
-        col_num_w + art_w + art_gap + col_title_w,                           // col 3: album start
-        col_num_w + art_w + art_gap + col_title_w + col_album_w,             /* col 4: duration
-                                                                              * start */
+        0.0f32,                                    // col 0: #
+        col_num_w,                                 // col 1: art start
+        col_num_w + art_w + art_gap,               // col 2: title start
+        col_num_w + art_w + art_gap + col_title_w, // col 3: album start
+        col_num_w + art_w + art_gap + col_title_w + col_album_w, /* col 4: duration
+                                                    * start */
         col_num_w + art_w + art_gap + col_title_w + col_album_w + col_dur_w, // col 5: mood start
     ]
 }
