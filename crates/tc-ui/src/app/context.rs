@@ -18,8 +18,8 @@ use tokio::runtime::Runtime;
 use crate::services::playback::EngineHandle;
 
 use crate::services::{
-    ConfigService, EqService, LibraryService, LyricsService,
-    PlatformService, PlaybackService, ScrobbleService,
+    ConfigService, EqService, LibraryService, LyricsService, PlatformService, PlaybackService,
+    ScrobbleService,
 };
 
 /// The shared application context that connects UI to all backends via services.

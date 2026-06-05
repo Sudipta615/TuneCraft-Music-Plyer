@@ -219,8 +219,6 @@ mod tests {
         );
     }
 
-
-
     #[test]
     fn test_eq_band_slope_skip_serializing_none() {
         let band = EqBand::default();
