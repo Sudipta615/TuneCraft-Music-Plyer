@@ -24,7 +24,6 @@ pub enum EqFilterType {
     Notch,
 }
 
-
 impl EqFilterType {
     /// Map to the biquad FilterType
     pub fn to_filter_type(&self) -> FilterType {

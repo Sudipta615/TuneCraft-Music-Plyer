@@ -18,7 +18,6 @@ pub enum LoudnessMode {
     EbuR128,
 }
 
-
 /// Loudness metadata for a track (pre-computed during scanning)
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LoudnessMetadata {

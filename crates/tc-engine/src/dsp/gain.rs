@@ -118,7 +118,6 @@ pub enum FadeState {
     FadedOut,
 }
 
-
 /// Smooth fade-in/fade-out processor for track transitions and pause/resume
 pub struct FadeProcessor {
     gain: f64,
@@ -219,7 +218,9 @@ impl FadeProcessor {
         self.gain += self.increment_per_sample * n as f64;
 
         match self.state {
-            FadeState::FadingIn if self.gain >= 1.0 || self.samples_processed >= self.total_samples => {
+            FadeState::FadingIn
+                if self.gain >= 1.0 || self.samples_processed >= self.total_samples =>
+            {
                 self.gain = 1.0;
                 self.state = FadeState::Idle;
             },

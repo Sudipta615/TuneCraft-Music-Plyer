@@ -18,10 +18,7 @@ impl AudioEngine {
     /// instead of being dropped and re-opened later. This eliminates a
     /// redundant file open + probe + decoder creation when the crossfade
     /// trigger fires.
-    pub fn prepare_next_track(
-        &mut self,
-        path: &Path,
-    ) -> Result<DecodeInfo, EngineError> {
+    pub fn prepare_next_track(&mut self, path: &Path) -> Result<DecodeInfo, EngineError> {
         // If crossfade is disabled or there is no current stream, just
         // remember the path for a regular track transition later.
         if !self.config.crossfade.enabled {

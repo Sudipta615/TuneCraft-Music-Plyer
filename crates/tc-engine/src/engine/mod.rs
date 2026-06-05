@@ -485,9 +485,7 @@ impl AudioEngine {
             },
             Some(PlaybackStream::Transitioning {
                 incoming_resampler, ..
-            }) => incoming_resampler
-                .as_ref()
-                .is_some_and(|r| r.is_disabled()),
+            }) => incoming_resampler.as_ref().is_some_and(|r| r.is_disabled()),
             None => false,
         }
     }
