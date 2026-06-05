@@ -342,7 +342,7 @@ mod tests {
     fn make_service() -> EqService {
         #[cfg(feature = "audio-output")]
         {
-            let (tx, _rx) = crossbeam::channel::bounded(1);
+            let (tx, _rx) = crossbeam::channel::unbounded();
             EqService::new(tx, false, 0.0, true, [0.0; 10])
         }
         #[cfg(not(feature = "audio-output"))]
