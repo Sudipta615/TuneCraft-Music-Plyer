@@ -50,16 +50,13 @@ impl TuneCraftApp {
         while let Some(action) = self.ctx.platform.try_recv_action() {
             use tc_platform::MediaKeyAction;
             match action {
-                MediaKeyAction::Play => {
-                    if !self.is_playing {
-                        self.toggle_playback();
-                    }
+                MediaKeyAction::Play if !self.is_playing => {
+                    self.toggle_playback();
                 },
-                MediaKeyAction::Pause => {
-                    if self.is_playing {
-                        self.toggle_playback();
-                    }
+                MediaKeyAction::Pause if self.is_playing => {
+                    self.toggle_playback();
                 },
+                MediaKeyAction::Play | MediaKeyAction::Pause => {},
                 MediaKeyAction::PlayPause => {
                     self.toggle_playback();
                 },
