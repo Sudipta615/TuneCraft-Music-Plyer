@@ -14,7 +14,7 @@ use std::sync::{atomic::Ordering, mpsc::Receiver};
 use crate::{types::MediaKeyAction, PlatformIntegration};
 
 /// Standalone receiver for media key actions.
-
+///
 /// Extracted from `PlatformIntegration` to fix the Sender+Receiver
 /// co-location issue. This type can be polled independently without
 /// borrowing the integration struct, eliminating the need for `RefCell`

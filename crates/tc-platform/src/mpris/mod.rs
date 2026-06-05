@@ -24,7 +24,7 @@ use crate::types::{MediaKeyAction, MprisPlaybackStatus, MprisPropertyChanged, Mp
 
 /// Shared MPRIS state that can be updated from the main thread
 /// and read from the D-Bus service thread.
-
+///
 /// Fields are public to enforce validation boundaries (M7 partial fix).
 #[derive(Debug, Clone)]
 pub struct MprisState {

@@ -150,7 +150,7 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
 /// Escape a string for use inside AppleScript double-quoted strings.
 /// AppleScript string literals use backslash as the escape character for
 /// double quotes and backslashes.
-
+///
 /// Also escapes dangerous AppleScript metacharacters including line breaks, to prevent
 /// injection attacks when notification text comes from untrusted sources
 /// (e.g., track titles from maliciously-crafted music files).

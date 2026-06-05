@@ -12,10 +12,11 @@
 //! reporting (Metadata, CanGoNext, etc.) that souvlaki does not expose,
 //! but media *key* handling is now fully cross-platform.
 
-use std::sync::{mpsc::Sender, Arc};
+use std::sync::mpsc::Sender;
 
 use souvlaki::{
     MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig,
+    SeekDirection,
 };
 
 use crate::types::{MediaKeyAction, MprisPlaybackStatus};
@@ -45,7 +46,7 @@ impl CrossPlatformMediaControls {
         let config = PlatformConfig {
             dbus_name: "tunecraft",
             display_name: "TuneCraft",
-            ..Default::default()
+            hwnd: None,
         };
 
         let controls = match MediaControls::new(config) {
@@ -87,8 +88,20 @@ impl CrossPlatformMediaControls {
             MediaControlEvent::Next => MediaKeyAction::Next,
             MediaControlEvent::Previous => MediaKeyAction::Previous,
             MediaControlEvent::Stop => MediaKeyAction::Stop,
-            MediaControlEvent::SeekForward => MediaKeyAction::Seek(5_000_000), // 5 seconds
-            MediaControlEvent::SeekBackward => MediaKeyAction::Seek(-5_000_000),
+            MediaControlEvent::Seek(direction) => {
+                let amount = match direction {
+                    SeekDirection::Forward => 5_000_000,
+                    SeekDirection::Backward => -5_000_000,
+                };
+                MediaKeyAction::Seek(amount)
+            },
+            MediaControlEvent::SeekBy(direction, duration) => {
+                let sign = match direction {
+                    SeekDirection::Forward => 1,
+                    SeekDirection::Backward => -1,
+                };
+                MediaKeyAction::Seek(sign * duration.as_micros() as i64)
+            },
             MediaControlEvent::Raise => {
                 // Bring window to front — not directly a media key action
                 log::info!("Media control: Raise (bring to front)");
@@ -135,10 +148,10 @@ impl CrossPlatformMediaControls {
     ) {
         if let Some(ref mut ctrl) = self.controls {
             let metadata = MediaMetadata {
-                title: title.map(|s| s.to_string()),
-                artist: artist.map(|s| s.to_string()),
-                album: album.map(|s| s.to_string()),
-                cover_url: art_url.map(|s| s.to_string()),
+                title,
+                artist,
+                album,
+                cover_url: art_url,
                 duration,
             };
             if let Err(e) = ctrl.set_metadata(metadata) {

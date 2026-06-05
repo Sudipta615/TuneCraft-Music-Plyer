@@ -46,7 +46,7 @@ pub use types::{
 };
 
 /// Platform integration handle
-
+///
 /// Manages MPRIS D-Bus registration, system tray integration,
 /// keyboard shortcuts, notifications, and cross-platform media controls.
 /// Media key actions are received through a separate [`MediaKeyReceiver`]
