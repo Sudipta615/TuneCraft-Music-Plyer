@@ -80,7 +80,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
         egui::Stroke::new(1.0, colors.border),
     );
 
-    ui.allocate_ui_at_rect(bar_rect, |ui| {
+    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
         ui.horizontal(|ui| {
             ui.add_space(if total_w < BREAKPOINT_NARROW {
                 8.0

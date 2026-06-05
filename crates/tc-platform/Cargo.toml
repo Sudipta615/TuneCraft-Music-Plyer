@@ -13,6 +13,7 @@ parking_lot = { workspace = true }
 # raw D-Bus approach. souvlaki uses MPRIS on Linux, SMTC on Windows, and
 # MPRemoteCommandCenter on macOS, providing true cross-platform parity.
 souvlaki = { workspace = true }
+dbus = { version = "0.9.11", features = ["vendored"] }
 
 # v0.18.0: Pinned zbus to 4.4.0 to prevent future version drift.
 # zbus 4.4+ pulls in proc-macro-crate 3.x → toml_edit 0.25 (edition2024),

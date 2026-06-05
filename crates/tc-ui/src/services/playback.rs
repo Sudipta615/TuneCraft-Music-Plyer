@@ -163,7 +163,7 @@ pub struct PlaybackService {
     state: std::sync::RwLock<PlaybackState>,
     platform: Arc<PlatformService>,
     scrobble: Arc<ScrobbleService>,
-    tokio_runtime: Arc<Runtime>,
+    _tokio_runtime: Arc<Runtime>,
 }
 
 impl PlaybackService {
@@ -193,7 +193,7 @@ impl PlaybackService {
             state: std::sync::RwLock::new(state),
             platform,
             scrobble,
-            tokio_runtime,
+            _tokio_runtime: tokio_runtime,
         }
     }
 
@@ -217,7 +217,7 @@ impl PlaybackService {
             state: std::sync::RwLock::new(state),
             platform,
             scrobble,
-            tokio_runtime,
+            _tokio_runtime: tokio_runtime,
         }
     }
 

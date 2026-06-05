@@ -4,7 +4,7 @@
 //! - Dark: #0B1220 bg, #0D1421 sidebar, #4231F1 accent
 //! - Light: #FAFAFC bg, #FFFFFF sidebar, #4231F1 accent
 
-use egui::{Color32, Rounding, Stroke, Vec2, Visuals};
+use egui::{Color32, Rounding, Stroke, Visuals};
 
 // ── Primary purple palette ──
 

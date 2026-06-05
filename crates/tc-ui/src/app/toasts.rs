@@ -9,15 +9,6 @@ pub enum ToastLevel {
     Error,
 }
 
-/// Generate a unique toast ID from strings.
-pub(crate) fn toast_id(s1: &str, s2: &str) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    s1.hash(&mut hasher);
-    s2.hash(&mut hasher);
-    hasher.finish()
-}
-
 use super::TuneCraftApp;
 
 impl TuneCraftApp {
@@ -38,7 +29,6 @@ impl TuneCraftApp {
         let now = std::time::Instant::now();
         self.toasts.retain(|(_, expiry, _, _)| *expiry > now);
 
-        let colors = self.colors();
         let screen = ctx.screen_rect();
         let mut y_offset = screen.bottom() - 80.0;
 

@@ -123,7 +123,6 @@ impl TuneCraftApp {
             let info = self.ctx.playback.sync_from_engine();
             let _ = info; // sync_from_engine doesn't return a value, we read from state
 
-            let state = self.ctx.playback.state();
             // The resampler_disabled flag is updated every 2s in the engine tick
         }
 

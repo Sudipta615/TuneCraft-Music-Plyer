@@ -45,7 +45,7 @@ pub fn recover_from_poison_write<'a, T>(
 }
 
 /// The config service manages application configuration.
-
+///
 /// Uses `RwLock` internally. This makes the service both `Send` and `Sync`, consistent
 /// with PlaybackService and EqService, and prevents runtime panics from
 /// cross-thread access.

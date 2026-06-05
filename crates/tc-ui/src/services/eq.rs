@@ -6,10 +6,6 @@
 //! EngineCommand channel instead of requiring engine_mutex access.
 //! This eliminates ~85% of engine mutex contention.
 
-use std::sync::Arc;
-
-use tc_config::AppConfig;
-
 /// EQ state managed by the service.
 #[derive(Debug, Clone)]
 pub struct EqState {
@@ -75,7 +71,7 @@ pub const DEFAULT_Q: f64 = 1.4;
 
 /// The EQ service manages equalizer state and applies changes to the DSP pipeline
 /// via lock-free EngineCommand channel.
-
+///
 /// Thread safety follows PlaybackService's threading model. This prevents runtime panics if the
 /// service is accessed from multiple threads through its Arc wrapper.
 pub struct EqService {

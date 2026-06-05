@@ -2345,6 +2345,7 @@ version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "328c4789d42200f1eeec05bd86c9c13c7f091d2ba9a6ea35acdf51f31bc0f043"
 dependencies = [
+ "cc",
  "pkg-config",
 ]
 
@@ -4435,6 +4436,7 @@ dependencies = [
 name = "tc-platform"
 version = "1.0.2"
 dependencies = [
+ "dbus",
  "log",
  "parking_lot",
  "souvlaki",
@@ -4455,6 +4457,7 @@ dependencies = [
  "eframe",
  "egui",
  "log",
+ "rusqlite",
  "tc-analysis",
  "tc-config",
  "tc-db",

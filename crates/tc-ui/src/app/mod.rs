@@ -42,21 +42,18 @@ pub use tc_config::RepeatMode;
 pub use tc_db::{Playlist, Track};
 pub use tc_engine::buffer::{EngineCommand, PlaybackInfo, PlaybackState as EnginePlaybackState};
 pub use toasts::ToastLevel;
-use tokio::runtime::Runtime;
 
 use crate::{
-    services::{scrobble::ScrobbleEvent, ScrobbleService},
     sidebar::NavSection,
     theme::TuneCraftColors,
 };
 
 /// The main TuneCraft application state.
-
+///
 /// This struct holds ONLY UI state — no business logic. All operations
 /// are delegated to the service layer via `self.ctx`.
-
+///
 /// Responsibilities:
-
 /// - Syncs state from services each frame
 /// - Polls media keys
 /// - Checks scrobble thresholds
@@ -129,8 +126,6 @@ pub struct TuneCraftApp {
 
     pub toasts: Vec<(String, std::time::Instant, ToastLevel, u64)>,
 
-    pub(crate) scrobble_event_rx: Option<tokio::sync::mpsc::UnboundedReceiver<ScrobbleEvent>>,
-
     pub(crate) last_synced_playback_version: u64,
 
     pub sort_ascending: bool,
@@ -161,8 +156,6 @@ impl TuneCraftApp {
         drop(playback_state);
 
         let scrobble_enabled = ctx.scrobble.is_enabled();
-
-        let scrobble_event_rx = ctx.scrobble.take_event_receiver();
 
         let (eq_enabled, eq_preamp, eq_dither, eq_bands) = ctx
             .config
@@ -274,8 +267,6 @@ impl TuneCraftApp {
             accumulated_play_secs,
 
             toasts: Vec::new(),
-
-            scrobble_event_rx,
 
             last_synced_playback_version: playback_version,
 
@@ -482,7 +473,7 @@ impl eframe::App for TuneCraftApp {
 /// Launch the TuneCraft GUI.
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let app_context = AppContext::init()?;
-    let mut app = TuneCraftApp::new(app_context);
+    let app = TuneCraftApp::new(app_context);
 
     // silently drops the receiver and breaks scrobble UI feedback (blocker #1).
 

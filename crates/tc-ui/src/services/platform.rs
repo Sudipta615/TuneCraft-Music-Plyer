@@ -7,8 +7,6 @@
 //! with PlaybackService and EqService. Uses standardized lock poisoning
 //! recovery from config.rs.
 
-use std::sync::Arc;
-
 use tc_platform::{
     MediaKeyAction, MediaKeyReceiver, MprisPlaybackStatus, MprisTrackInfo, PlatformIntegration,
 };
@@ -16,7 +14,7 @@ use tc_platform::{
 use super::config::{recover_from_poison, recover_from_poison_write};
 
 /// The platform service manages OS integration features.
-
+///
 /// Uses `RwLock<PlatformIntegration>` instead of `RefCell`. This makes the service both `Send` and
 /// `Sync`, consistent with other services, and prevents panics if accessed from
 /// a background thread during shutdown.
@@ -39,7 +37,7 @@ impl PlatformService {
         self.media_key_rx
             .lock()
             .ok()
-            .and_then(|mut rx| rx.try_recv())
+            .and_then(|rx| rx.try_recv())
     }
 
     /// Update MPRIS status to Playing with track info.

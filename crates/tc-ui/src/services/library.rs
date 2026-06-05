@@ -16,7 +16,7 @@ use std::sync::{
 };
 
 use arc_swap::ArcSwap;
-use log::{error, info, warn};
+use log::{error, warn};
 use tc_db::{Database, Playlist, Track};
 
 /// Snapshot of library state that the UI can read without any locks.
@@ -52,10 +52,10 @@ impl Default for LibrarySnapshot {
 /// The library service manages all database interactions for the UI.
 /// It provides snapshot-based reads to avoid holding locks across frames,
 /// and batches writes to minimize contention with the scan thread.
-
+///
 /// Uses `ArcSwap<LibrarySnapshot>` for lock-free, thread-safe snapshot
 /// reads. The UI can call `snapshot()` from any thread without blocking.
-
+///
 /// Partial updates are applied in-place, reducing Arc allocations when only a subset of fields
 /// change.
 pub struct LibraryService {
@@ -84,7 +84,7 @@ impl LibraryService {
         tracks_per_page: usize,
         scan_progress_rx: crossbeam::channel::Receiver<tc_library::ScanProgress>,
     ) -> Self {
-        let mut service = Self {
+        let service = Self {
             db,
             library_manager,
             scan_complete,
@@ -362,7 +362,7 @@ impl LibraryService {
 
     /// Record a play (increment play count and update last_played).
     pub fn record_play(&self, track_id: i64) {
-        if let Err(e) = self.db.increment_play_count(track_id) {
+        if let Err(e) = self.db.update_play_count(track_id) {
             warn!("Failed to update play count: {}", e);
         }
         if let Err(e) = self.db.update_last_played(track_id) {

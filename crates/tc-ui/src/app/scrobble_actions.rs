@@ -9,6 +9,7 @@ use crate::services::{
     playback::ScrobbleCheck,
     scrobble::{LocalScrobbleEntry, ScrobbleEvent},
 };
+use crate::app::ToastLevel;
 
 impl super::TuneCraftApp {
     /// Called every UI frame: checks whether the play threshold has been
@@ -22,10 +23,10 @@ impl super::TuneCraftApp {
             ScrobbleCheck::Ready(track_id) => {
                 if self.scrobble_enabled {
                     // Resolve full track metadata for the journal entry.
-                    if let Some(track) = self.ctx.library.track_by_id(track_id) {
+                    if let Some(track) = self.ctx.library.get_track(track_id) {
                         let artist = track.artist.clone().unwrap_or_default();
                         let title = track.title.clone();
-                        let duration_secs = self.ctx.playback.position_secs();
+                        let duration_secs = self.ctx.playback.state().position_secs;
 
                         self.ctx.scrobble.record(LocalScrobbleEntry {
                             track_id,
@@ -58,17 +59,17 @@ impl super::TuneCraftApp {
     pub(crate) fn handle_scrobble_event(&mut self, event: ScrobbleEvent) {
         match event {
             ScrobbleEvent::Recorded { artist, track } => {
-                self.show_toast_info(format!("Saved: {} by {}", track, artist));
+                self.push_toast(format!("Saved: {} by {}", track, artist), ToastLevel::Success);
             },
             ScrobbleEvent::Failed {
                 artist,
                 track,
                 error,
             } => {
-                self.show_toast_error(format!(
+                self.push_toast(format!(
                     "Could not save listen: {} by {} — {}",
                     track, artist, error
-                ));
+                ), ToastLevel::Error);
             },
         }
     }

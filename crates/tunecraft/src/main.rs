@@ -60,7 +60,7 @@ struct AppResources {
     engine: Option<tc_engine::AudioEngine>,
     platform: Option<tc_platform::PlatformIntegration>,
     media_key_rx: Option<tc_platform::MediaKeyReceiver>,
-    tokio_runtime: Arc<tokio::runtime::Runtime>,
+    _tokio_runtime: Arc<tokio::runtime::Runtime>,
 }
 
 impl AppResources {
@@ -150,7 +150,7 @@ impl AppResources {
             engine,
             platform,
             media_key_rx,
-            tokio_runtime,
+            _tokio_runtime: tokio_runtime,
         })
     }
 
@@ -304,8 +304,8 @@ fn run_analysis(db: &tc_db::Database) -> Result<()> {
 #[cfg(feature = "audio-output")]
 fn run_with_audio(
     args: &[String],
-    config: tc_config::AppConfig,
-    db: Arc<tc_db::Database>,
+    _config: tc_config::AppConfig,
+    _db: Arc<tc_db::Database>,
     _library: Arc<tc_library::LibraryManager>,
     engine: &mut tc_engine::AudioEngine,
     mut platform: Option<tc_platform::PlatformIntegration>,
@@ -348,8 +348,7 @@ fn run_with_audio(
     })
     .context("Failed to set Ctrl+C handler")?;
 
-    let mut headless_shuffle = false;
-    let mut headless_loop_status = "None".to_string();
+    let mut _headless_shuffle = false;
 
     while r.load(Ordering::Relaxed) {
         engine.tick();
@@ -425,7 +424,7 @@ fn run_with_audio(
 
                     MediaKeyAction::SetShuffle(shuffle) => {
                         info!("MPRIS SetShuffle: {}", shuffle);
-                        headless_shuffle = shuffle;
+                        _headless_shuffle = shuffle;
                         engine.send_command(tc_engine::buffer::EngineCommand::SetShuffle(shuffle));
                         if let Some(ref mut p) = platform {
                             p.set_mpris_shuffle(shuffle);
@@ -434,11 +433,10 @@ fn run_with_audio(
 
                     MediaKeyAction::SetLoopStatus(status) => {
                         info!("MPRIS SetLoopStatus: {}", status);
-                        headless_loop_status = status.clone();
                         engine
-                            .send_command(tc_engine::buffer::EngineCommand::SetLoopStatus(status));
+                            .send_command(tc_engine::buffer::EngineCommand::SetLoopStatus(status.clone()));
                         if let Some(ref mut p) = platform {
-                            p.set_mpris_loop_status(&headless_loop_status);
+                            p.set_mpris_loop_status(&status);
                         }
                     },
 

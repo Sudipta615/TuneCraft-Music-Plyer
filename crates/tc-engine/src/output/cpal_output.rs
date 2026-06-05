@@ -33,9 +33,19 @@ pub enum OutputError {
     StreamError(String),
 }
 
+/// A thread-safe wrapper around CPAL's Stream.
+///
+/// CPAL's Stream does not implement Send/Sync by default to remain compatible
+/// with some platforms (like Web/Emscripten). Since we only target desktop
+/// platforms where it is safe to send streams across threads, we wrap it in
+/// an unsafe Send + Sync implementation.
+pub struct SendSyncStream(pub Stream);
+unsafe impl Send for SendSyncStream {}
+unsafe impl Sync for SendSyncStream {}
+
 /// Audio output using cpal
 pub struct CpalOutput {
-    stream: Option<Stream>,
+    stream: Option<SendSyncStream>,
     device: Device,
     /// Resolved stream config (sample rate, channels, buffer size)
     stream_config: StreamConfig,
@@ -218,7 +228,7 @@ impl CpalOutput {
         stream
             .play()
             .map_err(|e| OutputError::StreamOpen(format!("Play failed: {}", e)))?;
-        self.stream = Some(stream);
+        self.stream = Some(SendSyncStream(stream));
 
         // v0.20.0: Escalate the audio callback thread to real-time priority.
         // This prevents audio dropouts under heavy CPU contention (e.g., during

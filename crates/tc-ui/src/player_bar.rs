@@ -69,12 +69,11 @@ fn draw_full(
     app: &mut TuneCraftApp,
     ui: &mut Ui,
     colors: &TuneCraftColors,
-    bar_rect: Rect,
+    _bar_rect: Rect,
     total_w: f32,
 ) {
     // Proportional section widths — scale with available space
     let info_w = (total_w * 0.22).min(260.0).max(140.0);
-    let right_w = (total_w * 0.22).min(220.0).max(140.0);
 
     ui.horizontal(|ui| {
         ui.add_space(16.0);
@@ -448,7 +447,7 @@ fn draw_compact(
     app: &mut TuneCraftApp,
     ui: &mut Ui,
     colors: &TuneCraftColors,
-    bar_rect: Rect,
+    _bar_rect: Rect,
     total_w: f32,
 ) {
     ui.vertical(|ui| {

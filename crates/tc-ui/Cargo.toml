@@ -24,3 +24,4 @@ log = { workspace = true }
 anyhow = { workspace = true }
 dirs = { workspace = true }
 chrono = { workspace = true }
+rusqlite = { workspace = true }

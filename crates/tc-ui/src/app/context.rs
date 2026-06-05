@@ -6,12 +6,9 @@
 //! objects that encapsulate synchronization internally. The UI never directly
 //! locks a Mutex or RwLock — it calls service methods.
 
-use std::{
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
 use log::{error, info, warn};
@@ -23,7 +20,7 @@ use crate::services::{
 };
 
 /// The shared application context that connects UI to all backends via services.
-
+///
 /// Implements Drop for cleanup on exit.
 pub struct AppContext {
     pub playback: Arc<PlaybackService>,
