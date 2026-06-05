@@ -1,28 +1,24 @@
 use serde::{Deserialize, Serialize};
 
 /// Engine performance presets
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PerformanceMode {
     #[serde(alias = "UltraQuality")]
     UltraQuality,
     #[serde(alias = "Balanced")]
+    #[default]
     Balanced,
     #[serde(alias = "LowPower")]
     LowPower,
 }
 
-impl Default for PerformanceMode {
-    fn default() -> Self {
-        Self::Balanced
-    }
-}
-
 /// Filter types for parametric EQ bands
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterType {
     #[serde(alias = "Peaking")]
+    #[default]
     Peaking,
     #[serde(alias = "LowShelf")]
     LowShelf,
@@ -36,17 +32,12 @@ pub enum FilterType {
     Notch,
 }
 
-impl Default for FilterType {
-    fn default() -> Self {
-        Self::Peaking
-    }
-}
-
 /// Loudness normalization mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LoudnessMode {
     #[serde(alias = "Off")]
+    #[default]
     Off,
     #[serde(alias = "TrackReplayGain")]
     TrackReplayGain,
@@ -56,53 +47,38 @@ pub enum LoudnessMode {
     EbuR128,
 }
 
-impl Default for LoudnessMode {
-    fn default() -> Self {
-        Self::Off
-    }
-}
-
 /// Crossfade curve type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CrossfadeCurve {
     #[serde(alias = "Linear")]
     Linear,
     #[serde(alias = "EqualPower")]
+    #[default]
     EqualPower,
     #[serde(alias = "SCurve")]
     SCurve,
 }
 
-impl Default for CrossfadeCurve {
-    fn default() -> Self {
-        Self::EqualPower
-    }
-}
-
 /// Resampler quality setting
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ResamplerQuality {
     #[serde(alias = "HighQuality")]
     HighQuality,
     #[serde(alias = "Balanced")]
+    #[default]
     Balanced,
     #[serde(alias = "Fast")]
     Fast,
 }
 
-impl Default for ResamplerQuality {
-    fn default() -> Self {
-        Self::Balanced
-    }
-}
-
 /// Repeat mode for playback
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RepeatMode {
     #[serde(alias = "Off")]
+    #[default]
     Off,
     #[serde(alias = "All")]
     All,
@@ -110,14 +86,8 @@ pub enum RepeatMode {
     One,
 }
 
-impl Default for RepeatMode {
-    fn default() -> Self {
-        Self::Off
-    }
-}
-
 /// Theme selection for the UI
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Theme {
     #[serde(alias = "Light")]
@@ -125,11 +95,6 @@ pub enum Theme {
     #[serde(alias = "Dark")]
     Dark,
     #[serde(alias = "System")]
+    #[default]
     System,
-}
-
-impl Default for Theme {
-    fn default() -> Self {
-        Self::System
-    }
 }
