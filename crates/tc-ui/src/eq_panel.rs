@@ -13,7 +13,14 @@ const EQ_FREQUENCIES: [&str; 10] = [
     "32", "64", "125", "250", "500", "1000", "2000", "4000", "8000", "16000",
 ];
 
-const EQ_PRESETS: [&str; 6] = ["Custom", "Flat", "Bass Boost", "Treble Boost", "V-Shape", "Vocal"];
+const EQ_PRESETS: [&str; 6] = [
+    "Custom",
+    "Flat",
+    "Bass Boost",
+    "Treble Boost",
+    "V-Shape",
+    "Vocal",
+];
 
 /// Draw the EQ panel (intended to be rendered inside an egui::Window)
 pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
@@ -36,7 +43,8 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     RichText::new("\u{2190}")
                         .font(FontId::proportional(16.0))
                         .color(colors.text),
-                ).frame(false)
+                )
+                .frame(false),
             );
             if arrow_resp.clicked() {
                 app.show_eq_panel = false;
@@ -56,17 +64,32 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.add_space(16.0);
 
             // Enable Equalizer toggle
-            let (toggle_rect, toggle_resp) = ui.allocate_exact_size(Vec2::new(46.0, 24.0), Sense::click());
-            let toggle_bg = if app.eq_enabled { colors.accent } else { colors.toggle_bg_off };
+            let (toggle_rect, toggle_resp) =
+                ui.allocate_exact_size(Vec2::new(46.0, 24.0), Sense::click());
+            let toggle_bg = if app.eq_enabled {
+                colors.accent
+            } else {
+                colors.toggle_bg_off
+            };
             ui.painter().rect_filled(toggle_rect, 12.0, toggle_bg);
-            let knob_x = if app.eq_enabled { toggle_rect.right() - 12.0 } else { toggle_rect.left() + 12.0 };
-            ui.painter().circle_filled(Pos2::new(knob_x, toggle_rect.center().y), 9.0, Color32::WHITE);
+            let knob_x = if app.eq_enabled {
+                toggle_rect.right() - 12.0
+            } else {
+                toggle_rect.left() + 12.0
+            };
+            ui.painter().circle_filled(
+                Pos2::new(knob_x, toggle_rect.center().y),
+                9.0,
+                Color32::WHITE,
+            );
             if toggle_resp.clicked() {
                 let new_enabled = !app.eq_enabled;
                 app.ctx.eq.set_enabled(new_enabled);
                 app.eq_enabled = new_enabled;
                 // Persist to config
-                app.ctx.config.write(|c| { c.engine.eq.enabled = new_enabled; });
+                app.ctx.config.write(|c| {
+                    c.engine.eq.enabled = new_enabled;
+                });
             }
 
             ui.add_space(8.0);
@@ -81,7 +104,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 ui.add_space(14.0);
 
                 // Three-dot menu placeholder
-                ui.label(RichText::new("\u{22EE}").font(FontId::proportional(16.0)).color(colors.text_dim));
+                ui.label(
+                    RichText::new("\u{22EE}")
+                        .font(FontId::proportional(16.0))
+                        .color(colors.text_dim),
+                );
 
                 ui.add_space(8.0);
 
@@ -110,11 +137,13 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         // ── 10-band EQ sliders ──
         let eq_area_h = 220.0;
         let available_w = ui.available_width();
-        let (eq_rect, _) = ui.allocate_exact_size(Vec2::new(available_w, eq_area_h), Sense::hover());
+        let (eq_rect, _) =
+            ui.allocate_exact_size(Vec2::new(available_w, eq_area_h), Sense::hover());
 
         // Background card for slider area
         ui.painter().rect_filled(eq_rect, 6.0, colors.card);
-        ui.painter().rect_stroke(eq_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+        ui.painter()
+            .rect_stroke(eq_rect, 6.0, egui::Stroke::new(1.0, colors.border));
 
         draw_eq_sliders(ui, app, eq_rect, &colors);
 
@@ -123,103 +152,171 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         // ── Secondary controls: Bass Shelf | Treble Shelf | Stereo Width | Balance | Dither + M/S ──
         let secondary_h = 130.0;
         let sec_available_w = ui.available_width();
-        let (sec_rect, _) = ui.allocate_exact_size(Vec2::new(sec_available_w, secondary_h), Sense::hover());
+        let (sec_rect, _) =
+            ui.allocate_exact_size(Vec2::new(sec_available_w, secondary_h), Sense::hover());
 
         ui.painter().rect_filled(sec_rect, 6.0, colors.card);
-        ui.painter().rect_stroke(sec_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+        ui.painter()
+            .rect_stroke(sec_rect, 6.0, egui::Stroke::new(1.0, colors.border));
 
         // Secondary sliders rendered inline
         {
-        let toggles_w = 130.0;
-        let slider_area_w = sec_rect.width() - toggles_w;
-        let col_w = slider_area_w / 4.0;
+            let toggles_w = 130.0;
+            let slider_area_w = sec_rect.width() - toggles_w;
+            let col_w = slider_area_w / 4.0;
 
-        ui.horizontal(|ui| {
-            // Bass Shelf
-            secondary_slider_vertical(ui, "Bass", "Shelf", &mut app.eq_bass_shelf, -12.0, 12.0, "dB", col_w, secondary_h - 20.0, &colors,
-                |v| {
-                    // on change
-                    let _ = v;
+            ui.horizontal(|ui| {
+                // Bass Shelf
+                secondary_slider_vertical(
+                    ui,
+                    "Bass",
+                    "Shelf",
+                    &mut app.eq_bass_shelf,
+                    -12.0,
+                    12.0,
+                    "dB",
+                    col_w,
+                    secondary_h - 20.0,
+                    &colors,
+                    |v| {
+                        // on change
+                        let _ = v;
+                    },
+                );
+                if app.eq_bass_shelf != app.eq_bands[0] {
+                    app.eq_bands[0] = app.eq_bass_shelf;
+                    app.ctx.eq.set_band_with_params(
+                        0,
+                        31.25,
+                        app.eq_bass_shelf,
+                        1.4,
+                        app.eq_enabled,
+                    );
                 }
-            );
-            if app.eq_bass_shelf != app.eq_bands[0] {
-                app.eq_bands[0] = app.eq_bass_shelf;
-                app.ctx.eq.set_band_with_params(0, 31.25, app.eq_bass_shelf, 1.4, app.eq_enabled);
-            }
 
-            // Vertical divider
-            let (d_rect, _) = ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-            ui.painter().rect_filled(d_rect, 0.0, colors.border);
+                // Vertical divider
+                let (d_rect, _) =
+                    ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
+                ui.painter().rect_filled(d_rect, 0.0, colors.border);
 
-            // Treble Shelf
-            secondary_slider_vertical(ui, "Treble", "Shelf", &mut app.eq_treble_shelf, -12.0, 12.0, "dB", col_w, secondary_h - 20.0, &colors,
-                |v| { let _ = v; }
-            );
-            if app.eq_treble_shelf != app.eq_bands[9] {
-                app.eq_bands[9] = app.eq_treble_shelf;
-                app.ctx.eq.set_band_with_params(9, 16000.0, app.eq_treble_shelf, 1.4, app.eq_enabled);
-            }
+                // Treble Shelf
+                secondary_slider_vertical(
+                    ui,
+                    "Treble",
+                    "Shelf",
+                    &mut app.eq_treble_shelf,
+                    -12.0,
+                    12.0,
+                    "dB",
+                    col_w,
+                    secondary_h - 20.0,
+                    &colors,
+                    |v| {
+                        let _ = v;
+                    },
+                );
+                if app.eq_treble_shelf != app.eq_bands[9] {
+                    app.eq_bands[9] = app.eq_treble_shelf;
+                    app.ctx.eq.set_band_with_params(
+                        9,
+                        16000.0,
+                        app.eq_treble_shelf,
+                        1.4,
+                        app.eq_enabled,
+                    );
+                }
 
-            // Vertical divider
-            let (d_rect, _) = ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-            ui.painter().rect_filled(d_rect, 0.0, colors.border);
+                // Vertical divider
+                let (d_rect, _) =
+                    ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
+                ui.painter().rect_filled(d_rect, 0.0, colors.border);
 
-            // Stereo Width
-            let mut width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
-            let old_width_pct = width_pct;
-            secondary_slider_vertical(ui, "Stereo Width", "", &mut width_pct, 0.0, 200.0, "%", col_w, secondary_h - 20.0, &colors, |_| {});
-            if (width_pct - old_width_pct).abs() > 0.5 {
-                let new_w = (width_pct / 100.0).clamp(0.0, 2.0);
-                app.eq_stereo_width = new_w;
-                app.ctx.eq.set_stereo_width(new_w);
-            }
+                // Stereo Width
+                let mut width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
+                let old_width_pct = width_pct;
+                secondary_slider_vertical(
+                    ui,
+                    "Stereo Width",
+                    "",
+                    &mut width_pct,
+                    0.0,
+                    200.0,
+                    "%",
+                    col_w,
+                    secondary_h - 20.0,
+                    &colors,
+                    |_| {},
+                );
+                if (width_pct - old_width_pct).abs() > 0.5 {
+                    let new_w = (width_pct / 100.0).clamp(0.0, 2.0);
+                    app.eq_stereo_width = new_w;
+                    app.ctx.eq.set_stereo_width(new_w);
+                }
 
-            // Vertical divider
-            let (d_rect, _) = ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-            ui.painter().rect_filled(d_rect, 0.0, colors.border);
+                // Vertical divider
+                let (d_rect, _) =
+                    ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
+                ui.painter().rect_filled(d_rect, 0.0, colors.border);
 
-            // Balance
-            let old_bal = app.eq_balance;
-            secondary_slider_vertical(ui, "Balance", "", &mut app.eq_balance, -1.0, 1.0, "", col_w, secondary_h - 20.0, &colors, |_| {});
-            if (app.eq_balance - old_bal).abs() > 0.005 {
-                app.ctx.eq.set_balance(app.eq_balance);
-            }
+                // Balance
+                let old_bal = app.eq_balance;
+                secondary_slider_vertical(
+                    ui,
+                    "Balance",
+                    "",
+                    &mut app.eq_balance,
+                    -1.0,
+                    1.0,
+                    "",
+                    col_w,
+                    secondary_h - 20.0,
+                    &colors,
+                    |_| {},
+                );
+                if (app.eq_balance - old_bal).abs() > 0.005 {
+                    app.ctx.eq.set_balance(app.eq_balance);
+                }
 
-            // Vertical divider
-            let (d_rect, _) = ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-            ui.painter().rect_filled(d_rect, 0.0, colors.border);
+                // Vertical divider
+                let (d_rect, _) =
+                    ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
+                ui.painter().rect_filled(d_rect, 0.0, colors.border);
 
-            // Toggles column: Dither + Mid/Side EQ
-            ui.vertical(|ui| {
-                ui.add_space(16.0);
-                draw_labeled_toggle(ui, "Dither", &mut app.eq_dither, &colors);
-                ui.add_space(16.0);
-                draw_labeled_toggle(ui, "Mid/Side EQ", &mut app.eq_midside, &colors);
+                // Toggles column: Dither + Mid/Side EQ
+                ui.vertical(|ui| {
+                    ui.add_space(16.0);
+                    draw_labeled_toggle(ui, "Dither", &mut app.eq_dither, &colors);
+                    ui.add_space(16.0);
+                    draw_labeled_toggle(ui, "Mid/Side EQ", &mut app.eq_midside, &colors);
+                });
+
+                // Sync dither/midside to engine + config
+                if app.eq_dither != app.cached_dither_enabled {
+                    app.ctx.eq.set_dither(app.eq_dither);
+                    app.cached_dither_enabled = app.eq_dither;
+                    let dither_val = app.eq_dither;
+                    app.ctx.config.write(|c| {
+                        c.engine.dither_enabled = dither_val;
+                    });
+                }
+                if app.eq_midside != app.cached_midside_enabled {
+                    app.ctx.eq.set_midside(app.eq_midside);
+                    app.cached_midside_enabled = app.eq_midside;
+                    // Mid/Side EQ is engine-only, no config field needed
+                }
             });
-
-            // Sync dither/midside to engine + config
-            if app.eq_dither != app.cached_dither_enabled {
-                app.ctx.eq.set_dither(app.eq_dither);
-                app.cached_dither_enabled = app.eq_dither;
-                let dither_val = app.eq_dither;
-                app.ctx.config.write(|c| { c.engine.dither_enabled = dither_val; });
-            }
-            if app.eq_midside != app.cached_midside_enabled {
-                app.ctx.eq.set_midside(app.eq_midside);
-                app.cached_midside_enabled = app.eq_midside;
-                // Mid/Side EQ is engine-only, no config field needed
-            }
-        });
         }
         ui.add_space(10.0);
 
         // ── Preamp row ──
         let preamp_h = 44.0;
         let preamp_w = ui.available_width();
-        let (preamp_rect, _) = ui.allocate_exact_size(Vec2::new(preamp_w, preamp_h), Sense::hover());
+        let (preamp_rect, _) =
+            ui.allocate_exact_size(Vec2::new(preamp_w, preamp_h), Sense::hover());
 
         ui.painter().rect_filled(preamp_rect, 6.0, colors.card);
-        ui.painter().rect_stroke(preamp_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+        ui.painter()
+            .rect_stroke(preamp_rect, 6.0, egui::Stroke::new(1.0, colors.border));
 
         // Draw preamp content directly using painter (no child UI needed)
         {
@@ -249,17 +346,28 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
             // Track
             ui.painter().line_segment(
-                [Pos2::new(slider_x_start, slider_y), Pos2::new(slider_x_end, slider_y)],
+                [
+                    Pos2::new(slider_x_start, slider_y),
+                    Pos2::new(slider_x_end, slider_y),
+                ],
                 egui::Stroke::new(3.0, colors.slider_track),
             );
             // Fill
             ui.painter().line_segment(
-                [Pos2::new(slider_x_start, slider_y), Pos2::new(fill_x, slider_y)],
+                [
+                    Pos2::new(slider_x_start, slider_y),
+                    Pos2::new(fill_x, slider_y),
+                ],
                 egui::Stroke::new(3.0, colors.accent),
             );
             // Knob
-            ui.painter().circle_filled(Pos2::new(fill_x, slider_y), 7.0, colors.accent);
-            ui.painter().circle_stroke(Pos2::new(fill_x, slider_y), 7.0, egui::Stroke::new(1.5, colors.card));
+            ui.painter()
+                .circle_filled(Pos2::new(fill_x, slider_y), 7.0, colors.accent);
+            ui.painter().circle_stroke(
+                Pos2::new(fill_x, slider_y),
+                7.0,
+                egui::Stroke::new(1.5, colors.card),
+            );
 
             // Drag area
             let drag_rect = Rect::from_min_size(
@@ -333,13 +441,26 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
         Pos2::new(rect.left() + left_margin, rect.top() + 8.0),
         Pos2::new(rect.right() - 8.0, rect.bottom() - bottom_margin),
     );
-    let freq_values: [f64; 10] = [31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
+    let freq_values: [f64; 10] = [
+        31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+    ];
 
     // dB scale labels + grid lines
     for &db in &[12i32, 6, 0, -6, -12] {
         let norm = (db as f32 + 12.0) / 24.0;
         let y = slider_area.bottom() - slider_area.height() * norm;
-        let label = if db == 0 { "0dB".to_string() } else { format!("{}dB", if db > 0 { format!("+{}", db) } else { db.to_string() }) };
+        let label = if db == 0 {
+            "0dB".to_string()
+        } else {
+            format!(
+                "{}dB",
+                if db > 0 {
+                    format!("+{}", db)
+                } else {
+                    db.to_string()
+                }
+            )
+        };
         ui.painter().text(
             Pos2::new(rect.left() + 4.0, y),
             Align2::LEFT_CENTER,
@@ -349,12 +470,25 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
         );
         // Grid line (subtle)
         let line_color = if db == 0 {
-            Color32::from_rgba_premultiplied(colors.border.r(), colors.border.g(), colors.border.b(), 150)
+            Color32::from_rgba_premultiplied(
+                colors.border.r(),
+                colors.border.g(),
+                colors.border.b(),
+                150,
+            )
         } else {
-            Color32::from_rgba_premultiplied(colors.border.r(), colors.border.g(), colors.border.b(), 60)
+            Color32::from_rgba_premultiplied(
+                colors.border.r(),
+                colors.border.g(),
+                colors.border.b(),
+                60,
+            )
         };
         ui.painter().line_segment(
-            [Pos2::new(slider_area.left(), y), Pos2::new(slider_area.right(), y)],
+            [
+                Pos2::new(slider_area.left(), y),
+                Pos2::new(slider_area.right(), y),
+            ],
             egui::Stroke::new(if db == 0 { 1.0 } else { 0.5 }, line_color),
         );
     }
@@ -393,9 +527,15 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
 
         // Knob circle (with border ring matching dark/light theme)
         let knob_r = 8.0;
-        let ring_color = if colors.dark_mode { Color32::from_rgb(0x2D, 0x34, 0x4C) } else { Color32::from_rgb(0xDF, 0xDF, 0xE5) };
-        ui.painter().circle_filled(Pos2::new(band_cx, knob_y), knob_r + 3.0, ring_color);
-        ui.painter().circle_filled(Pos2::new(band_cx, knob_y), knob_r, colors.accent);
+        let ring_color = if colors.dark_mode {
+            Color32::from_rgb(0x2D, 0x34, 0x4C)
+        } else {
+            Color32::from_rgb(0xDF, 0xDF, 0xE5)
+        };
+        ui.painter()
+            .circle_filled(Pos2::new(band_cx, knob_y), knob_r + 3.0, ring_color);
+        ui.painter()
+            .circle_filled(Pos2::new(band_cx, knob_y), knob_r, colors.accent);
 
         // Frequency label — scale font on narrow panels
         let freq_font_size = if rect.width() < 400.0 { 8.0 } else { 9.5 };
@@ -412,7 +552,11 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
             Pos2::new(band_cx - band_w / 2.0, track_top),
             Vec2::new(band_w, track_bot - track_top),
         );
-        let drag_resp = ui.interact(drag_rect, egui::Id::new(format!("eq_band_{}", i)), Sense::drag());
+        let drag_resp = ui.interact(
+            drag_rect,
+            egui::Id::new(format!("eq_band_{}", i)),
+            Sense::drag(),
+        );
         if drag_resp.dragged() {
             if let Some(ptr) = drag_resp.interact_pointer_pos() {
                 let t = (ptr.y - track_top) / (track_bot - track_top);
@@ -420,9 +564,19 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
                 let new_gain = (new_norm * 24.0 - 12.0) as f64;
                 app.eq_bands[i] = new_gain.clamp(-12.0, 12.0);
                 app.eq_preset = "Custom".to_string();
-                if i == 0 { app.eq_bass_shelf = new_gain; }
-                if i == 9 { app.eq_treble_shelf = new_gain; }
-                app.ctx.eq.set_band_with_params(i, freq_values[i], new_gain, 1.4, app.eq_enabled && new_gain != 0.0);
+                if i == 0 {
+                    app.eq_bass_shelf = new_gain;
+                }
+                if i == 9 {
+                    app.eq_treble_shelf = new_gain;
+                }
+                app.ctx.eq.set_band_with_params(
+                    i,
+                    freq_values[i],
+                    new_gain,
+                    1.4,
+                    app.eq_enabled && new_gain != 0.0,
+                );
                 // Persist band gain to config
                 let band_idx = i;
                 let gain_db = new_gain;
@@ -481,7 +635,9 @@ fn secondary_slider_vertical(
     let track_bot = rect.bottom() - 22.0;
     let track_h = track_bot - track_top;
 
-    if track_h <= 0.0 { return; }
+    if track_h <= 0.0 {
+        return;
+    }
 
     // Draw track
     ui.painter().line_segment(
@@ -507,9 +663,15 @@ fn secondary_slider_vertical(
     }
 
     // Knob
-    let ring_color = if colors.dark_mode { Color32::from_rgb(0x2D, 0x34, 0x4C) } else { Color32::from_rgb(0xDF, 0xDF, 0xE5) };
-    ui.painter().circle_filled(Pos2::new(cx, knob_y), 10.0, ring_color);
-    ui.painter().circle_filled(Pos2::new(cx, knob_y), 7.0, colors.accent);
+    let ring_color = if colors.dark_mode {
+        Color32::from_rgb(0x2D, 0x34, 0x4C)
+    } else {
+        Color32::from_rgb(0xDF, 0xDF, 0xE5)
+    };
+    ui.painter()
+        .circle_filled(Pos2::new(cx, knob_y), 10.0, ring_color);
+    ui.painter()
+        .circle_filled(Pos2::new(cx, knob_y), 7.0, colors.accent);
 
     // Value label
     let val_str = if unit == "%" {
@@ -528,7 +690,11 @@ fn secondary_slider_vertical(
     );
 
     // Drag interaction
-    let drag_resp = ui.interact(rect, egui::Id::new(format!("sec_slider_{}_{}", title, subtitle)), Sense::drag());
+    let drag_resp = ui.interact(
+        rect,
+        egui::Id::new(format!("sec_slider_{}_{}", title, subtitle)),
+        Sense::drag(),
+    );
     if drag_resp.dragged() {
         if let Some(ptr) = drag_resp.interact_pointer_pos() {
             let t = (ptr.y - track_top) / track_h;
@@ -551,11 +717,21 @@ fn draw_labeled_toggle(ui: &mut Ui, label: &str, enabled: &mut bool, colors: &Tu
         // Right-align toggle
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.add_space(10.0);
-            let (toggle_rect, toggle_resp) = ui.allocate_exact_size(Vec2::new(42.0, 22.0), Sense::click());
-            let bg = if *enabled { colors.accent } else { colors.toggle_bg_off };
+            let (toggle_rect, toggle_resp) =
+                ui.allocate_exact_size(Vec2::new(42.0, 22.0), Sense::click());
+            let bg = if *enabled {
+                colors.accent
+            } else {
+                colors.toggle_bg_off
+            };
             ui.painter().rect_filled(toggle_rect, 11.0, bg);
-            let kx = if *enabled { toggle_rect.right() - 11.0 } else { toggle_rect.left() + 11.0 };
-            ui.painter().circle_filled(Pos2::new(kx, toggle_rect.center().y), 8.0, Color32::WHITE);
+            let kx = if *enabled {
+                toggle_rect.right() - 11.0
+            } else {
+                toggle_rect.left() + 11.0
+            };
+            ui.painter()
+                .circle_filled(Pos2::new(kx, toggle_rect.center().y), 8.0, Color32::WHITE);
             if toggle_resp.clicked() {
                 *enabled = !*enabled;
             }
@@ -570,30 +746,38 @@ fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
             app.eq_preamp = 0.0;
             app.eq_bass_shelf = 0.0;
             app.eq_treble_shelf = 0.0;
-        }
+        },
         "Bass Boost" => {
             app.eq_bands = [8.0, 6.0, 4.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
             app.eq_preamp = -2.0;
-        }
+        },
         "Treble Boost" => {
             app.eq_bands = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 4.0, 6.0, 8.0];
             app.eq_preamp = -2.0;
-        }
+        },
         "V-Shape" => {
             app.eq_bands = [6.0, 4.0, 2.0, 0.0, -1.0, -1.0, 0.0, 2.0, 4.0, 6.0];
             app.eq_preamp = -2.0;
-        }
+        },
         "Vocal" => {
             app.eq_bands = [-2.0, -1.0, 0.0, 2.0, 4.0, 4.0, 3.0, 1.0, 0.0, -1.0];
             app.eq_preamp = -1.0;
-        }
-        _ => {}
+        },
+        _ => {},
     }
     app.eq_bass_shelf = app.eq_bands[0];
     app.eq_treble_shelf = app.eq_bands[9];
-    let freq_values: [f64; 10] = [31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
+    let freq_values: [f64; 10] = [
+        31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+    ];
     for (i, &gain) in app.eq_bands.iter().enumerate() {
-        app.ctx.eq.set_band_with_params(i, freq_values[i], gain, 1.4, app.eq_enabled && gain != 0.0);
+        app.ctx.eq.set_band_with_params(
+            i,
+            freq_values[i],
+            gain,
+            1.4,
+            app.eq_enabled && gain != 0.0,
+        );
     }
     app.ctx.eq.set_preamp(app.eq_preamp);
     {
@@ -636,7 +820,9 @@ fn reset_eq(app: &mut TuneCraftApp) {
     app.ctx.eq.set_balance(0.0);
     app.ctx.eq.set_dither(true);
     app.ctx.eq.set_midside(false);
-    let freq_values: [f64; 10] = [31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
+    let freq_values: [f64; 10] = [
+        31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+    ];
     for (i, &freq) in freq_values.iter().enumerate() {
         app.ctx.eq.set_band_with_params(i, freq, 0.0, 1.4, false);
     }

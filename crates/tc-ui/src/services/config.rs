@@ -14,27 +14,33 @@ use tc_config::AppConfig;
 
 /// Recover from a poisoned RwLock by extracting the inner value.
 pub fn recover_from_poison<'a, T>(
-    result: Result<std::sync::RwLockReadGuard<'a, T>, std::sync::PoisonError<std::sync::RwLockReadGuard<'a, T>>>,
+    result: Result<
+        std::sync::RwLockReadGuard<'a, T>,
+        std::sync::PoisonError<std::sync::RwLockReadGuard<'a, T>>,
+    >,
 ) -> std::sync::RwLockReadGuard<'a, T> {
     match result {
         Ok(guard) => guard,
         Err(e) => {
             warn!("RwLock poisoned — recovering (data may be inconsistent)");
             e.into_inner()
-        }
+        },
     }
 }
 
 /// Recover from a poisoned write lock.
 pub fn recover_from_poison_write<'a, T>(
-    result: Result<std::sync::RwLockWriteGuard<'a, T>, std::sync::PoisonError<std::sync::RwLockWriteGuard<'a, T>>>,
+    result: Result<
+        std::sync::RwLockWriteGuard<'a, T>,
+        std::sync::PoisonError<std::sync::RwLockWriteGuard<'a, T>>,
+    >,
 ) -> std::sync::RwLockWriteGuard<'a, T> {
     match result {
         Ok(guard) => guard,
         Err(e) => {
             warn!("RwLock poisoned — recovering (data may be inconsistent)");
             e.into_inner()
-        }
+        },
     }
 }
 
@@ -106,7 +112,9 @@ impl ConfigService {
             return false;
         }
 
-        let should_save = self.last_save.read()
+        let should_save = self
+            .last_save
+            .read()
             .map(|last| last.elapsed() >= std::time::Duration::from_secs(self.save_interval_secs))
             .unwrap_or(true);
         if !should_save {
@@ -119,18 +127,19 @@ impl ConfigService {
                 *recover_from_poison_write(self.dirty.write()) = false;
                 *recover_from_poison_write(self.last_save.write()) = std::time::Instant::now();
                 true
-            }
+            },
             Err(e) => {
                 warn!("Failed to save config: {}", e);
                 false
-            }
+            },
         }
     }
 
     /// Force-save the config regardless of dirty state.
     pub fn force_save(&self) -> Result<(), String> {
         let guard = recover_from_poison(self.config.read());
-        tc_config::ConfigPersistence::save(&guard).map_err(|e| format!("Failed to save config: {}", e))
+        tc_config::ConfigPersistence::save(&guard)
+            .map_err(|e| format!("Failed to save config: {}", e))
     }
 
     /// Get the current theme setting.
@@ -138,4 +147,3 @@ impl ConfigService {
         self.read(|c| c.ui.theme).unwrap_or(tc_config::Theme::Dark)
     }
 }
-

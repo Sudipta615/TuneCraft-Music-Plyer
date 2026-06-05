@@ -228,14 +228,14 @@ impl FadeProcessor {
                     self.gain = 1.0;
                     self.state = FadeState::Idle;
                 }
-            }
+            },
             FadeState::FadingOut => {
                 if self.gain <= 0.0 || self.samples_processed >= self.total_samples {
                     self.gain = 0.0;
                     self.state = FadeState::FadedOut;
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 
@@ -246,7 +246,6 @@ impl FadeProcessor {
         } else if self.gain <= 0.0 {
             FadeState::FadedOut
         } else {
-
             // snapped to 1.0 on the next process() call. The caller can
             // explicitly fade_in() or fade_out() after cancelling if desired.
             FadeState::FadingIn
@@ -329,4 +328,3 @@ mod tests {
         }
     }
 }
-

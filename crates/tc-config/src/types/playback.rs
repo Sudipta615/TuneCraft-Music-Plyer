@@ -20,16 +20,25 @@ pub struct PlaybackConfig {
 }
 
 impl PlaybackConfig {
-    fn default_volume() -> f64 { 1.0 }
-    fn default_speed() -> f64 { 1.0 }
-    fn default_resume_on_start() -> bool { true }
+    fn default_volume() -> f64 {
+        1.0
+    }
+    fn default_speed() -> f64 {
+        1.0
+    }
+    fn default_resume_on_start() -> bool {
+        true
+    }
 
     /// Validate playback config, clamping out-of-range values.
     pub fn validate(&mut self) -> Vec<String> {
         let mut warnings = Vec::new();
 
         if self.volume.is_nan() || self.volume.is_infinite() {
-            warnings.push(format!("Playback volume ({:.2}) is NaN/inf, resetting to 1.0", self.volume));
+            warnings.push(format!(
+                "Playback volume ({:.2}) is NaN/inf, resetting to 1.0",
+                self.volume
+            ));
             self.volume = 1.0;
         } else if self.volume < 0.0 || self.volume > 1.0 {
             warnings.push(format!(
@@ -40,7 +49,10 @@ impl PlaybackConfig {
         }
 
         if self.speed.is_nan() || self.speed.is_infinite() || self.speed <= 0.0 {
-            warnings.push(format!("Playback speed ({:.2}) is invalid, resetting to 1.0", self.speed));
+            warnings.push(format!(
+                "Playback speed ({:.2}) is invalid, resetting to 1.0",
+                self.speed
+            ));
             self.speed = 1.0;
         } else if self.speed < 0.25 || self.speed > 4.0 {
             warnings.push(format!(
@@ -65,4 +77,3 @@ impl Default for PlaybackConfig {
         }
     }
 }
-

@@ -246,7 +246,8 @@ impl ConvolutionEngine {
             .format(&hint, mss, &format_opts, &metadata_opts)
             .map_err(|e| ConvolutionError::FileLoad(format!("Probe failed: {}", e)))?;
 
-        let track = probed.format
+        let track = probed
+            .format
             .tracks()
             .iter()
             .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
@@ -291,7 +292,7 @@ impl ConvolutionEngine {
                                 };
                                 ir_samples.push((l, r));
                             }
-                        }
+                        },
                         symphonia::core::audio::AudioBufferRef::S16(buf) => {
                             let buf = &**buf;
                             for i in 0..frames {
@@ -303,7 +304,7 @@ impl ConvolutionEngine {
                                 };
                                 ir_samples.push((l, r));
                             }
-                        }
+                        },
                         symphonia::core::audio::AudioBufferRef::S24(buf) => {
                             let buf = &**buf;
                             for i in 0..frames {
@@ -318,7 +319,7 @@ impl ConvolutionEngine {
                                 };
                                 ir_samples.push((l, r));
                             }
-                        }
+                        },
                         symphonia::core::audio::AudioBufferRef::S32(buf) => {
                             let buf = &**buf;
                             for i in 0..frames {
@@ -330,27 +331,23 @@ impl ConvolutionEngine {
                                 };
                                 ir_samples.push((l, r));
                             }
-                        }
+                        },
                         symphonia::core::audio::AudioBufferRef::F64(buf) => {
                             let buf = &**buf;
                             for i in 0..frames {
                                 let l = buf.chan(0)[i];
-                                let r = if channels > 1 {
-                                    buf.chan(1)[i]
-                                } else {
-                                    l
-                                };
+                                let r = if channels > 1 { buf.chan(1)[i] } else { l };
                                 ir_samples.push((l, r));
                             }
-                        }
+                        },
                         _ => {
                             // Remaining unsupported sample formats — output silence
                             for _ in 0..frames {
                                 ir_samples.push((0.0, 0.0));
                             }
-                        }
+                        },
                     }
-                }
+                },
                 Err(_) => continue,
             }
 
@@ -361,7 +358,9 @@ impl ConvolutionEngine {
         }
 
         if ir_samples.is_empty() {
-            return Err(ConvolutionError::FileLoad("IR file contains no samples".to_string()));
+            return Err(ConvolutionError::FileLoad(
+                "IR file contains no samples".to_string(),
+            ));
         }
 
         self.load_ir_from_samples(&ir_samples)
@@ -391,10 +390,7 @@ impl ConvolutionEngine {
     /// Perform forward FFT on a time-domain signal (allocating version for IR loading).
     ///
     /// This is only used during IR loading (not the hot path), so allocation is acceptable.
-    fn forward_fft(
-        &self,
-        input: &[f64],
-    ) -> Result<Vec<Complex<f64>>, ConvolutionError> {
+    fn forward_fft(&self, input: &[f64]) -> Result<Vec<Complex<f64>>, ConvolutionError> {
         let mut input_vec = input.to_vec();
         let mut output = self.fft_forward.make_output_vec();
         self.fft_forward
@@ -471,7 +467,9 @@ impl ConvolutionEngine {
             &self.input_buffer_left,
             &mut self.fft_workspace_input_left,
             &mut self.fft_workspace_output_left,
-        ).is_err() {
+        )
+        .is_err()
+        {
             self.input_count = 0;
             return;
         }
@@ -482,7 +480,9 @@ impl ConvolutionEngine {
             &self.input_buffer_right,
             &mut self.fft_workspace_input_right,
             &mut self.fft_workspace_output_right,
-        ).is_err() {
+        )
+        .is_err()
+        {
             self.input_count = 0;
             return;
         }
@@ -496,7 +496,10 @@ impl ConvolutionEngine {
         }
 
         // Right channel: input × IR_right (or same as left for mono IR, using pre-allocated buffer)
-        let ir_right = self.ir_spectrum_right.as_ref().unwrap_or(&self.ir_spectrum_left);
+        let ir_right = self
+            .ir_spectrum_right
+            .as_ref()
+            .unwrap_or(&self.ir_spectrum_left);
         for i in 0..spectrum_len {
             self.product_right[i] = self.fft_workspace_output_right[i] * ir_right[i];
         }
@@ -525,7 +528,9 @@ impl ConvolutionEngine {
             // the read side so the Rust borrow checker sees &mut self only once
             // (for add_to_overlap), which is sound because scratch_{left,right}
             // and ifft_workspace_output_{left,right} are disjoint Vec allocations.
-            let n = self.ifft_workspace_output_left.len()
+            let n = self
+                .ifft_workspace_output_left
+                .len()
                 .min(self.ifft_workspace_output_right.len())
                 .min(self.scratch_left.len())
                 .min(self.scratch_right.len());
@@ -563,7 +568,10 @@ impl ConvolutionEngine {
         for i in copy_len..workspace_spectrum.len() {
             workspace_spectrum[i] = Complex::new(0.0, 0.0);
         }
-        if fft_inverse.process(workspace_spectrum, workspace_output).is_err() {
+        if fft_inverse
+            .process(workspace_spectrum, workspace_output)
+            .is_err()
+        {
             return false;
         }
         // Normalize by FFT size (realfft's IFFT doesn't normalize)
@@ -629,7 +637,8 @@ impl ConvolutionEngine {
             log::warn!(
                 "Convolution overlap buffer overflow: discarding {} oldest frames \
                  (total dropped: {}). Consider reducing IR length or disabling convolution.",
-                discard, self.dropped_frames
+                discard,
+                self.dropped_frames
             );
             // Recalculate write_start after discarding
             write_start = self.overlap_read_pos + self.overlap_available;
@@ -660,7 +669,8 @@ impl ConvolutionEngine {
             log::warn!(
                 "Convolution overlap: {} frames clipped (buffer full after compaction). \
                  Total dropped: {}.",
-                clipped, self.dropped_frames
+                clipped,
+                self.dropped_frames
             );
         }
 
@@ -732,7 +742,8 @@ impl ConvolutionEngine {
             log::info!(
                 "ConvolutionEngine sample rate changed: {:.0} Hz -> {:.0} Hz. \
                  Note: loaded IR frequency mapping may be incorrect until IR is reloaded.",
-                self.sample_rate, sample_rate
+                self.sample_rate,
+                sample_rate
             );
             self.sample_rate = sample_rate;
             // Mark IR as needing reload so the UI can warn the user.
@@ -772,9 +783,11 @@ impl ConvolutionEngine {
         self.fft_workspace_output_left.fill(Complex::new(0.0, 0.0));
         self.fft_workspace_input_right.fill(0.0);
         self.fft_workspace_output_right.fill(Complex::new(0.0, 0.0));
-        self.ifft_workspace_spectrum_left.fill(Complex::new(0.0, 0.0));
+        self.ifft_workspace_spectrum_left
+            .fill(Complex::new(0.0, 0.0));
         self.ifft_workspace_output_left.fill(0.0);
-        self.ifft_workspace_spectrum_right.fill(Complex::new(0.0, 0.0));
+        self.ifft_workspace_spectrum_right
+            .fill(Complex::new(0.0, 0.0));
         self.ifft_workspace_output_right.fill(0.0);
         self.scratch_left.fill(0.0);
         self.scratch_right.fill(0.0);
@@ -841,7 +854,6 @@ mod tests {
         assert_eq!(engine.input_count, 0);
     }
 
-
     #[test]
     fn test_convolution_workspace_buffers_allocated() {
         // Verify that all workspace buffers are pre-allocated with the correct sizes
@@ -849,23 +861,45 @@ mod tests {
         let expected_fft_size = (2 * 512usize).next_power_of_two().max(64);
         let expected_spectrum_len = expected_fft_size / 2 + 1;
 
-        assert_eq!(engine.fft_workspace_input_left.len(), expected_fft_size,
-            "FFT workspace input left should be pre-allocated to fft_size");
-        assert_eq!(engine.fft_workspace_input_right.len(), expected_fft_size,
-            "FFT workspace input right should be pre-allocated to fft_size");
-        assert_eq!(engine.fft_workspace_output_left.len(), expected_spectrum_len,
-            "FFT workspace output left should be pre-allocated to spectrum_len");
-        assert_eq!(engine.fft_workspace_output_right.len(), expected_spectrum_len,
-            "FFT workspace output right should be pre-allocated to spectrum_len");
-        assert_eq!(engine.ifft_workspace_spectrum_left.len(), expected_spectrum_len,
-            "IFFT workspace spectrum left should be pre-allocated to spectrum_len");
-        assert_eq!(engine.ifft_workspace_spectrum_right.len(), expected_spectrum_len,
-            "IFFT workspace spectrum right should be pre-allocated to spectrum_len");
+        assert_eq!(
+            engine.fft_workspace_input_left.len(),
+            expected_fft_size,
+            "FFT workspace input left should be pre-allocated to fft_size"
+        );
+        assert_eq!(
+            engine.fft_workspace_input_right.len(),
+            expected_fft_size,
+            "FFT workspace input right should be pre-allocated to fft_size"
+        );
+        assert_eq!(
+            engine.fft_workspace_output_left.len(),
+            expected_spectrum_len,
+            "FFT workspace output left should be pre-allocated to spectrum_len"
+        );
+        assert_eq!(
+            engine.fft_workspace_output_right.len(),
+            expected_spectrum_len,
+            "FFT workspace output right should be pre-allocated to spectrum_len"
+        );
+        assert_eq!(
+            engine.ifft_workspace_spectrum_left.len(),
+            expected_spectrum_len,
+            "IFFT workspace spectrum left should be pre-allocated to spectrum_len"
+        );
+        assert_eq!(
+            engine.ifft_workspace_spectrum_right.len(),
+            expected_spectrum_len,
+            "IFFT workspace spectrum right should be pre-allocated to spectrum_len"
+        );
         // IFFT output size matches the real-to-real inverse output
-        assert!(!engine.ifft_workspace_output_left.is_empty(),
-            "IFFT workspace output left should be pre-allocated");
-        assert!(!engine.ifft_workspace_output_right.is_empty(),
-            "IFFT workspace output right should be pre-allocated");
+        assert!(
+            !engine.ifft_workspace_output_left.is_empty(),
+            "IFFT workspace output left should be pre-allocated"
+        );
+        assert!(
+            !engine.ifft_workspace_output_right.is_empty(),
+            "IFFT workspace output right should be pre-allocated"
+        );
     }
 
     #[test]
@@ -902,12 +936,15 @@ mod tests {
         engine.reset();
 
         // After reset, workspace input buffers should be zeroed
-        assert!(engine.fft_workspace_input_left.iter().all(|&v| v == 0.0),
-            "FFT workspace input left should be zeroed after reset");
-        assert!(engine.fft_workspace_input_right.iter().all(|&v| v == 0.0),
-            "FFT workspace input right should be zeroed after reset");
+        assert!(
+            engine.fft_workspace_input_left.iter().all(|&v| v == 0.0),
+            "FFT workspace input left should be zeroed after reset"
+        );
+        assert!(
+            engine.fft_workspace_input_right.iter().all(|&v| v == 0.0),
+            "FFT workspace input right should be zeroed after reset"
+        );
     }
-
 
     #[test]
     fn test_convolution_overlap_buffer_no_growth() {
@@ -929,10 +966,16 @@ mod tests {
         }
 
         // Overlap buffers must not have grown beyond their initial allocation
-        assert_eq!(engine.overlap_left.len(), initial_len,
-            "Overlap left buffer must not grow during sustained playback");
-        assert_eq!(engine.overlap_right.len(), initial_len,
-            "Overlap right buffer must not grow during sustained playback");
+        assert_eq!(
+            engine.overlap_left.len(),
+            initial_len,
+            "Overlap left buffer must not grow during sustained playback"
+        );
+        assert_eq!(
+            engine.overlap_right.len(),
+            initial_len,
+            "Overlap right buffer must not grow during sustained playback"
+        );
     }
 
     #[test]
@@ -955,4 +998,3 @@ mod tests {
         }
     }
 }
-

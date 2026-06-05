@@ -8,12 +8,16 @@ use crate::app::TuneCraftApp;
 use crate::theme::TuneCraftColors;
 
 fn truncate_text(ui: &Ui, text: &str, font: &FontId, max_width: f32) -> String {
-    let galley = ui.painter().layout_no_wrap(text.to_string(), font.clone(), Color32::WHITE);
+    let galley = ui
+        .painter()
+        .layout_no_wrap(text.to_string(), font.clone(), Color32::WHITE);
     if galley.size().x <= max_width {
         return text.to_string();
     }
     let ellipsis = "...";
-    let ellipsis_galley = ui.painter().layout_no_wrap(ellipsis.to_string(), font.clone(), Color32::WHITE);
+    let ellipsis_galley =
+        ui.painter()
+            .layout_no_wrap(ellipsis.to_string(), font.clone(), Color32::WHITE);
     let target_width = max_width - ellipsis_galley.size().x;
     if target_width <= 0.0 {
         return ellipsis.to_string();
@@ -24,21 +28,31 @@ fn truncate_text(ui: &Ui, text: &str, font: &FontId, max_width: f32) -> String {
     let mut hi = char_count;
     while lo < hi {
         let mid = lo + (hi - lo + 1) / 2;
-        let end_byte = if mid < char_count { char_offsets[mid] } else { text.len() };
+        let end_byte = if mid < char_count {
+            char_offsets[mid]
+        } else {
+            text.len()
+        };
         let prefix = &text[..end_byte];
-        let prefix_galley = ui.painter().layout_no_wrap(prefix.to_string(), font.clone(), Color32::WHITE);
+        let prefix_galley =
+            ui.painter()
+                .layout_no_wrap(prefix.to_string(), font.clone(), Color32::WHITE);
         if prefix_galley.size().x <= target_width {
             lo = mid;
         } else {
             hi = mid - 1;
         }
     }
-    let end_byte = if lo < char_count { char_offsets[lo] } else { text.len() };
+    let end_byte = if lo < char_count {
+        char_offsets[lo]
+    } else {
+        text.len()
+    };
     format!("{}{}", &text[..end_byte], ellipsis)
 }
 
 const COL_NUM_FRAC: f32 = 0.06;
-const COL_ART_W: f32 = 44.0;  // fixed px for album art thumbnail
+const COL_ART_W: f32 = 44.0; // fixed px for album art thumbnail
 const COL_ART_GAP: f32 = 4.0; // gap after art column
 const COL_TITLE_FRAC: f32 = 0.34;
 const COL_ALBUM_FRAC: f32 = 0.24;
@@ -46,15 +60,19 @@ const COL_DURATION_FRAC: f32 = 0.12;
 // Mood gets the rest: 1.0 - (0.06 + 0.34 + 0.24 + 0.12) = 0.24
 
 /// Responsive breakpoints for the track list
-const BREAKPOINT_NARROW: f32 = 500.0;  // hide album + mood columns
-const BREAKPOINT_MEDIUM: f32 = 700.0;  // hide mood column only
+const BREAKPOINT_NARROW: f32 = 500.0; // hide album + mood columns
+const BREAKPOINT_MEDIUM: f32 = 700.0; // hide mood column only
 
 /// Draw the top search bar + notification + theme toggle
 /// Responsive: hides Add Music button on narrow widths, scales search bar
 pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
     let colors = app.colors();
     let total_w = ui.available_width();
-    let bar_h = if total_w < BREAKPOINT_NARROW { 52.0 } else { 64.0 };
+    let bar_h = if total_w < BREAKPOINT_NARROW {
+        52.0
+    } else {
+        64.0
+    };
 
     let (bar_rect, _) = ui.allocate_exact_size(Vec2::new(total_w, bar_h), Sense::hover());
     ui.painter().rect_filled(bar_rect, 0.0, colors.bg);
@@ -65,7 +83,11 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
 
     ui.allocate_ui_at_rect(bar_rect, |ui| {
         ui.horizontal(|ui| {
-            ui.add_space(if total_w < BREAKPOINT_NARROW { 8.0 } else { 16.0 });
+            ui.add_space(if total_w < BREAKPOINT_NARROW {
+                8.0
+            } else {
+                16.0
+            });
 
             // Search bar — scales width proportionally
             let search_w = if total_w < BREAKPOINT_NARROW {
@@ -73,22 +95,37 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
             } else {
                 (total_w * 0.38).min(400.0)
             };
-            let search_h = if total_w < BREAKPOINT_NARROW { 32.0 } else { 40.0 };
+            let search_h = if total_w < BREAKPOINT_NARROW {
+                32.0
+            } else {
+                40.0
+            };
             let search_y = (bar_h - search_h) / 2.0;
             let search_rect = Rect::from_min_size(
-                Pos2::new(ui.available_rect_before_wrap().left(), bar_rect.top() + search_y),
+                Pos2::new(
+                    ui.available_rect_before_wrap().left(),
+                    bar_rect.top() + search_y,
+                ),
                 Vec2::new(search_w, search_h),
             );
             let (_, _) = ui.allocate_exact_size(Vec2::new(search_w, search_h), Sense::hover());
             ui.painter().rect_filled(search_rect, 8.0, colors.search_bg);
-            ui.painter().rect_stroke(search_rect, 8.0, egui::Stroke::new(1.0, colors.search_border));
+            ui.painter().rect_stroke(
+                search_rect,
+                8.0,
+                egui::Stroke::new(1.0, colors.search_border),
+            );
 
             // Search icon
             ui.painter().text(
                 Pos2::new(search_rect.left() + 10.0, search_rect.center().y),
                 Align2::LEFT_CENTER,
                 "\u{1F50D}",
-                FontId::proportional(if total_w < BREAKPOINT_NARROW { 12.0 } else { 14.0 }),
+                FontId::proportional(if total_w < BREAKPOINT_NARROW {
+                    12.0
+                } else {
+                    14.0
+                }),
                 colors.text_muted,
             );
 
@@ -102,19 +139,38 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                 ),
                 egui::TextEdit::singleline(&mut app.search_query)
                     .hint_text("Search...")
-                    .font(FontId::proportional(if total_w < BREAKPOINT_NARROW { 12.0 } else { 14.0 }))
+                    .font(FontId::proportional(if total_w < BREAKPOINT_NARROW {
+                        12.0
+                    } else {
+                        14.0
+                    }))
                     .text_color(colors.text),
             );
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add_space(if total_w < BREAKPOINT_NARROW { 8.0 } else { 16.0 });
+                ui.add_space(if total_w < BREAKPOINT_NARROW {
+                    8.0
+                } else {
+                    16.0
+                });
 
                 // Theme toggle
-                let theme_icon = if app.dark_mode { "\u{2600}" } else { "\u{263D}" };
-                if ui.add(
-                    egui::Button::new(RichText::new(theme_icon).font(FontId::proportional(16.0)).color(colors.text_dim))
-                        .frame(false)
-                ).clicked() {
+                let theme_icon = if app.dark_mode {
+                    "\u{2600}"
+                } else {
+                    "\u{263D}"
+                };
+                if ui
+                    .add(
+                        egui::Button::new(
+                            RichText::new(theme_icon)
+                                .font(FontId::proportional(16.0))
+                                .color(colors.text_dim),
+                        )
+                        .frame(false),
+                    )
+                    .clicked()
+                {
                     app.dark_mode = !app.dark_mode;
                     app.colors_cache = None;
                     let new_theme = if app.dark_mode {
@@ -122,19 +178,30 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     } else {
                         tc_config::Theme::Light
                     };
-                    app.ctx.config.write(|c| { c.ui.theme = new_theme; });
+                    app.ctx.config.write(|c| {
+                        c.ui.theme = new_theme;
+                    });
                 }
 
                 // Only show bell and Add Music on wider widths
                 if total_w >= BREAKPOINT_MEDIUM {
                     ui.add_space(8.0);
-                    ui.label(RichText::new("\u{1F514}").font(FontId::proportional(18.0)).color(colors.text_dim));
+                    ui.label(
+                        RichText::new("\u{1F514}")
+                            .font(FontId::proportional(18.0))
+                            .color(colors.text_dim),
+                    );
                     ui.add_space(12.0);
 
                     let add_btn_w = 110.0;
                     let add_btn_h = 36.0;
-                    let (add_rect, add_resp) = ui.allocate_exact_size(Vec2::new(add_btn_w, add_btn_h), Sense::click());
-                    let add_bg = if add_resp.hovered() { colors.accent_dark } else { colors.accent };
+                    let (add_rect, add_resp) =
+                        ui.allocate_exact_size(Vec2::new(add_btn_w, add_btn_h), Sense::click());
+                    let add_bg = if add_resp.hovered() {
+                        colors.accent_dark
+                    } else {
+                        colors.accent
+                    };
                     ui.painter().rect_filled(add_rect, 8.0, add_bg);
                     ui.painter().text(
                         add_rect.center(),
@@ -148,7 +215,11 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     }
                 } else if total_w >= BREAKPOINT_NARROW {
                     ui.add_space(4.0);
-                    ui.label(RichText::new("\u{1F514}").font(FontId::proportional(14.0)).color(colors.text_dim));
+                    ui.label(
+                        RichText::new("\u{1F514}")
+                            .font(FontId::proportional(14.0))
+                            .color(colors.text_dim),
+                    );
                 }
             });
         });
@@ -173,7 +244,13 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.add_space(if is_narrow { 12.0 } else { 24.0 });
             ui.vertical(|ui| {
-                let heading_size = if is_narrow { 18.0 } else if is_medium { 20.0 } else { 24.0 };
+                let heading_size = if is_narrow {
+                    18.0
+                } else if is_medium {
+                    20.0
+                } else {
+                    24.0
+                };
                 ui.label(
                     RichText::new(app.nav.label())
                         .font(FontId::proportional(heading_size))
@@ -182,16 +259,18 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 );
 
                 let total_tracks = app.tracks.len();
-                let total_duration_mins: f64 = app.tracks.iter()
-                    .map(|t| t.duration_secs / 60.0)
-                    .sum();
+                let total_duration_mins: f64 =
+                    app.tracks.iter().map(|t| t.duration_secs / 60.0).sum();
                 let hours = (total_duration_mins / 60.0) as u32;
                 let mins = (total_duration_mins % 60.0) as u32;
                 let sub_font = if is_narrow { 11.0 } else { 14.0 };
                 ui.label(
-                    RichText::new(format!("{} tracks \u{2022} {} hours {} minutes", total_tracks, hours, mins))
-                        .font(FontId::proportional(sub_font))
-                        .color(colors.text_dim),
+                    RichText::new(format!(
+                        "{} tracks \u{2022} {} hours {} minutes",
+                        total_tracks, hours, mins
+                    ))
+                    .font(FontId::proportional(sub_font))
+                    .color(colors.text_dim),
                 );
             });
 
@@ -258,7 +337,14 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 if max_page > 0 {
                     ui.add_space(8.0);
                     if current_page < max_page {
-                        if ui.button(RichText::new("\u{25B6}").font(FontId::proportional(11.0)).color(colors.text_dim)).clicked() {
+                        if ui
+                            .button(
+                                RichText::new("\u{25B6}")
+                                    .font(FontId::proportional(11.0))
+                                    .color(colors.text_dim),
+                            )
+                            .clicked()
+                        {
                             app.track_page = current_page + 1;
                             app.ctx.library.next_page();
                             app.refresh_tracks();
@@ -270,7 +356,14 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                             .color(colors.text_dim),
                     );
                     if current_page > 0 {
-                        if ui.button(RichText::new("\u{25C0}").font(FontId::proportional(11.0)).color(colors.text_dim)).clicked() {
+                        if ui
+                            .button(
+                                RichText::new("\u{25C0}")
+                                    .font(FontId::proportional(11.0))
+                                    .color(colors.text_dim),
+                            )
+                            .clicked()
+                        {
                             app.track_page = current_page - 1;
                             app.ctx.library.prev_page();
                             app.refresh_tracks();
@@ -284,24 +377,35 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
         let filtered_indices: Vec<usize> = if app.search_query.is_empty() {
             let snapshot = app.ctx.library.snapshot();
-            if app.tracks.len() != snapshot.tracks.len() || app.tracks.iter().zip(snapshot.tracks.iter()).any(|(a, b)| a.id != b.id) {
+            if app.tracks.len() != snapshot.tracks.len()
+                || app
+                    .tracks
+                    .iter()
+                    .zip(snapshot.tracks.iter())
+                    .any(|(a, b)| a.id != b.id)
+            {
                 app.tracks = snapshot.tracks.clone();
             }
-            app.tracks.iter().enumerate()
+            app.tracks
+                .iter()
+                .enumerate()
                 .filter(|(_, track)| match app.nav {
                     crate::sidebar::NavSection::AllTracks => true,
                     crate::sidebar::NavSection::Albums => track.album.is_some(),
                     crate::sidebar::NavSection::Artists => track.artist.is_some(),
-                    crate::sidebar::NavSection::Favorites => app.cached_favorite_ids.contains(&track.id),
+                    crate::sidebar::NavSection::Favorites => {
+                        app.cached_favorite_ids.contains(&track.id)
+                    },
                     crate::sidebar::NavSection::RecentlyPlayed => track.last_played.is_some(),
                     crate::sidebar::NavSection::MostPlayed => track.play_count > 0,
                     crate::sidebar::NavSection::MoodDance
                     | crate::sidebar::NavSection::MoodRomantic
                     | crate::sidebar::NavSection::MoodSad
                     | crate::sidebar::NavSection::MoodSufi
-                    | crate::sidebar::NavSection::MoodChill => {
-                        track.mood.as_deref().map_or(false, |m| app.nav.mood_matches(m))
-                    }
+                    | crate::sidebar::NavSection::MoodChill => track
+                        .mood
+                        .as_deref()
+                        .map_or(false, |m| app.nav.mood_matches(m)),
                     crate::sidebar::NavSection::Settings => false,
                 })
                 .map(|(i, _)| i)
@@ -315,11 +419,19 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     }
                 }
             }
-            app.tracks.iter().enumerate()
+            app.tracks
+                .iter()
+                .enumerate()
                 .filter(|(_, track)| {
                     track.title.to_lowercase().contains(&q)
-                        || track.artist.as_ref().map_or(false, |a| a.to_lowercase().contains(&q))
-                        || track.album.as_ref().map_or(false, |a| a.to_lowercase().contains(&q))
+                        || track
+                            .artist
+                            .as_ref()
+                            .map_or(false, |a| a.to_lowercase().contains(&q))
+                        || track
+                            .album
+                            .as_ref()
+                            .map_or(false, |a| a.to_lowercase().contains(&q))
                 })
                 .map(|(i, _)| i)
                 .collect()
@@ -343,31 +455,56 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             );
             ui.add_space(4.0);
             if app.lyrics_loading {
-                ui.label(RichText::new("Loading lyrics...").font(FontId::proportional(12.0)).color(colors.text_dim));
+                ui.label(
+                    RichText::new("Loading lyrics...")
+                        .font(FontId::proportional(12.0))
+                        .color(colors.text_dim),
+                );
             } else if let Some(ref lines) = app.current_lyrics {
                 let has_synced = lines.iter().any(|l| l.timestamp_ms > 0);
                 if has_synced {
                     let pos_ms = (app.position_secs * 1000.0) as u64;
-                    let current_line_idx = tc_lyrics::LyricsClient::find_current_line(lines, pos_ms);
-                    egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                        for (i, line) in lines.iter().enumerate() {
-                            let is_current = current_line_idx == Some(i);
-                            let line_color = if is_current { colors.accent } else { colors.text_dim };
-                            let font_size = if is_current { 14.0 } else { 12.0 };
-                            ui.label(RichText::new(&line.text).font(FontId::proportional(font_size)).color(line_color));
-                        }
-                    });
-                } else {
-                    egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                        for line in lines.iter() {
-                            if !line.text.is_empty() {
-                                ui.label(RichText::new(&line.text).font(FontId::proportional(12.0)).color(colors.text_dim));
+                    let current_line_idx =
+                        tc_lyrics::LyricsClient::find_current_line(lines, pos_ms);
+                    egui::ScrollArea::vertical()
+                        .max_height(200.0)
+                        .show(ui, |ui| {
+                            for (i, line) in lines.iter().enumerate() {
+                                let is_current = current_line_idx == Some(i);
+                                let line_color = if is_current {
+                                    colors.accent
+                                } else {
+                                    colors.text_dim
+                                };
+                                let font_size = if is_current { 14.0 } else { 12.0 };
+                                ui.label(
+                                    RichText::new(&line.text)
+                                        .font(FontId::proportional(font_size))
+                                        .color(line_color),
+                                );
                             }
-                        }
-                    });
+                        });
+                } else {
+                    egui::ScrollArea::vertical()
+                        .max_height(200.0)
+                        .show(ui, |ui| {
+                            for line in lines.iter() {
+                                if !line.text.is_empty() {
+                                    ui.label(
+                                        RichText::new(&line.text)
+                                            .font(FontId::proportional(12.0))
+                                            .color(colors.text_dim),
+                                    );
+                                }
+                            }
+                        });
                 }
             } else {
-                ui.label(RichText::new("No lyrics available for this track").font(FontId::proportional(12.0)).color(colors.text_dim));
+                ui.label(
+                    RichText::new("No lyrics available for this track")
+                        .font(FontId::proportional(12.0))
+                        .color(colors.text_dim),
+                );
             }
         }
     });
@@ -376,7 +513,9 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 /// Renders a pill-shaped toolbar button matching the reference design
 fn styled_toolbar_btn(ui: &mut Ui, label: &str, active: bool, colors: &TuneCraftColors) -> bool {
     let font = FontId::proportional(14.0);
-    let galley = ui.painter().layout_no_wrap(label.to_string(), font.clone(), Color32::WHITE);
+    let galley = ui
+        .painter()
+        .layout_no_wrap(label.to_string(), font.clone(), Color32::WHITE);
     let btn_w = galley.size().x + 24.0;
     let btn_h = 40.0;
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(btn_w, btn_h), Sense::click());
@@ -390,11 +529,22 @@ fn styled_toolbar_btn(ui: &mut Ui, label: &str, active: bool, colors: &TuneCraft
     };
 
     let border_color = if active { colors.accent } else { colors.border };
-    let text_color = if active { Color32::WHITE } else { colors.text_dim };
+    let text_color = if active {
+        Color32::WHITE
+    } else {
+        colors.text_dim
+    };
 
     ui.painter().rect_filled(rect, 8.0, bg);
-    ui.painter().rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border_color));
-    ui.painter().text(rect.center(), Align2::CENTER_CENTER, label, font, text_color);
+    ui.painter()
+        .rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border_color));
+    ui.painter().text(
+        rect.center(),
+        Align2::CENTER_CENTER,
+        label,
+        font,
+        text_color,
+    );
 
     resp.clicked()
 }
@@ -422,11 +572,22 @@ fn styled_icon_btn(ui: &mut Ui, icon: &str, active: bool, colors: &TuneCraftColo
     };
 
     let border_color = if active { colors.accent } else { colors.border };
-    let icon_color = if active { colors.accent } else { colors.text_dim };
+    let icon_color = if active {
+        colors.accent
+    } else {
+        colors.text_dim
+    };
 
     ui.painter().rect_filled(rect, 8.0, bg);
-    ui.painter().rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border_color));
-    ui.painter().text(rect.center(), Align2::CENTER_CENTER, icon, FontId::proportional(16.0), icon_color);
+    ui.painter()
+        .rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border_color));
+    ui.painter().text(
+        rect.center(),
+        Align2::CENTER_CENTER,
+        icon,
+        FontId::proportional(16.0),
+        icon_color,
+    );
 
     resp.clicked()
 }
@@ -512,17 +673,22 @@ fn compute_col_offsets(width: f32, vis: &ColumnVisibility) -> [f32; 6] {
     let col_dur_w = usable_w * dur_frac;
 
     [
-        0.0f32,                                                    // col 0: #
-        col_num_w,                                                 // col 1: art start
-        col_num_w + art_w + art_gap,                               // col 2: title start
-        col_num_w + art_w + art_gap + col_title_w,                 // col 3: album start
-        col_num_w + art_w + art_gap + col_title_w + col_album_w,   // col 4: duration start
+        0.0f32,                                                              // col 0: #
+        col_num_w,                                                           // col 1: art start
+        col_num_w + art_w + art_gap,                                         // col 2: title start
+        col_num_w + art_w + art_gap + col_title_w,                           // col 3: album start
+        col_num_w + art_w + art_gap + col_title_w + col_album_w, // col 4: duration start
         col_num_w + art_w + art_gap + col_title_w + col_album_w + col_dur_w, // col 5: mood start
     ]
 }
 
 /// Draw the traditional list/table view of tracks
-fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize], colors: &TuneCraftColors) {
+fn draw_list_view(
+    app: &mut TuneCraftApp,
+    ui: &mut Ui,
+    filtered_indices: &[usize],
+    colors: &TuneCraftColors,
+) {
     let width = ui.available_width();
     let vis = column_visibility(width);
     let col_offsets = compute_col_offsets(width, &vis);
@@ -530,28 +696,77 @@ fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
 
     // Table header
     let (header_rect, _) = ui.allocate_exact_size(Vec2::new(width, 48.0), Sense::hover());
-    ui.painter().rect_filled(header_rect, 0.0, colors.table_header_bg);
+    ui.painter()
+        .rect_filled(header_rect, 0.0, colors.table_header_bg);
 
     let header_y = header_rect.center().y;
     let header_font = FontId::proportional(12.0);
     let header_color = colors.text_muted;
     let lx = header_rect.left();
 
-    ui.painter().text(Pos2::new(lx + col_offsets[0] + 12.0, header_y), Align2::LEFT_CENTER, "#", header_font.clone(), header_color);
+    ui.painter().text(
+        Pos2::new(lx + col_offsets[0] + 12.0, header_y),
+        Align2::LEFT_CENTER,
+        "#",
+        header_font.clone(),
+        header_color,
+    );
     if vis.show_art {
-        ui.painter().text(Pos2::new(lx + col_offsets[1] + art_w + 8.0, header_y), Align2::LEFT_CENTER, "TITLE", header_font.clone(), header_color);
+        ui.painter().text(
+            Pos2::new(lx + col_offsets[1] + art_w + 8.0, header_y),
+            Align2::LEFT_CENTER,
+            "TITLE",
+            header_font.clone(),
+            header_color,
+        );
     } else {
-        ui.painter().text(Pos2::new(lx + col_offsets[1] + 4.0, header_y), Align2::LEFT_CENTER, "TITLE", header_font.clone(), header_color);
+        ui.painter().text(
+            Pos2::new(lx + col_offsets[1] + 4.0, header_y),
+            Align2::LEFT_CENTER,
+            "TITLE",
+            header_font.clone(),
+            header_color,
+        );
     }
     if vis.show_album {
-        ui.painter().text(Pos2::new(lx + col_offsets[3] + 4.0, header_y), Align2::LEFT_CENTER, "ALBUM", header_font.clone(), header_color);
+        ui.painter().text(
+            Pos2::new(lx + col_offsets[3] + 4.0, header_y),
+            Align2::LEFT_CENTER,
+            "ALBUM",
+            header_font.clone(),
+            header_color,
+        );
     }
     if vis.show_mood {
-        ui.painter().text(Pos2::new(lx + col_offsets[4] + 18.0, header_y), Align2::LEFT_CENTER, "\u{23F1}", FontId::proportional(12.0), header_color);
-        ui.painter().text(Pos2::new(lx + col_offsets[4] + 32.0, header_y), Align2::LEFT_CENTER, "DURATION", header_font.clone(), header_color);
-        ui.painter().text(Pos2::new(lx + col_offsets[5] + 4.0, header_y), Align2::LEFT_CENTER, "MOOD", header_font, header_color);
+        ui.painter().text(
+            Pos2::new(lx + col_offsets[4] + 18.0, header_y),
+            Align2::LEFT_CENTER,
+            "\u{23F1}",
+            FontId::proportional(12.0),
+            header_color,
+        );
+        ui.painter().text(
+            Pos2::new(lx + col_offsets[4] + 32.0, header_y),
+            Align2::LEFT_CENTER,
+            "DURATION",
+            header_font.clone(),
+            header_color,
+        );
+        ui.painter().text(
+            Pos2::new(lx + col_offsets[5] + 4.0, header_y),
+            Align2::LEFT_CENTER,
+            "MOOD",
+            header_font,
+            header_color,
+        );
     } else {
-        ui.painter().text(Pos2::new(lx + col_offsets[4] + 4.0, header_y), Align2::LEFT_CENTER, "DURATION", header_font, header_color);
+        ui.painter().text(
+            Pos2::new(lx + col_offsets[4] + 4.0, header_y),
+            Align2::LEFT_CENTER,
+            "DURATION",
+            header_font,
+            header_color,
+        );
     }
 
     // Separator line
@@ -587,9 +802,12 @@ fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                 } else if is_playing {
                     if colors.dark_mode {
                         Color32::from_rgba_premultiplied(
-                            (colors.accent.r() as u16 * 12 / 100 + row_base.r() as u16 * 88 / 100) as u8,
-                            (colors.accent.g() as u16 * 12 / 100 + row_base.g() as u16 * 88 / 100) as u8,
-                            (colors.accent.b() as u16 * 12 / 100 + row_base.b() as u16 * 88 / 100) as u8,
+                            (colors.accent.r() as u16 * 12 / 100 + row_base.r() as u16 * 88 / 100)
+                                as u8,
+                            (colors.accent.g() as u16 * 12 / 100 + row_base.g() as u16 * 88 / 100)
+                                as u8,
+                            (colors.accent.b() as u16 * 12 / 100 + row_base.b() as u16 * 88 / 100)
+                                as u8,
                             255,
                         )
                     } else {
@@ -602,7 +820,8 @@ fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
 
                 // Left accent bar for playing track — full height
                 if is_playing {
-                    let bar = egui::Rect::from_min_size(row_rect.left_top(), Vec2::new(3.0, track_row_h));
+                    let bar =
+                        egui::Rect::from_min_size(row_rect.left_top(), Vec2::new(3.0, track_row_h));
                     ui.painter().rect_filled(bar, 1.5, colors.accent);
                 }
 
@@ -615,16 +834,34 @@ fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                 let cx = compute_col_offsets(rw, &row_vis);
                 // Shift by row's left edge
                 let cx: [f32; 6] = [
-                    lx + cx[0], lx + cx[1], lx + cx[2],
-                    lx + cx[3], lx + cx[4], lx + cx[5],
+                    lx + cx[0],
+                    lx + cx[1],
+                    lx + cx[2],
+                    lx + cx[3],
+                    lx + cx[4],
+                    lx + cx[5],
                 ];
 
                 // Track number / play indicator
                 let num_font = FontId::proportional(12.0);
-                let num_color = if is_playing { colors.accent } else { colors.text_dim };
+                let num_color = if is_playing {
+                    colors.accent
+                } else {
+                    colors.text_dim
+                };
                 let num_str = display_num.to_string();
-                let num_text = if is_playing && !row_resp.hovered() { "\u{25B6}" } else { &num_str };
-                ui.painter().text(Pos2::new(cx[0] + 12.0, cy), Align2::CENTER_CENTER, num_text, num_font, num_color);
+                let num_text = if is_playing && !row_resp.hovered() {
+                    "\u{25B6}"
+                } else {
+                    &num_str
+                };
+                ui.painter().text(
+                    Pos2::new(cx[0] + 12.0, cy),
+                    Align2::CENTER_CENTER,
+                    num_text,
+                    num_font,
+                    num_color,
+                );
 
                 // Album art placeholder — only if visible
                 if row_vis.show_art {
@@ -637,16 +874,38 @@ fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                 }
 
                 // Title + Artist (stacked)
-                let title_end_x = if row_vis.show_album { cx[3] } else if row_vis.show_mood { cx[4] } else { cx[4] };
+                let title_end_x = if row_vis.show_album {
+                    cx[3]
+                } else if row_vis.show_mood {
+                    cx[4]
+                } else {
+                    cx[4]
+                };
                 let title_max_w = title_end_x - cx[2] - 8.0;
                 let title_font = FontId::proportional(14.0);
                 let artist_font = FontId::proportional(12.0);
-                let title_color = if is_playing { colors.accent } else { colors.text };
+                let title_color = if is_playing {
+                    colors.accent
+                } else {
+                    colors.text
+                };
                 let truncated_title = truncate_text(ui, &track.title, &title_font, title_max_w);
-                ui.painter().text(Pos2::new(cx[2], cy - 9.0), Align2::LEFT_CENTER, &truncated_title, title_font, title_color);
+                ui.painter().text(
+                    Pos2::new(cx[2], cy - 9.0),
+                    Align2::LEFT_CENTER,
+                    &truncated_title,
+                    title_font,
+                    title_color,
+                );
                 let artist = track.artist.as_deref().unwrap_or("Unknown Artist");
                 let truncated_artist = truncate_text(ui, artist, &artist_font, title_max_w);
-                ui.painter().text(Pos2::new(cx[2], cy + 9.0), Align2::LEFT_CENTER, &truncated_artist, artist_font, colors.text_dim);
+                ui.painter().text(
+                    Pos2::new(cx[2], cy + 9.0),
+                    Align2::LEFT_CENTER,
+                    &truncated_artist,
+                    artist_font,
+                    colors.text_dim,
+                );
 
                 // Album — only if column is visible
                 if row_vis.show_album {
@@ -654,39 +913,71 @@ fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                     let album_font = FontId::proportional(14.0);
                     let album = track.album.as_deref().unwrap_or("");
                     let truncated_album = truncate_text(ui, album, &album_font, album_max_w);
-                    ui.painter().text(Pos2::new(cx[3] + 4.0, cy), Align2::LEFT_CENTER, &truncated_album, album_font, colors.text_dim);
+                    ui.painter().text(
+                        Pos2::new(cx[3] + 4.0, cy),
+                        Align2::LEFT_CENTER,
+                        &truncated_album,
+                        album_font,
+                        colors.text_dim,
+                    );
                 }
 
                 // Duration
                 let dur_secs = track.duration_secs as u32;
                 let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
                 let dur_x = if row_vis.show_mood { cx[4] } else { cx[4] };
-                ui.painter().text(Pos2::new(dur_x + 4.0, cy), Align2::LEFT_CENTER, &dur_str, FontId::proportional(14.0), colors.text_dim);
+                ui.painter().text(
+                    Pos2::new(dur_x + 4.0, cy),
+                    Align2::LEFT_CENTER,
+                    &dur_str,
+                    FontId::proportional(14.0),
+                    colors.text_dim,
+                );
 
                 // Mood tag pill — only if column is visible
                 if row_vis.show_mood {
-                if let Some(ref mood) = track.mood {
-                    let mood_font = FontId::proportional(12.0);
-                    let galley = ui.painter().layout_no_wrap(mood.clone(), mood_font.clone(), Color32::WHITE);
-                    let tag_w = galley.size().x + 16.0;
-                    let tag_h = 24.0;
-                    let tag_rect = egui::Rect::from_center_size(
-                        Pos2::new(cx[5] + tag_w / 2.0 + 4.0, cy),
-                        Vec2::new(tag_w, tag_h),
-                    );
+                    if let Some(ref mood) = track.mood {
+                        let mood_font = FontId::proportional(12.0);
+                        let galley = ui.painter().layout_no_wrap(
+                            mood.clone(),
+                            mood_font.clone(),
+                            Color32::WHITE,
+                        );
+                        let tag_w = galley.size().x + 16.0;
+                        let tag_h = 24.0;
+                        let tag_rect = egui::Rect::from_center_size(
+                            Pos2::new(cx[5] + tag_w / 2.0 + 4.0, cy),
+                            Vec2::new(tag_w, tag_h),
+                        );
 
-                    if colors.dark_mode {
-                        let mood_color = crate::theme::mood_color(mood);
-                        ui.painter().rect_filled(tag_rect, 12.0, mood_color);
-                        ui.painter().text(tag_rect.center(), Align2::CENTER_CENTER, mood, mood_font, Color32::WHITE);
-                    } else {
-                        let mood_bg = crate::theme::mood_color_light_bg(mood);
-                        let mood_fg = crate::theme::mood_color_light_fg(mood);
-                        ui.painter().rect_filled(tag_rect, 12.0, mood_bg);
-                        ui.painter().rect_stroke(tag_rect, 12.0, egui::Stroke::new(1.0, mood_fg));
-                        ui.painter().text(tag_rect.center(), Align2::CENTER_CENTER, mood, mood_font, mood_fg);
+                        if colors.dark_mode {
+                            let mood_color = crate::theme::mood_color(mood);
+                            ui.painter().rect_filled(tag_rect, 12.0, mood_color);
+                            ui.painter().text(
+                                tag_rect.center(),
+                                Align2::CENTER_CENTER,
+                                mood,
+                                mood_font,
+                                Color32::WHITE,
+                            );
+                        } else {
+                            let mood_bg = crate::theme::mood_color_light_bg(mood);
+                            let mood_fg = crate::theme::mood_color_light_fg(mood);
+                            ui.painter().rect_filled(tag_rect, 12.0, mood_bg);
+                            ui.painter().rect_stroke(
+                                tag_rect,
+                                12.0,
+                                egui::Stroke::new(1.0, mood_fg),
+                            );
+                            ui.painter().text(
+                                tag_rect.center(),
+                                Align2::CENTER_CENTER,
+                                mood,
+                                mood_font,
+                                mood_fg,
+                            );
+                        }
                     }
-                }
                 } // end show_mood
 
                 // Three-dot context menu — always visible (matching reference image)
@@ -694,13 +985,26 @@ fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                     Pos2::new(row_rect.right() - 16.0, cy),
                     Vec2::new(20.0, 20.0),
                 );
-                let dots_color = if row_resp.hovered() { colors.text } else { colors.text_dim };
-                ui.painter().text(dots_rect.center(), Align2::CENTER_CENTER, "\u{22EE}", FontId::proportional(14.0), dots_color);
+                let dots_color = if row_resp.hovered() {
+                    colors.text
+                } else {
+                    colors.text_dim
+                };
+                ui.painter().text(
+                    dots_rect.center(),
+                    Align2::CENTER_CENTER,
+                    "\u{22EE}",
+                    FontId::proportional(14.0),
+                    dots_color,
+                );
 
                 // Interactions
                 let track_id = track.id;
                 if row_resp.double_clicked() {
-                    let new_queue: Vec<i64> = filtered_indices.iter().filter_map(|&idx| app.tracks.get(idx).map(|t| t.id)).collect();
+                    let new_queue: Vec<i64> = filtered_indices
+                        .iter()
+                        .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
+                        .collect();
                     app.ctx.playback.set_play_queue(new_queue.clone());
                     app.play_queue = new_queue;
                     app.play_track(track_id);
@@ -712,16 +1016,27 @@ fn draw_list_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                 // Bottom row separator (subtle)
                 ui.painter().line_segment(
                     [row_rect.left_bottom(), row_rect.right_bottom()],
-                    egui::Stroke::new(0.5, Color32::from_rgba_premultiplied(
-                        colors.border.r(), colors.border.g(), colors.border.b(), 80
-                    )),
+                    egui::Stroke::new(
+                        0.5,
+                        Color32::from_rgba_premultiplied(
+                            colors.border.r(),
+                            colors.border.g(),
+                            colors.border.b(),
+                            80,
+                        ),
+                    ),
                 );
             }
         });
 }
 
 /// Draw the grid/card view of tracks — responsive card sizing
-fn draw_grid_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize], colors: &TuneCraftColors) {
+fn draw_grid_view(
+    app: &mut TuneCraftApp,
+    ui: &mut Ui,
+    filtered_indices: &[usize],
+    colors: &TuneCraftColors,
+) {
     let available_width = ui.available_width();
     // Adaptive card sizing: smaller cards on narrow viewports
     let (card_width, card_height, card_spacing) = if available_width < BREAKPOINT_NARROW {
@@ -731,7 +1046,8 @@ fn draw_grid_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
     } else {
         (180.0, 96.0, 10.0)
     };
-    let columns = ((available_width + card_spacing) / (card_width + card_spacing)).max(1.0) as usize;
+    let columns =
+        ((available_width + card_spacing) / (card_width + card_spacing)).max(1.0) as usize;
 
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
@@ -752,9 +1068,15 @@ fn draw_grid_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                         } else if is_playing {
                             if colors.dark_mode {
                                 Color32::from_rgba_premultiplied(
-                                    (colors.accent.r() as u16 * 15 / 100 + colors.card.r() as u16 * 85 / 100) as u8,
-                                    (colors.accent.g() as u16 * 15 / 100 + colors.card.g() as u16 * 85 / 100) as u8,
-                                    (colors.accent.b() as u16 * 15 / 100 + colors.card.b() as u16 * 85 / 100) as u8,
+                                    (colors.accent.r() as u16 * 15 / 100
+                                        + colors.card.r() as u16 * 85 / 100)
+                                        as u8,
+                                    (colors.accent.g() as u16 * 15 / 100
+                                        + colors.card.g() as u16 * 85 / 100)
+                                        as u8,
+                                    (colors.accent.b() as u16 * 15 / 100
+                                        + colors.card.b() as u16 * 85 / 100)
+                                        as u8,
                                     255,
                                 )
                             } else {
@@ -764,7 +1086,11 @@ fn draw_grid_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                             colors.card
                         };
                         ui.painter().rect_filled(card_rect, 8.0, bg);
-                        ui.painter().rect_stroke(card_rect, 8.0, egui::Stroke::new(1.0, colors.border));
+                        ui.painter().rect_stroke(
+                            card_rect,
+                            8.0,
+                            egui::Stroke::new(1.0, colors.border),
+                        );
 
                         // Album art placeholder on left
                         let art_size = card_height - 16.0;
@@ -776,37 +1102,73 @@ fn draw_grid_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
 
                         // Left accent bar if playing
                         if is_playing {
-                            let bar = egui::Rect::from_min_size(card_rect.left_top(), Vec2::new(3.0, card_height));
+                            let bar = egui::Rect::from_min_size(
+                                card_rect.left_top(),
+                                Vec2::new(3.0, card_height),
+                            );
                             ui.painter().rect_filled(bar, 8.0, colors.accent);
                         }
 
                         let text_x = art_rect.right() + 8.0;
                         let max_text_w = card_rect.right() - text_x - 6.0;
-                        let title_color = if is_playing { colors.accent } else { colors.text };
+                        let title_color = if is_playing {
+                            colors.accent
+                        } else {
+                            colors.text
+                        };
 
                         let title_font = FontId::proportional(12.0);
-                        let truncated_title = truncate_text(ui, &track.title, &title_font, max_text_w);
-                        ui.painter().text(Pos2::new(text_x, card_rect.top() + 18.0), Align2::LEFT_CENTER, &truncated_title, title_font, title_color);
+                        let truncated_title =
+                            truncate_text(ui, &track.title, &title_font, max_text_w);
+                        ui.painter().text(
+                            Pos2::new(text_x, card_rect.top() + 18.0),
+                            Align2::LEFT_CENTER,
+                            &truncated_title,
+                            title_font,
+                            title_color,
+                        );
 
                         let artist_font = FontId::proportional(10.0);
                         let artist = track.artist.as_deref().unwrap_or("Unknown");
                         let truncated_artist = truncate_text(ui, artist, &artist_font, max_text_w);
-                        ui.painter().text(Pos2::new(text_x, card_rect.top() + 34.0), Align2::LEFT_CENTER, &truncated_artist, artist_font, colors.text_dim);
+                        ui.painter().text(
+                            Pos2::new(text_x, card_rect.top() + 34.0),
+                            Align2::LEFT_CENTER,
+                            &truncated_artist,
+                            artist_font,
+                            colors.text_dim,
+                        );
 
                         let album_font = FontId::proportional(9.5);
                         let album = track.album.as_deref().unwrap_or("");
                         let truncated_album = truncate_text(ui, album, &album_font, max_text_w);
-                        ui.painter().text(Pos2::new(text_x, card_rect.top() + 50.0), Align2::LEFT_CENTER, &truncated_album, album_font, colors.text_dim);
+                        ui.painter().text(
+                            Pos2::new(text_x, card_rect.top() + 50.0),
+                            Align2::LEFT_CENTER,
+                            &truncated_album,
+                            album_font,
+                            colors.text_dim,
+                        );
 
                         let dur_secs = track.duration_secs as u32;
                         let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
-                        ui.painter().text(Pos2::new(text_x, card_rect.top() + 66.0), Align2::LEFT_CENTER, &dur_str, FontId::proportional(9.5), colors.text_dim);
+                        ui.painter().text(
+                            Pos2::new(text_x, card_rect.top() + 66.0),
+                            Align2::LEFT_CENTER,
+                            &dur_str,
+                            FontId::proportional(9.5),
+                            colors.text_dim,
+                        );
 
                         if let Some(ref mood) = track.mood {
                             if colors.dark_mode {
                                 let mood_color = crate::theme::mood_color(mood);
                                 let mood_font = FontId::proportional(9.0);
-                                let galley = ui.painter().layout_no_wrap(mood.clone(), mood_font.clone(), Color32::WHITE);
+                                let galley = ui.painter().layout_no_wrap(
+                                    mood.clone(),
+                                    mood_font.clone(),
+                                    Color32::WHITE,
+                                );
                                 let tag_w = galley.size().x + 10.0;
                                 let tag_h = 15.0;
                                 let tag_rect = egui::Rect::from_min_size(
@@ -814,12 +1176,22 @@ fn draw_grid_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                                     Vec2::new(tag_w, tag_h),
                                 );
                                 ui.painter().rect_filled(tag_rect, 7.0, mood_color);
-                                ui.painter().text(tag_rect.center(), Align2::CENTER_CENTER, mood, mood_font, Color32::WHITE);
+                                ui.painter().text(
+                                    tag_rect.center(),
+                                    Align2::CENTER_CENTER,
+                                    mood,
+                                    mood_font,
+                                    Color32::WHITE,
+                                );
                             } else {
                                 let mood_bg = crate::theme::mood_color_light_bg(mood);
                                 let mood_fg = crate::theme::mood_color_light_fg(mood);
                                 let mood_font = FontId::proportional(9.0);
-                                let galley = ui.painter().layout_no_wrap(mood.clone(), mood_font.clone(), Color32::WHITE);
+                                let galley = ui.painter().layout_no_wrap(
+                                    mood.clone(),
+                                    mood_font.clone(),
+                                    Color32::WHITE,
+                                );
                                 let tag_w = galley.size().x + 10.0;
                                 let tag_h = 15.0;
                                 let tag_rect = egui::Rect::from_min_size(
@@ -827,14 +1199,27 @@ fn draw_grid_view(app: &mut TuneCraftApp, ui: &mut Ui, filtered_indices: &[usize
                                     Vec2::new(tag_w, tag_h),
                                 );
                                 ui.painter().rect_filled(tag_rect, 7.0, mood_bg);
-                                ui.painter().rect_stroke(tag_rect, 7.0, egui::Stroke::new(1.0, mood_fg));
-                                ui.painter().text(tag_rect.center(), Align2::CENTER_CENTER, mood, mood_font, mood_fg);
+                                ui.painter().rect_stroke(
+                                    tag_rect,
+                                    7.0,
+                                    egui::Stroke::new(1.0, mood_fg),
+                                );
+                                ui.painter().text(
+                                    tag_rect.center(),
+                                    Align2::CENTER_CENTER,
+                                    mood,
+                                    mood_font,
+                                    mood_fg,
+                                );
                             }
                         }
 
                         let track_id = track.id;
                         if card_resp.double_clicked() {
-                            let new_queue: Vec<i64> = filtered_indices.iter().filter_map(|&idx| app.tracks.get(idx).map(|t| t.id)).collect();
+                            let new_queue: Vec<i64> = filtered_indices
+                                .iter()
+                                .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
+                                .collect();
                             app.ctx.playback.set_play_queue(new_queue.clone());
                             app.play_queue = new_queue;
                             app.play_track(track_id);

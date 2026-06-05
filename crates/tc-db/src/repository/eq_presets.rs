@@ -3,11 +3,10 @@
 use crate::models::*;
 use rusqlite::params;
 
-use super::{Database, DbError};
 use super::tracks::log_and_filter;
+use super::{Database, DbError};
 
 impl Database {
-
     pub fn save_eq_preset(
         &self,
         name: &str,
@@ -15,7 +14,9 @@ impl Database {
         is_builtin: bool,
     ) -> Result<i64, DbError> {
         if name.is_empty() {
-            return Err(DbError::Validation("EQ preset name must not be empty".into()));
+            return Err(DbError::Validation(
+                "EQ preset name must not be empty".into(),
+            ));
         }
 
         let conn = self.write_lock()?;
@@ -37,7 +38,7 @@ impl Database {
     pub fn get_eq_presets(&self) -> Result<Vec<EqPreset>, DbError> {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(
-            "SELECT id, name, config_json, is_builtin, date_created FROM eq_presets ORDER BY name"
+            "SELECT id, name, config_json, is_builtin, date_created FROM eq_presets ORDER BY name",
         )?;
         let presets = stmt
             .query_map([], |row| {
@@ -61,13 +62,13 @@ impl Database {
     /// Built-in presets can be deleted (callers should check `is_builtin`
     /// first if they want to protect built-in presets).
     pub fn delete_eq_preset(&self, id: i64) -> Result<(), DbError> {
-        let removed = self.write_lock()?.execute(
-            "DELETE FROM eq_presets WHERE id = ?1",
-            params![id],
-        )?;
+        let removed = self
+            .write_lock()?
+            .execute("DELETE FROM eq_presets WHERE id = ?1", params![id])?;
         if removed == 0 {
             return Err(DbError::NotFound(format!(
-                "EQ preset with id {} does not exist", id
+                "EQ preset with id {} does not exist",
+                id
             )));
         }
         Ok(())
@@ -77,16 +78,15 @@ impl Database {
     ///
     ///
     pub fn delete_eq_preset_by_name(&self, name: &str) -> Result<(), DbError> {
-        let removed = self.write_lock()?.execute(
-            "DELETE FROM eq_presets WHERE name = ?1",
-            params![name],
-        )?;
+        let removed = self
+            .write_lock()?
+            .execute("DELETE FROM eq_presets WHERE name = ?1", params![name])?;
         if removed == 0 {
             return Err(DbError::NotFound(format!(
-                "EQ preset '{}' does not exist", name
+                "EQ preset '{}' does not exist",
+                name
             )));
         }
         Ok(())
     }
 }
-

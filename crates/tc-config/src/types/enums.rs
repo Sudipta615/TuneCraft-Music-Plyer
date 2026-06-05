@@ -13,7 +13,9 @@ pub enum PerformanceMode {
 }
 
 impl Default for PerformanceMode {
-    fn default() -> Self { Self::Balanced }
+    fn default() -> Self {
+        Self::Balanced
+    }
 }
 
 /// Filter types for parametric EQ bands
@@ -35,7 +37,9 @@ pub enum FilterType {
 }
 
 impl Default for FilterType {
-    fn default() -> Self { Self::Peaking }
+    fn default() -> Self {
+        Self::Peaking
+    }
 }
 
 /// Loudness normalization mode
@@ -53,7 +57,9 @@ pub enum LoudnessMode {
 }
 
 impl Default for LoudnessMode {
-    fn default() -> Self { Self::Off }
+    fn default() -> Self {
+        Self::Off
+    }
 }
 
 /// Crossfade curve type
@@ -69,7 +75,9 @@ pub enum CrossfadeCurve {
 }
 
 impl Default for CrossfadeCurve {
-    fn default() -> Self { Self::EqualPower }
+    fn default() -> Self {
+        Self::EqualPower
+    }
 }
 
 /// Resampler quality setting
@@ -85,7 +93,9 @@ pub enum ResamplerQuality {
 }
 
 impl Default for ResamplerQuality {
-    fn default() -> Self { Self::Balanced }
+    fn default() -> Self {
+        Self::Balanced
+    }
 }
 
 /// Repeat mode for playback
@@ -101,7 +111,9 @@ pub enum RepeatMode {
 }
 
 impl Default for RepeatMode {
-    fn default() -> Self { Self::Off }
+    fn default() -> Self {
+        Self::Off
+    }
 }
 
 /// Theme selection for the UI
@@ -117,6 +129,7 @@ pub enum Theme {
 }
 
 impl Default for Theme {
-    fn default() -> Self { Self::System }
+    fn default() -> Self {
+        Self::System
+    }
 }
-

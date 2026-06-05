@@ -51,10 +51,7 @@ impl Database {
     ///
     /// Returns `(data, mime_type)` or `None` if no inline data is available
     /// (the row may still exist with a `path` pointing to an on-disk cache).
-    pub fn get_cover_art_data(
-        &self,
-        album_id: i64,
-    ) -> Result<Option<(Vec<u8>, String)>, DbError> {
+    pub fn get_cover_art_data(&self, album_id: i64) -> Result<Option<(Vec<u8>, String)>, DbError> {
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(
             "SELECT data, mime_type FROM cover_art \
@@ -74,11 +71,7 @@ impl Database {
     /// Look up the album_id for a given album title and album_artist pair.
     ///
     /// Used by tc-library after a scan to link cover_art rows to their albums.
-    pub fn get_album_id(
-        &self,
-        title: &str,
-        artist: Option<&str>,
-    ) -> Result<Option<i64>, DbError> {
+    pub fn get_album_id(&self, title: &str, artist: Option<&str>) -> Result<Option<i64>, DbError> {
         let result = match artist {
             Some(a) => self.read_lock()?.query_row(
                 "SELECT id FROM albums WHERE title = ?1 AND artist = ?2",
@@ -116,11 +109,23 @@ mod tests {
         let album = albums.iter().find(|a| a.title == "Test Album").unwrap();
         assert!(!album.has_cover, "Album should not have cover initially");
 
-        db.insert_cover_art(Some(album.id), None, Some("/covers/test.jpg"), None, None, 500, 500, "image/jpeg").unwrap();
+        db.insert_cover_art(
+            Some(album.id),
+            None,
+            Some("/covers/test.jpg"),
+            None,
+            None,
+            500,
+            500,
+            "image/jpeg",
+        )
+        .unwrap();
 
         let albums = db.get_all_albums().unwrap();
         let album = albums.iter().find(|a| a.title == "Test Album").unwrap();
-        assert!(album.has_cover, "Album should have cover after insert_cover_art");
+        assert!(
+            album.has_cover,
+            "Album should have cover after insert_cover_art"
+        );
     }
 }
-

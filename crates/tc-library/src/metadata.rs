@@ -17,13 +17,9 @@ impl super::LibraryManager {
         file_size: i64,
         file_modified: i64,
     ) -> Result<Track, LibraryError> {
-        let (dur, sr, ch, tags, _cover) = Self::probe_file(path)
-            .ok_or_else(|| {
-                LibraryError::Other(format!(
-                    "Could not probe audio info for {}",
-                    path.display()
-                ))
-            })?;
+        let (dur, sr, ch, tags, _cover) = Self::probe_file(path).ok_or_else(|| {
+            LibraryError::Other(format!("Could not probe audio info for {}", path.display()))
+        })?;
         self.build_track(path, file_size, file_modified, dur, sr, ch, tags)
     }
 
@@ -34,13 +30,9 @@ impl super::LibraryManager {
         file_size: i64,
         file_modified: i64,
     ) -> Result<(Track, Option<CoverArtData>), LibraryError> {
-        let (dur, sr, ch, tags, cover) = Self::probe_file(path)
-            .ok_or_else(|| {
-                LibraryError::Other(format!(
-                    "Could not probe audio info for {}",
-                    path.display()
-                ))
-            })?;
+        let (dur, sr, ch, tags, cover) = Self::probe_file(path).ok_or_else(|| {
+            LibraryError::Other(format!("Could not probe audio info for {}", path.display()))
+        })?;
         let track = self.build_track(path, file_size, file_modified, dur, sr, ch, tags)?;
         Ok((track, cover))
     }
@@ -52,7 +44,9 @@ impl super::LibraryManager {
     /// Returns `(duration_secs, sample_rate, channels, FileTags, Option<CoverArtData>)`.
     /// `duration_secs` is `-1.0` when `n_frames` is unavailable; callers must
     /// convert to `0.0` before storing (see `build_track`).
-    pub(crate) fn probe_file(path: &Path) -> Option<(f64, u32, usize, FileTags, Option<CoverArtData>)> {
+    pub(crate) fn probe_file(
+        path: &Path,
+    ) -> Option<(f64, u32, usize, FileTags, Option<CoverArtData>)> {
         use symphonia::core::codecs::CODEC_TYPE_NULL;
         use symphonia::core::formats::FormatOptions;
         use symphonia::core::io::MediaSourceStream;
@@ -67,7 +61,12 @@ impl super::LibraryManager {
         }
 
         let mut probed = symphonia::default::get_probe()
-            .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+            .format(
+                &hint,
+                mss,
+                &FormatOptions::default(),
+                &MetadataOptions::default(),
+            )
             .ok()?;
 
         let track = probed
@@ -83,7 +82,9 @@ impl super::LibraryManager {
         if sample_rate == 0 || channels == 0 {
             warn!(
                 "File {} missing codec parameters (sample_rate={}, channels={}) — skipping",
-                path.display(), sample_rate, channels
+                path.display(),
+                sample_rate,
+                channels
             );
             return None;
         }
@@ -138,8 +139,9 @@ impl super::LibraryManager {
             duration_secs
         };
 
-        let title = tags.title.unwrap_or_else(|| {
-            match path.file_stem().and_then(|s| s.to_str()) {
+        let title = tags
+            .title
+            .unwrap_or_else(|| match path.file_stem().and_then(|s| s.to_str()) {
                 Some(stem) => stem.to_string(),
                 None => {
                     warn!(
@@ -147,9 +149,8 @@ impl super::LibraryManager {
                         path.display()
                     );
                     "Unknown".to_string()
-                }
-            }
-        });
+                },
+            });
 
         Ok(Track {
             id: 0,
@@ -243,43 +244,43 @@ impl super::LibraryManager {
                         if tags.title.is_none() {
                             tags.title = tag_value_to_string(&tag.value);
                         }
-                    }
+                    },
                     StandardTagKey::Artist => {
                         if tags.artist.is_none() {
                             tags.artist = tag_value_to_string(&tag.value);
                         }
-                    }
+                    },
                     StandardTagKey::Album => {
                         if tags.album.is_none() {
                             tags.album = tag_value_to_string(&tag.value);
                         }
-                    }
+                    },
                     StandardTagKey::AlbumArtist => {
                         if tags.album_artist.is_none() {
                             tags.album_artist = tag_value_to_string(&tag.value);
                         }
-                    }
+                    },
                     StandardTagKey::Genre => {
                         if tags.genre.is_none() {
                             tags.genre = tag_value_to_string(&tag.value);
                         }
-                    }
+                    },
                     StandardTagKey::Date => {
                         if tags.year.is_none() {
                             tags.year = tag_value_to_year(&tag.value);
                         }
-                    }
+                    },
                     StandardTagKey::TrackNumber => {
                         if tags.track_number.is_none() {
                             tags.track_number = tag_value_to_i32(&tag.value);
                         }
-                    }
+                    },
                     StandardTagKey::DiscNumber => {
                         if tags.disc_number.is_none() {
                             tags.disc_number = tag_value_to_i32(&tag.value);
                         }
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }
         }
@@ -290,7 +291,6 @@ impl super::LibraryManager {
         Self::probe_file(path).map(|(_, _, _, tags, _)| tags)
     }
 }
-
 
 pub(crate) fn tag_value_to_string(value: &symphonia::core::meta::Value) -> Option<String> {
     match value {
@@ -320,8 +320,7 @@ pub(crate) fn tag_value_to_year(value: &symphonia::core::meta::Value) -> Option<
                 return Some(y);
             }
             s.split('-').next().and_then(|p| p.parse::<i32>().ok())
-        }
+        },
         _ => None,
     }
 }
-

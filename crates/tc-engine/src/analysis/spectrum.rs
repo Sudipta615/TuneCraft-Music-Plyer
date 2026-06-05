@@ -66,7 +66,7 @@ impl SpectrumAnalyzer {
         let fft = realfft::RealFftPlanner::new().plan_fft_forward(fft_size);
         let window = Self::hann_window(fft_size);
         // I-11: pre-allocate workspace so analyze() is allocation-free
-        let input_workspace  = fft.make_input_vec();
+        let input_workspace = fft.make_input_vec();
         let output_workspace = fft.make_output_vec();
         Ok(Self {
             fft_size,
@@ -93,14 +93,18 @@ impl SpectrumAnalyzer {
     /// Uses pre-allocated workspace buffers — no heap allocation on the hot path.
     pub fn analyze(&mut self, samples: &[(f64, f64)]) -> SpectrumFrame {
         // Mix to mono, apply window, write into pre-allocated workspace
-        for s in &mut self.input_workspace { *s = 0.0; }
+        for s in &mut self.input_workspace {
+            *s = 0.0;
+        }
         for (i, (l, r)) in samples.iter().take(self.fft_size).enumerate() {
             let mono = (l + r) * 0.5;
             self.input_workspace[i] = mono * self.window.get(i).copied().unwrap_or(0.0);
         }
 
         // Perform FFT using pre-allocated output workspace
-        let _ = self.fft.process(&mut self.input_workspace, &mut self.output_workspace);
+        let _ = self
+            .fft
+            .process(&mut self.input_workspace, &mut self.output_workspace);
 
         let num_bins = self.fft_size / 2 + 1;
         let mut magnitudes = Vec::with_capacity(num_bins);
@@ -142,4 +146,3 @@ impl SpectrumAnalyzer {
         self.prev_magnitudes.fill(0.0);
     }
 }
-

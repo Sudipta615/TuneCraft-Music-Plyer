@@ -185,7 +185,9 @@ pub struct ParametricEq {
 impl ParametricEq {
     /// Create a new 10-band parametric EQ with standard ISO frequencies
     pub fn default_10_band(sample_rate: f64) -> Self {
-        let freqs = [31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
+        let freqs = [
+            31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+        ];
         let types = [
             EqFilterType::LowShelf,
             EqFilterType::Peaking,
@@ -224,7 +226,7 @@ impl ParametricEq {
             headroom_db: 1.0,
             headroom_scale: 1.0,
             headroom_scale_target: 1.0,
-            headroom_attack_rate: 0.01,   // Fast attack: ~7ms to 95% at 44.1kHz
+            headroom_attack_rate: 0.01, // Fast attack: ~7ms to 95% at 44.1kHz
             headroom_release_rate: 0.0005, // Slow release: ~136ms to 95% at 44.1kHz
         }
     }
@@ -306,12 +308,14 @@ impl ParametricEq {
         if peak > headroom_linear {
             self.headroom_scale_target = headroom_linear / peak;
             // Fast attack: reduce gain quickly to prevent clipping
-            self.headroom_scale += self.headroom_attack_rate * (self.headroom_scale_target - self.headroom_scale);
+            self.headroom_scale +=
+                self.headroom_attack_rate * (self.headroom_scale_target - self.headroom_scale);
         } else {
             // Gradually return to unity when signal is below threshold
             self.headroom_scale_target = 1.0;
             // Slow release: avoid pumping artifacts
-            self.headroom_scale += self.headroom_release_rate * (self.headroom_scale_target - self.headroom_scale);
+            self.headroom_scale +=
+                self.headroom_release_rate * (self.headroom_scale_target - self.headroom_scale);
         }
 
         // floating-point accumulation can never permanently exceed unity.
@@ -401,7 +405,10 @@ mod tests {
             eq.process(0.5, 0.5);
         }
         let (l, r) = eq.process(0.5, 0.5);
-        assert!((l - 0.5).abs() < 0.05, "Zero-gain EQ should be near passthrough");
+        assert!(
+            (l - 0.5).abs() < 0.05,
+            "Zero-gain EQ should be near passthrough"
+        );
     }
 
     #[test]
@@ -426,7 +433,6 @@ mod tests {
         assert!((l - r).abs() < 0.01, "Stereo imaging should be preserved");
     }
 
-
     #[test]
     fn test_headroom_attack_faster_than_release() {
         let mut eq = ParametricEq::default_10_band(44100.0);
@@ -449,9 +455,12 @@ mod tests {
         // as much as attack reduced — release is slower
         let attack_reduction = 1.0 - scale_after_attack;
         let release_recovery = scale_after_partial_release - scale_after_attack;
-        assert!(release_recovery < attack_reduction,
+        assert!(
+            release_recovery < attack_reduction,
             "Release should be slower than attack: attack_reduction={}, release_recovery={}",
-            attack_reduction, release_recovery);
+            attack_reduction,
+            release_recovery
+        );
     }
 
     #[test]
@@ -468,9 +477,11 @@ mod tests {
         }
 
         // After settling, the headroom scale should be well below 1.0
-        assert!(eq.headroom_scale < 0.95,
+        assert!(
+            eq.headroom_scale < 0.95,
             "Headroom scale should reduce to prevent clipping, got {}",
-            eq.headroom_scale);
+            eq.headroom_scale
+        );
     }
 
     #[test]
@@ -486,10 +497,15 @@ mod tests {
         assert!(eq.headroom_scale < 1.0, "Should have reduced headroom");
 
         eq.reset();
-        assert!((eq.headroom_scale - 1.0).abs() < 1e-10,
-            "Headroom scale should be 1.0 after reset, got {}", eq.headroom_scale);
-        assert!((eq.headroom_scale_target - 1.0).abs() < 1e-10,
-            "Headroom scale target should be 1.0 after reset");
+        assert!(
+            (eq.headroom_scale - 1.0).abs() < 1e-10,
+            "Headroom scale should be 1.0 after reset, got {}",
+            eq.headroom_scale
+        );
+        assert!(
+            (eq.headroom_scale_target - 1.0).abs() < 1e-10,
+            "Headroom scale target should be 1.0 after reset"
+        );
     }
 
     #[test]
@@ -500,8 +516,10 @@ mod tests {
         for _ in 0..1000 {
             eq.process(0.01, 0.01);
         }
-        assert!(eq.headroom_scale <= 1.0 + 1e-10,
-            "Headroom scale should never exceed 1.0, got {}", eq.headroom_scale);
+        assert!(
+            eq.headroom_scale <= 1.0 + 1e-10,
+            "Headroom scale should never exceed 1.0, got {}",
+            eq.headroom_scale
+        );
     }
 }
-

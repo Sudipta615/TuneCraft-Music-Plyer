@@ -67,8 +67,7 @@ impl Default for EqState {
 
 /// Standard EQ band frequencies.
 pub const EQ_FREQUENCIES: [f64; 10] = [
-    31.25, 62.5, 125.0, 250.0, 500.0,
-    1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+    31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
 ];
 
 /// Default Q factor for EQ bands.
@@ -113,7 +112,13 @@ impl EqService {
         service.apply_eq_enabled(enabled);
         service.apply_preamp(preamp);
         for (i, &gain) in bands.iter().enumerate() {
-            service.apply_eq_band(i, EQ_FREQUENCIES[i], gain, DEFAULT_Q, enabled && gain != 0.0);
+            service.apply_eq_band(
+                i,
+                EQ_FREQUENCIES[i],
+                gain,
+                DEFAULT_Q,
+                enabled && gain != 0.0,
+            );
         }
 
         service
@@ -160,7 +165,10 @@ impl EqService {
     /// Set EQ enabled state.
     pub fn set_enabled(&self, enabled: bool) {
         self.apply_eq_enabled(enabled);
-        self.state.write().unwrap_or_else(|e| e.into_inner()).enabled = enabled;
+        self.state
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .enabled = enabled;
     }
 
     /// Set a specific EQ band gain.
@@ -170,12 +178,25 @@ impl EqService {
         }
         let enabled = self.state.read().unwrap_or_else(|e| e.into_inner()).enabled;
 
-        self.apply_eq_band(index, EQ_FREQUENCIES[index], gain_db, DEFAULT_Q, enabled && gain_db != 0.0);
+        self.apply_eq_band(
+            index,
+            EQ_FREQUENCIES[index],
+            gain_db,
+            DEFAULT_Q,
+            enabled && gain_db != 0.0,
+        );
         self.state.write().unwrap_or_else(|e| e.into_inner()).bands[index] = gain_db;
     }
 
     /// Set a specific EQ band with full parameters (frequency, gain, Q, enabled).
-    pub fn set_band_with_params(&self, index: usize, frequency: f64, gain_db: f64, q: f64, enabled: bool) {
+    pub fn set_band_with_params(
+        &self,
+        index: usize,
+        frequency: f64,
+        gain_db: f64,
+        q: f64,
+        enabled: bool,
+    ) {
         if index >= 10 {
             return;
         }
@@ -195,13 +216,19 @@ impl EqService {
     pub fn set_stereo_width(&self, width: f64) {
         let clamped = width.clamp(0.0, 2.0);
         self.apply_stereo_width(clamped);
-        self.state.write().unwrap_or_else(|e| e.into_inner()).stereo_width = clamped;
+        self.state
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .stereo_width = clamped;
     }
 
     /// Set balance.
     pub fn set_balance(&self, balance: f64) {
         self.apply_balance(balance);
-        self.state.write().unwrap_or_else(|e| e.into_inner()).balance = balance;
+        self.state
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .balance = balance;
     }
 
     /// Set dither enabled.
@@ -220,7 +247,6 @@ impl EqService {
         state.cached_midside_enabled = enabled;
     }
 
-
     /// Apply EQ enabled state to the engine via lock-free channel.
     #[cfg(feature = "audio-output")]
     fn apply_eq_enabled(&self, enabled: bool) {
@@ -237,13 +263,25 @@ impl EqService {
     fn apply_eq_band(&self, index: usize, frequency: f64, gain_db: f64, q: f64, enabled: bool) {
         if let Some(ref tx) = self.engine_cmd_tx {
             let _ = tx.send(tc_engine::buffer::EngineCommand::SetEqBand {
-                index, frequency, gain_db, q, enabled,
+                index,
+                frequency,
+                gain_db,
+                q,
+                enabled,
             });
         }
     }
 
     #[cfg(not(feature = "audio-output"))]
-    fn apply_eq_band(&self, _index: usize, _frequency: f64, _gain_db: f64, _q: f64, _enabled: bool) {}
+    fn apply_eq_band(
+        &self,
+        _index: usize,
+        _frequency: f64,
+        _gain_db: f64,
+        _q: f64,
+        _enabled: bool,
+    ) {
+    }
 
     /// Apply preamp change via lock-free channel.
     #[cfg(feature = "audio-output")]
@@ -420,4 +458,3 @@ mod tests {
         assert!((state.bands[2] - 4.5).abs() < 1e-12);
     }
 }
-

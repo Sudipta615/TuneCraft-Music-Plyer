@@ -1,7 +1,7 @@
 //! Library and polling delegation methods for TuneCraftApp.
 
-use super::TuneCraftApp;
 use super::ToastLevel;
+use super::TuneCraftApp;
 
 impl TuneCraftApp {
     pub fn refresh_tracks(&mut self) {
@@ -26,16 +26,20 @@ impl TuneCraftApp {
                 self.push_toast(format!("Playlist '{}' created", name), ToastLevel::Success);
                 let snapshot = self.ctx.library.snapshot();
                 self.playlists = snapshot.playlists.clone();
-            }
+            },
             Err(e) => {
                 self.push_toast(e, ToastLevel::Error);
-            }
+            },
         }
     }
 
     pub fn add_current_track_to_playlist(&mut self, playlist_id: i64) {
         if let Some(track_id) = self.current_track_id {
-            match self.ctx.library.add_track_to_playlist(playlist_id, track_id) {
+            match self
+                .ctx
+                .library
+                .add_track_to_playlist(playlist_id, track_id)
+            {
                 Ok(()) => self.push_toast("Track added to playlist", ToastLevel::Success),
                 Err(e) => self.push_toast(e, ToastLevel::Error),
             }
@@ -51,25 +55,25 @@ impl TuneCraftApp {
                     if !self.is_playing {
                         self.toggle_playback();
                     }
-                }
+                },
                 MediaKeyAction::Pause => {
                     if self.is_playing {
                         self.toggle_playback();
                     }
-                }
+                },
                 MediaKeyAction::PlayPause => {
                     self.toggle_playback();
-                }
+                },
                 MediaKeyAction::Next => {
                     self.play_next();
-                }
+                },
                 MediaKeyAction::Previous => {
                     self.play_prev();
-                }
+                },
                 MediaKeyAction::Stop => {
                     self.stop_playback();
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
     }
@@ -83,4 +87,3 @@ impl TuneCraftApp {
         }
     }
 }
-

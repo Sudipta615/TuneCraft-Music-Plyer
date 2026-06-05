@@ -27,19 +27,18 @@
 //! - **ConfigService** — configuration persistence and dirty tracking
 //! - **PlatformService** — MPRIS status, media keys, OS integration
 
-pub mod playback;
-pub mod library;
-pub mod eq;
-pub mod scrobble;
-pub mod lyrics;
 pub mod config;
+pub mod eq;
+pub mod library;
+pub mod lyrics;
 pub mod platform;
+pub mod playback;
+pub mod scrobble;
 
-pub use playback::PlaybackService;
-pub use library::LibraryService;
-pub use eq::EqService;
-pub use scrobble::ScrobbleService;
-pub use lyrics::LyricsService;
 pub use config::ConfigService;
+pub use eq::EqService;
+pub use library::LibraryService;
+pub use lyrics::LyricsService;
 pub use platform::PlatformService;
-
+pub use playback::PlaybackService;
+pub use scrobble::ScrobbleService;

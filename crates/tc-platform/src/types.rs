@@ -32,7 +32,10 @@ pub enum MediaKeyAction {
     /// Seek by offset in microseconds (positive = forward, negative = backward)
     Seek(i64),
     /// Set absolute position for a given track in microseconds
-    SetPosition { track_id: String, position_us: i64 },
+    SetPosition {
+        track_id: String,
+        position_us: i64,
+    },
     /// Set volume (0.0 to 1.0 mapped from MPRIS 0.0-1.0+ range)
     SetVolume(f64),
     /// Set playback rate
@@ -59,7 +62,16 @@ impl PartialEq for MediaKeyAction {
             (Self::Mute, Self::Mute) => true,
             (Self::Quit, Self::Quit) => true,
             (Self::Seek(a), Self::Seek(b)) => a == b,
-            (Self::SetPosition { track_id: a1, position_us: a2 }, Self::SetPosition { track_id: b1, position_us: b2 }) => a1 == b1 && a2 == b2,
+            (
+                Self::SetPosition {
+                    track_id: a1,
+                    position_us: a2,
+                },
+                Self::SetPosition {
+                    track_id: b1,
+                    position_us: b2,
+                },
+            ) => a1 == b1 && a2 == b2,
             (Self::SetVolume(a), Self::SetVolume(b)) => (a - b).abs() < f64::EPSILON,
             (Self::SetRate(a), Self::SetRate(b)) => (a - b).abs() < f64::EPSILON,
             (Self::SetShuffle(a), Self::SetShuffle(b)) => a == b,
@@ -124,4 +136,3 @@ pub struct KeyboardShortcut {
     pub meta: bool,
     pub action: MediaKeyAction,
 }
-

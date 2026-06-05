@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
-use tc_engine::dsp::pipeline::DspPipeline;
 use tc_config::EngineConfig;
+use tc_engine::dsp::pipeline::DspPipeline;
 
 fn bench_pipeline(c: &mut Criterion) {
     let config = EngineConfig::default();
@@ -40,4 +40,3 @@ fn bench_pipeline(c: &mut Criterion) {
 
 criterion_group!(benches, bench_pipeline);
 criterion_main!(benches);
-

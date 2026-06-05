@@ -25,9 +25,7 @@ use crate::dsp::gain::{FadeProcessor, GainProcessor};
 use crate::dsp::limiter::LookaheadLimiter;
 use crate::dsp::loudness::{LoudnessMetadata, LoudnessMode, LoudnessNormalizer};
 use crate::dsp::stereo::StereoEnhancer;
-use tc_config::{
-    EngineConfig, LoudnessMode as ConfigLoudnessMode, PerformanceMode,
-};
+use tc_config::{EngineConfig, LoudnessMode as ConfigLoudnessMode, PerformanceMode};
 
 /// L11: Volume ramp duration, replacing the previously hardcoded 10ms magic number.
 const VOLUME_RAMP_DURATION_MS: f64 = 10.0;
@@ -109,7 +107,10 @@ impl DspPipeline {
             ConfigLoudnessMode::EbuR128 => LoudnessMode::EbuR128,
         });
         loudness.set_target_lufs(config.loudness.target_lufs);
-        loudness.set_true_peak_guard(config.loudness.true_peak_guard, config.loudness.true_peak_dbtp);
+        loudness.set_true_peak_guard(
+            config.loudness.true_peak_guard,
+            config.loudness.true_peak_dbtp,
+        );
 
         let mut limiter = LookaheadLimiter::new_with_params(
             sample_rate,
@@ -168,8 +169,8 @@ impl DspPipeline {
             performance_mode: config.performance_mode,
             speed: 1.0,
             balance: 0.0,
-            balance_gain_l: 1.0,  // center: both gains at unity
-            balance_gain_r: 1.0,  // center: both gains at unity
+            balance_gain_l: 1.0, // center: both gains at unity
+            balance_gain_r: 1.0, // center: both gains at unity
             midside_eq_enabled: false,
             volume_fade_ms: config.volume_fade_ms as f64,
         };
@@ -180,12 +181,12 @@ impl DspPipeline {
 
     fn apply_performance_mode(&mut self) {
         match self.performance_mode {
-            PerformanceMode::UltraQuality => {}
-            PerformanceMode::Balanced => {}
+            PerformanceMode::UltraQuality => {},
+            PerformanceMode::Balanced => {},
             PerformanceMode::LowPower => {
                 self.stereo_enhancer.set_enabled(false);
                 self.dither.set_enabled(false);
-            }
+            },
         }
     }
 
@@ -344,9 +345,11 @@ impl DspPipeline {
         self.seek_fade.set_sample_rate(sample_rate);
         self.convolution.set_sample_rate(sample_rate);
 
-        self.preamp.set_slew_rate(1.0 / (VOLUME_RAMP_DURATION_MS * 0.001 * sample_rate));
+        self.preamp
+            .set_slew_rate(1.0 / (VOLUME_RAMP_DURATION_MS * 0.001 * sample_rate));
 
-        self.volume.set_slew_rate(1.0 / (self.volume_fade_ms * 0.001 * sample_rate));
+        self.volume
+            .set_slew_rate(1.0 / (self.volume_fade_ms * 0.001 * sample_rate));
 
         // Recalculate the crossfade frame count for the new sample rate so that
         // the configured crossfade duration in milliseconds stays accurate after
@@ -405,12 +408,24 @@ impl DspPipeline {
         self.convolution.set_wet_mix(mix);
     }
 
-    pub fn eq_mut(&mut self) -> &mut crate::dsp::equalizer::ParametricEq { &mut self.eq }
-    pub fn eq_ref(&self)     -> &crate::dsp::equalizer::ParametricEq      { &self.eq }
-    pub fn limiter_mut(&mut self) -> &mut crate::dsp::limiter::LookaheadLimiter { &mut self.limiter }
-    pub fn stereo_enhancer_mut(&mut self) -> &mut crate::dsp::stereo::StereoEnhancer { &mut self.stereo_enhancer }
-    pub fn mixer_mut(&mut self) -> &mut crate::dsp::crossfade::TrackMixer { &mut self.mixer }
-    pub fn dither_mut(&mut self) -> &mut crate::dsp::dither::Dither { &mut self.dither }
+    pub fn eq_mut(&mut self) -> &mut crate::dsp::equalizer::ParametricEq {
+        &mut self.eq
+    }
+    pub fn eq_ref(&self) -> &crate::dsp::equalizer::ParametricEq {
+        &self.eq
+    }
+    pub fn limiter_mut(&mut self) -> &mut crate::dsp::limiter::LookaheadLimiter {
+        &mut self.limiter
+    }
+    pub fn stereo_enhancer_mut(&mut self) -> &mut crate::dsp::stereo::StereoEnhancer {
+        &mut self.stereo_enhancer
+    }
+    pub fn mixer_mut(&mut self) -> &mut crate::dsp::crossfade::TrackMixer {
+        &mut self.mixer
+    }
+    pub fn dither_mut(&mut self) -> &mut crate::dsp::dither::Dither {
+        &mut self.dither
+    }
 
     /// Whether the loaded convolution IR needs to be reloaded due to a
     /// sample rate change. The UI should display a warning when true.
@@ -420,7 +435,8 @@ impl DspPipeline {
 
     /// Set stereo width. Disables the enhancer if width is 1.0 (unity).
     pub fn set_stereo_width(&mut self, width: f64) {
-        self.stereo_enhancer.set_enabled((width - 1.0).abs() > 0.001);
+        self.stereo_enhancer
+            .set_enabled((width - 1.0).abs() > 0.001);
         self.stereo_enhancer.set_width(width);
     }
 
@@ -526,7 +542,8 @@ mod tests {
         assert!(
             (full_l - split_l).abs() < 0.01,
             "Split processing should match full pipeline, got full={} split={}",
-            full_l, split_l
+            full_l,
+            split_l
         );
         assert!(
             (full_r - split_r).abs() < 0.01,

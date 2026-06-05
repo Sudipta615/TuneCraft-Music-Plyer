@@ -1,6 +1,6 @@
-use crate::types::{AppConfig, ConfigChangedEvent, ConfigSection};
 #[allow(unused_imports)] // CONFIG_VERSION used in tests
 use crate::types::CONFIG_VERSION;
+use crate::types::{AppConfig, ConfigChangedEvent, ConfigSection};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use thiserror::Error;
@@ -44,14 +44,14 @@ pub struct ConfigPersistence {
 }
 
 impl ConfigPersistence {
-
     /// Get the default config directory
     pub fn config_dir() -> Result<PathBuf, ConfigError> {
-        let base = dirs::config_dir()
-            .ok_or_else(|| std::io::Error::new(
+        let base = dirs::config_dir().ok_or_else(|| {
+            std::io::Error::new(
                 std::io::ErrorKind::NotFound,
-                "Cannot determine config directory"
-            ))?;
+                "Cannot determine config directory",
+            )
+        })?;
         Ok(base.join("tunecraft"))
     }
 
@@ -80,10 +80,13 @@ impl ConfigPersistence {
                 // Use system-specific defaults for library paths
                 config.library = crate::types::LibraryConfig::with_system_defaults();
                 if let Err(e) = Self::save(&config) {
-                    log::error!("Failed to save default config (settings will not persist): {}", e);
+                    log::error!(
+                        "Failed to save default config (settings will not persist): {}",
+                        e
+                    );
                 }
                 return Ok(config);
-            }
+            },
             Err(e) => return Err(ConfigError::Read(e)),
         };
 
@@ -164,7 +167,6 @@ impl ConfigPersistence {
         Self::atomic_write(path, &toml::to_string_pretty(config)?)
     }
 
-
     /// Create a new ConfigPersistence with default settings.
     pub fn new() -> Self {
         Self {
@@ -207,7 +209,7 @@ impl ConfigPersistence {
                     log::error!("Failed to save default config: {}", e);
                 }
                 return Ok(config);
-            }
+            },
             Err(e) => return Err(ConfigError::Read(e)),
         };
 
@@ -226,7 +228,11 @@ impl ConfigPersistence {
     }
 
     /// Save and notify subscribers of the change.
-    pub fn save_and_notify(&mut self, config: &AppConfig, section: ConfigSection) -> Result<(), ConfigError> {
+    pub fn save_and_notify(
+        &mut self,
+        config: &AppConfig,
+        section: ConfigSection,
+    ) -> Result<(), ConfigError> {
         self.save_instance(config)?;
         self.notify(ConfigChangedEvent { section });
         Ok(())
@@ -247,13 +253,15 @@ impl ConfigPersistence {
         }
     }
 
-
     /// Atomic write: write to temp file, fsync, then rename.
 
     // monotonically-increasing counter instead of a fixed "config.toml.tmp" to
     // prevent collisions when multiple processes or threads write concurrently.
     fn atomic_write(path: &Path, content: &str) -> Result<(), ConfigError> {
-        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("config.toml");
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("config.toml");
         let pid = std::process::id();
         let rand_suffix = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
         let temp_name = format!("{}.tmp.{}.{}", file_name, pid, rand_suffix);
@@ -339,10 +347,11 @@ mod tests {
         let mut persistence = ConfigPersistence::new();
         let rx = persistence.subscribe();
 
-        persistence.notify(ConfigChangedEvent { section: ConfigSection::Engine });
+        persistence.notify(ConfigChangedEvent {
+            section: ConfigSection::Engine,
+        });
 
         let event = rx.try_recv().unwrap();
         assert_eq!(event.section, ConfigSection::Engine);
     }
 }
-

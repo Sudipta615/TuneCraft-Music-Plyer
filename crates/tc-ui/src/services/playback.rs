@@ -47,7 +47,11 @@ impl EngineHandle {
         playback_info: Arc<std::sync::RwLock<PlaybackInfo>>,
         running: Arc<AtomicBool>,
     ) -> Self {
-        Self { cmd_tx, playback_info, running }
+        Self {
+            cmd_tx,
+            playback_info,
+            running,
+        }
     }
 
     /// Send a command to the engine (non-blocking, lock-free).
@@ -256,11 +260,11 @@ impl PlaybackService {
                             info.sample_rate, info.channels, info.duration_secs
                         );
                         eng.set_track_id(track.id as u64);
-                    }
+                    },
                     Err(e) => {
                         error!("Failed to load track: {}", e);
                         return;
-                    }
+                    },
                 }
             } else {
                 error!("Engine mutex poisoned — cannot load track");
@@ -308,7 +312,8 @@ impl PlaybackService {
             track_id,
         );
 
-        self.scrobble.update_now_playing(&artist, &title, album.as_deref());
+        self.scrobble
+            .update_now_playing(&artist, &title, album.as_deref());
     }
 
     pub fn toggle_playback(&self) {
@@ -460,7 +465,9 @@ impl PlaybackService {
                 .unwrap_or_default()
                 .as_nanos() as u64;
             for i in (1..n).rev() {
-                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                seed = seed
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
                 let j = (seed >> 33) as usize % (i + 1);
                 order.swap(i, j);
             }
@@ -473,7 +480,9 @@ impl PlaybackService {
             if let Some(current_idx) = state.play_queue_index {
                 if n > 1 && order[0] == current_idx {
                     // Swap position 0 with a random other position
-                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                    seed = seed
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
                     let swap_pos = 1 + (seed >> 33) as usize % (n - 1);
                     order.swap(0, swap_pos);
                 }
@@ -499,7 +508,7 @@ impl PlaybackService {
                         RepeatMode::Off => return None,
                     }
                 }
-            }
+            },
             None => 0,
         };
 
@@ -526,12 +535,10 @@ impl PlaybackService {
 
         let prev_index = match state.play_queue_index {
             Some(idx) if idx > 0 => idx - 1,
-            Some(_) => {
-                match state.repeat {
-                    RepeatMode::All => state.play_queue.len() - 1,
-                    _ => return None,
-                }
-            }
+            Some(_) => match state.repeat {
+                RepeatMode::All => state.play_queue.len() - 1,
+                _ => return None,
+            },
             None => return None,
         };
 
@@ -550,7 +557,9 @@ impl PlaybackService {
         match state.play_queue_index {
             Some(idx) => {
                 if state.shuffle {
-                    if state.shuffle_order.is_empty() || state.shuffle_position >= state.shuffle_order.len() {
+                    if state.shuffle_order.is_empty()
+                        || state.shuffle_position >= state.shuffle_order.len()
+                    {
                         return Some(0);
                     }
                     state.shuffle_order.get(state.shuffle_position).copied()
@@ -563,7 +572,7 @@ impl PlaybackService {
                         RepeatMode::Off => None,
                     }
                 }
-            }
+            },
             None => Some(0),
         }
     }
@@ -581,12 +590,10 @@ impl PlaybackService {
 
         match state.play_queue_index {
             Some(idx) if idx > 0 => Some(idx - 1),
-            Some(_) => {
-                match state.repeat {
-                    RepeatMode::All => Some(state.play_queue.len() - 1),
-                    _ => None,
-                }
-            }
+            Some(_) => match state.repeat {
+                RepeatMode::All => Some(state.play_queue.len() - 1),
+                _ => None,
+            },
             None => None,
         }
     }
@@ -605,7 +612,9 @@ impl PlaybackService {
             .unwrap_or_default()
             .as_nanos() as u64;
         for i in (1..n).rev() {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             let j = (seed >> 33) as usize % (i + 1);
             order.swap(i, j);
         }
@@ -631,17 +640,18 @@ impl PlaybackService {
         // playback speed: at 2× speed a track finishes in half the wall time
         // but the scrobble threshold calculation would only see 50% progress,
         // causing scrobbles to be missed entirely at non-1× speeds.
-        let elapsed = state.accumulated_play_secs + if state.is_playing {
-            // Estimate progress since last accumulated update using current
-            // position_secs relative to when play_started_at was set.
-            // accumulated_play_secs is snapshotted on pause/seek/stop.
-            match state.play_started_at {
-                Some(t) => t.elapsed().as_secs_f64() * state.speed,
-                None => 0.0,
-            }
-        } else {
-            0.0
-        };
+        let elapsed = state.accumulated_play_secs
+            + if state.is_playing {
+                // Estimate progress since last accumulated update using current
+                // position_secs relative to when play_started_at was set.
+                // accumulated_play_secs is snapshotted on pause/seek/stop.
+                match state.play_started_at {
+                    Some(t) => t.elapsed().as_secs_f64() * state.speed,
+                    None => 0.0,
+                }
+            } else {
+                0.0
+            };
 
         let duration = state.duration_secs;
         // Scrobble threshold: 50% of track duration or 4 minutes,
@@ -717,8 +727,8 @@ mod tests {
     /// Helper to create a minimal PlaybackService without audio engine.
     fn make_service() -> PlaybackService {
         let rt = Arc::new(Runtime::new().unwrap());
-        let (platform, media_key_rx) = tc_platform::PlatformIntegration::new()
-            .expect("PlatformIntegration::new failed");
+        let (platform, media_key_rx) =
+            tc_platform::PlatformIntegration::new().expect("PlatformIntegration::new failed");
         let platform = Arc::new(PlatformService::new(platform, media_key_rx));
         let scrobble_db = tc_db::Database::open_in_memory().expect("in-memory DB");
         let scrobble = Arc::new(ScrobbleService::new(Arc::new(scrobble_db), true));
@@ -906,4 +916,3 @@ mod tests {
         assert!(svc.compute_prev_index().is_none());
     }
 }
-
