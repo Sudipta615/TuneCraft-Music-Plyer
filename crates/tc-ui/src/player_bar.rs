@@ -1,11 +1,10 @@
 //! Bottom player bar — current track info, playback controls, progress, volume
-//! Matches the reference design: album art | track info + heart | controls | progress | volume | queue
-//! Responsive: adapts layout at different viewport widths.
+//! Matches the reference design: album art | track info + heart | controls | progress | volume |
+//! queue Responsive: adapts layout at different viewport widths.
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Ui, Vec2};
 
-use crate::app::TuneCraftApp;
-use crate::theme::TuneCraftColors;
+use crate::{app::TuneCraftApp, theme::TuneCraftColors};
 
 pub const PLAYER_BAR_HEIGHT: f32 = 80.0;
 
@@ -360,7 +359,8 @@ fn draw_full(
                     app.ctx.lyrics.toggle_panel();
                 }
 
-                // Speed control — hide individual speed buttons on narrow widths, show only current speed label
+                // Speed control — hide individual speed buttons on narrow widths, show only current
+                // speed label
                 if total_w > 800.0 {
                     let speed_label = if (app.speed - 1.0).abs() < 0.01 {
                         "1x".to_string()

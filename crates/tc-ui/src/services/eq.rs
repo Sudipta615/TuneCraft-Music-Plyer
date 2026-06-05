@@ -212,7 +212,6 @@ impl EqService {
     }
 
     /// Set stereo width.
-    ///
     pub fn set_stereo_width(&self, width: f64) {
         let clamped = width.clamp(0.0, 2.0);
         self.apply_stereo_width(clamped);

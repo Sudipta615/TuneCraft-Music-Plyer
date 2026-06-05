@@ -3,10 +3,8 @@
 use crossbeam::channel::TryRecvError;
 use log::{error, info, warn};
 
+use super::{helpers::percent_decode, AudioEngine, PlaybackStream};
 use crate::buffer::{AudioFrame, EngineCommand, PlaybackState};
-
-use super::helpers::percent_decode;
-use super::{AudioEngine, PlaybackStream};
 
 impl AudioEngine {
     pub(super) fn process_commands(&mut self) {

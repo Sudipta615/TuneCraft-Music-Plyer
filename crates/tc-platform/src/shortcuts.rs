@@ -3,8 +3,10 @@
 //! Contains [`KeyboardShortcut`] implementation, default shortcuts,
 //! and shortcut registration/matching methods on [`PlatformIntegration`].
 
-use crate::types::{KeyboardShortcut, MediaKeyAction};
-use crate::PlatformIntegration;
+use crate::{
+    types::{KeyboardShortcut, MediaKeyAction},
+    PlatformIntegration,
+};
 
 impl KeyboardShortcut {
     /// Create a new keyboard shortcut

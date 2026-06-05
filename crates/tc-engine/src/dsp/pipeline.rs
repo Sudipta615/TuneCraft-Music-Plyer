@@ -17,15 +17,18 @@
 //! independently through the first half of the pipeline, then the mixer
 //! combines them, and the mixed signal goes through the second half.
 
-use crate::dsp::convolution::ConvolutionEngine;
-use crate::dsp::crossfade::TrackMixer;
-use crate::dsp::dither::{Dither, DitherType};
-use crate::dsp::equalizer::{EqBandParams, EqFilterType, ParametricEq};
-use crate::dsp::gain::{FadeProcessor, GainProcessor};
-use crate::dsp::limiter::LookaheadLimiter;
-use crate::dsp::loudness::{LoudnessMetadata, LoudnessMode, LoudnessNormalizer};
-use crate::dsp::stereo::StereoEnhancer;
 use tc_config::{EngineConfig, LoudnessMode as ConfigLoudnessMode, PerformanceMode};
+
+use crate::dsp::{
+    convolution::ConvolutionEngine,
+    crossfade::TrackMixer,
+    dither::{Dither, DitherType},
+    equalizer::{EqBandParams, EqFilterType, ParametricEq},
+    gain::{FadeProcessor, GainProcessor},
+    limiter::LookaheadLimiter,
+    loudness::{LoudnessMetadata, LoudnessMode, LoudnessNormalizer},
+    stereo::StereoEnhancer,
+};
 
 /// L11: Volume ramp duration, replacing the previously hardcoded 10ms magic number.
 const VOLUME_RAMP_DURATION_MS: f64 = 10.0;

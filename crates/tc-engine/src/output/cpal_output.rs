@@ -6,10 +6,15 @@
 //! ensures the CPAL output stream is paused before buffer reset in the
 //! Stop command handler (matching the safety pattern in load_track).
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, SampleFormat, Stream, StreamConfig};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, AtomicU32, Ordering},
+    Arc,
+};
+
+use cpal::{
+    traits::{DeviceTrait, HostTrait, StreamTrait},
+    Device, SampleFormat, Stream, StreamConfig,
+};
 use thiserror::Error;
 
 use crate::buffer::{AudioFrame, FixedFrameBuffer, MAX_CHANNELS};

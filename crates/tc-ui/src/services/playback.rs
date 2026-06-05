@@ -8,19 +8,22 @@
 //! Volume clamped in `set_volume()`. Includes `stop_engine()` method for
 //! graceful shutdown.
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use log::{error, info, warn};
-use tokio::runtime::Runtime;
-
 use tc_config::RepeatMode;
 use tc_db::Track;
 use tc_engine::buffer::{EngineCommand, PlaybackInfo, PlaybackState as EnginePlaybackState};
+use tokio::runtime::Runtime;
 
-use super::config::{recover_from_poison, recover_from_poison_write};
-use super::platform::PlatformService;
-use super::scrobble::ScrobbleService;
+use super::{
+    config::{recover_from_poison, recover_from_poison_write},
+    platform::PlatformService,
+    scrobble::ScrobbleService,
+};
 
 /// Handle to the audio engine that avoids Mutex contention.
 ///
@@ -720,9 +723,11 @@ impl PlaybackService {
 
 #[cfg(all(test, not(feature = "audio-output")))]
 mod tests {
-    use super::*;
     use std::sync::Arc;
+
     use tokio::runtime::Runtime;
+
+    use super::*;
 
     /// Helper to create a minimal PlaybackService without audio engine.
     fn make_service() -> PlaybackService {

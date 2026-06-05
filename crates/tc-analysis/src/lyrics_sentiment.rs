@@ -12,8 +12,8 @@
 //! The lexicon covers three layers:
 //!
 //! 1. **Hindi/Urdu (Devanagari script)** — common Bollywood lyrical vocabulary.
-//! 2. **Hindi/Urdu romanised** — transliterated forms as they often appear in
-//!    LRCLIB-sourced lyrics (e.g. "pyaar", "dard").
+//! 2. **Hindi/Urdu romanised** — transliterated forms as they often appear in LRCLIB-sourced lyrics
+//!    (e.g. "pyaar", "dard").
 //! 3. **English** — Western pop/R&B vocabulary.
 //!
 //! Romanised Hindi is essential because LRCLIB frequently returns lyrics in
@@ -36,13 +36,12 @@
 //!
 //! ## Limitations (documented)
 //!
-//! - Classical/poetic Urdu (ghazals) uses rare vocabulary not in this list;
-//!   coverage degrades gracefully — the analyser returns low confidence and
-//!   defers to the signal classifier.
-//! - Regional Indian languages (Tamil, Telugu, Marathi, Bengali) are **not**
-//!   covered; again, graceful degradation.
-//! - Irony/sarcasm ("I'm so happy", sarcastically) is not handled.  Lexicon
-//!   approaches cannot detect irony without context — acceptable for music.
+//! - Classical/poetic Urdu (ghazals) uses rare vocabulary not in this list; coverage degrades
+//!   gracefully — the analyser returns low confidence and defers to the signal classifier.
+//! - Regional Indian languages (Tamil, Telugu, Marathi, Bengali) are **not** covered; again,
+//!   graceful degradation.
+//! - Irony/sarcasm ("I'm so happy", sarcastically) is not handled.  Lexicon approaches cannot
+//!   detect irony without context — acceptable for music.
 
 /// Sentiment tag for a lexicon entry.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -60,8 +59,8 @@ use Tag::{Romantic as R, Sad as S};
 /// Rules for adding entries:
 /// - All tokens **must** be lowercase ASCII or Unicode NFD-normalised.
 /// - Include both Devanagari and common romanised forms for Hindi/Urdu words.
-/// - Prefer specific/unambiguous words; avoid polysemous ones ("dark" could
-///   be either) unless the dominant usage in song lyrics is clear.
+/// - Prefer specific/unambiguous words; avoid polysemous ones ("dark" could be either) unless the
+///   dominant usage in song lyrics is clear.
 static LEXICON: &[Entry] = &[
     // -----------------------------------------------------------------------
     // ROMANTIC — Hindi/Urdu (Devanagari)

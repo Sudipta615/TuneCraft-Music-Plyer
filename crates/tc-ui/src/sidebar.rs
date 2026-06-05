@@ -3,8 +3,10 @@
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Ui, Vec2};
 
-use crate::app::TuneCraftApp;
-use crate::theme::{self, TuneCraftColors};
+use crate::{
+    app::TuneCraftApp,
+    theme::{self, TuneCraftColors},
+};
 
 /// Which navigation section is active
 #[derive(Debug, Clone, Copy, PartialEq)]

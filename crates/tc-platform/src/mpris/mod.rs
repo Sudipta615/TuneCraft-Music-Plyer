@@ -13,9 +13,12 @@
 mod dbus;
 mod signals;
 
+use std::sync::{
+    mpsc::{Receiver, Sender},
+    Arc,
+};
+
 use parking_lot::Mutex;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
 
 use crate::types::{MediaKeyAction, MprisPlaybackStatus, MprisPropertyChanged, MprisTrackInfo};
 

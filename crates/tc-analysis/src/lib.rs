@@ -7,16 +7,14 @@
 //! Romantic vs Sad distinction, which is the hardest classification problem for
 //! slow Bollywood tracks:
 //!
-//! - **Chroma / key-mode detection** (`chroma` module): 12 Goertzel filters +
-//!   Krumhansl–Schmuckler key-profile matching → major/minor mode.
-//!   Minor key biases toward Sad; major key biases toward Romantic.
+//! - **Chroma / key-mode detection** (`chroma` module): 12 Goertzel filters + Krumhansl–Schmuckler
+//!   key-profile matching → major/minor mode. Minor key biases toward Sad; major key biases toward
+//!   Romantic.
 //!
-//! - **Lyrics sentiment** (`lyrics_sentiment` module): a 400+ entry bilingual
-//!   lexicon (Hindi/Urdu Devanagari, romanised Hindi, English) that scores
-//!   lyrics text as Romantic or Sad.  When lyrics are available in the DB
-//!   (fetched by the LRCLIB integration), they are passed to `analyze_file`
-//!   and the result overrides the audio-only classification when confidence
-//!   is sufficient (≥ 0.15).
+//! - **Lyrics sentiment** (`lyrics_sentiment` module): a 400+ entry bilingual lexicon (Hindi/Urdu
+//!   Devanagari, romanised Hindi, English) that scores lyrics text as Romantic or Sad.  When lyrics
+//!   are available in the DB (fetched by the LRCLIB integration), they are passed to `analyze_file`
+//!   and the result overrides the audio-only classification when confidence is sufficient (≥ 0.15).
 //!
 //! All new analysis runs on the existing background thread; nothing blocks
 //! the audio callback or the UI thread.
@@ -27,15 +25,15 @@ mod lyrics_sentiment;
 mod mood;
 mod waveform;
 
+use std::path::Path;
+
 pub use bpm::BpmDetector;
 pub use chroma::{ChromaDetector, KeyMode, PitchClass};
+use log::{info, warn};
 pub use lyrics_sentiment::{LyricsSentiment, Sentiment, SentimentResult};
 pub use mood::MoodClassifier;
-pub use waveform::WaveformGenerator;
-
-use log::{info, warn};
-use std::path::Path;
 use thiserror::Error;
+pub use waveform::WaveformGenerator;
 
 #[derive(Debug, Error)]
 pub enum AnalysisError {
@@ -95,12 +93,12 @@ pub struct TrackAnalysis {
 /// ## Parameters
 ///
 /// - `path` — path to the audio file (any format Symphonia supports).
-/// - `max_duration_secs` — cap on how much audio to decode.  `None` uses 120 s.
-///   The full 120 s limit is still used for signal analysis; chroma detection
-///   may finish earlier once sufficient data is accumulated.
-/// - `lyrics` — optional lyrics text already in the database (synced LRC
-///   preferred, plain text fallback).  When `Some`, the lyrics sentiment
-///   analyser runs and can override the Romantic/Sad classification.
+/// - `max_duration_secs` — cap on how much audio to decode.  `None` uses 120 s. The full 120 s
+///   limit is still used for signal analysis; chroma detection may finish earlier once sufficient
+///   data is accumulated.
+/// - `lyrics` — optional lyrics text already in the database (synced LRC preferred, plain text
+///   fallback).  When `Some`, the lyrics sentiment analyser runs and can override the Romantic/Sad
+///   classification.
 ///
 /// ## Threading
 ///
@@ -112,12 +110,14 @@ pub fn analyze_file(
     max_duration_secs: Option<f64>,
     lyrics: Option<&str>,
 ) -> Result<TrackAnalysis, AnalysisError> {
-    use symphonia::core::audio::SampleBuffer;
-    use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
-    use symphonia::core::formats::FormatOptions;
-    use symphonia::core::io::MediaSourceStream;
-    use symphonia::core::meta::MetadataOptions;
-    use symphonia::core::probe::Hint;
+    use symphonia::core::{
+        audio::SampleBuffer,
+        codecs::{DecoderOptions, CODEC_TYPE_NULL},
+        formats::FormatOptions,
+        io::MediaSourceStream,
+        meta::MetadataOptions,
+        probe::Hint,
+    };
 
     let file = std::fs::File::open(path)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());

@@ -5,19 +5,19 @@
 //! `mod.rs` (load_track). All three sites now share the same logic for
 //! creating a resampler with the correct quality, speed, and error handling.
 
-use std::sync::Arc;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use log::{error, info, warn};
-
-use crate::buffer::{FixedFrameBuffer, DEFAULT_SAMPLE_RATE, OUTPUT_BUFFER_FRAMES};
-#[cfg(feature = "resample")]
-use crate::dsp::resampler::AudioResampler;
-use crate::output::CpalOutput;
 
 #[cfg(feature = "resample")]
 use super::PlaybackStream;
 use super::{AudioEngine, EngineError};
+#[cfg(feature = "resample")]
+use crate::dsp::resampler::AudioResampler;
+use crate::{
+    buffer::{FixedFrameBuffer, DEFAULT_SAMPLE_RATE, OUTPUT_BUFFER_FRAMES},
+    output::CpalOutput,
+};
 
 impl AudioEngine {
     /// Attempt to recover the audio output stream after a device change

@@ -2,16 +2,18 @@
 //! Supports MP3, FLAC, OGG/Vorbis, WAV, AAC, and more
 //! All decoding is off the audio thread and thread-safe
 
-use std::fs::File;
-use std::path::Path;
-use symphonia::core::audio::{AudioBufferRef, Signal};
-use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
-use symphonia::core::errors::Error as SymphoniaError;
-use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
-use symphonia::core::io::MediaSourceStream;
-use symphonia::core::meta::MetadataOptions;
-use symphonia::core::probe::Hint;
-use symphonia::core::units::Time;
+use std::{fs::File, path::Path};
+
+use symphonia::core::{
+    audio::{AudioBufferRef, Signal},
+    codecs::{DecoderOptions, CODEC_TYPE_NULL},
+    errors::Error as SymphoniaError,
+    formats::{FormatOptions, FormatReader, SeekMode, SeekTo},
+    io::MediaSourceStream,
+    meta::MetadataOptions,
+    probe::Hint,
+    units::Time,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

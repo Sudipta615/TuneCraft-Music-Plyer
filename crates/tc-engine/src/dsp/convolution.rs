@@ -14,9 +14,10 @@
 //! could resize the overlap buffers in `add_to_overlap()`, which was both a memory
 //! leak and a real-time safety violation).
 
+use std::path::Path;
+
 use num_complex::Complex;
 use realfft::RealToComplex;
-use std::path::Path;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -110,7 +111,6 @@ pub struct ConvolutionEngine {
     /// should be warned to reload the IR for correct convolution output.
     /// This flag is cleared when a new IR is loaded or the engine is reset.
     ir_needs_reload: bool,
-    ///
     /// is full. The UI can query this via `dropped_frames()` to display
     /// a warning about audio quality degradation.
     dropped_frames: u64,
@@ -221,12 +221,14 @@ impl ConvolutionEngine {
 
     /// Load an impulse response from a WAV or FLAC file using symphonia.
     pub fn load_ir_from_file(&mut self, path: &Path) -> Result<(), ConvolutionError> {
-        use symphonia::core::audio::Signal;
-        use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
-        use symphonia::core::formats::FormatOptions;
-        use symphonia::core::io::MediaSourceStream;
-        use symphonia::core::meta::MetadataOptions;
-        use symphonia::core::probe::Hint;
+        use symphonia::core::{
+            audio::Signal,
+            codecs::{DecoderOptions, CODEC_TYPE_NULL},
+            formats::FormatOptions,
+            io::MediaSourceStream,
+            meta::MetadataOptions,
+            probe::Hint,
+        };
 
         let file = std::fs::File::open(path).map_err(|e| {
             ConvolutionError::FileLoad(format!("Cannot open {}: {}", path.display(), e))
@@ -460,7 +462,8 @@ impl ConvolutionEngine {
         }
 
         // Forward FFT of left channel input (using pre-allocated workspace, zero allocation)
-        // Split borrows: clone the Arc so we don't borrow self while also borrowing workspace fields.
+        // Split borrows: clone the Arc so we don't borrow self while also borrowing workspace
+        // fields.
         let fft_forward = Arc::clone(&self.fft_forward);
         if Self::forward_fft_into(
             &fft_forward,
@@ -756,7 +759,6 @@ impl ConvolutionEngine {
         }
     }
 
-    ///
     /// buffer overflow. The UI should display a warning when this is
     /// non-zero to inform the user that convolution audio quality is
     /// degraded.

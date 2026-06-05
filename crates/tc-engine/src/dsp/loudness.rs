@@ -4,8 +4,9 @@
 //! pre-computed loudness metadata. The normaliser runs in the playback pipeline
 //! and applies smooth gain transitions.
 
-use crate::buffer::AudioFrame;
 use std::f64::consts::PI;
+
+use crate::buffer::AudioFrame;
 
 /// Loudness normalisation mode
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -158,7 +159,6 @@ pub struct LoudnessNormalizer {
     /// Number of samples accumulated for loudness measurement
     loudness_count: u64,
     /// Channel count observed during measurement (for correct normalization)
-    ///
     measured_channels: usize,
 }
 

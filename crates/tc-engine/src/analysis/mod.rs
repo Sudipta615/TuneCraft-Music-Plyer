@@ -13,16 +13,17 @@ pub mod spectrum;
 pub mod waveform;
 
 // Re-export the canonical analysis types from tc-analysis
-pub use tc_analysis::{
-    BpmDetector, MoodClassifier, TrackAnalysis, WaveformGenerator as FileWaveformGenerator,
+use std::{
+    cell::UnsafeCell,
+    sync::atomic::{fence, AtomicUsize, Ordering},
 };
 
 // Re-export engine-internal analysis types
 pub use spectrum::SpectrumAnalyzer;
+pub use tc_analysis::{
+    BpmDetector, MoodClassifier, TrackAnalysis, WaveformGenerator as FileWaveformGenerator,
+};
 pub use waveform::WaveformGenerator;
-
-use std::cell::UnsafeCell;
-use std::sync::atomic::{fence, AtomicUsize, Ordering};
 
 /// Error type for analysis construction failures.
 

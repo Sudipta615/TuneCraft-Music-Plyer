@@ -19,7 +19,8 @@
 //!
 //! ## Services
 //!
-//! - **PlaybackService** — audio playback, queue management, shuffle/repeat (v0.8.3: thread-safe, single source of truth for queue)
+//! - **PlaybackService** — audio playback, queue management, shuffle/repeat (v0.8.3: thread-safe,
+//!   single source of truth for queue)
 //! - **LibraryService** — track queries, scan management, playlist CRUD
 //! - **EqService** — equalizer state and DSP pipeline parameters
 //! - **ScrobbleService** — Local offline scrobbling (play journal)

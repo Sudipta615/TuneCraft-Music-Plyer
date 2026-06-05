@@ -10,8 +10,7 @@
 //! are encapsulated behind typed service objects. Both GUI and headless modes
 //! share the same initialization logic via the `AppBuilder` pattern.
 
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use log::{error, info, warn};
@@ -250,6 +249,7 @@ fn run_headless() -> Result<()> {
 /// Run audio analysis on tracks that haven't been analyzed yet
 fn run_analysis(db: &tc_db::Database) -> Result<()> {
     use std::path::PathBuf;
+
     use tc_analysis::analyze_file;
 
     info!("Running audio analysis on unanalyzed tracks...");
@@ -311,8 +311,10 @@ fn run_with_audio(
     mut platform: Option<tc_platform::PlatformIntegration>,
     media_key_rx: Option<tc_platform::MediaKeyReceiver>,
 ) -> Result<()> {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::time::Duration;
+    use std::{
+        sync::atomic::{AtomicBool, Ordering},
+        time::Duration,
+    };
 
     // If a file path was provided as argument, play it.
     // L18: Args are collected once by run_headless(); pass the slice here.

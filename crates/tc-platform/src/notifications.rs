@@ -4,8 +4,7 @@
 //! [`PlatformIntegration`] notification methods. Notifications are
 //! dispatched asynchronously to avoid blocking the UI thread.
 
-use crate::types::PlatformError;
-use crate::PlatformIntegration;
+use crate::{types::PlatformError, PlatformIntegration};
 
 impl PlatformIntegration {
     /// Send a desktop notification.
@@ -56,8 +55,10 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
 
     #[cfg(target_os = "macos")]
     {
-        use std::io::Write;
-        use std::process::{Command, Stdio};
+        use std::{
+            io::Write,
+            process::{Command, Stdio},
+        };
 
         // Use osascript's stdin instead of -e with an interpolated string.
         // This completely avoids AppleScript injection: the title and body

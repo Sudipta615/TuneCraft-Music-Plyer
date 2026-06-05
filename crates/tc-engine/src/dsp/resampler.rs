@@ -108,12 +108,10 @@ pub struct AudioResampler {
     needs_rebuild: bool,
     /// Pending quality change to apply on next rebuild
     pending_quality: Option<ResamplerQuality>,
-    ///
     /// After MAX_REBUILD_FAILURES consecutive failures, the resampler
     /// is disabled to prevent the infinite retry loop that would
     /// otherwise saturate the CPU with FFT planning at ~44100 attempts/sec.
     rebuild_failures: u32,
-    ///
     /// to too many consecutive rebuild failures. When disabled, audio
     /// passes through without resampling (potentially at wrong speed).
     /// This flag can be queried by the UI to display a warning.
@@ -553,7 +551,6 @@ impl AudioResampler {
         self.source_rate == self.output_rate && (self.speed - 1.0).abs() < 0.001
     }
 
-    ///
     /// rebuild failures. When disabled, audio passes through without
     /// resampling (potentially at wrong speed/pitch). The UI should
     /// display a warning to the user when this returns true.

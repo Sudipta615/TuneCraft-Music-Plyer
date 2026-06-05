@@ -5,10 +5,10 @@
 //! `TRACK_COLUMNS` and the `row_to_track()` helper also live here
 //! because they are track-specific.
 
-use crate::models::*;
 use rusqlite::params;
 
 use super::{Database, DbError};
+use crate::models::*;
 
 /// Centralized column list for the `tracks` table.
 /// Use this constant instead of repeating the 32-column list in every SELECT.
@@ -753,9 +753,10 @@ impl Database {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use chrono::NaiveDateTime;
+
     use super::*;
     use crate::models::Track;
-    use chrono::NaiveDateTime;
 
     /// Helper to create a test track with default values
     pub(crate) fn make_test_track(path: &str, title: &str) -> Track {

@@ -12,8 +12,7 @@
 //! reporting (Metadata, CanGoNext, etc.) that souvlaki does not expose,
 //! but media *key* handling is now fully cross-platform.
 
-use std::sync::mpsc::Sender;
-use std::sync::Arc;
+use std::sync::{mpsc::Sender, Arc};
 
 use souvlaki::{
     MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig,

@@ -6,8 +6,10 @@
 //! Consistent with PlaybackService and EqService. Uses the
 //! standardized `recover_from_poison` pattern from config.rs.
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 
 use log::{info, warn};
 use tokio::runtime::Runtime;

@@ -139,8 +139,9 @@ impl BpmDetector {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::f64::consts::PI;
+
+    use super::*;
 
     #[test]
     fn test_bpm_detector_with_pulse() {

@@ -2,11 +2,10 @@
 
 use log::{info, warn};
 
+use super::{AudioEngine, EngineError, PlaybackStream};
 use crate::decode::{DecodeInfo, SymphoniaDecoder};
 #[cfg(feature = "resample")]
 use crate::dsp::resampler::AudioResampler;
-
-use super::{AudioEngine, EngineError, PlaybackStream};
 
 impl AudioEngine {
     /// Prepare the next track for crossfading by pre-opening its decoder.

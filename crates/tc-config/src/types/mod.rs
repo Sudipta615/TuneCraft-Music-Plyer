@@ -17,30 +17,24 @@ mod ui;
 pub const CONFIG_VERSION: u32 = 1;
 
 // Enums
-pub use enums::{
-    CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, RepeatMode, ResamplerQuality, Theme,
-};
-
+// App types
+pub use app::{AppConfig, ConfigChangedEvent, ConfigSection};
 // Engine types
 pub use engine::{
     ConvolutionConfig, CrossfadeConfig, EngineConfig, EqBand, EqConfig, LimiterConfig,
     LoudnessConfig, StereoEnhancerConfig,
 };
-
+pub use enums::{
+    CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, RepeatMode, ResamplerQuality, Theme,
+};
 // Library types
 pub use library::LibraryConfig;
-
 // Playback types
 pub use playback::PlaybackConfig;
-
-// UI types
-pub use ui::UiConfig;
-
 // Scrobble types
 pub use scrobble::ScrobbleConfig;
-
-// App types
-pub use app::{AppConfig, ConfigChangedEvent, ConfigSection};
+// UI types
+pub use ui::UiConfig;
 
 #[cfg(test)]
 mod tests {

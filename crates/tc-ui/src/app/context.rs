@@ -6,9 +6,13 @@
 //! objects that encapsulate synchronization internally. The UI never directly
 //! locks a Mutex or RwLock — it calls service methods.
 
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::{
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use log::{error, info, warn};
 use tokio::runtime::Runtime;

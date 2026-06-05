@@ -1,10 +1,12 @@
 //! Playlist repository — playlist CRUD and track-association operations.
 
-use crate::models::*;
 use rusqlite::params;
 
-use super::tracks::{log_and_filter, prefixed_track_columns, row_to_track};
-use super::{Database, DbError};
+use super::{
+    tracks::{log_and_filter, prefixed_track_columns, row_to_track},
+    Database, DbError,
+};
+use crate::models::*;
 
 impl Database {
     pub fn create_playlist(

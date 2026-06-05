@@ -1,8 +1,9 @@
 //! Spectrum analyzer for visualization
 //! Runs off the audio thread using decimated analysis buffers
 
-use realfft::RealToComplex;
 use std::sync::Arc;
+
+use realfft::RealToComplex;
 
 use super::AnalysisError;
 

@@ -7,10 +7,10 @@
 //! no heap allocation in the hot path:
 //!
 //! 1. **RMS energy**             — overall loudness / intensity
-//! 2. **Spectral centroid proxy** — two-band ratio (lo ≤ 500 Hz vs hi > 500 Hz)
-//!    correlates strongly with brightness / warmth
-//! 3. **Spectral flux proxy**    — frame-to-frame energy delta; measures how much
-//!    the signal changes (transient density, percussion)
+//! 2. **Spectral centroid proxy** — two-band ratio (lo ≤ 500 Hz vs hi > 500 Hz) correlates strongly
+//!    with brightness / warmth
+//! 3. **Spectral flux proxy**    — frame-to-frame energy delta; measures how much the signal
+//!    changes (transient density, percussion)
 //! 4. **High-frequency ratio**   — energy above 4 kHz; tracks harshness / air
 //! 5. **Zero-crossing rate**     — noisiness / voice presence proxy
 //! 6. **BPM** (injected at classify time from the existing BpmDetector)
@@ -29,17 +29,15 @@
 //! | Lofi       | Low    | Low–Mid  | Low   | 60–95    | Low flux, lo-fi hip-hop, ambient      |
 //!
 //! Bollywood-specific tuning:
-//! - Bollywood mixes tend to have a strong mid-bass presence and prominent
-//!   vocals sitting in the 200–3000 Hz range.  A pure high-frequency brightness
-//!   metric would under-estimate energy for these tracks.  We therefore weight
-//!   the centroid proxy (lo vs hi split at 500 Hz) alongside a separate HF ratio
-//!   rather than collapsing both into a single brightness score.
-//! - Item songs / sangeet tracks share the high-energy high-flux signature of
-//!   Western EDM and are correctly captured by the Energetic branch.
-//! - Ghazals and slow romantic songs have low flux and a warm (low centroid)
-//!   timbre — well separated from Sad by their moderate energy level and the
-//!   presence of sustained vocal harmonics (higher ZCR than purely instrumental
-//!   sad tracks).
+//! - Bollywood mixes tend to have a strong mid-bass presence and prominent vocals sitting in the
+//!   200–3000 Hz range.  A pure high-frequency brightness metric would under-estimate energy for
+//!   these tracks.  We therefore weight the centroid proxy (lo vs hi split at 500 Hz) alongside a
+//!   separate HF ratio rather than collapsing both into a single brightness score.
+//! - Item songs / sangeet tracks share the high-energy high-flux signature of Western EDM and are
+//!   correctly captured by the Energetic branch.
+//! - Ghazals and slow romantic songs have low flux and a warm (low centroid) timbre — well
+//!   separated from Sad by their moderate energy level and the presence of sustained vocal
+//!   harmonics (higher ZCR than purely instrumental sad tracks).
 
 use std::f64::consts::PI;
 
@@ -257,7 +255,7 @@ impl MoodClassifier {
         }
 
         // ----------------------------------------------------------------
-        // 1.  Normalise raw feature means into [0, 1]
+        // 1. Normalise raw feature means into [0, 1]
         // ----------------------------------------------------------------
 
         // Energy: typical peak RMS² ≈ 0.25 (0 dBFS sine), so scale by 4.
@@ -293,7 +291,7 @@ impl MoodClassifier {
         let zcr = (self.acc_zcr.mean * 6.0).min(1.0);
 
         // ----------------------------------------------------------------
-        // 2.  Derived composite scores
+        // 2. Derived composite scores
         // ----------------------------------------------------------------
 
         // Warmth: inverse of centroid, boosted by low hf_ratio.
@@ -305,7 +303,7 @@ impl MoodClassifier {
         let vocal = (zcr * (1.0 - (centroid - 0.45).abs() * 2.5).max(0.0)).min(1.0);
 
         // ----------------------------------------------------------------
-        // 3.  Classification (with BPM injected by the caller via classify_with_bpm)
+        // 3. Classification (with BPM injected by the caller via classify_with_bpm)
         // ----------------------------------------------------------------
         self.classify_features(energy, centroid, flux, warmth, vocal, None)
     }
@@ -581,8 +579,9 @@ impl MoodClassifier {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::f64::consts::PI;
+
+    use super::*;
 
     fn make_samples_sine(
         freq_hz: f64,

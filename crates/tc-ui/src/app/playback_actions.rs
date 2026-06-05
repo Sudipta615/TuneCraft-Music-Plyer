@@ -1,7 +1,6 @@
 //! Playback delegation methods for TuneCraftApp.
 
-use super::ToastLevel;
-use super::TuneCraftApp;
+use super::{ToastLevel, TuneCraftApp};
 
 impl TuneCraftApp {
     pub fn play_track(&mut self, track_id: i64) {
@@ -103,7 +102,6 @@ impl TuneCraftApp {
     }
 
     /// Set volume.
-    ///
     ///
     pub fn set_volume(&mut self, volume: f64) {
         let clamped = volume.clamp(0.0, 1.0);

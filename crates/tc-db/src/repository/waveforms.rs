@@ -1,9 +1,9 @@
 //! Waveform cache repository — waveform data persistence.
 
-use crate::models::*;
 use rusqlite::params;
 
 use super::{Database, DbError};
+use crate::models::*;
 
 impl Database {
     pub fn save_waveform(

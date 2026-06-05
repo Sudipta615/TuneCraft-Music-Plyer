@@ -1,6 +1,10 @@
-use std::cell::UnsafeCell;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::{
+    cell::UnsafeCell,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 
 /// Maximum number of frames in the decode-to-DSP buffer
 pub const DECODE_BUFFER_FRAMES: usize = 16384;

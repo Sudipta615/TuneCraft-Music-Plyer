@@ -12,18 +12,19 @@
 mod cover_art;
 mod metadata;
 
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::{atomic::Ordering, Arc},
+    time::{Duration, Instant, UNIX_EPOCH},
+};
+
+pub use cover_art::{detect_image_mime, CoverArtData};
 use log::{info, warn};
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::time::{Duration, Instant, UNIX_EPOCH};
 use tc_config::LibraryConfig;
 use tc_db::{models::Track, Database};
 use thiserror::Error;
 use walkdir::WalkDir;
-
-pub use cover_art::{detect_image_mime, CoverArtData};
 
 #[derive(Debug, Error)]
 pub enum LibraryError {
@@ -124,13 +125,12 @@ impl LibraryManager {
     /// Scan the library directories for new and modified files.
     ///
     /// Uses a two-phase approach:
-    /// 1. **Phase 1 — Metadata extraction**: Walk directories, extract metadata
-    ///    (and embedded cover art) from each file in a single probe pass, and
-    ///    classify as Added/Updated/Unchanged.
-    /// 2. **Phase 2 — Batch database writes**: Insert/update tracks in batches
-    ///    of 250 within explicit transactions (~25× faster than per-file).
-    /// 3. **Phase 3 — Album linkage**: After `refresh_albums_and_artists()`,
-    ///    resolve album IDs and store accumulated cover art with correct links.
+    /// 1. **Phase 1 — Metadata extraction**: Walk directories, extract metadata (and embedded cover
+    ///    art) from each file in a single probe pass, and classify as Added/Updated/Unchanged.
+    /// 2. **Phase 2 — Batch database writes**: Insert/update tracks in batches of 250 within
+    ///    explicit transactions (~25× faster than per-file).
+    /// 3. **Phase 3 — Album linkage**: After `refresh_albums_and_artists()`, resolve album IDs and
+    ///    store accumulated cover art with correct links.
     ///
     /// v0.8.10 improvements:
     /// - Pre-loads existing track paths into a `HashMap` for O(1) lookups.

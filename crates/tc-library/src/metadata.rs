@@ -47,11 +47,10 @@ impl super::LibraryManager {
     pub(crate) fn probe_file(
         path: &Path,
     ) -> Option<(f64, u32, usize, FileTags, Option<CoverArtData>)> {
-        use symphonia::core::codecs::CODEC_TYPE_NULL;
-        use symphonia::core::formats::FormatOptions;
-        use symphonia::core::io::MediaSourceStream;
-        use symphonia::core::meta::MetadataOptions;
-        use symphonia::core::probe::Hint;
+        use symphonia::core::{
+            codecs::CODEC_TYPE_NULL, formats::FormatOptions, io::MediaSourceStream,
+            meta::MetadataOptions, probe::Hint,
+        };
 
         let file = std::fs::File::open(path).ok()?;
         let mss = MediaSourceStream::new(Box::new(file), Default::default());

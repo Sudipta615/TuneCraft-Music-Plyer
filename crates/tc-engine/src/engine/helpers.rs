@@ -3,9 +3,8 @@
 
 use log::error;
 
-use crate::buffer::{PlaybackInfo, PlaybackState};
-
 use super::AudioEngine;
+use crate::buffer::{PlaybackInfo, PlaybackState};
 
 impl AudioEngine {
     pub(super) fn current_state(&self) -> PlaybackState {

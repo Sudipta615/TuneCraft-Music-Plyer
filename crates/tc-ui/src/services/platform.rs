@@ -17,8 +17,8 @@ use super::config::{recover_from_poison, recover_from_poison_write};
 
 /// The platform service manages OS integration features.
 
-/// Uses `RwLock<PlatformIntegration>` instead of `RefCell`. This makes the service both `Send` and `Sync`,
-/// consistent with other services, and prevents panics if accessed from
+/// Uses `RwLock<PlatformIntegration>` instead of `RefCell`. This makes the service both `Send` and
+/// `Sync`, consistent with other services, and prevents panics if accessed from
 /// a background thread during shutdown.
 pub struct PlatformService {
     inner: std::sync::RwLock<PlatformIntegration>,
@@ -106,7 +106,6 @@ impl PlatformService {
         recover_from_poison(self.inner.read()).process_key_event(key, ctrl, alt, shift, meta)
     }
 
-    ///
     /// Called periodically from the UI sync loop to keep MPRIS clients
     /// (desktop panels, media applets) in sync with the actual position.
     pub fn update_mpris_position(&self, position_secs: f64) {

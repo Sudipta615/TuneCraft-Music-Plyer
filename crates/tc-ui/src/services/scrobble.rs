@@ -24,8 +24,10 @@
 //! The service emits [`ScrobbleEvent`] values through a `std::sync::mpsc`
 //! channel that the UI polls each frame to show toast notifications.
 
-use std::sync::mpsc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    sync::mpsc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use log::{info, warn};
 

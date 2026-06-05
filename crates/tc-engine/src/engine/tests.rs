@@ -8,9 +8,12 @@
 //! - Command dispatch
 //! - PlaybackInfo RwLock recovery
 
-use crate::buffer::{EngineCommand, PlaybackState};
-use crate::engine::{AudioEngine, EngineError, PlaybackStream};
 use tc_config::EngineConfig;
+
+use crate::{
+    buffer::{EngineCommand, PlaybackState},
+    engine::{AudioEngine, EngineError, PlaybackStream},
+};
 
 // ── PlaybackStream tests ──────────────────────────────────────────────────
 

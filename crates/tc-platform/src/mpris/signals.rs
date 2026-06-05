@@ -9,8 +9,9 @@
 //!
 //! `Connection::emit_signal()` with `zbus::message::Builder::signal()`.
 
-use parking_lot::Mutex;
 use std::sync::Arc;
+
+use parking_lot::Mutex;
 use zbus::zvariant::Value;
 
 use super::MprisState;

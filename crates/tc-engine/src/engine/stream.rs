@@ -5,10 +5,11 @@
 //! modules can access items defined in their parent). This file contains
 //! the `EngineError` enum and the `impl PlaybackStream` method block.
 
-use crate::decode::{DecodeError, DecodeInfo};
-use crate::output::cpal_output::OutputError;
-
 use super::PlaybackStream;
+use crate::{
+    decode::{DecodeError, DecodeInfo},
+    output::cpal_output::OutputError,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum EngineError {

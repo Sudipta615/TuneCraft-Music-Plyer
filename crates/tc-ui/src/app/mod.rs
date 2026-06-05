@@ -35,22 +35,20 @@ mod toasts;
 
 use std::sync::Arc;
 
+pub use context::AppContext;
 use egui::Vec2;
 use log::info;
-use tokio::runtime::Runtime;
-
-use crate::services::ScrobbleService;
-use crate::sidebar::NavSection;
-use crate::theme::TuneCraftColors;
-
 pub use tc_config::RepeatMode;
 pub use tc_db::{Playlist, Track};
 pub use tc_engine::buffer::{EngineCommand, PlaybackInfo, PlaybackState as EnginePlaybackState};
-
-pub use context::AppContext;
 pub use toasts::ToastLevel;
+use tokio::runtime::Runtime;
 
-use crate::services::scrobble::ScrobbleEvent;
+use crate::{
+    services::{scrobble::ScrobbleEvent, ScrobbleService},
+    sidebar::NavSection,
+    theme::TuneCraftColors,
+};
 
 /// The main TuneCraft application state.
 
@@ -315,7 +313,7 @@ impl eframe::App for TuneCraftApp {
     /// Called every frame by the eframe runtime.
     ///
     ///
-    ///. It orchestrates all per-frame operations:
+    /// . It orchestrates all per-frame operations:
     /// 1. Sync playback and EQ state from services
     /// 2. Poll media key events
     /// 3. Check scrobble thresholds

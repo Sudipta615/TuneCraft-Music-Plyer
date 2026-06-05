@@ -1,7 +1,6 @@
 //! State synchronization methods for TuneCraftApp.
 
-use super::toasts::ToastLevel;
-use super::TuneCraftApp;
+use super::{toasts::ToastLevel, TuneCraftApp};
 
 impl TuneCraftApp {
     /// Sync UI playback mirrors from PlaybackService.
@@ -116,7 +115,6 @@ impl TuneCraftApp {
         }
     }
 
-    ///
     /// and show a toast notification to the user when issues are detected.
     /// Only shows the toast once per warning to avoid spamming.
     pub fn check_dsp_warnings(&mut self) {

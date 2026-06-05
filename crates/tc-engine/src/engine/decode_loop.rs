@@ -8,13 +8,13 @@
 
 use log::{error, info, warn};
 
-use crate::buffer::{AudioFrame, PlaybackState};
-use crate::decode::DecodeError;
-use crate::decode::SymphoniaDecoder;
+use super::{AudioEngine, PlaybackStream};
 #[cfg(feature = "resample")]
 use crate::dsp::resampler::AudioResampler;
-
-use super::{AudioEngine, PlaybackStream};
+use crate::{
+    buffer::{AudioFrame, PlaybackState},
+    decode::{DecodeError, SymphoniaDecoder},
+};
 
 impl AudioEngine {
     /// Core decode-and-process loop. Handles both Single and Transitioning

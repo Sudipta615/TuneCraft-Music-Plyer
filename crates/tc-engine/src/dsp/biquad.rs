@@ -3,8 +3,9 @@
 //! Implements Direct Form II Transposed (DFII-T) which has the best numerical
 //! behaviour for audio-rate IIR filters at the cost of two state variables.
 
-use crate::buffer::AudioFrame;
 use std::f64::consts::PI;
+
+use crate::buffer::AudioFrame;
 
 /// Biquad filter coefficients (normalised, a0 = 1)
 #[derive(Debug, Clone, Copy, Default)]
@@ -427,8 +428,9 @@ impl Default for SmoothedBiquad {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use approx::assert_relative_eq;
+
+    use super::*;
 
     #[test]
     fn test_identity_passes_signal() {

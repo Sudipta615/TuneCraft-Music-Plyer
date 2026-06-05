@@ -9,14 +9,14 @@
 //!
 //! in-place modifications, avoiding unnecessary `Arc::new()` allocation
 //! on every update. Only creates a new Arc when the snapshot actually changes.
-//!
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 use arc_swap::ArcSwap;
 use log::{error, info, warn};
-
 use tc_db::{Database, Playlist, Track};
 
 /// Snapshot of library state that the UI can read without any locks.
@@ -56,7 +56,8 @@ impl Default for LibrarySnapshot {
 /// Uses `ArcSwap<LibrarySnapshot>` for lock-free, thread-safe snapshot
 /// reads. The UI can call `snapshot()` from any thread without blocking.
 
-/// Partial updates are applied in-place, reducing Arc allocations when only a subset of fields change.
+/// Partial updates are applied in-place, reducing Arc allocations when only a subset of fields
+/// change.
 pub struct LibraryService {
     db: Arc<Database>,
     library_manager: Arc<tc_library::LibraryManager>,

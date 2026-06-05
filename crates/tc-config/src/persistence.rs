@@ -1,9 +1,13 @@
+use std::{
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
+};
+
+use thiserror::Error;
+
 #[allow(unused_imports)] // CONFIG_VERSION used in tests
 use crate::types::CONFIG_VERSION;
 use crate::types::{AppConfig, ConfigChangedEvent, ConfigSection};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
-use thiserror::Error;
 
 /// Global counter for unique temp-file suffixes (H1 fix).
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -292,8 +296,9 @@ impl Default for ConfigPersistence {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::fs;
+
+    use super::*;
 
     #[test]
     fn test_load_or_default_returns_valid_config() {

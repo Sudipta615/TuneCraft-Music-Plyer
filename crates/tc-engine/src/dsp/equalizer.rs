@@ -1,7 +1,9 @@
 //! Parametric equaliser — configurable multi-band EQ with smooth parameter transitions
 
-use crate::buffer::AudioFrame;
-use crate::dsp::biquad::{FilterType, SmoothedBiquad};
+use crate::{
+    buffer::AudioFrame,
+    dsp::biquad::{FilterType, SmoothedBiquad},
+};
 
 /// Maximum number of EQ bands
 pub const MAX_EQ_BANDS: usize = 31;
@@ -174,11 +176,9 @@ pub struct ParametricEq {
     headroom_scale_target: f64,
     /// Slew rate for headroom scale attack — when signal exceeds threshold,
     /// the scale reduces quickly to prevent clipping (per sample, 0.0–1.0).
-    ///
     headroom_attack_rate: f64,
     /// Slew rate for headroom scale release — when signal falls below threshold,
     /// the scale returns to unity slowly to avoid pumping artifacts.
-    ///
     headroom_release_rate: f64,
 }
 
@@ -295,7 +295,6 @@ impl ParametricEq {
             (l, r) = band.process(l, r);
         }
 
-        //
         // Attack (signal exceeds threshold): Use a fast attack rate so the
         // scale reduces quickly to prevent clipping. At 0.01, 95% of the
         // target is reached in ~300 samples (~7ms at 44.1kHz), which is fast

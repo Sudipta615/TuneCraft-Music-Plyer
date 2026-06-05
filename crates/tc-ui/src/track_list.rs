@@ -4,8 +4,7 @@
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Ui, Vec2};
 
-use crate::app::TuneCraftApp;
-use crate::theme::TuneCraftColors;
+use crate::{app::TuneCraftApp, theme::TuneCraftColors};
 
 fn truncate_text(ui: &Ui, text: &str, font: &FontId, max_width: f32) -> String {
     let galley = ui
@@ -677,7 +676,8 @@ fn compute_col_offsets(width: f32, vis: &ColumnVisibility) -> [f32; 6] {
         col_num_w,                                                           // col 1: art start
         col_num_w + art_w + art_gap,                                         // col 2: title start
         col_num_w + art_w + art_gap + col_title_w,                           // col 3: album start
-        col_num_w + art_w + art_gap + col_title_w + col_album_w, // col 4: duration start
+        col_num_w + art_w + art_gap + col_title_w + col_album_w,             /* col 4: duration
+                                                                              * start */
         col_num_w + art_w + art_gap + col_title_w + col_album_w + col_dur_w, // col 5: mood start
     ]
 }

@@ -1,9 +1,7 @@
 //! Aggregate reconciliation — album, artist, and playlist counter maintenance.
 
+use super::{tracks::log_and_filter, Database, DbError};
 use crate::models::*;
-
-use super::tracks::log_and_filter;
-use super::{Database, DbError};
 
 impl Database {
     pub fn get_all_albums(&self) -> Result<Vec<Album>, DbError> {

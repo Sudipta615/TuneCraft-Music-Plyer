@@ -3,9 +3,12 @@
 //! Wires the playback threshold check to the local offline scrobble service.
 //! No network calls, no credentials required.
 
-use crate::services::playback::ScrobbleCheck;
-use crate::services::scrobble::{LocalScrobbleEntry, ScrobbleEvent};
 use log::info;
+
+use crate::services::{
+    playback::ScrobbleCheck,
+    scrobble::{LocalScrobbleEntry, ScrobbleEvent},
+};
 
 impl super::TuneCraftApp {
     /// Called every UI frame: checks whether the play threshold has been

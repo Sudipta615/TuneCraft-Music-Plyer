@@ -1,7 +1,6 @@
 //! Library and polling delegation methods for TuneCraftApp.
 
-use super::ToastLevel;
-use super::TuneCraftApp;
+use super::{ToastLevel, TuneCraftApp};
 
 impl TuneCraftApp {
     pub fn refresh_tracks(&mut self) {

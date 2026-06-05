@@ -23,14 +23,19 @@ mod playlists;
 mod tracks;
 mod waveforms;
 
-use crate::migrations;
-use rusqlite::{params, Connection};
-use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
-use thiserror::Error;
+use std::{
+    path::Path,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex,
+    },
+};
 
+use rusqlite::{params, Connection};
+use thiserror::Error;
 pub use tracks::TRACK_COLUMNS;
+
+use crate::migrations;
 
 #[derive(Debug, Error)]
 pub enum DbError {

@@ -8,12 +8,14 @@
 //! to use `&str` parameters (matching zbus v4 expectations) instead of
 //! `String` where the v0.9.8 code used `&str`.
 
-use parking_lot::Mutex;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::Arc;
+use std::sync::{
+    mpsc::{Receiver, Sender},
+    Arc,
+};
 
-use super::signals;
-use super::MprisState;
+use parking_lot::Mutex;
+
+use super::{signals, MprisState};
 use crate::types::{MediaKeyAction, MprisPlaybackStatus, MprisPropertyChanged};
 
 /// Run the D-Bus server, serving MPRIS interfaces.
@@ -23,8 +25,7 @@ pub(crate) fn run_dbus_server(
     state: &Arc<Mutex<MprisState>>,
     notify_rx: &Receiver<MprisPropertyChanged>,
 ) -> Result<(), String> {
-    use zbus::blocking::connection::Builder;
-    use zbus::interface;
+    use zbus::{blocking::connection::Builder, interface};
 
     let bus_name = format!("org.mpris.MediaPlayer2.{}", identity);
     let object_path = "/org/mpris/MediaPlayer2";
@@ -43,7 +44,6 @@ pub(crate) fn run_dbus_server(
             ))
         }
 
-        ///
         /// main application actually responds to quit requests (C4).
         fn quit(&self) -> zbus::fdo::Result<()> {
             log::info!("MPRIS Quit requested");
@@ -110,7 +110,6 @@ pub(crate) fn run_dbus_server(
             Ok(())
         }
 
-        ///
         /// instead of PlayPause (C3 fix).
         fn pause(&self) -> zbus::fdo::Result<()> {
             let _ = self.action_tx.send(MediaKeyAction::Pause);
@@ -127,7 +126,6 @@ pub(crate) fn run_dbus_server(
             Ok(())
         }
 
-        ///
         /// instead of PlayPause (C3 fix).
         fn play(&self) -> zbus::fdo::Result<()> {
             let _ = self.action_tx.send(MediaKeyAction::Play);

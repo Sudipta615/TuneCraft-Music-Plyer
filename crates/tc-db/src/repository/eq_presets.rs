@@ -1,10 +1,9 @@
 //! EQ preset repository — equalizer preset CRUD operations.
 
-use crate::models::*;
 use rusqlite::params;
 
-use super::tracks::log_and_filter;
-use super::{Database, DbError};
+use super::{tracks::log_and_filter, Database, DbError};
+use crate::models::*;
 
 impl Database {
     pub fn save_eq_preset(
@@ -75,7 +74,6 @@ impl Database {
     }
 
     /// Delete an EQ preset by name.
-    ///
     ///
     pub fn delete_eq_preset_by_name(&self, name: &str) -> Result<(), DbError> {
         let removed = self

@@ -30,6 +30,12 @@ mod types;
 pub mod mpris;
 
 // Re-exports: maintain backward-compatible public API
+use std::sync::{
+    atomic::AtomicBool,
+    mpsc::{self, Sender},
+    Arc,
+};
+
 pub use media_control::CrossPlatformMediaControls;
 pub use media_keys::MediaKeyReceiver;
 pub use notifications::{applescript_escape, xml_escape};
@@ -38,10 +44,6 @@ pub use types::{
     KeyboardShortcut, MediaKeyAction, MprisPlaybackStatus, MprisPropertyChanged, MprisTrackInfo,
     PlatformError,
 };
-
-use std::sync::atomic::AtomicBool;
-use std::sync::mpsc::{self, Sender};
-use std::sync::Arc;
 
 /// Platform integration handle
 

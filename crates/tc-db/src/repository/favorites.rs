@@ -1,10 +1,12 @@
 //! Favorites repository — favorite track operations.
 
-use crate::models::*;
 use rusqlite::params;
 
-use super::tracks::{log_and_filter, prefixed_track_columns, row_to_track};
-use super::{Database, DbError};
+use super::{
+    tracks::{log_and_filter, prefixed_track_columns, row_to_track},
+    Database, DbError,
+};
+use crate::models::*;
 
 impl Database {
     /// Add a track to the user's favorites

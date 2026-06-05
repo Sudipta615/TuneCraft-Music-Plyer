@@ -1,13 +1,13 @@
 //! EQ Panel — floating window with 10-band EQ, shelves, stereo controls, presets
 //! Matches the reference design: back arrow + title, enable toggle, preset dropdown,
-//! vertical band sliders, secondary sliders for Bass/Treble/Stereo/Balance, Dither/M-S toggles, Preamp.
+//! vertical band sliders, secondary sliders for Bass/Treble/Stereo/Balance, Dither/M-S toggles,
+//! Preamp.
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Ui, Vec2};
 #[allow(unused_imports)]
 use tc_config;
 
-use crate::app::TuneCraftApp;
-use crate::theme::TuneCraftColors;
+use crate::{app::TuneCraftApp, theme::TuneCraftColors};
 
 const EQ_FREQUENCIES: [&str; 10] = [
     "32", "64", "125", "250", "500", "1000", "2000", "4000", "8000", "16000",
@@ -149,7 +149,8 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
         ui.add_space(10.0);
 
-        // ── Secondary controls: Bass Shelf | Treble Shelf | Stereo Width | Balance | Dither + M/S ──
+        // ── Secondary controls: Bass Shelf | Treble Shelf | Stereo Width | Balance | Dither + M/S
+        // ──
         let secondary_h = 130.0;
         let sec_available_w = ui.available_width();
         let (sec_rect, _) =

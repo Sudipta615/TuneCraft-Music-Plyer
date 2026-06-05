@@ -9,11 +9,9 @@
 //! The Linux-only MPRIS D-Bus approach is supplemented (not replaced) by
 //! souvlaki, which handles media key events on macOS and Windows too.
 
-use std::sync::atomic::Ordering;
-use std::sync::mpsc::Receiver;
+use std::sync::{atomic::Ordering, mpsc::Receiver};
 
-use crate::types::MediaKeyAction;
-use crate::PlatformIntegration;
+use crate::{types::MediaKeyAction, PlatformIntegration};
 
 /// Standalone receiver for media key actions.
 

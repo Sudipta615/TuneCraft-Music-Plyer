@@ -27,6 +27,5 @@ pub mod types;
 
 // Re-export the primary persistence API
 pub use persistence::{ConfigError, ConfigPersistence};
-
 // Re-export all config types (AppConfig, EngineConfig, LibraryConfig, etc.)
 pub use types::*;

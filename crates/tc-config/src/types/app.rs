@@ -1,11 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use super::engine::EngineConfig;
-use super::library::LibraryConfig;
-use super::playback::PlaybackConfig;
-use super::scrobble::ScrobbleConfig;
-use super::ui::UiConfig;
-use super::CONFIG_VERSION;
+use super::{
+    engine::EngineConfig, library::LibraryConfig, playback::PlaybackConfig,
+    scrobble::ScrobbleConfig, ui::UiConfig, CONFIG_VERSION,
+};
 
 /// Root application configuration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

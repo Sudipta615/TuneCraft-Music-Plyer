@@ -32,27 +32,31 @@ mod stream;
 #[cfg(test)]
 mod tests;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::{Duration, Instant},
+};
 
 use crossbeam::channel::{self, Receiver, Sender};
 use log::{error, info, warn};
-
-use crate::buffer::{
-    EngineCommand, FixedFrameBuffer, PlaybackInfo, PlaybackState, DEFAULT_SAMPLE_RATE,
-    OUTPUT_BUFFER_FRAMES,
-};
-use crate::decode::{DecodeInfo, SymphoniaDecoder};
-use crate::dsp::pipeline::DspPipeline;
-#[cfg(feature = "resample")]
-use crate::dsp::resampler::AudioResampler;
-use crate::output::CpalOutput;
-
-use tc_config::EngineConfig;
-
 // Re-export public types from submodules so the public API is unchanged.
 pub use stream::EngineError;
+use tc_config::EngineConfig;
+
+#[cfg(feature = "resample")]
+use crate::dsp::resampler::AudioResampler;
+use crate::{
+    buffer::{
+        EngineCommand, FixedFrameBuffer, PlaybackInfo, PlaybackState, DEFAULT_SAMPLE_RATE,
+        OUTPUT_BUFFER_FRAMES,
+    },
+    decode::{DecodeInfo, SymphoniaDecoder},
+    dsp::pipeline::DspPipeline,
+    output::CpalOutput,
+};
 
 /// Dual-decoder state machine for true gapless playback and crossfading.
 
