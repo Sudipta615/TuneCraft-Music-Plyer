@@ -12,8 +12,9 @@ pub const MAX_EQ_BANDS: usize = 31;
 pub const NUM_EQ_BANDS: usize = 10;
 
 /// EQ filter type for each band
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum EqFilterType {
+    #[default]
     Peaking,
     LowShelf,
     HighShelf,
@@ -23,11 +24,6 @@ pub enum EqFilterType {
     Notch,
 }
 
-impl Default for EqFilterType {
-    fn default() -> Self {
-        Self::Peaking
-    }
-}
 
 impl EqFilterType {
     /// Map to the biquad FilterType

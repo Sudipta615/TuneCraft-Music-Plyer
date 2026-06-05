@@ -40,6 +40,7 @@ pub struct LyricsResult {
 
 /// LRCLIB API search response item
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct LrclibSearchResult {
     id: i64,
     track_name: Option<String>,
@@ -126,7 +127,7 @@ impl LyricsClient {
             .synced_lyrics
             .as_ref()
             .filter(|s| !s.is_empty())
-            .map(|s| {
+            .and_then(|s| {
                 // L14: Previously .ok() silently discarded LRC parse errors,
                 // giving no indication of why synced lyrics were unavailable.
                 match Self::parse_lrc(s) {
@@ -136,8 +137,7 @@ impl LyricsClient {
                         None
                     },
                 }
-            })
-            .flatten();
+            });
 
         // Use plain lyrics as unsynced fallback
         let unsynced = best
@@ -183,8 +183,7 @@ impl LyricsClient {
             .synced_lyrics
             .as_ref()
             .filter(|s| !s.is_empty())
-            .map(|s| Self::parse_lrc(s).ok())
-            .flatten();
+            .and_then(|s| Self::parse_lrc(s).ok());
 
         let unsynced = result
             .plain_lyrics
@@ -224,19 +223,19 @@ impl LyricsClient {
             let mut s = 0i32;
 
             // Synced lyrics available: big bonus
-            if r.synced_lyrics.as_ref().map_or(false, |l| !l.is_empty()) {
+            if r.synced_lyrics.as_ref().is_some_and(|l| !l.is_empty()) {
                 s += 100;
             }
 
             // Plain lyrics available: moderate bonus
-            if r.plain_lyrics.as_ref().map_or(false, |l| !l.is_empty()) {
+            if r.plain_lyrics.as_ref().is_some_and(|l| !l.is_empty()) {
                 s += 50;
             }
 
             // Artist match
             if r.artist_name
                 .as_ref()
-                .map_or(false, |a| a.to_lowercase().contains(&artist_lower))
+                .is_some_and(|a| a.to_lowercase().contains(&artist_lower))
             {
                 s += 30;
             }
@@ -244,7 +243,7 @@ impl LyricsClient {
             // Title match
             if r.track_name
                 .as_ref()
-                .map_or(false, |t| t.to_lowercase().contains(&title_lower))
+                .is_some_and(|t| t.to_lowercase().contains(&title_lower))
             {
                 s += 40;
             }
@@ -252,7 +251,7 @@ impl LyricsClient {
             // Exact title match bonus
             if r.track_name
                 .as_ref()
-                .map_or(false, |t| t.to_lowercase() == title_lower)
+                .is_some_and(|t| t.to_lowercase() == title_lower)
             {
                 s += 20;
             }

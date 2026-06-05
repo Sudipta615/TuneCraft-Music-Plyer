@@ -98,6 +98,7 @@ impl super::LibraryManager {
     }
 
     /// Build a `Track` from probed parameters, clamping invalid values.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn build_track(
         &self,
         path: &Path,
@@ -274,10 +275,8 @@ impl super::LibraryManager {
                             tags.track_number = tag_value_to_i32(&tag.value);
                         }
                     },
-                    StandardTagKey::DiscNumber => {
-                        if tags.disc_number.is_none() {
-                            tags.disc_number = tag_value_to_i32(&tag.value);
-                        }
+                    StandardTagKey::DiscNumber if tags.disc_number.is_none() => {
+                        tags.disc_number = tag_value_to_i32(&tag.value);
                     },
                     _ => {},
                 }

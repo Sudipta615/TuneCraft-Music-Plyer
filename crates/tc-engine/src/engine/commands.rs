@@ -67,7 +67,7 @@ impl AudioEngine {
                 }
                 // Seek only works cleanly in Single mode. If crossfading,
                 // cancel the crossfade and seek in the incoming track.
-                let seek_in_incoming = self.stream.as_ref().map_or(false, |s| s.is_crossfading());
+                let seek_in_incoming = self.stream.as_ref().is_some_and(|s| s.is_crossfading());
                 if seek_in_incoming {
                     // Promote incoming to single, discard outgoing.
                     if let Some(PlaybackStream::Transitioning {
@@ -139,11 +139,13 @@ impl AudioEngine {
                 // Update resampler(s) in the active stream.
                 #[cfg(feature = "resample")]
                 match &mut self.stream {
-                    Some(PlaybackStream::Single { resampler, .. }) => {
-                        if let Some(ref mut r) = resampler {
-                            r.set_speed(clamped);
-                        }
+                    Some(PlaybackStream::Single {
+                        resampler: Some(ref mut r),
+                        ..
+                    }) => {
+                        r.set_speed(clamped);
                     },
+                    Some(PlaybackStream::Single { .. }) => {},
                     Some(PlaybackStream::Transitioning {
                         outgoing_resampler,
                         incoming_resampler,

@@ -341,11 +341,11 @@ impl AudioResampler {
             return;
         }
 
-        for ch in 0..CHANNELS {
+        for (ch, src) in output_channels.iter().enumerate().take(CHANNELS) {
             if self.output_buffers[ch].len() < write_start + frames_to_write {
                 self.output_buffers[ch].resize(write_start + frames_to_write, 0.0);
             }
-            let src = &output_channels[ch][..frames_to_write];
+            let src = &src[..frames_to_write];
             self.output_buffers[ch][write_start..write_start + frames_to_write]
                 .copy_from_slice(src);
         }

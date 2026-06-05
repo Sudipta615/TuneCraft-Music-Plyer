@@ -67,6 +67,7 @@ use crate::{
 ///
 /// Defined in `mod.rs` so that private fields are accessible from all engine
 /// submodules (Rust privacy rules: submodules can access parent-module items).
+#[allow(clippy::large_enum_variant)]
 pub enum PlaybackStream {
     /// Playing a single track with no crossfade in progress.
     Single {
@@ -480,13 +481,13 @@ impl AudioEngine {
     pub fn is_resampler_disabled(&self) -> bool {
         match &self.stream {
             Some(PlaybackStream::Single { resampler, .. }) => {
-                resampler.as_ref().map_or(false, |r| r.is_disabled())
+                resampler.as_ref().is_some_and(|r| r.is_disabled())
             },
             Some(PlaybackStream::Transitioning {
                 incoming_resampler, ..
             }) => incoming_resampler
                 .as_ref()
-                .map_or(false, |r| r.is_disabled()),
+                .is_some_and(|r| r.is_disabled()),
             None => false,
         }
     }

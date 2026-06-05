@@ -31,7 +31,7 @@ impl WaveformGenerator {
     /// Generate waveform data from stereo samples
     pub fn generate(&self, samples: &[(f64, f64)]) -> WaveformData {
         let spp = self.samples_per_pixel;
-        let num_peaks = (samples.len() + spp - 1) / spp;
+        let num_peaks = samples.len().div_ceil(spp);
         let mut peaks = Vec::with_capacity(num_peaks);
 
         for chunk in samples.chunks(spp) {

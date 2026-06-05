@@ -195,15 +195,10 @@ impl AudioEngine {
                     }
                 } else {
                     r.feed(dsp_l, dsp_r);
-                    loop {
-                        match r.read() {
-                            Some((out_l, out_r)) => {
-                                if !self.output_buffer.push(AudioFrame::stereo(out_l, out_r)) {
-                                    stalled_at = Some(i);
-                                    break 'outer;
-                                }
-                            },
-                            None => break,
+                    while let Some((out_l, out_r)) = r.read() {
+                        if !self.output_buffer.push(AudioFrame::stereo(out_l, out_r)) {
+                            stalled_at = Some(i);
+                            break 'outer;
                         }
                     }
                 }

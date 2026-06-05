@@ -6,6 +6,7 @@ use log::{info, warn};
 use super::recovery;
 use super::{AudioEngine, EngineError, PlaybackStream};
 use crate::decode::{DecodeInfo, SymphoniaDecoder};
+use std::path::Path;
 
 impl AudioEngine {
     /// Prepare the next track for crossfading by pre-opening its decoder.
@@ -19,7 +20,7 @@ impl AudioEngine {
     /// trigger fires.
     pub fn prepare_next_track(
         &mut self,
-        path: &std::path::PathBuf,
+        path: &Path,
     ) -> Result<DecodeInfo, EngineError> {
         // If crossfade is disabled or there is no current stream, just
         // remember the path for a regular track transition later.

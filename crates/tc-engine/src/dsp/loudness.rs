@@ -9,19 +9,15 @@ use std::f64::consts::PI;
 use crate::buffer::AudioFrame;
 
 /// Loudness normalisation mode
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum LoudnessMode {
+    #[default]
     Off,
     TrackReplayGain,
     AlbumReplayGain,
     EbuR128,
 }
 
-impl Default for LoudnessMode {
-    fn default() -> Self {
-        Self::Off
-    }
-}
 
 /// Loudness metadata for a track (pre-computed during scanning)
 #[derive(Debug, Clone, Copy, Default)]

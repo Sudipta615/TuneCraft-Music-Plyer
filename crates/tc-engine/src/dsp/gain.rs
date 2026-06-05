@@ -109,19 +109,15 @@ impl Default for GainProcessor {
 }
 
 /// Current state of a fade
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FadeState {
+    #[default]
     Idle,
     FadingIn,
     FadingOut,
     FadedOut,
 }
 
-impl Default for FadeState {
-    fn default() -> Self {
-        Self::Idle
-    }
-}
 
 /// Smooth fade-in/fade-out processor for track transitions and pause/resume
 pub struct FadeProcessor {
@@ -223,17 +219,15 @@ impl FadeProcessor {
         self.gain += self.increment_per_sample * n as f64;
 
         match self.state {
-            FadeState::FadingIn => {
-                if self.gain >= 1.0 || self.samples_processed >= self.total_samples {
-                    self.gain = 1.0;
-                    self.state = FadeState::Idle;
-                }
+            FadeState::FadingIn if self.gain >= 1.0 || self.samples_processed >= self.total_samples => {
+                self.gain = 1.0;
+                self.state = FadeState::Idle;
             },
-            FadeState::FadingOut => {
-                if self.gain <= 0.0 || self.samples_processed >= self.total_samples {
-                    self.gain = 0.0;
-                    self.state = FadeState::FadedOut;
-                }
+            FadeState::FadingOut
+                if self.gain <= 0.0 || self.samples_processed >= self.total_samples =>
+            {
+                self.gain = 0.0;
+                self.state = FadeState::FadedOut;
             },
             _ => {},
         }

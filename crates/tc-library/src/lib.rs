@@ -44,7 +44,7 @@ const AUDIO_EXTENSIONS: &[&str] = &[
 ];
 
 /// Minimum interval between progress callback invocations.
-
+///
 /// For large libraries, invoking the callback for every file can overwhelm
 /// the UI thread. We throttle to at most one call per this duration.
 const PROGRESS_THROTTLE: Duration = Duration::from_millis(100);

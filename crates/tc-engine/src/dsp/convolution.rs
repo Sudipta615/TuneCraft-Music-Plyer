@@ -269,12 +269,7 @@ impl ConvolutionEngine {
         // Decode the entire IR file
         let mut ir_samples: Vec<(f64, f64)> = Vec::new();
 
-        loop {
-            let packet = match format_reader.next_packet() {
-                Ok(p) => p,
-                Err(_) => break,
-            };
-
+        while let Ok(packet) = format_reader.next_packet() {
             if packet.track_id() != track_id {
                 continue;
             }
@@ -375,13 +370,13 @@ impl ConvolutionEngine {
     fn forward_fft_into(
         fft_forward: &Arc<dyn realfft::RealToComplex<f64>>,
         input: &[f64],
-        workspace_input: &mut Vec<f64>,
-        workspace_output: &mut Vec<Complex<f64>>,
+        workspace_input: &mut [f64],
+        workspace_output: &mut [Complex<f64>],
     ) -> Result<(), ConvolutionError> {
         workspace_input[..input.len()].copy_from_slice(input);
         // Zero-fill remaining if input is shorter than workspace (shouldn't happen in practice)
-        for i in input.len()..workspace_input.len() {
-            workspace_input[i] = 0.0;
+        for slot in workspace_input.iter_mut().skip(input.len()) {
+            *slot = 0.0;
         }
         fft_forward
             .process(workspace_input, workspace_output)
@@ -503,8 +498,8 @@ impl ConvolutionEngine {
             .ir_spectrum_right
             .as_ref()
             .unwrap_or(&self.ir_spectrum_left);
-        for i in 0..spectrum_len {
-            self.product_right[i] = self.fft_workspace_output_right[i] * ir_right[i];
+        for (i, slot) in self.product_right[..spectrum_len].iter_mut().enumerate() {
+            *slot = self.fft_workspace_output_right[i] * ir_right[i];
         }
 
         // Inverse FFT to get time-domain convolution result (using pre-allocated workspace)
@@ -562,14 +557,14 @@ impl ConvolutionEngine {
         fft_inverse: &Arc<dyn realfft::ComplexToReal<f64>>,
         fft_size: usize,
         spectrum: &[Complex<f64>],
-        workspace_spectrum: &mut Vec<Complex<f64>>,
-        workspace_output: &mut Vec<f64>,
+        workspace_spectrum: &mut [Complex<f64>],
+        workspace_output: &mut [f64],
     ) -> bool {
         let copy_len = spectrum.len().min(workspace_spectrum.len());
         workspace_spectrum[..copy_len].copy_from_slice(&spectrum[..copy_len]);
         // Zero-fill remaining
-        for i in copy_len..workspace_spectrum.len() {
-            workspace_spectrum[i] = Complex::new(0.0, 0.0);
+        for slot in workspace_spectrum.iter_mut().skip(copy_len) {
+            *slot = Complex::new(0.0, 0.0);
         }
         if fft_inverse
             .process(workspace_spectrum, workspace_output)
