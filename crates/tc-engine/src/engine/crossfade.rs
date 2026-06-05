@@ -22,14 +22,14 @@ impl AudioEngine {
         // If crossfade is disabled or there is no current stream, just
         // remember the path for a regular track transition later.
         if !self.config.crossfade.enabled {
-            self.next_track_path = Some(path.clone());
+            self.next_track_path = Some(path.to_path_buf());
             self.cached_incoming_decoder = None;
             // Open decoder just to return info, but we won't cache it for
             // crossfade — load_track will be called later instead.
             let decoder = SymphoniaDecoder::open(path)?;
             return Ok(decoder.info().clone());
         }
-        self.next_track_path = Some(path.clone());
+        self.next_track_path = Some(path.to_path_buf());
         // Open and cache the decoder so begin_crossfade_transition can
         // use it immediately without re-opening the file.
         let decoder = SymphoniaDecoder::open(path)?;
