@@ -116,6 +116,7 @@ impl CrossPlatformMediaControls {
                     position_us: pos_us,
                 }
             },
+            MediaControlEvent::OpenUri(uri) => MediaKeyAction::OpenUri(uri),
         };
 
         if let Err(e) = tx.send(action) {
