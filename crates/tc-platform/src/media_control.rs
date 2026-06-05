@@ -28,8 +28,6 @@ pub struct CrossPlatformMediaControls {
     /// The souvlaki MediaControls handle. None if initialization failed
     /// (e.g., no D-Bus on Linux, no window handle on some platforms).
     controls: Option<MediaControls>,
-    /// Channel for sending translated media key actions.
-    action_tx: Sender<MediaKeyAction>,
 }
 
 impl CrossPlatformMediaControls {
@@ -72,10 +70,7 @@ impl CrossPlatformMediaControls {
             },
         };
 
-        Ok(Self {
-            controls,
-            action_tx,
-        })
+        Ok(Self { controls })
     }
 
     /// Translate a souvlaki MediaControlEvent into our MediaKeyAction
@@ -108,7 +103,7 @@ impl CrossPlatformMediaControls {
                 return;
             },
             MediaControlEvent::Quit => MediaKeyAction::Quit,
-            MediaControlEvent::SetVolume(volume) => MediaKeyAction::SetVolume(volume as f64),
+            MediaControlEvent::SetVolume(volume) => MediaKeyAction::SetVolume(volume),
             MediaControlEvent::SetPosition(position) => {
                 let pos_us = position.0.as_micros() as i64;
                 MediaKeyAction::SetPosition {
@@ -175,7 +170,7 @@ impl CrossPlatformMediaControls {
     /// Update the volume shown in the OS media controls.
     pub fn set_volume(&mut self, volume: f64) {
         if let Some(ref mut ctrl) = self.controls {
-            if let Err(e) = ctrl.set_volume(volume as f64) {
+            if let Err(e) = ctrl.set_volume(volume) {
                 log::warn!("Failed to update media volume: {}", e);
             }
         }

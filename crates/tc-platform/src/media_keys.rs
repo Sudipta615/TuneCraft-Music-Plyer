@@ -58,7 +58,7 @@ impl PlatformIntegration {
         if self
             .media_controls
             .as_ref()
-            .map_or(false, |c| c.is_available())
+            .is_some_and(|c| c.is_available())
         {
             log::info!("Media key listener active via cross-platform controls (souvlaki)");
         } else {

@@ -233,7 +233,7 @@ pub(crate) fn run_dbus_server(
 
         #[zbus(property)]
         fn set_rate(&self, rate: f64) -> zbus::Result<()> {
-            if rate < 0.25 || rate > 4.0 {
+            if !(0.25..=4.0).contains(&rate) {
                 return Err(zbus::fdo::Error::InvalidArgs(format!(
                     "Rate {} out of range [0.25, 4.0]",
                     rate

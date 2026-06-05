@@ -267,7 +267,7 @@ impl PlatformIntegration {
     pub fn is_media_controls_available(&self) -> bool {
         self.media_controls
             .as_ref()
-            .map_or(false, |c| c.is_available())
+            .is_some_and(|c| c.is_available())
     }
 
     /// Attempt to register MPRIS on D-Bus (Linux only)
@@ -308,7 +308,7 @@ impl PlatformIntegration {
         if self
             .media_controls
             .as_ref()
-            .map_or(false, |c| c.is_available())
+            .is_some_and(|c| c.is_available())
         {
             log::info!(
                 "Cross-platform media controls active for '{}' (no MPRIS D-Bus needed on this platform)",

@@ -37,19 +37,15 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
         // appear in notifications.
         let status = Command::new("notify-send").arg(title).arg(body).status();
         match status {
-            Ok(s) if s.success() => return Ok(()),
-            Ok(s) => {
-                return Err(PlatformError::Other(format!(
-                    "notify-send exited with status: {}",
-                    s
-                )))
-            },
-            Err(e) => {
-                return Err(PlatformError::Other(format!(
-                    "Failed to run notify-send: {}",
-                    e
-                )))
-            },
+            Ok(s) if s.success() => Ok(()),
+            Ok(s) => Err(PlatformError::Other(format!(
+                "notify-send exited with status: {}",
+                s
+            ))),
+            Err(e) => Err(PlatformError::Other(format!(
+                "Failed to run notify-send: {}",
+                e
+            ))),
         }
     }
 
@@ -91,12 +87,13 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
             .map_err(|e| PlatformError::Other(format!("osascript wait failed: {}", e)))?;
 
         if status.success() {
-            return Ok(());
+            Ok(())
+        } else {
+            Err(PlatformError::Other(format!(
+                "osascript exited with status: {}",
+                status
+            )))
         }
-        return Err(PlatformError::Other(format!(
-            "osascript exited with status: {}",
-            status
-        )));
     }
 
     #[cfg(target_os = "windows")]
@@ -122,19 +119,15 @@ pub(crate) fn dispatch_notification_sync(title: &str, body: &str) -> Result<(), 
             .env("TOAST_BODY", body)
             .status();
         match status {
-            Ok(s) if s.success() => return Ok(()),
-            Ok(s) => {
-                return Err(PlatformError::Other(format!(
-                    "PowerShell toast exited with status: {}",
-                    s
-                )))
-            },
-            Err(e) => {
-                return Err(PlatformError::Other(format!(
-                    "Failed to run PowerShell: {}",
-                    e
-                )))
-            },
+            Ok(s) if s.success() => Ok(()),
+            Ok(s) => Err(PlatformError::Other(format!(
+                "PowerShell toast exited with status: {}",
+                s
+            ))),
+            Err(e) => Err(PlatformError::Other(format!(
+                "Failed to run PowerShell: {}",
+                e
+            ))),
         }
     }
 

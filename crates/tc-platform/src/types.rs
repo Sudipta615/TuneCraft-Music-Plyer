@@ -91,7 +91,7 @@ pub enum MprisPlaybackStatus {
 }
 
 /// Track metadata for MPRIS reporting
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MprisTrackInfo {
     pub title: Option<String>,
     pub artist: Option<String>,
@@ -99,19 +99,6 @@ pub struct MprisTrackInfo {
     pub art_url: Option<String>,
     pub length_microseconds: Option<i64>,
     pub track_id: Option<String>,
-}
-
-impl Default for MprisTrackInfo {
-    fn default() -> Self {
-        Self {
-            title: None,
-            artist: None,
-            album: None,
-            art_url: None,
-            length_microseconds: None,
-            track_id: None,
-        }
-    }
 }
 
 /// Notification that MPRIS properties have changed, sent from the
