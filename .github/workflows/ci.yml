@@ -64,3 +64,10 @@ jobs:
 
       - name: Build release
         run: cargo build --release --workspace
+
+      - name: Upload Linux Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: tunecraft-linux
+          path: target/release/tunecraft
+          retention-days: 7
