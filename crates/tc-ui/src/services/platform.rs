@@ -34,10 +34,7 @@ impl PlatformService {
 
     /// Try to receive a media key action (non-blocking).
     pub fn try_recv_action(&self) -> Option<MediaKeyAction> {
-        self.media_key_rx
-            .lock()
-            .ok()
-            .and_then(|rx| rx.try_recv())
+        self.media_key_rx.lock().ok().and_then(|rx| rx.try_recv())
     }
 
     /// Update MPRIS status to Playing with track info.

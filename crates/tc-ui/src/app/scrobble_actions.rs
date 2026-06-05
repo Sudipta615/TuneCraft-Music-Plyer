@@ -5,11 +5,11 @@
 
 use log::info;
 
+use crate::app::ToastLevel;
 use crate::services::{
     playback::ScrobbleCheck,
     scrobble::{LocalScrobbleEntry, ScrobbleEvent},
 };
-use crate::app::ToastLevel;
 
 impl super::TuneCraftApp {
     /// Called every UI frame: checks whether the play threshold has been
@@ -59,17 +59,20 @@ impl super::TuneCraftApp {
     pub(crate) fn handle_scrobble_event(&mut self, event: ScrobbleEvent) {
         match event {
             ScrobbleEvent::Recorded { artist, track } => {
-                self.push_toast(format!("Saved: {} by {}", track, artist), ToastLevel::Success);
+                self.push_toast(
+                    format!("Saved: {} by {}", track, artist),
+                    ToastLevel::Success,
+                );
             },
             ScrobbleEvent::Failed {
                 artist,
                 track,
                 error,
             } => {
-                self.push_toast(format!(
-                    "Could not save listen: {} by {} — {}",
-                    track, artist, error
-                ), ToastLevel::Error);
+                self.push_toast(
+                    format!("Could not save listen: {} by {} — {}", track, artist, error),
+                    ToastLevel::Error,
+                );
             },
         }
     }

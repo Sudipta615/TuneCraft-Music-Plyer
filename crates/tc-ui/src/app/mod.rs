@@ -43,10 +43,7 @@ pub use tc_db::{Playlist, Track};
 pub use tc_engine::buffer::{EngineCommand, PlaybackInfo, PlaybackState as EnginePlaybackState};
 pub use toasts::ToastLevel;
 
-use crate::{
-    sidebar::NavSection,
-    theme::TuneCraftColors,
-};
+use crate::{sidebar::NavSection, theme::TuneCraftColors};
 
 /// The main TuneCraft application state.
 ///

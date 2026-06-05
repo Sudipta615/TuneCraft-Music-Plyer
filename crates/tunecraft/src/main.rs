@@ -433,8 +433,9 @@ fn run_with_audio(
 
                     MediaKeyAction::SetLoopStatus(status) => {
                         info!("MPRIS SetLoopStatus: {}", status);
-                        engine
-                            .send_command(tc_engine::buffer::EngineCommand::SetLoopStatus(status.clone()));
+                        engine.send_command(tc_engine::buffer::EngineCommand::SetLoopStatus(
+                            status.clone(),
+                        ));
                         if let Some(ref mut p) = platform {
                             p.set_mpris_loop_status(&status);
                         }
