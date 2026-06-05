@@ -85,7 +85,7 @@ impl TuneCraftApp {
         snapshot.is_scanning
     }
 
-    ///
+    /// Update the scan state from the library service.
     pub fn update_scan_state(&mut self) {
         self.ctx.library.check_scan_state();
         let snapshot = self.ctx.library.snapshot();
@@ -120,8 +120,8 @@ impl TuneCraftApp {
     pub fn check_dsp_warnings(&mut self) {
         #[cfg(feature = "audio-output")]
         {
-            let info = self.ctx.playback.sync_from_engine();
-            let _ = info; // sync_from_engine doesn't return a value, we read from state
+            self.ctx.playback.sync_from_engine();
+            // sync_from_engine doesn't return a value, we read from state
 
             // The resampler_disabled flag is updated every 2s in the engine tick
         }

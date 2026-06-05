@@ -26,7 +26,7 @@ fn truncate_text(ui: &Ui, text: &str, font: &FontId, max_width: f32) -> String {
     let mut lo = 0usize;
     let mut hi = char_count;
     while lo < hi {
-        let mid = lo + (hi - lo + 1) / 2;
+        let mid = lo + (hi - lo).div_ceil(2);
         let end_byte = if mid < char_count {
             char_offsets[mid]
         } else {
@@ -335,38 +335,36 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 let max_page = if total == 0 { 0 } else { total / per_page };
                 if max_page > 0 {
                     ui.add_space(8.0);
-                    if current_page < max_page {
-                        if ui
+                    if current_page < max_page
+                        && ui
                             .button(
                                 RichText::new("\u{25B6}")
                                     .font(FontId::proportional(11.0))
                                     .color(colors.text_dim),
                             )
                             .clicked()
-                        {
-                            app.track_page = current_page + 1;
-                            app.ctx.library.next_page();
-                            app.refresh_tracks();
-                        }
+                    {
+                        app.track_page = current_page + 1;
+                        app.ctx.library.next_page();
+                        app.refresh_tracks();
                     }
                     ui.label(
                         RichText::new(format!("{}/{}", current_page + 1, max_page + 1))
                             .font(FontId::proportional(10.0))
                             .color(colors.text_dim),
                     );
-                    if current_page > 0 {
-                        if ui
+                    if current_page > 0
+                        && ui
                             .button(
                                 RichText::new("\u{25C0}")
                                     .font(FontId::proportional(11.0))
                                     .color(colors.text_dim),
                             )
                             .clicked()
-                        {
-                            app.track_page = current_page - 1;
-                            app.ctx.library.prev_page();
-                            app.refresh_tracks();
-                        }
+                    {
+                        app.track_page = current_page - 1;
+                        app.ctx.library.prev_page();
+                        app.refresh_tracks();
                     }
                 }
             });
@@ -404,7 +402,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     | crate::sidebar::NavSection::MoodChill => track
                         .mood
                         .as_deref()
-                        .map_or(false, |m| app.nav.mood_matches(m)),
+                        .is_some_and(|m| app.nav.mood_matches(m)),
                     crate::sidebar::NavSection::Settings => false,
                 })
                 .map(|(i, _)| i)
@@ -426,11 +424,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         || track
                             .artist
                             .as_ref()
-                            .map_or(false, |a| a.to_lowercase().contains(&q))
+                            .is_some_and(|a| a.to_lowercase().contains(&q))
                         || track
                             .album
                             .as_ref()
-                            .map_or(false, |a| a.to_lowercase().contains(&q))
+                            .is_some_and(|a| a.to_lowercase().contains(&q))
                 })
                 .map(|(i, _)| i)
                 .collect()
@@ -876,8 +874,6 @@ fn draw_list_view(
                 // Title + Artist (stacked)
                 let title_end_x = if row_vis.show_album {
                     cx[3]
-                } else if row_vis.show_mood {
-                    cx[4]
                 } else {
                     cx[4]
                 };
@@ -925,7 +921,7 @@ fn draw_list_view(
                 // Duration
                 let dur_secs = track.duration_secs as u32;
                 let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
-                let dur_x = if row_vis.show_mood { cx[4] } else { cx[4] };
+                let dur_x = cx[4];
                 ui.painter().text(
                     Pos2::new(dur_x + 4.0, cy),
                     Align2::LEFT_CENTER,

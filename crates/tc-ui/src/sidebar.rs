@@ -96,7 +96,7 @@ impl NavSection {
             | Self::MoodChill => Some(
                 tracks
                     .iter()
-                    .filter(|t| t.mood.as_deref().map_or(false, |m| self.mood_matches(m)))
+                    .filter(|t| t.mood.as_deref().is_some_and(|m| self.mood_matches(m)))
                     .count() as u32,
             ),
             Self::Favorites => None,

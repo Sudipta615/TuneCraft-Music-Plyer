@@ -240,40 +240,26 @@ impl super::LibraryManager {
         for tag in revision.tags() {
             if let Some(std_key) = tag.std_key {
                 match std_key {
-                    StandardTagKey::TrackTitle => {
-                        if tags.title.is_none() {
-                            tags.title = tag_value_to_string(&tag.value);
-                        }
+                    StandardTagKey::TrackTitle if tags.title.is_none() => {
+                        tags.title = tag_value_to_string(&tag.value);
                     },
-                    StandardTagKey::Artist => {
-                        if tags.artist.is_none() {
-                            tags.artist = tag_value_to_string(&tag.value);
-                        }
+                    StandardTagKey::Artist if tags.artist.is_none() => {
+                        tags.artist = tag_value_to_string(&tag.value);
                     },
-                    StandardTagKey::Album => {
-                        if tags.album.is_none() {
-                            tags.album = tag_value_to_string(&tag.value);
-                        }
+                    StandardTagKey::Album if tags.album.is_none() => {
+                        tags.album = tag_value_to_string(&tag.value);
                     },
-                    StandardTagKey::AlbumArtist => {
-                        if tags.album_artist.is_none() {
-                            tags.album_artist = tag_value_to_string(&tag.value);
-                        }
+                    StandardTagKey::AlbumArtist if tags.album_artist.is_none() => {
+                        tags.album_artist = tag_value_to_string(&tag.value);
                     },
-                    StandardTagKey::Genre => {
-                        if tags.genre.is_none() {
-                            tags.genre = tag_value_to_string(&tag.value);
-                        }
+                    StandardTagKey::Genre if tags.genre.is_none() => {
+                        tags.genre = tag_value_to_string(&tag.value);
                     },
-                    StandardTagKey::Date => {
-                        if tags.year.is_none() {
-                            tags.year = tag_value_to_year(&tag.value);
-                        }
+                    StandardTagKey::Date if tags.year.is_none() => {
+                        tags.year = tag_value_to_year(&tag.value);
                     },
-                    StandardTagKey::TrackNumber => {
-                        if tags.track_number.is_none() {
-                            tags.track_number = tag_value_to_i32(&tag.value);
-                        }
+                    StandardTagKey::TrackNumber if tags.track_number.is_none() => {
+                        tags.track_number = tag_value_to_i32(&tag.value);
                     },
                     StandardTagKey::DiscNumber if tags.disc_number.is_none() => {
                         tags.disc_number = tag_value_to_i32(&tag.value);

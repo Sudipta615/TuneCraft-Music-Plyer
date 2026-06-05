@@ -30,7 +30,7 @@ fn truncate(ui: &Ui, text: &str, font: &FontId, max_width: f32) -> String {
     let mut lo = 0usize;
     let mut hi = n;
     while lo < hi {
-        let mid = lo + (hi - lo + 1) / 2;
+        let mid = lo + (hi - lo).div_ceil(2);
         let end = if mid < n { offsets[mid] } else { text.len() };
         let pg = ui
             .painter()
@@ -73,7 +73,7 @@ fn draw_full(
     total_w: f32,
 ) {
     // Proportional section widths — scale with available space
-    let info_w = (total_w * 0.22).min(260.0).max(140.0);
+    let info_w = (total_w * 0.22).clamp(140.0, 260.0);
 
     ui.horizontal(|ui| {
         ui.add_space(16.0);
@@ -315,7 +315,7 @@ fn draw_full(
                 );
 
                 // Custom-drawn volume slider — width adapts to available space
-                let vol_w = ui.available_width().min(120.0).max(40.0);
+                let vol_w = ui.available_width().clamp(40.0, 120.0);
                 let vol_h = 14.0;
                 let (vol_rect, vol_resp) =
                     ui.allocate_exact_size(Vec2::new(vol_w, vol_h), Sense::click_and_drag());
@@ -474,7 +474,7 @@ fn draw_compact(
             ui.add_space(6.0);
 
             // Track title only (no artist in compact)
-            let info_w = (total_w * 0.25).max(60.0).min(120.0);
+            let info_w = (total_w * 0.25).clamp(60.0, 120.0);
             let (info_rect, _) = ui.allocate_exact_size(Vec2::new(info_w, 36.0), Sense::hover());
             if let Some(track) = app.current_track() {
                 let title_font = FontId::proportional(12.0);

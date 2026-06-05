@@ -168,6 +168,7 @@ pub struct PlaybackService {
 
 impl PlaybackService {
     #[cfg(feature = "audio-output")]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         engine: EngineHandle,
         engine_mutex: Arc<std::sync::Mutex<tc_engine::AudioEngine>>,
@@ -181,11 +182,13 @@ impl PlaybackService {
     ) -> Self {
         engine.send_command(EngineCommand::SetVolume(volume.clamp(0.0, 1.5)));
 
-        let mut state = PlaybackState::default();
-        state.volume = volume.clamp(0.0, 1.5);
-        state.shuffle = shuffle;
-        state.repeat = repeat;
-        state.speed = speed;
+        let state = PlaybackState {
+            volume: volume.clamp(0.0, 1.5),
+            shuffle,
+            repeat,
+            speed,
+            ..Default::default()
+        };
 
         Self {
             engine,
@@ -207,11 +210,13 @@ impl PlaybackService {
         repeat: RepeatMode,
         speed: f64,
     ) -> Self {
-        let mut state = PlaybackState::default();
-        state.volume = volume.clamp(0.0, 1.5);
-        state.shuffle = shuffle;
-        state.repeat = repeat;
-        state.speed = speed;
+        let state = PlaybackState {
+            volume: volume.clamp(0.0, 1.5),
+            shuffle,
+            repeat,
+            speed,
+            ..Default::default()
+        };
 
         Self {
             state: std::sync::RwLock::new(state),
@@ -352,7 +357,6 @@ impl PlaybackService {
                 // detects the state query even if no action was taken.
                 state.version += 1;
                 drop(state);
-                return;
             }
         }
     }
@@ -664,7 +668,7 @@ impl PlaybackService {
         // 40s track computed threshold = max(20, 30) = 30s (75% instead of
         // 50%). Bug #14 fix: only exclude tracks shorter than 30 seconds
         // entirely, don't raise the threshold for longer short tracks.
-        let threshold = if duration > 0.0 && duration >= 30.0 {
+        let threshold = if duration >= 30.0 {
             (duration * 0.5).min(240.0)
         } else {
             // Track is shorter than 30 seconds — set an unreachable threshold

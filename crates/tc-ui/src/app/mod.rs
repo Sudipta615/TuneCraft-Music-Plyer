@@ -118,7 +118,7 @@ pub struct TuneCraftApp {
     pub scrobble_enabled: bool,
     pub last_scrobbled_track_id: Option<i64>,
     pub play_started_at: Option<std::time::Instant>,
-    ///
+    /// Accumulated play seconds.
     pub accumulated_play_secs: f64,
 
     pub toasts: Vec<(String, std::time::Instant, ToastLevel, u64)>,
@@ -391,7 +391,7 @@ impl eframe::App for TuneCraftApp {
             let window_width = if screen_w < 500.0 {
                 screen_w * 0.95
             } else {
-                (screen_w * 0.75).min(780.0).max(400.0)
+                (screen_w * 0.75).clamp(400.0, 780.0)
             };
             let window_height = if screen_h < 500.0 {
                 screen_h * 0.85

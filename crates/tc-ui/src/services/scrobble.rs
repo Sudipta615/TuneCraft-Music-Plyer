@@ -54,7 +54,7 @@ pub struct LocalScrobbleEntry {
 }
 
 /// Offline local scrobble service.
-
+///
 /// Drop-in replacement for the old `ScrobbleService` from the user's
 /// perspective: call [`record`] when the play threshold is crossed;
 /// poll [`try_recv_event`] each frame for toast feedback.

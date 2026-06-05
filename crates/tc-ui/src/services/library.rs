@@ -20,7 +20,7 @@ use log::{error, warn};
 use tc_db::{Database, Playlist, Track};
 
 /// Snapshot of library state that the UI can read without any locks.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct LibrarySnapshot {
     /// Current page of tracks
     pub tracks: Vec<Track>,
@@ -36,18 +36,7 @@ pub struct LibrarySnapshot {
     pub status_message: String,
 }
 
-impl Default for LibrarySnapshot {
-    fn default() -> Self {
-        Self {
-            tracks: Vec::new(),
-            total_track_count: 0,
-            favorite_ids: std::collections::HashSet::new(),
-            playlists: Vec::new(),
-            is_scanning: false,
-            status_message: String::new(),
-        }
-    }
-}
+
 
 /// The library service manages all database interactions for the UI.
 /// It provides snapshot-based reads to avoid holding locks across frames,
@@ -401,7 +390,7 @@ impl LibraryService {
                     snapshot
                         .tracks
                         .iter()
-                        .filter(|t| t.mood.as_deref().map_or(false, |m| nav.mood_matches(m)))
+                        .filter(|t| t.mood.as_deref().is_some_and(|m| nav.mood_matches(m)))
                         .count() as u32
                 },
                 _ => nav.badge_count(&snapshot.tracks).unwrap_or(0),

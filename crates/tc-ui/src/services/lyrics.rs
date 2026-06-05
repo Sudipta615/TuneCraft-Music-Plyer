@@ -27,6 +27,7 @@ pub struct LyricsState {
     /// The track ID for the currently loaded lyrics (used for DB caching)
     pub current_track_id: Option<i64>,
     /// Result sink from the async fetch task
+    #[allow(clippy::type_complexity)]
     result: Arc<std::sync::Mutex<Option<Result<Vec<tc_lyrics::SyncedLyricLine>, String>>>>,
 }
 
@@ -43,7 +44,7 @@ impl Default for LyricsState {
 }
 
 /// The lyrics service manages lyrics search and display.
-
+///
 /// H12: A monotonic fetch-generation counter (`fetch_gen`) is shared between
 /// `fetch()` and spawned async tasks via `Arc<AtomicU64>`. Each call to
 /// `fetch()` increments the counter. Spawned tasks capture the counter value

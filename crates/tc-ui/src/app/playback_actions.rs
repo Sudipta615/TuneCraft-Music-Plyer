@@ -66,18 +66,15 @@ impl TuneCraftApp {
     }
 
     pub fn play_prev(&mut self) {
-        match self.ctx.playback.navigate_prev() {
-            Some(track_id) => {
-                if Some(track_id) == self.current_track_id {
-                    self.seek(0.0);
-                    self.position_secs = 0.0;
-                    self.ctx.playback.reset_play_started_at();
-                    self.sync_from_playback_service();
-                } else {
-                    self.play_track(track_id);
-                }
-            },
-            None => {},
+        if let Some(track_id) = self.ctx.playback.navigate_prev() {
+            if Some(track_id) == self.current_track_id {
+                self.seek(0.0);
+                self.position_secs = 0.0;
+                self.ctx.playback.reset_play_started_at();
+                self.sync_from_playback_service();
+            } else {
+                self.play_track(track_id);
+            }
         }
     }
 

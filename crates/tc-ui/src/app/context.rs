@@ -84,7 +84,7 @@ impl AppContext {
 
         let db_path = dirs::data_dir()
             .or_else(|| dirs::home_dir().map(|h| h.join(".local/share")))
-            .ok_or_else(|| {
+            .ok_or({
                 "Cannot determine a suitable data directory. \
                  Set XDG_DATA_HOME or HOME so TuneCraft knows where to store \
                  its database. Refusing to fall back to /tmp \

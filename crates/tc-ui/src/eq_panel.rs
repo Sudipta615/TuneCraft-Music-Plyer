@@ -597,6 +597,7 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
 }
 
 /// Vertical slider with title + subtitle above, value label below
+#[allow(clippy::too_many_arguments)]
 fn secondary_slider_vertical(
     ui: &mut Ui,
     title: &str,
