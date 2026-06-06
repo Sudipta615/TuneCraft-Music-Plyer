@@ -160,152 +160,156 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.painter()
             .rect_stroke(sec_rect, 6.0, egui::Stroke::new(1.0, colors.border));
 
-        // Secondary sliders rendered inline
+        // Render secondary sliders INSIDE the sec_rect using allocate_new_ui
         {
             let toggles_w = 130.0;
             let slider_area_w = sec_rect.width() - toggles_w;
             let col_w = slider_area_w / 4.0;
 
-            ui.horizontal(|ui| {
-                // Bass Shelf
-                secondary_slider_vertical(
-                    ui,
-                    "Bass",
-                    "Shelf",
-                    &mut app.eq_bass_shelf,
-                    -12.0,
-                    12.0,
-                    "dB",
-                    col_w,
-                    secondary_h - 20.0,
-                    &colors,
-                    |v| {
-                        // on change
-                        let _ = v;
-                    },
-                );
-                if app.eq_bass_shelf != app.eq_bands[0] {
-                    app.eq_bands[0] = app.eq_bass_shelf;
-                    app.ctx.eq.set_band_with_params(
-                        0,
-                        31.25,
-                        app.eq_bass_shelf,
-                        1.4,
-                        app.eq_enabled,
+            // Save values before the closure borrows app
+            let old_bass = app.eq_bass_shelf;
+            let old_treble = app.eq_treble_shelf;
+            let old_width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
+            let old_bal = app.eq_balance;
+            let old_dither = app.eq_dither;
+            let old_midside = app.eq_midside;
+
+            let mut new_bass = old_bass;
+            let mut new_treble = old_treble;
+            let mut new_width_pct = old_width_pct;
+            let mut new_bal = old_bal;
+            let mut new_dither = old_dither;
+            let mut new_midside = old_midside;
+
+            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(sec_rect), |ui| {
+                ui.horizontal(|ui| {
+                    // Bass Shelf
+                    secondary_slider_vertical(
+                        ui,
+                        "Bass",
+                        "Shelf",
+                        &mut new_bass,
+                        -12.0,
+                        12.0,
+                        "dB",
+                        col_w,
+                        secondary_h - 20.0,
+                        &colors,
+                        |_| {},
                     );
-                }
 
-                // Vertical divider
-                let (d_rect, _) =
-                    ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-                ui.painter().rect_filled(d_rect, 0.0, colors.border);
+                    // Vertical divider
+                    let (d_rect, _) =
+                        ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
+                    ui.painter().rect_filled(d_rect, 0.0, colors.border);
 
-                // Treble Shelf
-                secondary_slider_vertical(
-                    ui,
-                    "Treble",
-                    "Shelf",
-                    &mut app.eq_treble_shelf,
-                    -12.0,
-                    12.0,
-                    "dB",
-                    col_w,
-                    secondary_h - 20.0,
-                    &colors,
-                    |v| {
-                        let _ = v;
-                    },
-                );
-                if app.eq_treble_shelf != app.eq_bands[9] {
-                    app.eq_bands[9] = app.eq_treble_shelf;
-                    app.ctx.eq.set_band_with_params(
-                        9,
-                        16000.0,
-                        app.eq_treble_shelf,
-                        1.4,
-                        app.eq_enabled,
+                    // Treble Shelf
+                    secondary_slider_vertical(
+                        ui,
+                        "Treble",
+                        "Shelf",
+                        &mut new_treble,
+                        -12.0,
+                        12.0,
+                        "dB",
+                        col_w,
+                        secondary_h - 20.0,
+                        &colors,
+                        |_| {},
                     );
-                }
 
-                // Vertical divider
-                let (d_rect, _) =
-                    ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-                ui.painter().rect_filled(d_rect, 0.0, colors.border);
+                    // Vertical divider
+                    let (d_rect, _) =
+                        ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
+                    ui.painter().rect_filled(d_rect, 0.0, colors.border);
 
-                // Stereo Width
-                let mut width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
-                let old_width_pct = width_pct;
-                secondary_slider_vertical(
-                    ui,
-                    "Stereo Width",
-                    "",
-                    &mut width_pct,
-                    0.0,
-                    200.0,
-                    "%",
-                    col_w,
-                    secondary_h - 20.0,
-                    &colors,
-                    |_| {},
-                );
-                if (width_pct - old_width_pct).abs() > 0.5 {
-                    let new_w = (width_pct / 100.0).clamp(0.0, 2.0);
-                    app.eq_stereo_width = new_w;
-                    app.ctx.eq.set_stereo_width(new_w);
-                }
+                    // Stereo Width
+                    secondary_slider_vertical(
+                        ui,
+                        "Stereo Width",
+                        "",
+                        &mut new_width_pct,
+                        0.0,
+                        200.0,
+                        "%",
+                        col_w,
+                        secondary_h - 20.0,
+                        &colors,
+                        |_| {},
+                    );
 
-                // Vertical divider
-                let (d_rect, _) =
-                    ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-                ui.painter().rect_filled(d_rect, 0.0, colors.border);
+                    // Vertical divider
+                    let (d_rect, _) =
+                        ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
+                    ui.painter().rect_filled(d_rect, 0.0, colors.border);
 
-                // Balance
-                let old_bal = app.eq_balance;
-                secondary_slider_vertical(
-                    ui,
-                    "Balance",
-                    "",
-                    &mut app.eq_balance,
-                    -1.0,
-                    1.0,
-                    "",
-                    col_w,
-                    secondary_h - 20.0,
-                    &colors,
-                    |_| {},
-                );
-                if (app.eq_balance - old_bal).abs() > 0.005 {
-                    app.ctx.eq.set_balance(app.eq_balance);
-                }
+                    // Balance
+                    secondary_slider_vertical(
+                        ui,
+                        "Balance",
+                        "",
+                        &mut new_bal,
+                        -1.0,
+                        1.0,
+                        "",
+                        col_w,
+                        secondary_h - 20.0,
+                        &colors,
+                        |_| {},
+                    );
 
-                // Vertical divider
-                let (d_rect, _) =
-                    ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-                ui.painter().rect_filled(d_rect, 0.0, colors.border);
+                    // Vertical divider
+                    let (d_rect, _) =
+                        ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
+                    ui.painter().rect_filled(d_rect, 0.0, colors.border);
 
-                // Toggles column: Dither + Mid/Side EQ
-                ui.vertical(|ui| {
-                    ui.add_space(16.0);
-                    draw_labeled_toggle(ui, "Dither", &mut app.eq_dither, &colors);
-                    ui.add_space(16.0);
-                    draw_labeled_toggle(ui, "Mid/Side EQ", &mut app.eq_midside, &colors);
-                });
-
-                // Sync dither/midside to engine + config
-                if app.eq_dither != app.cached_dither_enabled {
-                    app.ctx.eq.set_dither(app.eq_dither);
-                    app.cached_dither_enabled = app.eq_dither;
-                    let dither_val = app.eq_dither;
-                    app.ctx.config.write(|c| {
-                        c.engine.dither_enabled = dither_val;
+                    // Toggles column: Dither + Mid/Side EQ
+                    ui.vertical(|ui| {
+                        ui.add_space(16.0);
+                        draw_labeled_toggle(ui, "Dither", &mut new_dither, &colors);
+                        ui.add_space(16.0);
+                        draw_labeled_toggle(ui, "Mid/Side EQ", &mut new_midside, &colors);
                     });
-                }
-                if app.eq_midside != app.cached_midside_enabled {
-                    app.ctx.eq.set_midside(app.eq_midside);
-                    app.cached_midside_enabled = app.eq_midside;
-                    // Mid/Side EQ is engine-only, no config field needed
-                }
+                });
             });
+
+            // Apply changes after the UI closure
+            if (new_bass - old_bass).abs() > 0.001 {
+                app.eq_bass_shelf = new_bass;
+                app.eq_bands[0] = new_bass;
+                app.ctx
+                    .eq
+                    .set_band_with_params(0, 31.25, new_bass, 1.4, app.eq_enabled);
+            }
+            if (new_treble - old_treble).abs() > 0.001 {
+                app.eq_treble_shelf = new_treble;
+                app.eq_bands[9] = new_treble;
+                app.ctx
+                    .eq
+                    .set_band_with_params(9, 16000.0, new_treble, 1.4, app.eq_enabled);
+            }
+            if (new_width_pct - old_width_pct).abs() > 0.5 {
+                let new_w = (new_width_pct / 100.0).clamp(0.0, 2.0);
+                app.eq_stereo_width = new_w;
+                app.ctx.eq.set_stereo_width(new_w);
+            }
+            if (new_bal - old_bal).abs() > 0.005 {
+                app.eq_balance = new_bal;
+                app.ctx.eq.set_balance(new_bal);
+            }
+            if new_dither != old_dither {
+                app.eq_dither = new_dither;
+                app.cached_dither_enabled = new_dither;
+                app.ctx.eq.set_dither(new_dither);
+                app.ctx.config.write(|c| {
+                    c.engine.dither_enabled = new_dither;
+                });
+            }
+            if new_midside != old_midside {
+                app.eq_midside = new_midside;
+                app.cached_midside_enabled = new_midside;
+                app.ctx.eq.set_midside(new_midside);
+            }
         }
         ui.add_space(10.0);
 

@@ -138,6 +138,15 @@ pub struct TuneCraftApp {
     pub theme_needs_detection: bool,
 
     pub(crate) close_requested: bool,
+
+    /// Whether the "add music folder" dialog is open
+    pub show_add_music_dialog: bool,
+    /// Pending folder path text when user types it manually
+    pub add_music_folder_path: String,
+
+    /// In-memory cache of decoded cover art textures keyed by track_id.
+    /// Populated lazily on first access per track.
+    pub album_art_cache: std::collections::HashMap<i64, egui::TextureHandle>,
 }
 
 impl TuneCraftApp {
@@ -278,6 +287,11 @@ impl TuneCraftApp {
             theme_needs_detection,
 
             close_requested: false,
+
+            show_add_music_dialog: false,
+            add_music_folder_path: String::new(),
+
+            album_art_cache: std::collections::HashMap::new(),
         }
     }
 
@@ -439,6 +453,42 @@ impl eframe::App for TuneCraftApp {
                             self.show_create_playlist_dialog = false;
                         }
                     });
+                });
+        }
+
+        // Add Music dialog
+        if self.show_add_music_dialog {
+            egui::Window::new("Add Music Folder")
+                .collapsible(false)
+                .resizable(false)
+                .min_width(420.0)
+                .show(ctx, |ui| {
+                    ui.add_space(8.0);
+                    ui.label("Enter the path to a folder containing music files:");
+                    ui.add_space(4.0);
+                    ui.text_edit_singleline(&mut self.add_music_folder_path);
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new("Supported formats: MP3, FLAC, OGG, WAV, AAC, M4A")
+                            .font(egui::FontId::proportional(11.0))
+                            .color(self.colors().text_dim),
+                    );
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("Add Folder").clicked() {
+                            let path = self.add_music_folder_path.trim().to_string();
+                            if !path.is_empty() {
+                                self.add_music_folder(&path);
+                            }
+                            self.show_add_music_dialog = false;
+                            self.add_music_folder_path.clear();
+                        }
+                        if ui.button("Cancel").clicked() {
+                            self.show_add_music_dialog = false;
+                            self.add_music_folder_path.clear();
+                        }
+                    });
+                    ui.add_space(4.0);
                 });
         }
 

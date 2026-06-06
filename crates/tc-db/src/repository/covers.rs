@@ -90,6 +90,84 @@ impl Database {
             Err(e) => Err(DbError::Sqlite(e)),
         }
     }
+
+    /// Retrieve cover art binary data for a specific track_id.
+    ///
+    /// Checks `cover_art` rows linked to this track directly (track_id),
+    /// then falls back to the album row if available.
+    /// Returns `(data, mime_type)` or `None` if no inline data exists.
+    pub fn get_cover_art_by_track_id(
+        &self,
+        track_id: i64,
+    ) -> Result<Option<(Vec<u8>, String)>, DbError> {
+        let lock = self.read_lock()?;
+
+        // 1. Try direct track_id lookup first (most specific)
+        let mut stmt = lock.prepare_cached(
+            "SELECT data, mime_type FROM cover_art \
+             WHERE track_id = ?1 AND data IS NOT NULL \
+             ORDER BY id DESC LIMIT 1",
+        )?;
+        let result = stmt.query_row(params![track_id], |row| {
+            Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, String>(1)?))
+        });
+        match result {
+            Ok(pair) => return Ok(Some(pair)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => {},
+            Err(e) => return Err(DbError::Sqlite(e)),
+        }
+
+        // 2. Fall back: find album_id via the track's album/album_artist,
+        //    then query cover_art by album_id.
+        let mut stmt2 = lock.prepare_cached(
+            "SELECT t.album, t.album_artist FROM tracks t WHERE t.id = ?1 LIMIT 1",
+        )?;
+        let album_info: Option<(Option<String>, Option<String>)> = stmt2
+            .query_row(params![track_id], |row| {
+                Ok((
+                    row.get::<_, Option<String>>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                ))
+            })
+            .ok();
+
+        if let Some((Some(album_title), album_artist)) = album_info {
+            let album_id: Option<i64> = match album_artist.as_deref() {
+                Some(a) => lock
+                    .query_row(
+                        "SELECT id FROM albums WHERE title = ?1 AND artist = ?2",
+                        params![album_title, a],
+                        |row| row.get(0),
+                    )
+                    .ok(),
+                None => lock
+                    .query_row(
+                        "SELECT id FROM albums WHERE title = ?1",
+                        params![album_title],
+                        |row| row.get(0),
+                    )
+                    .ok(),
+            };
+
+            if let Some(aid) = album_id {
+                let mut stmt3 = lock.prepare_cached(
+                    "SELECT data, mime_type FROM cover_art \
+                     WHERE album_id = ?1 AND data IS NOT NULL \
+                     ORDER BY id DESC LIMIT 1",
+                )?;
+                let result3 = stmt3.query_row(params![aid], |row| {
+                    Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, String>(1)?))
+                });
+                match result3 {
+                    Ok(pair) => return Ok(Some(pair)),
+                    Err(rusqlite::Error::QueryReturnedNoRows) => {},
+                    Err(e) => return Err(DbError::Sqlite(e)),
+                }
+            }
+        }
+
+        Ok(None)
+    }
 }
 
 #[cfg(test)]

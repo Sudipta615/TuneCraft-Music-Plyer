@@ -1,5 +1,8 @@
 //! Library and polling delegation methods for TuneCraftApp.
 
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use super::{ToastLevel, TuneCraftApp};
 
 impl TuneCraftApp {
@@ -43,6 +46,87 @@ impl TuneCraftApp {
                 Err(e) => self.push_toast(e, ToastLevel::Error),
             }
         }
+    }
+
+    /// Add a music folder to the library watch dirs and trigger a background scan.
+    ///
+    /// 1. Validates the path exists and is a directory.
+    /// 2. Persists the path to config so it survives restarts.
+    /// 3. Spawns a background thread that creates a temporary `LibraryManager`
+    ///    with the updated config and calls `.scan()`.
+    /// 4. After the scan completes, calls `library_service.refresh_tracks()` so
+    ///    the UI picks up the new tracks on the next frame.
+    pub fn add_music_folder(&mut self, folder_path: &str) {
+        let path = PathBuf::from(folder_path);
+
+        if !path.exists() || !path.is_dir() {
+            self.push_toast(
+                format!("Folder not found or is not a directory: {}", folder_path),
+                ToastLevel::Error,
+            );
+            return;
+        }
+
+        // Persist the new dir to config
+        let path_clone = path.clone();
+        self.ctx.config.write(|c| {
+            if !c.library.watch_dirs.contains(&path_clone) {
+                c.library.watch_dirs.push(path_clone.clone());
+            }
+        });
+
+        // Read the full updated library config (with the new dir)
+        let new_lib_config = self
+            .ctx
+            .config
+            .read(|c| c.library.clone())
+            .unwrap_or_else(|| {
+                let mut cfg = tc_config::LibraryConfig::default();
+                cfg.watch_dirs.push(path.clone());
+                cfg
+            });
+
+        // Build a temporary LibraryManager with updated config
+        let db = self.ctx.library.db().clone();
+        let scan_manager = Arc::new(tc_library::LibraryManager::new(db, new_lib_config));
+
+        // Clone the library service handle so the scan thread can refresh after completion
+        let library_svc = Arc::clone(&self.ctx.library);
+
+        std::thread::Builder::new()
+            .name("tunecraft-add-music-scan".into())
+            .spawn(move || {
+                log::info!("Starting add-music scan...");
+                match scan_manager.scan(|_progress| {
+                    // progress updates are handled by check_scan_state() via the
+                    // existing scan_progress_rx channel; this scan uses a separate
+                    // manager so we just ignore individual updates here.
+                }) {
+                    Ok(result) => {
+                        log::info!(
+                            "Add-music scan complete: {} added, {} updated",
+                            result.files_added,
+                            result.files_updated
+                        );
+                    },
+                    Err(e) => {
+                        log::warn!("Add-music scan failed: {}", e);
+                    },
+                }
+                // Always refresh even on partial success
+                library_svc.refresh_tracks();
+                library_svc.refresh_favorite_ids();
+                library_svc.mark_db_dirty();
+            })
+            .ok();
+
+        self.push_toast(
+            format!(
+                "Scanning '{}'… new tracks will appear shortly.",
+                folder_path
+            ),
+            ToastLevel::Success,
+        );
     }
 
     /// Poll media key actions from the platform service.

@@ -424,4 +424,10 @@ impl LibraryService {
     pub fn get_all_track_ids(&self) -> Vec<i64> {
         self.db.get_all_track_ids().unwrap_or_default()
     }
+
+    /// Get cover art raw bytes for a track (tries track_id first, then album fallback).
+    /// Returns `(bytes, mime_type)` or `None` if no inline art is stored.
+    pub fn get_cover_art_by_track_id(&self, track_id: i64) -> Option<(Vec<u8>, String)> {
+        self.db.get_cover_art_by_track_id(track_id).unwrap_or(None)
+    }
 }

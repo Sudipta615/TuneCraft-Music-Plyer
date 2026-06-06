@@ -210,7 +210,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                         Color32::WHITE,
                     );
                     if add_resp.clicked() {
-                        // placeholder: open file dialog
+                        app.show_add_music_dialog = true;
                     }
                 } else if total_w >= BREAKPOINT_NARROW {
                     ui.add_space(4.0);

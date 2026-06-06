@@ -2,11 +2,11 @@
 //! Matches the reference design: album art | track info + heart | controls | progress | volume |
 //! queue Responsive: adapts layout at different viewport widths.
 
-use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Ui, Vec2};
+use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Ui, Vec2};
 
 use crate::{app::TuneCraftApp, theme::TuneCraftColors};
 
-pub const PLAYER_BAR_HEIGHT: f32 = 80.0;
+pub const PLAYER_BAR_HEIGHT: f32 = 88.0;
 
 /// Responsive breakpoint: below this width, use compact layout
 const COMPACT_BREAKPOINT: f32 = 600.0;
@@ -64,382 +64,395 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     }
 }
 
-/// Full layout: [track info ~22%] [controls+progress ~52%] [volume+queue ~26%]
+/// Full layout: [album art + track info ~25%] [controls+progress ~50%] [volume+extras ~25%]
 fn draw_full(
     app: &mut TuneCraftApp,
     ui: &mut Ui,
     colors: &TuneCraftColors,
-    _bar_rect: Rect,
+    bar_rect: Rect,
     total_w: f32,
 ) {
-    // Proportional section widths — scale with available space
-    let info_w = (total_w * 0.22).clamp(140.0, 260.0);
+    let _bar_h = PLAYER_BAR_HEIGHT;
 
-    ui.horizontal(|ui| {
-        ui.add_space(16.0);
+    // ── Left section: Album art + track info + heart ──
+    let left_w = (total_w * 0.28).clamp(160.0, 280.0);
+    let art_size = if total_w > 900.0 { 56.0 } else { 48.0 };
+    let art_margin = 14.0;
 
-        // ── Left: Album art + track info + heart ──
-        // Scale art size slightly with width
-        let art_size = if total_w > 900.0 { 48.0 } else { 40.0 };
-        let (art_alloc, _) = ui.allocate_exact_size(Vec2::new(art_size, art_size), Sense::hover());
-        let art_r = Rect::from_center_size(art_alloc.center(), Vec2::new(art_size, art_size));
+    // Album art box
+    let art_rect = Rect::from_center_size(
+        Pos2::new(
+            bar_rect.left() + art_margin + art_size / 2.0,
+            bar_rect.center().y,
+        ),
+        Vec2::new(art_size, art_size),
+    );
+    ui.painter().rect_filled(art_rect, 6.0, colors.card);
+    ui.painter()
+        .rect_stroke(art_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+    // Music note icon
+    ui.painter().text(
+        art_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{266A}",
+        FontId::proportional(22.0),
+        colors.text_dim,
+    );
 
-        ui.painter().rect_filled(art_r, 4.0, colors.card);
-        ui.painter()
-            .rect_stroke(art_r, 4.0, egui::Stroke::new(1.0, colors.border));
+    // Track info area
+    let info_x = bar_rect.left() + art_margin + art_size + 10.0;
+    let info_w = left_w - art_margin - art_size - 10.0 - 30.0; // 30 for heart
+    let cy = bar_rect.center().y;
+
+    if let Some(track) = app.current_track() {
+        let title_font = FontId::proportional(14.0);
+        let title = truncate(ui, &track.title, &title_font, info_w);
         ui.painter().text(
-            art_r.center(),
-            Align2::CENTER_CENTER,
-            "\u{266A}",
-            FontId::proportional(20.0),
+            Pos2::new(info_x, cy - 10.0),
+            Align2::LEFT_CENTER,
+            &title,
+            title_font,
+            colors.text,
+        );
+
+        let artist_font = FontId::proportional(12.0);
+        let artist = track.artist.as_deref().unwrap_or("Unknown Artist");
+        let artist_t = truncate(ui, artist, &artist_font, info_w);
+        ui.painter().text(
+            Pos2::new(info_x, cy + 10.0),
+            Align2::LEFT_CENTER,
+            &artist_t,
+            artist_font,
             colors.text_dim,
         );
-
-        ui.add_space(8.0);
-
-        let track_info_w = (info_w - art_size - 40.0).max(60.0);
-        let (info_rect, _) =
-            ui.allocate_exact_size(Vec2::new(track_info_w, PLAYER_BAR_HEIGHT), Sense::hover());
-        let cy = info_rect.center().y;
-
-        if let Some(track) = app.current_track() {
-            let title_font = FontId::proportional(14.0);
-            let max_title_w = info_rect.width() - 4.0;
-            let title = truncate(ui, &track.title, &title_font, max_title_w);
-            ui.painter().text(
-                Pos2::new(info_rect.left(), cy - 10.0),
-                Align2::LEFT_CENTER,
-                &title,
-                title_font,
-                colors.text,
-            );
-
-            let artist_font = FontId::proportional(12.0);
-            let artist = track.artist.as_deref().unwrap_or("Unknown Artist");
-            let artist_t = truncate(ui, artist, &artist_font, max_title_w);
-            ui.painter().text(
-                Pos2::new(info_rect.left(), cy + 10.0),
-                Align2::LEFT_CENTER,
-                &artist_t,
-                artist_font,
-                colors.text_dim,
-            );
-        } else {
-            ui.painter().text(
-                Pos2::new(info_rect.left(), cy),
-                Align2::LEFT_CENTER,
-                "No track playing",
-                FontId::proportional(14.0),
-                colors.text_dim,
-            );
-        }
-
-        // Heart button
-        let heart_rect = Rect::from_center_size(
-            Pos2::new(info_rect.right() + 12.0, cy),
-            Vec2::new(24.0, 24.0),
-        );
-        let heart_resp = ui.interact(heart_rect, egui::Id::new("fav_heart"), Sense::click());
-        let heart_color = if app.is_favorited {
-            Color32::from_rgb(0xEF, 0x44, 0x44)
-        } else {
-            colors.text_dim
-        };
+    } else {
         ui.painter().text(
-            heart_rect.center(),
-            Align2::CENTER_CENTER,
-            "\u{2665}",
-            FontId::proportional(20.0),
-            heart_color,
+            Pos2::new(info_x, cy),
+            Align2::LEFT_CENTER,
+            "No track playing",
+            FontId::proportional(13.0),
+            colors.text_dim,
         );
-        if heart_resp.clicked() {
-            app.toggle_favorite();
+    }
+
+    // Heart button
+    let heart_x = bar_rect.left() + left_w - 20.0;
+    let heart_rect = Rect::from_center_size(Pos2::new(heart_x, cy), Vec2::new(28.0, 28.0));
+    let heart_resp = ui.interact(heart_rect, egui::Id::new("fav_heart"), Sense::click());
+    let heart_color = if app.is_favorited {
+        Color32::from_rgb(0xEF, 0x44, 0x44)
+    } else {
+        colors.text_dim
+    };
+    ui.painter().text(
+        heart_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{2665}",
+        FontId::proportional(18.0),
+        heart_color,
+    );
+    if heart_resp.clicked() {
+        app.toggle_favorite();
+    }
+
+    // ── Right section: Volume + lyrics ──
+    let right_w = (total_w * 0.22).clamp(100.0, 200.0);
+    let right_x = bar_rect.right() - right_w;
+
+    // Volume icon
+    let vol_icon = if app.volume < 0.01 {
+        "\u{1F507}"
+    } else if app.volume < 0.5 {
+        "\u{1F508}"
+    } else {
+        "\u{1F509}"
+    };
+    let vol_icon_x = right_x + 8.0;
+    ui.painter().text(
+        Pos2::new(vol_icon_x, cy - 14.0),
+        Align2::LEFT_CENTER,
+        vol_icon,
+        FontId::proportional(16.0),
+        colors.text_dim,
+    );
+
+    // Volume slider
+    let vol_slider_x = vol_icon_x + 24.0;
+    let vol_slider_w = (right_w - 40.0).max(60.0);
+    let vol_rect = Rect::from_min_size(
+        Pos2::new(vol_slider_x, cy - 20.0),
+        Vec2::new(vol_slider_w, 14.0),
+    );
+    let vy = vol_rect.center().y;
+    let vol = app.volume as f32;
+
+    ui.painter().line_segment(
+        [
+            Pos2::new(vol_rect.left(), vy),
+            Pos2::new(vol_rect.right(), vy),
+        ],
+        egui::Stroke::new(3.0, colors.slider_track),
+    );
+    let vfx = vol_rect.left() + vol_rect.width() * vol;
+    ui.painter().line_segment(
+        [Pos2::new(vol_rect.left(), vy), Pos2::new(vfx, vy)],
+        egui::Stroke::new(3.0, colors.slider_fill),
+    );
+    ui.painter()
+        .circle_filled(Pos2::new(vfx, vy), 5.0, colors.accent);
+
+    let vol_interact_rect = Rect::from_min_size(
+        Pos2::new(vol_rect.left() - 4.0, vy - 8.0),
+        Vec2::new(vol_rect.width() + 8.0, 16.0),
+    );
+    let vol_resp = ui.interact(
+        vol_interact_rect,
+        egui::Id::new("vol_slider"),
+        Sense::click_and_drag(),
+    );
+    if vol_resp.clicked() || vol_resp.dragged() {
+        if let Some(ptr) = vol_resp.interact_pointer_pos() {
+            let t = ((ptr.x - vol_rect.left()) / vol_rect.width()).clamp(0.0, 1.0);
+            app.set_volume(t as f64);
         }
+    }
 
-        // ── Center: Controls + progress bar ──
-        ui.with_layout(
-            egui::Layout::centered_and_justified(egui::Direction::TopDown),
-            |ui| {
-                ui.vertical(|ui| {
-                    ui.add_space(6.0);
+    // Lyrics toggle
+    let lyrics_color = if app.show_lyrics {
+        colors.accent
+    } else {
+        colors.text_dim
+    };
+    let lyrics_rect = Rect::from_center_size(
+        Pos2::new(vol_slider_x + vol_slider_w / 2.0, cy + 14.0),
+        Vec2::new(24.0, 20.0),
+    );
+    let lyrics_resp = ui.interact(lyrics_rect, egui::Id::new("lyrics_toggle"), Sense::click());
+    ui.painter().text(
+        lyrics_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{2630}",
+        FontId::proportional(14.0),
+        lyrics_color,
+    );
+    if lyrics_resp.clicked() {
+        app.show_lyrics = !app.show_lyrics;
+        app.ctx.lyrics.toggle_panel();
+    }
 
-                    // Controls row — scale play button with available width
-                    let play_btn_size = if total_w > 900.0 { 48.0 } else { 36.0 };
-                    let play_radius = play_btn_size / 2.0;
-                    let icon_size = if total_w > 900.0 { 20.0 } else { 16.0 };
+    // ── Center section: Controls + progress ──
+    let center_x = bar_rect.left() + left_w;
+    let center_w = right_x - center_x;
 
-                    ui.horizontal(|ui| {
-                        ui.with_layout(
-                            egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
-                            |ui| {
-                                let shuffle_color = if app.shuffle {
-                                    colors.accent
-                                } else {
-                                    colors.text_dim
-                                };
-                                if icon_btn(ui, "\u{21C4}", icon_size, shuffle_color) {
-                                    app.toggle_shuffle();
-                                }
+    // Play/Pause button (large circle)
+    let play_btn_size = if total_w > 900.0 { 48.0 } else { 40.0 };
+    let play_radius = play_btn_size / 2.0;
+    let play_cx = center_x + center_w / 2.0;
 
-                                if icon_btn(ui, "\u{23EE}", icon_size, colors.text) {
-                                    app.play_prev();
-                                }
+    // Controls row y position (upper part of center)
+    let controls_y = cy - 14.0;
+    let icon_size = if total_w > 900.0 { 18.0 } else { 15.0 };
 
-                                // Play/Pause circle button
-                                let play_label = if app.is_playing {
-                                    "\u{23F8}"
-                                } else {
-                                    "\u{25B6}"
-                                };
-                                let (pb_rect, pb_resp) = ui.allocate_exact_size(
-                                    Vec2::new(play_btn_size, play_btn_size),
-                                    Sense::click(),
-                                );
-                                let pb_bg = if pb_resp.hovered() {
-                                    colors.accent_dark
-                                } else {
-                                    colors.accent
-                                };
-                                ui.painter()
-                                    .circle_filled(pb_rect.center(), play_radius, pb_bg);
-                                ui.painter().text(
-                                    pb_rect.center(),
-                                    Align2::CENTER_CENTER,
-                                    play_label,
-                                    FontId::proportional(play_btn_size * 0.42),
-                                    Color32::WHITE,
-                                );
-                                if pb_resp.clicked() {
-                                    app.toggle_playback();
-                                }
+    // Shuffle button
+    let shuffle_color = if app.shuffle {
+        colors.accent
+    } else {
+        colors.text_dim
+    };
+    let shuffle_rect = Rect::from_center_size(
+        Pos2::new(play_cx - play_btn_size - icon_size * 2.0 - 20.0, controls_y),
+        Vec2::new(28.0, 28.0),
+    );
+    let shuffle_resp = ui.interact(shuffle_rect, egui::Id::new("shuffle_btn"), Sense::click());
+    if shuffle_resp.hovered() {
+        ui.painter().rect_filled(shuffle_rect, 4.0, colors.hover);
+    }
+    ui.painter().text(
+        shuffle_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{21C4}",
+        FontId::proportional(icon_size),
+        shuffle_color,
+    );
+    if shuffle_resp.clicked() {
+        app.toggle_shuffle();
+    }
 
-                                if icon_btn(ui, "\u{23ED}", icon_size, colors.text) {
-                                    app.play_next();
-                                }
+    // Previous button
+    let prev_rect = Rect::from_center_size(
+        Pos2::new(play_cx - play_btn_size - icon_size - 6.0, controls_y),
+        Vec2::new(28.0, 28.0),
+    );
+    let prev_resp = ui.interact(prev_rect, egui::Id::new("prev_btn"), Sense::click());
+    if prev_resp.hovered() {
+        ui.painter().rect_filled(prev_rect, 4.0, colors.hover);
+    }
+    ui.painter().text(
+        prev_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{23EE}",
+        FontId::proportional(icon_size),
+        colors.text,
+    );
+    if prev_resp.clicked() {
+        app.play_prev();
+    }
 
-                                let (repeat_color, repeat_icon) = match app.repeat {
-                                    tc_config::RepeatMode::Off => (colors.text_dim, "\u{1F501}"),
-                                    tc_config::RepeatMode::All => (colors.accent, "\u{1F501}"),
-                                    tc_config::RepeatMode::One => (colors.accent, "\u{1F502}"),
-                                };
-                                if icon_btn(ui, repeat_icon, icon_size * 0.9, repeat_color) {
-                                    let new_repeat = match app.repeat {
-                                        tc_config::RepeatMode::Off => tc_config::RepeatMode::All,
-                                        tc_config::RepeatMode::All => tc_config::RepeatMode::One,
-                                        tc_config::RepeatMode::One => tc_config::RepeatMode::Off,
-                                    };
-                                    app.set_repeat(new_repeat);
-                                }
-                            },
-                        );
-                    });
+    // Play/Pause circle
+    let pb_rect = Rect::from_center_size(
+        Pos2::new(play_cx, controls_y),
+        Vec2::new(play_btn_size, play_btn_size),
+    );
+    let pb_resp = ui.interact(pb_rect, egui::Id::new("play_pause_btn"), Sense::click());
+    let pb_bg = if pb_resp.hovered() {
+        colors.accent_dark
+    } else {
+        colors.accent
+    };
+    ui.painter()
+        .circle_filled(pb_rect.center(), play_radius, pb_bg);
+    let play_label = if app.is_playing {
+        "\u{23F8}"
+    } else {
+        "\u{25B6}"
+    };
+    ui.painter().text(
+        pb_rect.center(),
+        Align2::CENTER_CENTER,
+        play_label,
+        FontId::proportional(play_btn_size * 0.40),
+        Color32::WHITE,
+    );
+    if pb_resp.clicked() {
+        app.toggle_playback();
+    }
 
-                    // Progress bar row — 4px bar
-                    ui.add_space(2.0);
-                    ui.horizontal(|ui| {
-                        let track_duration = if app.duration_secs > 0.0 {
-                            app.duration_secs
-                        } else {
-                            1.0
-                        };
-                        let progress = (app.position_secs / track_duration).clamp(0.0, 1.0) as f32;
+    // Next button
+    let next_rect = Rect::from_center_size(
+        Pos2::new(play_cx + play_btn_size + icon_size + 6.0, controls_y),
+        Vec2::new(28.0, 28.0),
+    );
+    let next_resp = ui.interact(next_rect, egui::Id::new("next_btn"), Sense::click());
+    if next_resp.hovered() {
+        ui.painter().rect_filled(next_rect, 4.0, colors.hover);
+    }
+    ui.painter().text(
+        next_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{23ED}",
+        FontId::proportional(icon_size),
+        colors.text,
+    );
+    if next_resp.clicked() {
+        app.play_next();
+    }
 
-                        let pos_s = (app.position_secs % 60.0) as u32;
-                        let pos_m = (app.position_secs / 60.0) as u32;
-                        ui.label(
-                            RichText::new(format!("{}:{:02}", pos_m, pos_s))
-                                .font(FontId::proportional(10.0))
-                                .color(colors.text_dim),
-                        );
+    // Repeat button
+    let (repeat_color, repeat_icon) = match app.repeat {
+        tc_config::RepeatMode::Off => (colors.text_dim, "\u{1F501}"),
+        tc_config::RepeatMode::All => (colors.accent, "\u{1F501}"),
+        tc_config::RepeatMode::One => (colors.accent, "\u{1F502}"),
+    };
+    let repeat_rect = Rect::from_center_size(
+        Pos2::new(play_cx + play_btn_size + icon_size * 2.0 + 20.0, controls_y),
+        Vec2::new(28.0, 28.0),
+    );
+    let repeat_resp = ui.interact(repeat_rect, egui::Id::new("repeat_btn"), Sense::click());
+    if repeat_resp.hovered() {
+        ui.painter().rect_filled(repeat_rect, 4.0, colors.hover);
+    }
+    ui.painter().text(
+        repeat_rect.center(),
+        Align2::CENTER_CENTER,
+        repeat_icon,
+        FontId::proportional(icon_size * 0.9),
+        repeat_color,
+    );
+    if repeat_resp.clicked() {
+        let new_repeat = match app.repeat {
+            tc_config::RepeatMode::Off => tc_config::RepeatMode::All,
+            tc_config::RepeatMode::All => tc_config::RepeatMode::One,
+            tc_config::RepeatMode::One => tc_config::RepeatMode::Off,
+        };
+        app.set_repeat(new_repeat);
+    }
 
-                        // Progress bar uses remaining width
-                        let prog_w = ui.available_width() - 36.0;
-                        let prog_h = 14.0;
-                        let (prog_rect, prog_resp) =
-                            ui.allocate_exact_size(Vec2::new(prog_w, prog_h), Sense::click());
-                        let py = prog_rect.center().y;
+    // ── Progress bar ──
+    let prog_y = cy + 16.0;
+    let prog_margin = 14.0;
+    let time_label_w = 32.0;
 
-                        ui.painter().line_segment(
-                            [
-                                Pos2::new(prog_rect.left(), py),
-                                Pos2::new(prog_rect.right(), py),
-                            ],
-                            egui::Stroke::new(4.0, colors.slider_track),
-                        );
-                        let fill_x = prog_rect.left() + prog_rect.width() * progress;
-                        ui.painter().line_segment(
-                            [Pos2::new(prog_rect.left(), py), Pos2::new(fill_x, py)],
-                            egui::Stroke::new(4.0, colors.slider_fill),
-                        );
-                        ui.painter()
-                            .circle_filled(Pos2::new(fill_x, py), 6.0, colors.accent);
+    let track_duration = if app.duration_secs > 0.0 {
+        app.duration_secs
+    } else {
+        1.0
+    };
+    let progress = (app.position_secs / track_duration).clamp(0.0, 1.0) as f32;
 
-                        if prog_resp.clicked() || prog_resp.dragged() {
-                            if let Some(ptr) = prog_resp.interact_pointer_pos() {
-                                let t = ((ptr.x - prog_rect.left()) / prog_rect.width())
-                                    .clamp(0.0, 1.0);
-                                let new_pos = t as f64 * track_duration;
-                                app.position_secs = new_pos;
-                                app.seek(new_pos);
-                            }
-                        }
+    let pos_s = (app.position_secs % 60.0) as u32;
+    let pos_m = (app.position_secs / 60.0) as u32;
+    let pos_str = format!("{}:{:02}", pos_m, pos_s);
+    ui.painter().text(
+        Pos2::new(center_x + prog_margin, prog_y),
+        Align2::LEFT_CENTER,
+        &pos_str,
+        FontId::proportional(10.0),
+        colors.text_dim,
+    );
 
-                        let dur_s = (track_duration % 60.0) as u32;
-                        let dur_m = (track_duration / 60.0) as u32;
-                        ui.label(
-                            RichText::new(format!("{}:{:02}", dur_m, dur_s))
-                                .font(FontId::proportional(10.0))
-                                .color(colors.text_dim),
-                        );
-                    });
-                });
-            },
-        );
+    let dur_s = (track_duration % 60.0) as u32;
+    let dur_m = (track_duration / 60.0) as u32;
+    let dur_str = format!("{}:{:02}", dur_m, dur_s);
 
-        // ── Right: Volume + Queue ──
-        ui.add_space(8.0);
-        ui.vertical(|ui| {
-            ui.add_space(14.0);
-            ui.horizontal(|ui| {
-                let vol_icon = if app.volume < 0.01 {
-                    "\u{1F507}"
-                } else if app.volume < 0.5 {
-                    "\u{1F508}"
-                } else {
-                    "\u{1F509}"
-                };
-                ui.label(
-                    RichText::new(vol_icon)
-                        .font(FontId::proportional(14.0))
-                        .color(colors.text_dim),
-                );
+    let prog_x_start = center_x + prog_margin + time_label_w;
+    let prog_x_end = right_x - prog_margin - time_label_w;
+    let prog_w = (prog_x_end - prog_x_start).max(1.0);
 
-                // Custom-drawn volume slider — width adapts to available space
-                let vol_w = ui.available_width().clamp(40.0, 120.0);
-                let vol_h = 14.0;
-                let (vol_rect, vol_resp) =
-                    ui.allocate_exact_size(Vec2::new(vol_w, vol_h), Sense::click_and_drag());
-                let vy = vol_rect.center().y;
-                let vol = app.volume as f32;
+    ui.painter().text(
+        Pos2::new(prog_x_end + 4.0, prog_y),
+        Align2::LEFT_CENTER,
+        &dur_str,
+        FontId::proportional(10.0),
+        colors.text_dim,
+    );
 
-                ui.painter().line_segment(
-                    [
-                        Pos2::new(vol_rect.left(), vy),
-                        Pos2::new(vol_rect.right(), vy),
-                    ],
-                    egui::Stroke::new(4.0, colors.slider_track),
-                );
-                let fill_x = vol_rect.left() + vol_rect.width() * vol;
-                ui.painter().line_segment(
-                    [Pos2::new(vol_rect.left(), vy), Pos2::new(fill_x, vy)],
-                    egui::Stroke::new(4.0, colors.slider_fill),
-                );
-                ui.painter()
-                    .circle_filled(Pos2::new(fill_x, vy), 5.0, colors.accent);
+    // Track line
+    ui.painter().line_segment(
+        [
+            Pos2::new(prog_x_start, prog_y),
+            Pos2::new(prog_x_end, prog_y),
+        ],
+        egui::Stroke::new(3.0, colors.slider_track),
+    );
+    let fill_x = prog_x_start + prog_w * progress;
+    ui.painter().line_segment(
+        [Pos2::new(prog_x_start, prog_y), Pos2::new(fill_x, prog_y)],
+        egui::Stroke::new(3.0, colors.slider_fill),
+    );
+    ui.painter()
+        .circle_filled(Pos2::new(fill_x, prog_y), 6.0, colors.accent);
 
-                if vol_resp.clicked() || vol_resp.dragged() {
-                    if let Some(ptr) = vol_resp.interact_pointer_pos() {
-                        let t = ((ptr.x - vol_rect.left()) / vol_rect.width()).clamp(0.0, 1.0);
-                        app.set_volume(t as f64);
-                    }
-                }
-            });
+    // Progress interaction
+    let prog_interact_rect = Rect::from_min_size(
+        Pos2::new(prog_x_start - 4.0, prog_y - 8.0),
+        Vec2::new(prog_w + 8.0, 16.0),
+    );
+    let prog_resp = ui.interact(
+        prog_interact_rect,
+        egui::Id::new("progress_bar"),
+        Sense::click_and_drag(),
+    );
+    if prog_resp.clicked() || prog_resp.dragged() {
+        if let Some(ptr) = prog_resp.interact_pointer_pos() {
+            let t = ((ptr.x - prog_x_start) / prog_w).clamp(0.0, 1.0);
+            let new_pos = t as f64 * track_duration;
+            app.position_secs = new_pos;
+            app.seek(new_pos);
+        }
+    }
 
-            ui.add_space(4.0);
-
-            ui.horizontal(|ui| {
-                let lyrics_color = if app.show_lyrics {
-                    colors.accent
-                } else {
-                    colors.text_dim
-                };
-                if icon_btn(ui, "\u{2630}", 12.0, lyrics_color) {
-                    app.show_lyrics = !app.show_lyrics;
-                    app.ctx.lyrics.toggle_panel();
-                }
-
-                // Speed control — hide individual speed buttons on narrow widths, show only current
-                // speed label
-                if total_w > 800.0 {
-                    let speed_label = if (app.speed - 1.0).abs() < 0.01 {
-                        "1x".to_string()
-                    } else {
-                        format!("{:.1}x", app.speed)
-                    };
-                    let speed_color = if (app.speed - 1.0).abs() < 0.01 {
-                        colors.text_dim
-                    } else {
-                        colors.accent
-                    };
-                    ui.label(
-                        RichText::new(&speed_label)
-                            .font(FontId::proportional(10.0))
-                            .color(speed_color),
-                    );
-
-                    for &s in &[0.5f64, 0.75, 1.0, 1.25, 1.5, 2.0] {
-                        let is_cur = (app.speed - s).abs() < 0.01;
-                        let label = if s == s.round() {
-                            format!("{}x", s as u32)
-                        } else {
-                            format!("{:.1}x", s)
-                        };
-                        if ui
-                            .add(
-                                egui::Button::new(
-                                    RichText::new(&label).font(FontId::proportional(9.0)).color(
-                                        if is_cur {
-                                            colors.accent
-                                        } else {
-                                            colors.text_dim
-                                        },
-                                    ),
-                                )
-                                .frame(false),
-                            )
-                            .clicked()
-                        {
-                            app.set_speed(s);
-                        }
-                    }
-                } else {
-                    // Compact: just show current speed as clickable toggle
-                    let speed_label = if (app.speed - 1.0).abs() < 0.01 {
-                        "1x".to_string()
-                    } else {
-                        format!("{:.1}x", app.speed)
-                    };
-                    let speed_color = if (app.speed - 1.0).abs() < 0.01 {
-                        colors.text_dim
-                    } else {
-                        colors.accent
-                    };
-                    if ui
-                        .add(
-                            egui::Button::new(
-                                RichText::new(&speed_label)
-                                    .font(FontId::proportional(10.0))
-                                    .color(speed_color),
-                            )
-                            .frame(false),
-                        )
-                        .clicked()
-                    {
-                        // Cycle through speeds
-                        let speeds = [0.5f64, 0.75, 1.0, 1.25, 1.5, 2.0];
-                        let cur_idx = speeds
-                            .iter()
-                            .position(|&s| (app.speed - s).abs() < 0.01)
-                            .unwrap_or(2);
-                        let next_idx = (cur_idx + 1) % speeds.len();
-                        app.set_speed(speeds[next_idx]);
-                    }
-                }
-            });
-        });
-
-        ui.add_space(12.0);
-    });
+    // Allocate the full bar area so egui knows it's been used
+    let _ = ui.interact(bar_rect, egui::Id::new("player_bar_area"), Sense::hover());
 }
 
 /// Compact layout: stack controls vertically, hide non-essential elements
@@ -447,177 +460,209 @@ fn draw_compact(
     app: &mut TuneCraftApp,
     ui: &mut Ui,
     colors: &TuneCraftColors,
-    _bar_rect: Rect,
+    bar_rect: Rect,
     total_w: f32,
 ) {
-    ui.vertical(|ui| {
-        // Row 1: Track info (left) + controls (center) + volume (right)
-        ui.horizontal(|ui| {
-            ui.add_space(8.0);
+    // Row 1: mini art + title + controls + volume
+    let row1_y = bar_rect.top() + 22.0;
+    let art_size = 32.0;
+    let art_x = bar_rect.left() + 8.0;
 
-            // Mini art + track info
-            let art_size = 32.0;
-            let (art_alloc, _) =
-                ui.allocate_exact_size(Vec2::new(art_size, art_size), Sense::hover());
-            let art_r = Rect::from_center_size(art_alloc.center(), Vec2::new(art_size, art_size));
-            ui.painter().rect_filled(art_r, 4.0, colors.card);
-            ui.painter()
-                .rect_stroke(art_r, 4.0, egui::Stroke::new(1.0, colors.border));
-            ui.painter().text(
-                art_r.center(),
-                Align2::CENTER_CENTER,
-                "\u{266A}",
-                FontId::proportional(14.0),
-                colors.text_dim,
-            );
+    let art_rect = Rect::from_min_size(
+        Pos2::new(art_x, row1_y - art_size / 2.0),
+        Vec2::new(art_size, art_size),
+    );
+    ui.painter().rect_filled(art_rect, 4.0, colors.card);
+    ui.painter()
+        .rect_stroke(art_rect, 4.0, egui::Stroke::new(1.0, colors.border));
+    ui.painter().text(
+        art_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{266A}",
+        FontId::proportional(14.0),
+        colors.text_dim,
+    );
 
-            ui.add_space(6.0);
+    // Track info
+    let info_x = art_x + art_size + 6.0;
+    let info_w = (total_w * 0.25).clamp(60.0, 120.0);
+    if let Some(track) = app.current_track() {
+        let title_font = FontId::proportional(12.0);
+        let title = truncate(ui, &track.title, &title_font, info_w);
+        ui.painter().text(
+            Pos2::new(info_x, row1_y),
+            Align2::LEFT_CENTER,
+            &title,
+            title_font,
+            colors.text,
+        );
+    } else {
+        ui.painter().text(
+            Pos2::new(info_x, row1_y),
+            Align2::LEFT_CENTER,
+            "No track",
+            FontId::proportional(12.0),
+            colors.text_dim,
+        );
+    }
 
-            // Track title only (no artist in compact)
-            let info_w = (total_w * 0.25).clamp(60.0, 120.0);
-            let (info_rect, _) = ui.allocate_exact_size(Vec2::new(info_w, 36.0), Sense::hover());
-            if let Some(track) = app.current_track() {
-                let title_font = FontId::proportional(12.0);
-                let max_w = info_rect.width() - 4.0;
-                let title = truncate(ui, &track.title, &title_font, max_w);
-                ui.painter().text(
-                    Pos2::new(info_rect.left(), info_rect.center().y),
-                    Align2::LEFT_CENTER,
-                    &title,
-                    title_font,
-                    colors.text,
-                );
-            } else {
-                ui.painter().text(
-                    info_rect.center(),
-                    Align2::CENTER_CENTER,
-                    "No track",
-                    FontId::proportional(12.0),
-                    colors.text_dim,
-                );
-            }
+    // Controls — centered
+    let ctrl_cx = bar_rect.center().x;
+    let prev_rect =
+        Rect::from_center_size(Pos2::new(ctrl_cx - 32.0, row1_y), Vec2::new(28.0, 28.0));
+    let play_rect = Rect::from_center_size(Pos2::new(ctrl_cx, row1_y), Vec2::new(36.0, 36.0));
+    let next_rect =
+        Rect::from_center_size(Pos2::new(ctrl_cx + 32.0, row1_y), Vec2::new(28.0, 28.0));
 
-            // Center controls
-            ui.with_layout(
-                egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
-                |ui| {
-                    if icon_btn(ui, "\u{23EE}", 16.0, colors.text) {
-                        app.play_prev();
-                    }
-                    let play_label = if app.is_playing {
-                        "\u{23F8}"
-                    } else {
-                        "\u{25B6}"
-                    };
-                    let (pb_rect, pb_resp) =
-                        ui.allocate_exact_size(Vec2::new(36.0, 36.0), Sense::click());
-                    let pb_bg = if pb_resp.hovered() {
-                        colors.accent_dark
-                    } else {
-                        colors.accent
-                    };
-                    ui.painter().circle_filled(pb_rect.center(), 18.0, pb_bg);
-                    ui.painter().text(
-                        pb_rect.center(),
-                        Align2::CENTER_CENTER,
-                        play_label,
-                        FontId::proportional(14.0),
-                        Color32::WHITE,
-                    );
-                    if pb_resp.clicked() {
-                        app.toggle_playback();
-                    }
-                    if icon_btn(ui, "\u{23ED}", 16.0, colors.text) {
-                        app.play_next();
-                    }
-                },
-            );
+    let prev_resp = ui.interact(prev_rect, egui::Id::new("c_prev"), Sense::click());
+    if prev_resp.hovered() {
+        ui.painter().rect_filled(prev_rect, 4.0, colors.hover);
+    }
+    ui.painter().text(
+        prev_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{23EE}",
+        FontId::proportional(16.0),
+        colors.text,
+    );
+    if prev_resp.clicked() {
+        app.play_prev();
+    }
 
-            // Volume icon only (no slider in compact)
-            let vol_icon = if app.volume < 0.01 {
-                "\u{1F507}"
-            } else if app.volume < 0.5 {
-                "\u{1F508}"
-            } else {
-                "\u{1F509}"
-            };
-            if icon_btn(ui, vol_icon, 14.0, colors.text_dim) {
-                // Toggle mute on click
-                if app.volume > 0.0 {
-                    app.set_volume(0.0);
-                } else {
-                    app.set_volume(0.7);
-                }
-            }
-        });
+    let play_resp = ui.interact(play_rect, egui::Id::new("c_play"), Sense::click());
+    let pb_bg = if play_resp.hovered() {
+        colors.accent_dark
+    } else {
+        colors.accent
+    };
+    ui.painter().circle_filled(play_rect.center(), 18.0, pb_bg);
+    let play_label = if app.is_playing {
+        "\u{23F8}"
+    } else {
+        "\u{25B6}"
+    };
+    ui.painter().text(
+        play_rect.center(),
+        Align2::CENTER_CENTER,
+        play_label,
+        FontId::proportional(14.0),
+        Color32::WHITE,
+    );
+    if play_resp.clicked() {
+        app.toggle_playback();
+    }
 
-        // Row 2: Progress bar full width
-        ui.horizontal(|ui| {
-            ui.add_space(8.0);
-            let track_duration = if app.duration_secs > 0.0 {
-                app.duration_secs
-            } else {
-                1.0
-            };
-            let progress = (app.position_secs / track_duration).clamp(0.0, 1.0) as f32;
+    let next_resp = ui.interact(next_rect, egui::Id::new("c_next"), Sense::click());
+    if next_resp.hovered() {
+        ui.painter().rect_filled(next_rect, 4.0, colors.hover);
+    }
+    ui.painter().text(
+        next_rect.center(),
+        Align2::CENTER_CENTER,
+        "\u{23ED}",
+        FontId::proportional(16.0),
+        colors.text,
+    );
+    if next_resp.clicked() {
+        app.play_next();
+    }
 
-            let pos_s = (app.position_secs % 60.0) as u32;
-            let pos_m = (app.position_secs / 60.0) as u32;
-            ui.label(
-                RichText::new(format!("{}:{:02}", pos_m, pos_s))
-                    .font(FontId::proportional(9.0))
-                    .color(colors.text_dim),
-            );
+    // Volume icon (right side)
+    let vol_icon = if app.volume < 0.01 {
+        "\u{1F507}"
+    } else if app.volume < 0.5 {
+        "\u{1F508}"
+    } else {
+        "\u{1F509}"
+    };
+    let vol_rect = Rect::from_center_size(
+        Pos2::new(bar_rect.right() - 20.0, row1_y),
+        Vec2::new(24.0, 24.0),
+    );
+    let vol_resp = ui.interact(vol_rect, egui::Id::new("c_vol"), Sense::click());
+    ui.painter().text(
+        vol_rect.center(),
+        Align2::CENTER_CENTER,
+        vol_icon,
+        FontId::proportional(14.0),
+        colors.text_dim,
+    );
+    if vol_resp.clicked() {
+        if app.volume > 0.0 {
+            app.set_volume(0.0);
+        } else {
+            app.set_volume(0.7);
+        }
+    }
 
-            let prog_w = ui.available_width() - 30.0;
-            let prog_h = 10.0;
-            let (prog_rect, prog_resp) =
-                ui.allocate_exact_size(Vec2::new(prog_w, prog_h), Sense::click());
-            let py = prog_rect.center().y;
+    // Row 2: Progress bar
+    let row2_y = bar_rect.top() + 52.0;
+    let prog_margin = 8.0;
+    let time_lw = 28.0;
 
-            ui.painter().line_segment(
-                [
-                    Pos2::new(prog_rect.left(), py),
-                    Pos2::new(prog_rect.right(), py),
-                ],
-                egui::Stroke::new(3.0, colors.slider_track),
-            );
-            let fill_x = prog_rect.left() + prog_rect.width() * progress;
-            ui.painter().line_segment(
-                [Pos2::new(prog_rect.left(), py), Pos2::new(fill_x, py)],
-                egui::Stroke::new(3.0, colors.slider_fill),
-            );
-            ui.painter()
-                .circle_filled(Pos2::new(fill_x, py), 4.0, colors.accent);
+    let track_duration = if app.duration_secs > 0.0 {
+        app.duration_secs
+    } else {
+        1.0
+    };
+    let progress = (app.position_secs / track_duration).clamp(0.0, 1.0) as f32;
 
-            if prog_resp.clicked() || prog_resp.dragged() {
-                if let Some(ptr) = prog_resp.interact_pointer_pos() {
-                    let t = ((ptr.x - prog_rect.left()) / prog_rect.width()).clamp(0.0, 1.0);
-                    let new_pos = t as f64 * track_duration;
-                    app.position_secs = new_pos;
-                    app.seek(new_pos);
-                }
-            }
+    let pos_s = (app.position_secs % 60.0) as u32;
+    let pos_m = (app.position_secs / 60.0) as u32;
+    ui.painter().text(
+        Pos2::new(bar_rect.left() + prog_margin, row2_y),
+        Align2::LEFT_CENTER,
+        &format!("{}:{:02}", pos_m, pos_s),
+        FontId::proportional(9.0),
+        colors.text_dim,
+    );
 
-            let dur_s = (track_duration % 60.0) as u32;
-            let dur_m = (track_duration / 60.0) as u32;
-            ui.label(
-                RichText::new(format!("{}:{:02}", dur_m, dur_s))
-                    .font(FontId::proportional(9.0))
-                    .color(colors.text_dim),
-            );
-        });
-    });
-}
+    let dur_s = (track_duration % 60.0) as u32;
+    let dur_m = (track_duration / 60.0) as u32;
+    let prog_x_start = bar_rect.left() + prog_margin + time_lw;
+    let prog_x_end = bar_rect.right() - prog_margin - time_lw;
+    let prog_w = (prog_x_end - prog_x_start).max(1.0);
 
-fn icon_btn(ui: &mut Ui, icon: &str, size: f32, color: Color32) -> bool {
-    ui.add(
-        egui::Button::new(
-            RichText::new(icon)
-                .font(FontId::proportional(size))
-                .color(color),
-        )
-        .frame(false),
-    )
-    .clicked()
+    ui.painter().text(
+        Pos2::new(prog_x_end + 4.0, row2_y),
+        Align2::LEFT_CENTER,
+        &format!("{}:{:02}", dur_m, dur_s),
+        FontId::proportional(9.0),
+        colors.text_dim,
+    );
+
+    ui.painter().line_segment(
+        [
+            Pos2::new(prog_x_start, row2_y),
+            Pos2::new(prog_x_end, row2_y),
+        ],
+        egui::Stroke::new(3.0, colors.slider_track),
+    );
+    let fill_x = prog_x_start + prog_w * progress;
+    ui.painter().line_segment(
+        [Pos2::new(prog_x_start, row2_y), Pos2::new(fill_x, row2_y)],
+        egui::Stroke::new(3.0, colors.slider_fill),
+    );
+    ui.painter()
+        .circle_filled(Pos2::new(fill_x, row2_y), 4.0, colors.accent);
+
+    let prog_interact = Rect::from_min_size(
+        Pos2::new(prog_x_start - 4.0, row2_y - 7.0),
+        Vec2::new(prog_w + 8.0, 14.0),
+    );
+    let prog_resp = ui.interact(
+        prog_interact,
+        egui::Id::new("c_progress"),
+        Sense::click_and_drag(),
+    );
+    if prog_resp.clicked() || prog_resp.dragged() {
+        if let Some(ptr) = prog_resp.interact_pointer_pos() {
+            let t = ((ptr.x - prog_x_start) / prog_w).clamp(0.0, 1.0);
+            let new_pos = t as f64 * track_duration;
+            app.position_secs = new_pos;
+            app.seek(new_pos);
+        }
+    }
+
+    let _ = ui.interact(bar_rect, egui::Id::new("c_player_bar"), Sense::hover());
 }
