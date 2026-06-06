@@ -2,7 +2,7 @@
 //! Matches the reference design with proper toolbar and real track data.
 //! Responsive: columns collapse on narrow viewports, grid adapts card count.
 
-use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Ui, Vec2};
+use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, TextureHandle, Ui, Vec2};
 
 use crate::{app::TuneCraftApp, theme::TuneCraftColors};
 
@@ -137,7 +137,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     Vec2::new(text_edit_w, search_h - 8.0),
                 ),
                 egui::TextEdit::singleline(&mut app.search_query)
-                    .hint_text("Search...")
+                    .hint_text("Search songs, artists, albums...")
                     .font(FontId::proportional(if total_w < BREAKPOINT_NARROW {
                         12.0
                     } else {
@@ -589,39 +589,89 @@ fn styled_icon_btn(ui: &mut Ui, icon: &str, active: bool, colors: &TuneCraftColo
     resp.clicked()
 }
 
-/// Draw a small album art placeholder square
-fn draw_art_placeholder(ui: &mut Ui, rect: egui::Rect, colors: &TuneCraftColors, is_playing: bool) {
-    let art_color = if is_playing {
-        if colors.dark_mode {
-            Color32::from_rgba_premultiplied(
-                (colors.accent.r() as u16 * 30 / 100 + colors.card.r() as u16 * 70 / 100) as u8,
-                (colors.accent.g() as u16 * 30 / 100 + colors.card.g() as u16 * 70 / 100) as u8,
-                (colors.accent.b() as u16 * 30 / 100 + colors.card.b() as u16 * 70 / 100) as u8,
-                255,
-            )
+/// Load or retrieve cached album art texture for a track.
+///
+/// Lazily decodes cover art bytes from the database into an egui TextureHandle,
+/// caching the result in `app.album_art_cache` keyed by `track_id`.
+/// Returns `None` if no cover art exists for this track.
+fn get_or_load_album_art(app: &mut TuneCraftApp, ui: &Ui, track_id: i64) -> Option<TextureHandle> {
+    if let Some(handle) = app.album_art_cache.get(&track_id) {
+        return Some(handle.clone());
+    }
+
+    // Try loading from DB
+    let (bytes, _mime) = app.ctx.library.get_cover_art_by_track_id(track_id)?;
+
+    // Decode image bytes → RGBA
+    let img = image::load_from_memory(&bytes).ok()?;
+    let rgba = img.to_rgba8();
+    let (w, h) = (rgba.width() as usize, rgba.height() as usize);
+    let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], rgba.as_raw());
+
+    let handle = ui.ctx().load_texture(
+        format!("cover_{}", track_id),
+        color_image,
+        egui::TextureOptions::LINEAR,
+    );
+
+    app.album_art_cache.insert(track_id, handle.clone());
+    Some(handle)
+}
+
+/// Draw album art (real texture or placeholder) into the given rect.
+fn draw_album_art(
+    ui: &mut Ui,
+    rect: egui::Rect,
+    colors: &TuneCraftColors,
+    is_playing: bool,
+    texture: Option<&TextureHandle>,
+) {
+    if let Some(tex) = texture {
+        // Real cover art — paint with rounded corners
+        let uv = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0));
+        ui.painter().add(egui::epaint::RectShape::filled(
+            rect,
+            egui::Rounding::same(4.0),
+            colors.card,
+        ));
+        // Draw the texture as a mesh with rounded clip
+        let mut mesh = egui::Mesh::with_texture(tex.id());
+        mesh.add_rect_with_uv(rect, uv, Color32::WHITE);
+        ui.painter().add(egui::Shape::mesh(mesh));
+    } else {
+        // Placeholder fallback
+        let art_color = if is_playing {
+            if colors.dark_mode {
+                Color32::from_rgba_premultiplied(
+                    (colors.accent.r() as u16 * 30 / 100 + colors.card.r() as u16 * 70 / 100) as u8,
+                    (colors.accent.g() as u16 * 30 / 100 + colors.card.g() as u16 * 70 / 100) as u8,
+                    (colors.accent.b() as u16 * 30 / 100 + colors.card.b() as u16 * 70 / 100) as u8,
+                    255,
+                )
+            } else {
+                colors.active_bg
+            }
         } else {
-            colors.active_bg
+            colors.card
+        };
+        ui.painter().rect_filled(rect, 4.0, art_color);
+        if is_playing {
+            ui.painter().text(
+                rect.center(),
+                Align2::CENTER_CENTER,
+                "\u{25B6}",
+                FontId::proportional(10.0),
+                Color32::WHITE,
+            );
+        } else {
+            ui.painter().text(
+                rect.center(),
+                Align2::CENTER_CENTER,
+                "\u{266A}",
+                FontId::proportional(14.0),
+                colors.text_dim,
+            );
         }
-    } else {
-        colors.card
-    };
-    ui.painter().rect_filled(rect, 4.0, art_color);
-    if is_playing {
-        ui.painter().text(
-            rect.center(),
-            Align2::CENTER_CENTER,
-            "\u{25B6}",
-            FontId::proportional(10.0),
-            Color32::WHITE,
-        );
-    } else {
-        ui.painter().text(
-            rect.center(),
-            Align2::CENTER_CENTER,
-            "\u{266A}",
-            FontId::proportional(14.0),
-            colors.text_dim,
-        );
     }
 }
 
@@ -779,8 +829,14 @@ fn draw_list_view(
         .auto_shrink([false, false])
         .show_rows(ui, track_row_h, filtered_indices.len(), |ui, row_range| {
             for (i, &idx) in filtered_indices[row_range.clone()].iter().enumerate() {
-                let track = &app.tracks[idx];
-                let is_playing = app.current_track_id == Some(track.id);
+                // Copy track fields upfront to avoid borrow conflicts with album art loading
+                let track_id = app.tracks[idx].id;
+                let track_title = app.tracks[idx].title.clone();
+                let track_artist = app.tracks[idx].artist.clone();
+                let track_album = app.tracks[idx].album.clone();
+                let track_mood = app.tracks[idx].mood.clone();
+                let track_duration = app.tracks[idx].duration_secs;
+                let is_playing = app.current_track_id == Some(track_id);
                 let display_num = row_range.start + i + 1;
 
                 // Alternate row colors
@@ -840,7 +896,7 @@ fn draw_list_view(
                     lx + cx[5],
                 ];
 
-                // Track number / play indicator
+                // Track number / play indicator (circled ▶ for playing track)
                 let num_font = FontId::proportional(12.0);
                 let num_color = if is_playing {
                     colors.accent
@@ -848,27 +904,37 @@ fn draw_list_view(
                     colors.text_dim
                 };
                 let num_str = display_num.to_string();
-                let num_text = if is_playing && !row_resp.hovered() {
-                    "\u{25B6}"
+                if is_playing && !row_resp.hovered() {
+                    // Draw a filled purple circle with ▶ inside
+                    let circle_center = Pos2::new(cx[0] + 12.0, cy);
+                    ui.painter()
+                        .circle_filled(circle_center, 12.0, colors.accent);
+                    ui.painter().text(
+                        circle_center,
+                        Align2::CENTER_CENTER,
+                        "\u{25B6}",
+                        FontId::proportional(10.0),
+                        Color32::WHITE,
+                    );
                 } else {
-                    &num_str
-                };
-                ui.painter().text(
-                    Pos2::new(cx[0] + 12.0, cy),
-                    Align2::CENTER_CENTER,
-                    num_text,
-                    num_font,
-                    num_color,
-                );
+                    ui.painter().text(
+                        Pos2::new(cx[0] + 12.0, cy),
+                        Align2::CENTER_CENTER,
+                        &num_str,
+                        num_font,
+                        num_color,
+                    );
+                }
 
-                // Album art placeholder — only if visible
+                // Album art — real cover art or placeholder — only if visible
+                let row_art_tex = get_or_load_album_art(app, ui, track_id);
                 if row_vis.show_art {
                     let art_size = 40.0;
                     let art_rect = egui::Rect::from_center_size(
                         Pos2::new(cx[1] + art_w / 2.0, cy),
                         Vec2::new(art_size, art_size),
                     );
-                    draw_art_placeholder(ui, art_rect, colors, is_playing);
+                    draw_album_art(ui, art_rect, colors, is_playing, row_art_tex.as_ref());
                 }
 
                 // Title + Artist (stacked)
@@ -881,7 +947,7 @@ fn draw_list_view(
                 } else {
                     colors.text
                 };
-                let truncated_title = truncate_text(ui, &track.title, &title_font, title_max_w);
+                let truncated_title = truncate_text(ui, &track_title, &title_font, title_max_w);
                 ui.painter().text(
                     Pos2::new(cx[2], cy - 9.0),
                     Align2::LEFT_CENTER,
@@ -889,7 +955,7 @@ fn draw_list_view(
                     title_font,
                     title_color,
                 );
-                let artist = track.artist.as_deref().unwrap_or("Unknown Artist");
+                let artist = track_artist.as_deref().unwrap_or("Unknown Artist");
                 let truncated_artist = truncate_text(ui, artist, &artist_font, title_max_w);
                 ui.painter().text(
                     Pos2::new(cx[2], cy + 9.0),
@@ -903,7 +969,7 @@ fn draw_list_view(
                 if row_vis.show_album {
                     let album_max_w = cx[4] - cx[3] - 8.0;
                     let album_font = FontId::proportional(14.0);
-                    let album = track.album.as_deref().unwrap_or("");
+                    let album = track_album.as_deref().unwrap_or("");
                     let truncated_album = truncate_text(ui, album, &album_font, album_max_w);
                     ui.painter().text(
                         Pos2::new(cx[3] + 4.0, cy),
@@ -915,7 +981,7 @@ fn draw_list_view(
                 }
 
                 // Duration
-                let dur_secs = track.duration_secs as u32;
+                let dur_secs = track_duration as u32;
                 let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
                 let dur_x = cx[4];
                 ui.painter().text(
@@ -928,7 +994,7 @@ fn draw_list_view(
 
                 // Mood tag pill — only if column is visible
                 if row_vis.show_mood {
-                    if let Some(ref mood) = track.mood {
+                    if let Some(ref mood) = track_mood {
                         let mood_font = FontId::proportional(12.0);
                         let galley = ui.painter().layout_no_wrap(
                             mood.clone(),
@@ -991,7 +1057,6 @@ fn draw_list_view(
                 );
 
                 // Interactions
-                let track_id = track.id;
                 if row_resp.double_clicked() {
                     let new_queue: Vec<i64> = filtered_indices
                         .iter()
@@ -1047,8 +1112,14 @@ fn draw_grid_view(
             for chunk in filtered_indices.chunks(columns) {
                 ui.horizontal(|ui| {
                     for &idx in chunk {
-                        let track = &app.tracks[idx];
-                        let is_playing = app.current_track_id == Some(track.id);
+                        // Copy track fields upfront to avoid borrow conflicts
+                        let track_id = app.tracks[idx].id;
+                        let track_title = app.tracks[idx].title.clone();
+                        let track_artist = app.tracks[idx].artist.clone();
+                        let track_album = app.tracks[idx].album.clone();
+                        let track_mood = app.tracks[idx].mood.clone();
+                        let track_duration = app.tracks[idx].duration_secs;
+                        let is_playing = app.current_track_id == Some(track_id);
 
                         let (card_rect, card_resp) = ui.allocate_exact_size(
                             Vec2::new(card_width, card_height),
@@ -1084,13 +1155,14 @@ fn draw_grid_view(
                             egui::Stroke::new(1.0, colors.border),
                         );
 
-                        // Album art placeholder on left
+                        // Album art on left (real or placeholder)
+                        let grid_art_tex = get_or_load_album_art(app, ui, track_id);
                         let art_size = card_height - 16.0;
                         let art_rect = egui::Rect::from_min_size(
                             Pos2::new(card_rect.left() + 8.0, card_rect.top() + 8.0),
                             Vec2::new(art_size, art_size),
                         );
-                        draw_art_placeholder(ui, art_rect, colors, is_playing);
+                        draw_album_art(ui, art_rect, colors, is_playing, grid_art_tex.as_ref());
 
                         // Left accent bar if playing
                         if is_playing {
@@ -1111,7 +1183,7 @@ fn draw_grid_view(
 
                         let title_font = FontId::proportional(12.0);
                         let truncated_title =
-                            truncate_text(ui, &track.title, &title_font, max_text_w);
+                            truncate_text(ui, &track_title, &title_font, max_text_w);
                         ui.painter().text(
                             Pos2::new(text_x, card_rect.top() + 18.0),
                             Align2::LEFT_CENTER,
@@ -1121,7 +1193,7 @@ fn draw_grid_view(
                         );
 
                         let artist_font = FontId::proportional(10.0);
-                        let artist = track.artist.as_deref().unwrap_or("Unknown");
+                        let artist = track_artist.as_deref().unwrap_or("Unknown");
                         let truncated_artist = truncate_text(ui, artist, &artist_font, max_text_w);
                         ui.painter().text(
                             Pos2::new(text_x, card_rect.top() + 34.0),
@@ -1132,7 +1204,7 @@ fn draw_grid_view(
                         );
 
                         let album_font = FontId::proportional(9.5);
-                        let album = track.album.as_deref().unwrap_or("");
+                        let album = track_album.as_deref().unwrap_or("");
                         let truncated_album = truncate_text(ui, album, &album_font, max_text_w);
                         ui.painter().text(
                             Pos2::new(text_x, card_rect.top() + 50.0),
@@ -1142,7 +1214,7 @@ fn draw_grid_view(
                             colors.text_dim,
                         );
 
-                        let dur_secs = track.duration_secs as u32;
+                        let dur_secs = track_duration as u32;
                         let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
                         ui.painter().text(
                             Pos2::new(text_x, card_rect.top() + 66.0),
@@ -1152,7 +1224,7 @@ fn draw_grid_view(
                             colors.text_dim,
                         );
 
-                        if let Some(ref mood) = track.mood {
+                        if let Some(ref mood) = track_mood {
                             if colors.dark_mode {
                                 let mood_color = crate::theme::mood_color(mood);
                                 let mood_font = FontId::proportional(9.0);
@@ -1206,7 +1278,6 @@ fn draw_grid_view(
                             }
                         }
 
-                        let track_id = track.id;
                         if card_resp.double_clicked() {
                             let new_queue: Vec<i64> = filtered_indices
                                 .iter()

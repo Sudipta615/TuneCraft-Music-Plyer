@@ -147,6 +147,9 @@ pub struct TuneCraftApp {
     /// In-memory cache of decoded cover art textures keyed by track_id.
     /// Populated lazily on first access per track.
     pub album_art_cache: std::collections::HashMap<i64, egui::TextureHandle>,
+
+    /// Whether the sidebar is in collapsed/narrow mode
+    pub sidebar_collapsed: bool,
 }
 
 impl TuneCraftApp {
@@ -292,6 +295,8 @@ impl TuneCraftApp {
             add_music_folder_path: String::new(),
 
             album_art_cache: std::collections::HashMap::new(),
+
+            sidebar_collapsed: false,
         }
     }
 
@@ -374,14 +379,17 @@ impl eframe::App for TuneCraftApp {
             ctx.set_visuals(visuals);
         }
 
+        let sidebar_w = if self.sidebar_collapsed {
+            60.0
+        } else if ctx.screen_rect().width() < 700.0 {
+            180.0
+        } else {
+            240.0
+        };
         egui::SidePanel::left("sidebar")
-            .min_width(180.0)
-            .max_width(260.0)
-            .default_width(if ctx.screen_rect().width() < 700.0 {
-                180.0
-            } else {
-                240.0
-            })
+            .min_width(if self.sidebar_collapsed { 60.0 } else { 180.0 })
+            .max_width(if self.sidebar_collapsed { 60.0 } else { 260.0 })
+            .default_width(sidebar_w)
             .show(ctx, |ui| {
                 crate::sidebar::draw(self, ui);
             });

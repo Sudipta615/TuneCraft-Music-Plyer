@@ -87,17 +87,31 @@ fn draw_full(
         ),
         Vec2::new(art_size, art_size),
     );
-    ui.painter().rect_filled(art_rect, 6.0, colors.card);
-    ui.painter()
-        .rect_stroke(art_rect, 6.0, egui::Stroke::new(1.0, colors.border));
-    // Music note icon
-    ui.painter().text(
-        art_rect.center(),
-        Align2::CENTER_CENTER,
-        "\u{266A}",
-        FontId::proportional(22.0),
-        colors.text_dim,
-    );
+
+    // Render real cover art or placeholder
+    let art_tex = app
+        .current_track_id
+        .and_then(|id| app.album_art_cache.get(&id).cloned());
+    if let Some(ref tex) = art_tex {
+        // Background fill for rounded corners
+        ui.painter().rect_filled(art_rect, 6.0, colors.card);
+        let uv = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0));
+        let mut mesh = egui::Mesh::with_texture(tex.id());
+        mesh.add_rect_with_uv(art_rect, uv, Color32::WHITE);
+        ui.painter().add(egui::Shape::mesh(mesh));
+    } else {
+        ui.painter().rect_filled(art_rect, 6.0, colors.card);
+        ui.painter()
+            .rect_stroke(art_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+        // Music note icon
+        ui.painter().text(
+            art_rect.center(),
+            Align2::CENTER_CENTER,
+            "\u{266A}",
+            FontId::proportional(22.0),
+            colors.text_dim,
+        );
+    }
 
     // Track info area
     let info_x = bar_rect.left() + art_margin + art_size + 10.0;
@@ -472,16 +486,29 @@ fn draw_compact(
         Pos2::new(art_x, row1_y - art_size / 2.0),
         Vec2::new(art_size, art_size),
     );
-    ui.painter().rect_filled(art_rect, 4.0, colors.card);
-    ui.painter()
-        .rect_stroke(art_rect, 4.0, egui::Stroke::new(1.0, colors.border));
-    ui.painter().text(
-        art_rect.center(),
-        Align2::CENTER_CENTER,
-        "\u{266A}",
-        FontId::proportional(14.0),
-        colors.text_dim,
-    );
+
+    // Render real cover art or placeholder
+    let compact_art_tex = app
+        .current_track_id
+        .and_then(|id| app.album_art_cache.get(&id).cloned());
+    if let Some(ref tex) = compact_art_tex {
+        ui.painter().rect_filled(art_rect, 4.0, colors.card);
+        let uv = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0));
+        let mut mesh = egui::Mesh::with_texture(tex.id());
+        mesh.add_rect_with_uv(art_rect, uv, Color32::WHITE);
+        ui.painter().add(egui::Shape::mesh(mesh));
+    } else {
+        ui.painter().rect_filled(art_rect, 4.0, colors.card);
+        ui.painter()
+            .rect_stroke(art_rect, 4.0, egui::Stroke::new(1.0, colors.border));
+        ui.painter().text(
+            art_rect.center(),
+            Align2::CENTER_CENTER,
+            "\u{266A}",
+            FontId::proportional(14.0),
+            colors.text_dim,
+        );
+    }
 
     // Track info
     let info_x = art_x + art_size + 6.0;

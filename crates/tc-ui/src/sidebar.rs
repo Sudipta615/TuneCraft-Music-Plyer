@@ -53,7 +53,7 @@ impl NavSection {
             Self::MostPlayed => "\u{2197}",     // ↗ trending
             Self::MoodDance => "\u{266B}",      // ♫
             Self::MoodRomantic => "\u{2665}",   // ♥
-            Self::MoodSad => "\u{1F514}",       // 🔔 bell icon
+            Self::MoodSad => "\u{1F3B5}",       // 🎵 musical note
             Self::MoodSufi => "\u{266A}",       // ♪
             Self::MoodChill => "\u{2744}",      // ❄ snowflake
             Self::Settings => "\u{2699}",       // ⚙
@@ -152,6 +152,29 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 .color(colors.text)
                 .strong(),
         );
+
+        // Push collapse button to the right
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.add_space(8.0);
+            let chevron = if app.sidebar_collapsed {
+                "\u{00BB}" // »
+            } else {
+                "\u{00AB}" // «
+            };
+            if ui
+                .add(
+                    egui::Button::new(
+                        RichText::new(chevron)
+                            .font(FontId::proportional(16.0))
+                            .color(colors.text_dim),
+                    )
+                    .frame(false),
+                )
+                .clicked()
+            {
+                app.sidebar_collapsed = !app.sidebar_collapsed;
+            }
+        });
     });
 
     ui.add_space(24.0);
