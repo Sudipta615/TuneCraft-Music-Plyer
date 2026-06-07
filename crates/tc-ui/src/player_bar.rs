@@ -192,7 +192,7 @@ fn draw_full(
 
     // Volume slider
     let vol_slider_x = vol_icon_x + 24.0;
-    let vol_slider_w = (right_w - 40.0).max(60.0);
+    let vol_slider_w = (right_w - 70.0).max(40.0);
     let vol_rect = Rect::from_min_size(
         Pos2::new(vol_slider_x, cy - 20.0),
         Vec2::new(vol_slider_w, 14.0),
@@ -219,17 +219,30 @@ fn draw_full(
         Pos2::new(vol_rect.left() - 4.0, vy - 8.0),
         Vec2::new(vol_rect.width() + 8.0, 16.0),
     );
-    let vol_resp = ui.interact(
-        vol_interact_rect,
-        egui::Id::new("vol_slider"),
-        Sense::click_and_drag(),
-    );
+    let vol_resp = ui
+        .interact(
+            vol_interact_rect,
+            egui::Id::new("vol_slider"),
+            Sense::click_and_drag(),
+        )
+        .on_hover_text(format!("Volume: {:.0}%", app.volume * 100.0));
     if vol_resp.clicked() || vol_resp.dragged() {
         if let Some(ptr) = vol_resp.interact_pointer_pos() {
             let t = ((ptr.x - vol_rect.left()) / vol_rect.width()).clamp(0.0, 1.0);
             app.set_volume(t as f64);
         }
     }
+
+    // Volume percentage text
+    let vol_pct_str = format!("{:.0}%", app.volume * 100.0);
+    let vol_pct_x = vol_slider_x + vol_slider_w + 8.0;
+    ui.painter().text(
+        Pos2::new(vol_pct_x, cy - 14.0),
+        Align2::LEFT_CENTER,
+        &vol_pct_str,
+        FontId::proportional(12.0),
+        colors.text,
+    );
 
     // Lyrics toggle
     let lyrics_color = if app.show_lyrics {
@@ -614,6 +627,16 @@ fn draw_compact(
         FontId::proportional(14.0),
         colors.text_dim,
     );
+
+    let vol_pct_str = format!("{:.0}%", app.volume * 100.0);
+    ui.painter().text(
+        Pos2::new(bar_rect.right() - 36.0, row1_y),
+        Align2::RIGHT_CENTER,
+        &vol_pct_str,
+        FontId::proportional(12.0),
+        colors.text,
+    );
+
     if vol_resp.clicked() {
         if app.volume > 0.0 {
             app.set_volume(0.0);

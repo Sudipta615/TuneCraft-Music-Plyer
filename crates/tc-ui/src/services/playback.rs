@@ -182,10 +182,11 @@ impl PlaybackService {
         repeat: RepeatMode,
         speed: f64,
     ) -> Self {
-        engine.send_command(EngineCommand::SetVolume(volume.clamp(0.0, 1.5)));
+        let clamped_vol = volume.clamp(0.0, 1.0);
+        engine.send_command(EngineCommand::SetVolume(clamped_vol * clamped_vol));
 
         let state = PlaybackState {
-            volume: volume.clamp(0.0, 1.5),
+            volume: clamped_vol,
             shuffle,
             repeat,
             speed,
@@ -213,7 +214,7 @@ impl PlaybackService {
         speed: f64,
     ) -> Self {
         let state = PlaybackState {
-            volume: volume.clamp(0.0, 1.5),
+            volume: volume.clamp(0.0, 1.0),
             shuffle,
             repeat,
             speed,
@@ -400,15 +401,15 @@ impl PlaybackService {
         state.version += 1;
     }
 
-    /// Set volume (0.0 to 1.5).
+    /// Set volume (0.0 to 1.0).
     ///
-    /// The engine pipeline accepts volumes up to 1.5 (allowing amplification).
-    /// The previous implementation clamped to 1.0 at the service layer, making
-    /// amplification (>1.0 gain) impossible even though the engine supports it.
+    /// The engine pipeline has been updated to clamp at 1.0 to prevent clipping.
+    /// We apply a perceptual (quadratic) curve before sending to the engine.
     pub fn set_volume(&self, volume: f64) {
-        let clamped = volume.clamp(0.0, 1.5);
+        let clamped = volume.clamp(0.0, 1.0);
         #[cfg(feature = "audio-output")]
-        self.engine.send_command(EngineCommand::SetVolume(clamped));
+        self.engine
+            .send_command(EngineCommand::SetVolume(clamped * clamped));
 
         let mut state = recover_from_poison_write(self.state.write());
         state.volume = clamped;

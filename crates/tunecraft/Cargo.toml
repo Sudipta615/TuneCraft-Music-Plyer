@@ -8,9 +8,10 @@ name = "tunecraft"
 path = "src/main.rs"
 
 [features]
-default = ["gui", "audio-output"]
+default = ["gui", "audio-output", "resample"]
 gui = ["tc-ui"]
 audio-output = ["tc-engine/audio-output"]
+resample = ["tc-engine/resample"]
 
 [dependencies]
 tc-engine = { workspace = true }

@@ -326,7 +326,7 @@ impl CpalOutput {
                         } else {
                             0.0
                         };
-                        *sample = (val.clamp(-1.0, 1.0) * 32768.0).clamp(-32768.0, 32767.0) as i16;
+                        *sample = (val.clamp(-1.0, 1.0) * 32767.0).clamp(-32768.0, 32767.0) as i16;
                     }
                 },
                 None => {
@@ -363,7 +363,7 @@ impl CpalOutput {
                             0.0
                         };
                         *sample =
-                            (val.clamp(-1.0, 1.0) * 32768.0 + 32768.0).clamp(0.0, 65535.0) as u16;
+                            (val.clamp(-1.0, 1.0) * 32767.0 + 32768.0).clamp(0.0, 65535.0) as u16;
                     }
                 },
                 None => {

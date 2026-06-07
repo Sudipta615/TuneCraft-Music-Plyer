@@ -36,7 +36,7 @@ impl GainProcessor {
 
     /// Set target gain (smooth transition)
     pub fn set_gain(&mut self, gain: f64) {
-        self.target_gain = gain.clamp(0.0, 1.5);
+        self.target_gain = gain.clamp(0.0, 1.0);
     }
 
     /// Get current gain value

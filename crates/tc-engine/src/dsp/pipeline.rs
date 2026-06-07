@@ -255,9 +255,9 @@ impl DspPipeline {
     /// This is applied to the mixed (crossfaded) output signal.
     #[inline]
     pub fn process_post_mix(&mut self, left: f64, right: f64) -> (f64, f64) {
-        let (l, r) = self.limiter.process(left, right);
-        let (l, r) = self.volume.process_stereo(l, r);
+        let (l, r) = self.volume.process_stereo(left, right);
         let (l, r) = self.seek_fade.process(l, r);
+        let (l, r) = self.limiter.process(l, r);
         let (l, r) = self.dither.process(l, r);
         (l, r)
     }
@@ -271,7 +271,7 @@ impl DspPipeline {
 
     /// Set volume (0.0 to 1.0) with smooth ramping
     pub fn set_volume(&mut self, volume: f64) {
-        self.volume.set_gain(volume.clamp(0.0, 1.5));
+        self.volume.set_gain(volume.clamp(0.0, 1.0));
     }
 
     /// Get the current volume (linear)

@@ -470,7 +470,7 @@ impl Default for LimiterConfig {
             attack_ms: 5.0,
             release_ms: 50.0,
             lookahead_ms: 5.0,
-            soft_clip: false,
+            soft_clip: true,
         }
     }
 }
@@ -660,7 +660,7 @@ impl EngineConfig {
         50
     }
     fn default_dither_enabled() -> bool {
-        true
+        false
     }
     fn default_denormal_prevention() -> bool {
         true
@@ -751,7 +751,7 @@ impl Default for EngineConfig {
             seek_fade_ms: 10,
             volume_fade_ms: 50,
             resampler_quality: ResamplerQuality::Balanced,
-            dither_enabled: true,
+            dither_enabled: false,
             denormal_prevention: true,
         }
     }
