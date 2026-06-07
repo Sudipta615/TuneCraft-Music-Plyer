@@ -212,7 +212,7 @@ impl TuneCraftApp {
         let initial_queue: Vec<i64> = ctx.library.get_all_track_ids();
         ctx.playback.set_play_queue(initial_queue.clone());
 
-        Self {
+        let app = Self {
             ctx: Arc::new(ctx),
 
             dark_mode,
