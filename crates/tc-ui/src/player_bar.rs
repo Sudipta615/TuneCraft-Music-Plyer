@@ -639,7 +639,7 @@ fn draw_compact(
     ui.painter().text(
         Pos2::new(bar_rect.left() + prog_margin, row2_y),
         Align2::LEFT_CENTER,
-        &format!("{}:{:02}", pos_m, pos_s),
+        format!("{}:{:02}", pos_m, pos_s),
         FontId::proportional(9.0),
         colors.text_dim,
     );
@@ -653,7 +653,7 @@ fn draw_compact(
     ui.painter().text(
         Pos2::new(prog_x_end + 4.0, row2_y),
         Align2::LEFT_CENTER,
-        &format!("{}:{:02}", dur_m, dur_s),
+        format!("{}:{:02}", dur_m, dur_s),
         FontId::proportional(9.0),
         colors.text_dim,
     );
