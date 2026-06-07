@@ -59,7 +59,7 @@ pub const MOOD_CHILL: Color32 = Color32::from_rgb(0x10, 0xB9, 0x81); // green
 // Light mode mood pill tints (background colors)
 pub const LIGHT_MOOD_ROMANTIC_BG: Color32 = Color32::from_rgb(0xFD, 0xE8, 0xF3);
 pub const LIGHT_MOOD_DANCE_BG: Color32 = Color32::from_rgb(0xFF, 0xED, 0xD5);
-pub const LIGHT_MOOD_SAD_BG: Color32 = Color32::from_rgb(0xDB, 0xEAF, 0xFE);
+pub const LIGHT_MOOD_SAD_BG: Color32 = Color32::from_rgb(0xDB, 0xEA, 0xFE);
 pub const LIGHT_MOOD_SUFI_BG: Color32 = Color32::from_rgb(0xFE, 0xF3, 0xC7);
 pub const LIGHT_MOOD_CHILL_BG: Color32 = Color32::from_rgb(0xD1, 0xFA, 0xE5);
 
