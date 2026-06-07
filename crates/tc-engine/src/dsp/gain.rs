@@ -5,10 +5,10 @@ use crate::buffer::AudioFrame;
 /// Simple gain/volume control with smooth ramping to avoid zipper noise
 #[derive(Debug, Clone, Copy)]
 pub struct GainProcessor {
-    pub gain: f64,
-    pub target_gain: f64,
+    pub gain: f32,
+    pub target_gain: f32,
     /// Linear interpolation speed per sample (0.0–1.0)
-    pub slew_rate: f64,
+    pub slew_rate: f32,
 }
 
 impl GainProcessor {
@@ -21,7 +21,7 @@ impl GainProcessor {
     }
 
     /// Create with specific initial gain and ramp time
-    pub fn with_ramp(initial_gain: f64, ramp_time_ms: f64, sample_rate: f64) -> Self {
+    pub fn with_ramp(initial_gain: f32, ramp_time_ms: f32, sample_rate: f32) -> Self {
         let slew_rate = if ramp_time_ms > 0.0 && sample_rate > 0.0 {
             1.0 / (ramp_time_ms * 0.001 * sample_rate)
         } else {
@@ -35,17 +35,17 @@ impl GainProcessor {
     }
 
     /// Set target gain (smooth transition)
-    pub fn set_gain(&mut self, gain: f64) {
+    pub fn set_gain(&mut self, gain: f32) {
         self.target_gain = gain.clamp(0.0, 1.0);
     }
 
     /// Get current gain value
-    pub fn current_gain(&self) -> f64 {
+    pub fn current_gain(&self) -> f32 {
         self.gain
     }
 
     /// Set the slew rate — higher values mean faster transitions
-    pub fn set_slew_rate(&mut self, rate: f64) {
+    pub fn set_slew_rate(&mut self, rate: f32) {
         self.slew_rate = rate.clamp(0.0001, 1.0);
     }
 
@@ -55,7 +55,7 @@ impl GainProcessor {
         // L9: Flush denormals when gain has nearly converged.
         // Previously only process_stereo() flushed denormals; process_frame()
         // and process_sample() could hover near target causing FPU denormal stalls.
-        if (self.gain - self.target_gain).abs() < 1e-9 {
+        if (self.gain - self.target_gain).abs() < 1e-6 {
             self.gain = self.target_gain;
         }
         for i in 0..frame.num_channels as usize {
@@ -65,10 +65,10 @@ impl GainProcessor {
 
     /// Process a stereo sample pair with smooth gain ramping
     #[inline]
-    pub fn process_stereo(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process_stereo(&mut self, left: f32, right: f32) -> (f32, f32) {
         self.gain += (self.target_gain - self.gain) * self.slew_rate;
         // I-15: Flush denormals when gain has nearly converged.
-        if (self.gain - self.target_gain).abs() < 1e-9 {
+        if (self.gain - self.target_gain).abs() < 1e-6 {
             self.gain = self.target_gain;
         }
         (left * self.gain, right * self.gain)
@@ -76,10 +76,10 @@ impl GainProcessor {
 
     /// Process a single sample
     #[inline]
-    pub fn process_sample(&mut self, sample: f64) -> f64 {
+    pub fn process_sample(&mut self, sample: f32) -> f32 {
         self.gain += (self.target_gain - self.gain) * self.slew_rate;
         // L9: Flush denormals (consistent with process_stereo).
-        if (self.gain - self.target_gain).abs() < 1e-9 {
+        if (self.gain - self.target_gain).abs() < 1e-6 {
             self.gain = self.target_gain;
         }
         sample * self.gain
@@ -92,7 +92,7 @@ impl GainProcessor {
 
     /// Check if the gain has converged to the target
     pub fn is_settled(&self) -> bool {
-        (self.gain - self.target_gain).abs() < 1e-8
+        (self.gain - self.target_gain).abs() < 1e-5
     }
 
     /// Reset gain to unity
@@ -120,19 +120,19 @@ pub enum FadeState {
 
 /// Smooth fade-in/fade-out processor for track transitions and pause/resume
 pub struct FadeProcessor {
-    gain: f64,
-    increment_per_sample: f64,
+    gain: f32,
+    increment_per_sample: f32,
     pub state: FadeState,
     total_samples: u64,
     samples_processed: u64,
-    sample_rate: f64,
+    sample_rate: f32,
     /// Default fade duration in seconds
-    default_duration_secs: f64,
+    default_duration_secs: f32,
 }
 
 impl FadeProcessor {
     /// Create a new fade processor with a default fade duration
-    pub fn new(fade_time_ms: f64, sample_rate: f64) -> Self {
+    pub fn new(fade_time_ms: f32, sample_rate: f32) -> Self {
         Self {
             gain: 1.0,
             increment_per_sample: 0.0,
@@ -150,12 +150,12 @@ impl FadeProcessor {
     }
 
     /// Begin a fade-in over the given duration in seconds
-    pub fn fade_in_duration(&mut self, duration_secs: f64) {
+    pub fn fade_in_duration(&mut self, duration_secs: f32) {
         self.total_samples = (duration_secs * self.sample_rate) as u64;
         self.samples_processed = 0;
         self.gain = 0.0;
         self.increment_per_sample = if self.total_samples > 0 {
-            1.0 / self.total_samples as f64
+            1.0 / self.total_samples as f32
         } else {
             1.0
         };
@@ -168,12 +168,12 @@ impl FadeProcessor {
     }
 
     /// Begin a fade-out over the given duration in seconds
-    pub fn fade_out_duration(&mut self, duration_secs: f64) {
+    pub fn fade_out_duration(&mut self, duration_secs: f32) {
         self.total_samples = (duration_secs * self.sample_rate) as u64;
         self.samples_processed = 0;
         self.gain = 1.0;
         self.increment_per_sample = if self.total_samples > 0 {
-            -1.0 / self.total_samples as f64
+            -1.0 / self.total_samples as f32
         } else {
             -1.0
         };
@@ -187,7 +187,7 @@ impl FadeProcessor {
 
     /// Process a stereo sample pair
     #[inline]
-    pub fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         if self.state == FadeState::Idle {
             return (left, right);
         }
@@ -209,13 +209,13 @@ impl FadeProcessor {
     }
 
     /// Get the current gain value
-    pub fn gain(&self) -> f64 {
+    pub fn gain(&self) -> f32 {
         self.gain
     }
 
     fn advance(&mut self, n: u64) {
         self.samples_processed += n;
-        self.gain += self.increment_per_sample * n as f64;
+        self.gain += self.increment_per_sample * n as f32;
 
         match self.state {
             FadeState::FadingIn
@@ -234,7 +234,7 @@ impl FadeProcessor {
         }
     }
 
-    pub fn cancel(&mut self, gain: f64) {
+    pub fn cancel(&mut self, gain: f32) {
         self.gain = gain.clamp(0.0, 1.0);
         self.state = if self.gain >= 1.0 {
             FadeState::Idle
@@ -256,7 +256,7 @@ impl FadeProcessor {
         self.samples_processed = 0;
     }
 
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
     }
 }
@@ -285,8 +285,8 @@ mod tests {
     #[test]
     fn test_gain_with_ramp() {
         let gp = GainProcessor::with_ramp(0.5, 10.0, 44100.0);
-        assert!((gp.gain - 0.5).abs() < 1e-10);
-        assert!((gp.current_gain() - 0.5).abs() < 1e-10);
+        assert!((gp.gain - 0.5).abs() < 1e-5);
+        assert!((gp.current_gain() - 0.5).abs() < 1e-5);
     }
 
     #[test]

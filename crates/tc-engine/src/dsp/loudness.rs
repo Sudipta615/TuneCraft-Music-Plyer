@@ -4,7 +4,7 @@
 //! pre-computed loudness metadata. The normaliser runs in the playback pipeline
 //! and applies smooth gain transitions.
 
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 use crate::buffer::AudioFrame;
 
@@ -22,30 +22,30 @@ pub enum LoudnessMode {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LoudnessMetadata {
     /// ReplayGain track gain in dB
-    pub replaygain_track_db: Option<f64>,
+    pub replaygain_track_db: Option<f32>,
     /// ReplayGain album gain in dB
-    pub replaygain_album_db: Option<f64>,
+    pub replaygain_album_db: Option<f32>,
     /// ReplayGain track peak (linear)
-    pub replaygain_track_peak: Option<f64>,
+    pub replaygain_track_peak: Option<f32>,
     /// ReplayGain album peak (linear)
-    pub replaygain_album_peak: Option<f64>,
+    pub replaygain_album_peak: Option<f32>,
     /// EBU R128 integrated loudness in LUFS
-    pub ebu_r128_loudness: Option<f64>,
+    pub ebu_r128_loudness: Option<f32>,
     /// EBU R128 true peak in dBTP
-    pub ebu_r128_peak: Option<f64>,
+    pub ebu_r128_peak: Option<f32>,
 }
 
 /// First-order high-pass shelf (stage 1 of K-weighting)
 #[derive(Debug, Clone, Copy)]
 struct KWeightStage1 {
-    b0: f64,
-    b1: f64,
-    a1: f64,
-    z1: [f64; 2],
+    b0: f32,
+    b1: f32,
+    a1: f32,
+    z1: [f32; 2],
 }
 
 impl KWeightStage1 {
-    fn new(sample_rate: f64) -> Self {
+    fn new(sample_rate: f32) -> Self {
         // L6: Guard against zero or negative sample_rate which would cause
         // tan() to receive infinity or NaN, producing garbage coefficients.
         let sample_rate = if sample_rate > 0.0 {
@@ -57,9 +57,9 @@ impl KWeightStage1 {
             );
             44100.0
         };
-        let f0: f64 = 1681.974450955533;
-        let g: f64 = 3.999843853973347;
-        let q: f64 = 0.7071752369554196;
+        let f0: f32 = 1681.974450955533;
+        let g: f32 = 3.999843853973347;
+        let q: f32 = 0.7071752369554196;
         let k = (PI * f0 / sample_rate).tan();
         let vh = g.powf(0.5) * k * k + k / q + 1.0;
         let vb = g.powf(0.5) - 1.0;
@@ -73,9 +73,9 @@ impl KWeightStage1 {
     }
 
     #[inline]
-    fn process(&mut self, sample: f64, ch: usize) -> f64 {
+    fn process(&mut self, sample: f32, ch: usize) -> f32 {
         let out = sample * self.b0 + self.z1[ch];
-        self.z1[ch] = sample * self.b1 - out * self.a1;
+        self.z1[ch] = crate::buffer::flush_denormal(sample * self.b1 - out * self.a1);
         out
     }
 }
@@ -83,17 +83,17 @@ impl KWeightStage1 {
 /// Second-order high-pass (stage 2 of K-weighting)
 #[derive(Debug, Clone, Copy)]
 struct KWeightStage2 {
-    b0: f64,
-    b1: f64,
-    b2: f64,
-    a1: f64,
-    a2: f64,
-    z1: [f64; 2],
-    z2: [f64; 2],
+    b0: f32,
+    b1: f32,
+    b2: f32,
+    a1: f32,
+    a2: f32,
+    z1: [f32; 2],
+    z2: [f32; 2],
 }
 
 impl KWeightStage2 {
-    fn new(sample_rate: f64) -> Self {
+    fn new(sample_rate: f32) -> Self {
         // L6: Guard against zero or negative sample_rate.
         let sample_rate = if sample_rate > 0.0 {
             sample_rate
@@ -121,10 +121,10 @@ impl KWeightStage2 {
     }
 
     #[inline]
-    fn process(&mut self, sample: f64, ch: usize) -> f64 {
+    fn process(&mut self, sample: f32, ch: usize) -> f32 {
         let out = sample * self.b0 + self.z1[ch];
-        self.z1[ch] = sample * self.b1 - out * self.a1 + self.z2[ch];
-        self.z2[ch] = sample * self.b2 - out * self.a2;
+        self.z1[ch] = crate::buffer::flush_denormal(sample * self.b1 - out * self.a1 + self.z2[ch]);
+        self.z2[ch] = crate::buffer::flush_denormal(sample * self.b2 - out * self.a2);
         out
     }
 }
@@ -135,22 +135,22 @@ impl KWeightStage2 {
 /// Supports ReplayGain (track/album) and EBU R128 modes.
 pub struct LoudnessNormalizer {
     mode: LoudnessMode,
-    target_lufs: f64,
+    target_lufs: f32,
     true_peak_guard: bool,
-    true_peak_dbtp: f64,
-    preamp_db: f64,
+    true_peak_dbtp: f32,
+    preamp_db: f32,
     /// Current applied gain (linear)
-    current_gain_linear: f64,
+    current_gain_linear: f32,
     /// Target gain (linear, computed from metadata)
-    target_gain_linear: f64,
+    target_gain_linear: f32,
     /// Smoothing coefficient for gain changes
-    smooth_coeff: f64,
+    smooth_coeff: f32,
     /// K-weighting filters for measurement (used in EBU R128 measurement mode)
     stage1: KWeightStage1,
     stage2: KWeightStage2,
-    sample_rate: f64,
+    sample_rate: f32,
     /// Accumulated loudness sum (squared K-weighted samples)
-    loudness_sum: f64,
+    loudness_sum: f32,
     /// Number of samples accumulated for loudness measurement
     loudness_count: u64,
     /// Channel count observed during measurement (for correct normalization)
@@ -159,7 +159,7 @@ pub struct LoudnessNormalizer {
 
 impl LoudnessNormalizer {
     /// Create a new normaliser at the given sample rate (off by default)
-    pub fn new(sample_rate: f64) -> Self {
+    pub fn new(sample_rate: f32) -> Self {
         Self {
             mode: LoudnessMode::Off,
             target_lufs: -23.0,
@@ -184,18 +184,18 @@ impl LoudnessNormalizer {
     }
 
     /// Set the target LUFS for EBU R128 mode
-    pub fn set_target_lufs(&mut self, target: f64) {
+    pub fn set_target_lufs(&mut self, target: f32) {
         self.target_lufs = target;
     }
 
     /// Configure true peak guard
-    pub fn set_true_peak_guard(&mut self, enabled: bool, ceiling_dbtp: f64) {
+    pub fn set_true_peak_guard(&mut self, enabled: bool, ceiling_dbtp: f32) {
         self.true_peak_guard = enabled;
         self.true_peak_dbtp = ceiling_dbtp;
     }
 
     /// Set preamp in dB
-    pub fn set_preamp_db(&mut self, gain_db: f64) {
+    pub fn set_preamp_db(&mut self, gain_db: f32) {
         self.preamp_db = gain_db;
     }
 
@@ -221,7 +221,7 @@ impl LoudnessNormalizer {
         let peak = match self.mode {
             LoudnessMode::TrackReplayGain => meta.replaygain_track_peak,
             LoudnessMode::AlbumReplayGain => meta.replaygain_album_peak,
-            LoudnessMode::EbuR128 => meta.ebu_r128_peak.map(|p| 10.0_f64.powf(p / 20.0)),
+            LoudnessMode::EbuR128 => meta.ebu_r128_peak.map(|p| 10.0_f32.powf(p / 20.0)),
             _ => None,
         };
 
@@ -244,18 +244,19 @@ impl LoudnessNormalizer {
             gain_db
         };
 
-        self.target_gain_linear = 10.0_f64.powf(adjusted_gain / 20.0);
+        self.target_gain_linear = 10.0_f32.powf(adjusted_gain / 20.0);
     }
 
     /// Process a stereo sample pair with loudness normalisation
     #[inline]
-    pub fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         if self.mode == LoudnessMode::Off {
             return (left, right);
         }
         // Smooth gain transition
         self.current_gain_linear +=
             self.smooth_coeff * (self.target_gain_linear - self.current_gain_linear);
+        self.current_gain_linear = crate::buffer::flush_denormal(self.current_gain_linear);
         (
             left * self.current_gain_linear,
             right * self.current_gain_linear,
@@ -263,7 +264,7 @@ impl LoudnessNormalizer {
     }
 
     /// Get current applied gain in dB (for metering)
-    pub fn current_gain_db(&self) -> f64 {
+    pub fn current_gain_db(&self) -> f32 {
         if self.current_gain_linear > 0.0 {
             20.0 * self.current_gain_linear.log10()
         } else {
@@ -296,16 +297,16 @@ impl LoudnessNormalizer {
     ///
     /// instead of hardcoding stereo (2.0). This produces correct
     /// measurements for mono and multi-channel inputs.
-    pub fn measured_loudness_lufs(&self) -> Option<f64> {
+    pub fn measured_loudness_lufs(&self) -> Option<f32> {
         if self.loudness_count == 0 {
             return None;
         }
         let channels = if self.measured_channels > 0 {
-            self.measured_channels as f64
+            self.measured_channels as f32
         } else {
             2.0 // fallback to stereo
         };
-        let mean_square = self.loudness_sum / (self.loudness_count as f64 * channels);
+        let mean_square = self.loudness_sum / (self.loudness_count as f32 * channels);
         if mean_square <= 0.0 {
             return None;
         }
@@ -314,7 +315,7 @@ impl LoudnessNormalizer {
     }
 
     /// Update the sample rate, rebuilding K-weighting filters
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
         self.stage1 = KWeightStage1::new(sample_rate);
         self.stage2 = KWeightStage2::new(sample_rate);
@@ -344,8 +345,8 @@ mod tests {
         let mut norm = LoudnessNormalizer::new(44100.0);
         norm.set_mode(LoudnessMode::Off);
         let (l, r) = norm.process(0.5, 0.5);
-        assert!((l - 0.5).abs() < 1e-10);
-        assert!((r - 0.5).abs() < 1e-10);
+        assert!((l - 0.5).abs() < 1e-5);
+        assert!((r - 0.5).abs() < 1e-5);
     }
 
     #[test]

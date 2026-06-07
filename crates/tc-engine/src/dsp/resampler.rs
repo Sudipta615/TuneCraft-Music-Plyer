@@ -48,11 +48,11 @@ const MAX_REBUILD_FAILURES: u32 = 5;
 /// (rubato's Resampler trait is not object-safe due to generic methods)
 enum ResamplerInner {
     /// High quality: FftFixedIn with larger FFT sizes for better anti-aliasing
-    HighQuality(FftFixedIn<f64>),
+    HighQuality(FftFixedIn<f32>),
     /// Balanced: FftFixedIn with moderate FFT sizes
-    Balanced(FftFixedIn<f64>),
+    Balanced(FftFixedIn<f32>),
     /// Fast: FftFixedInOut with minimal processing
-    Fast(FftFixedInOut<f64>),
+    Fast(FftFixedInOut<f32>),
 }
 
 impl ResamplerInner {
@@ -64,10 +64,10 @@ impl ResamplerInner {
         }
     }
 
-    fn process<V: AsRef<[f64]>>(
+    fn process<V: AsRef<[f32]>>(
         &mut self,
         input: &[V],
-    ) -> Result<Vec<Vec<f64>>, rubato::ResampleError> {
+    ) -> Result<Vec<Vec<f32>>, rubato::ResampleError> {
         match self {
             Self::HighQuality(r) => r.process(input, None),
             Self::Balanced(r) => r.process(input, None),
@@ -93,13 +93,13 @@ pub struct AudioResampler {
     /// Output sample rate
     output_rate: usize,
     /// Playback speed multiplier (1.0 = normal)
-    speed: f64,
+    speed: f32,
     /// Input buffer for accumulating samples before processing
-    input_buffers: [Vec<f64>; CHANNELS],
+    input_buffers: [Vec<f32>; CHANNELS],
     /// Write position in input buffers
     input_pos: usize,
     /// Output ring buffer for samples waiting to be consumed
-    output_buffers: [Vec<f64>; CHANNELS],
+    output_buffers: [Vec<f32>; CHANNELS],
     /// Read position in output buffers
     output_read_pos: usize,
     /// Number of valid samples in output buffers
@@ -117,7 +117,7 @@ pub struct AudioResampler {
     /// This flag can be queried by the UI to display a warning.
     disabled: bool,
     /// Recent output samples for crossfade during rebuild (reduces glitches)
-    crossfade_buffer: [(f64, f64); 64],
+    crossfade_buffer: [(f32, f32); 64],
     /// Current read position in crossfade_buffer
     crossfade_pos: usize,
     /// Number of crossfade samples remaining to blend
@@ -131,8 +131,8 @@ impl AudioResampler {
     /// (e.g., invalid sample rates or internal resampler errors).
     pub fn new(
         quality: ResamplerQuality,
-        source_rate: f64,
-        output_rate: f64,
+        source_rate: f32,
+        output_rate: f32,
     ) -> Result<Self, ResamplerError> {
         // Use rounded conversion to avoid integer truncation which causes
         // pitch/timing errors for non-integer rates (e.g., 44100.5 → 44101
@@ -223,7 +223,7 @@ impl AudioResampler {
 
     /// Feed a stereo sample into the resampler
     #[inline]
-    pub fn feed(&mut self, left: f64, right: f64) {
+    pub fn feed(&mut self, left: f32, right: f32) {
         if self.needs_rebuild {
             // infinite retry loop that saturates the CPU.
 
@@ -284,7 +284,7 @@ impl AudioResampler {
         }
 
         // Prepare input slices for rubato
-        let input: [&[f64]; CHANNELS] = [
+        let input: [&[f32]; CHANNELS] = [
             &self.input_buffers[0][..needed],
             &self.input_buffers[1][..needed],
         ];
@@ -310,7 +310,7 @@ impl AudioResampler {
     /// to the front) rather than resizing.  If the buffer is still full after
     /// compaction, the oldest samples are dropped so the buffer never exceeds
     /// `MAX_OUTPUT_BUFFER_FRAMES`.
-    fn push_output(&mut self, output_channels: &[Vec<f64>], frames: usize) {
+    fn push_output(&mut self, output_channels: &[Vec<f32>], frames: usize) {
         // Compact if the read head has advanced far enough to save space.
         if self.output_read_pos > self.output_buffers[0].len() / 2 {
             let avail = self.output_available;
@@ -354,7 +354,7 @@ impl AudioResampler {
 
     /// Read a resampled stereo sample. Returns None if no output is available.
     #[inline]
-    pub fn read(&mut self) -> Option<(f64, f64)> {
+    pub fn read(&mut self) -> Option<(f32, f32)> {
         // Blend crossfade samples from before the last rebuild to reduce glitch
         if self.crossfade_remaining > 0 {
             let (left, right) = if self.output_available > 0 {
@@ -373,7 +373,7 @@ impl AudioResampler {
             // L8: The crossfade blend buffer size is 64 frames (crossfade_buffer
             // field). Using `CROSSFADE_BLEND_FRAMES` as a named constant ensures
             // this calculation stays in sync if the buffer size ever changes.
-            let t = self.crossfade_remaining as f64 / CROSSFADE_BLEND_FRAMES as f64;
+            let t = self.crossfade_remaining as f32 / CROSSFADE_BLEND_FRAMES as f32;
             return Some((left * (1.0 - t) + cf_l * t, right * (1.0 - t) + cf_r * t));
         }
 
@@ -397,7 +397,7 @@ impl AudioResampler {
     }
 
     /// Set playback speed (0.25 to 4.0)
-    pub fn set_speed(&mut self, speed: f64) {
+    pub fn set_speed(&mut self, speed: f32) {
         let new_speed = speed.clamp(0.25, 4.0);
         if (new_speed - self.speed).abs() > 0.001 {
             self.speed = new_speed;
@@ -408,7 +408,7 @@ impl AudioResampler {
     }
 
     /// Get current playback speed
-    pub fn speed(&self) -> f64 {
+    pub fn speed(&self) -> f32 {
         self.speed
     }
 
@@ -421,7 +421,7 @@ impl AudioResampler {
     }
 
     /// Set the source sample rate (triggers rebuild)
-    pub fn set_source_rate(&mut self, rate: f64) {
+    pub fn set_source_rate(&mut self, rate: f32) {
         // Use rounded conversion to avoid truncation (fixes #28)
         let rate_usize = (rate.round() as usize).max(1);
         if rate_usize != self.source_rate {
@@ -431,7 +431,7 @@ impl AudioResampler {
     }
 
     /// Set the output sample rate (triggers rebuild)
-    pub fn set_output_rate(&mut self, rate: f64) {
+    pub fn set_output_rate(&mut self, rate: f32) {
         // Use rounded conversion to avoid truncation (fixes #28)
         let rate_usize = (rate.round() as usize).max(1);
         if rate_usize != self.output_rate {
@@ -460,8 +460,8 @@ impl AudioResampler {
 
         // crossfade blending in read() can mix with real audio rather
         // than silence while the new resampler starts producing output.
-        let mut saved_left = [0.0f64; 64];
-        let mut saved_right = [0.0f64; 64];
+        let mut saved_left = [0.0f32; 64];
+        let mut saved_right = [0.0f32; 64];
         for i in 0..save_count {
             let pos = self.output_read_pos + i;
             if pos < self.output_buffers[0].len() {
@@ -478,10 +478,10 @@ impl AudioResampler {
         // For speed adjustments, we modify the effective source rate.
         // Use rounded integer conversion with a minimum of 1 to preserve
         // as much precision as possible while avoiding division by zero.
-        // The previous `(f64) as usize` truncated, losing precision and
+        // The previous `(f32) as usize` truncated, losing precision and
         // potentially causing pitch/timing errors for non-integer ratios.
-        let effective_source_f64 = self.source_rate as f64 / self.speed;
-        let effective_source = (effective_source_f64.round() as usize).max(1);
+        let effective_source_f32 = self.source_rate as f32 / self.speed;
+        let effective_source = (effective_source_f32.round() as usize).max(1);
         let quality = self.pending_quality.unwrap_or_else(|| self.inner.quality());
         match Self::create_resampler(quality, effective_source, self.output_rate) {
             Ok(new_inner) => {
@@ -587,7 +587,7 @@ mod tests {
     fn test_resampler_produces_output() {
         let mut resampler = AudioResampler::new(ResamplerQuality::Fast, 44100.0, 48000.0).unwrap();
         for i in 0..5000 {
-            let sample = (i as f64 / 44100.0 * 440.0 * 2.0 * std::f64::consts::PI).sin() * 0.5;
+            let sample = (i as f32 / 44100.0 * 440.0 * 2.0 * std::f32::consts::PI).sin() * 0.5;
             resampler.feed(sample, sample);
         }
         resampler.flush();

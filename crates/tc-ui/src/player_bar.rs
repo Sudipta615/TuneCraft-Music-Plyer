@@ -229,7 +229,7 @@ fn draw_full(
     if vol_resp.clicked() || vol_resp.dragged() {
         if let Some(ptr) = vol_resp.interact_pointer_pos() {
             let t = ((ptr.x - vol_rect.left()) / vol_rect.width()).clamp(0.0, 1.0);
-            app.set_volume(t as f64);
+            app.set_volume(t as f32);
         }
     }
 
@@ -472,7 +472,7 @@ fn draw_full(
     if prog_resp.clicked() || prog_resp.dragged() {
         if let Some(ptr) = prog_resp.interact_pointer_pos() {
             let t = ((ptr.x - prog_x_start) / prog_w).clamp(0.0, 1.0);
-            let new_pos = t as f64 * track_duration;
+            let new_pos = t as f32 * track_duration;
             app.position_secs = new_pos;
             app.seek(new_pos);
         }
@@ -708,7 +708,7 @@ fn draw_compact(
     if prog_resp.clicked() || prog_resp.dragged() {
         if let Some(ptr) = prog_resp.interact_pointer_pos() {
             let t = ((ptr.x - prog_x_start) / prog_w).clamp(0.0, 1.0);
-            let new_pos = t as f64 * track_duration;
+            let new_pos = t as f32 * track_duration;
             app.position_secs = new_pos;
             app.seek(new_pos);
         }

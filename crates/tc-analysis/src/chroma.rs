@@ -35,7 +35,7 @@
 //! tonal hierarchy perception; they were derived from listener experiments
 //! and are well-validated for Western and Indian classical music alike.
 
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 // ---------------------------------------------------------------------------
 // Goertzel resonator
@@ -44,20 +44,20 @@ use std::f64::consts::PI;
 /// Goertzel filter for a single frequency bin.
 /// Computes |DFT[k]|² for one target frequency with O(1) state per sample.
 struct Goertzel {
-    coeff: f64, // 2·cos(2π·k/N)
-    s1: f64,
-    s2: f64,
+    coeff: f32, // 2·cos(2π·k/N)
+    s1: f32,
+    s2: f32,
     n: usize, // samples accumulated in current block
     block_size: usize,
     /// Accumulated mean power across completed blocks (Welford).
-    power_mean: f64,
+    power_mean: f32,
     power_count: u64,
 }
 
 impl Goertzel {
-    fn new(target_hz: f64, sample_rate: f64, block_size: usize) -> Self {
-        let k = target_hz / sample_rate * block_size as f64;
-        let coeff = 2.0 * (2.0 * PI * k / block_size as f64).cos();
+    fn new(target_hz: f32, sample_rate: f32, block_size: usize) -> Self {
+        let k = target_hz / sample_rate * block_size as f32;
+        let coeff = 2.0 * (2.0 * PI * k / block_size as f32).cos();
         Self {
             coeff,
             s1: 0.0,
@@ -70,7 +70,7 @@ impl Goertzel {
     }
 
     #[inline(always)]
-    fn feed(&mut self, x: f64) {
+    fn feed(&mut self, x: f32) {
         let s0 = x + self.coeff * self.s1 - self.s2;
         self.s2 = self.s1;
         self.s1 = s0;
@@ -82,7 +82,7 @@ impl Goertzel {
             let power = power.max(0.0);
             // Welford update
             self.power_count += 1;
-            self.power_mean += (power - self.power_mean) / self.power_count as f64;
+            self.power_mean += (power - self.power_mean) / self.power_count as f32;
             // Reset for next block
             self.s1 = 0.0;
             self.s2 = 0.0;
@@ -104,22 +104,22 @@ impl Goertzel {
 // ---------------------------------------------------------------------------
 
 // Major profile (starting from C)
-const MAJOR_PROFILE: [f64; 12] = [
+const MAJOR_PROFILE: [f32; 12] = [
     6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
 ];
 
 // Minor profile (starting from C, natural minor)
-const MINOR_PROFILE: [f64; 12] = [
+const MINOR_PROFILE: [f32; 12] = [
     6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
 ];
 
 /// Pearson correlation between two 12-element arrays.
-fn pearson(a: &[f64; 12], b: &[f64; 12]) -> f64 {
-    let mean_a = a.iter().sum::<f64>() / 12.0;
-    let mean_b = b.iter().sum::<f64>() / 12.0;
-    let mut num = 0.0f64;
-    let mut da2 = 0.0f64;
-    let mut db2 = 0.0f64;
+fn pearson(a: &[f32; 12], b: &[f32; 12]) -> f32 {
+    let mean_a = a.iter().sum::<f32>() / 12.0;
+    let mean_b = b.iter().sum::<f32>() / 12.0;
+    let mut num = 0.0f32;
+    let mut da2 = 0.0f32;
+    let mut db2 = 0.0f32;
     for i in 0..12 {
         let da = a[i] - mean_a;
         let db = b[i] - mean_b;
@@ -128,7 +128,7 @@ fn pearson(a: &[f64; 12], b: &[f64; 12]) -> f64 {
         db2 += db * db;
     }
     let denom = (da2 * db2).sqrt();
-    if denom < 1e-12 {
+    if denom < 1e-6 {
         0.0
     } else {
         num / denom
@@ -144,13 +144,13 @@ fn pearson(a: &[f64; 12], b: &[f64; 12]) -> f64 {
 /// [`ChromaDetector::detect`] to get a [`KeyMode`] result.
 pub struct ChromaDetector {
     /// Anti-alias IIR low-pass (cutoff ~1.8 kHz) before decimation.
-    aa_b0: f64,
-    aa_a1: f64,
-    aa_y1: f64,
+    aa_b0: f32,
+    aa_a1: f32,
+    aa_y1: f32,
     /// Source sample rate (needed to compute decimation ratio).
-    src_rate: f64,
+    src_rate: f32,
     /// Fractional accumulator for decimation.
-    dec_acc: f64,
+    dec_acc: f32,
     /// One Goertzel filter per pitch class (C…B), tuned to the middle octave
     /// of the vocal/instrument range (octave 4: C4=261.6 Hz … B4=493.9 Hz)
     /// at the target 4 kHz analysis rate.
@@ -204,27 +204,27 @@ pub struct KeyMode {
     pub is_major: bool,
     /// Pearson correlation of best-fit profile ∈ [−1, 1].
     /// Values below ~0.6 indicate ambiguous tonality (e.g. atonal, percussion-heavy).
-    pub confidence: f64,
+    pub confidence: f32,
 }
 
 /// Frequencies of C3…B3 and C4…B4 (12-TET, A4=440 Hz).
-const OCT3_HZ: [f64; 12] = [
+const OCT3_HZ: [f32; 12] = [
     130.813, 138.591, 146.832, 155.563, 164.814, 174.614, 184.997, 195.998, 207.652, 220.000,
     233.082, 246.942,
 ];
-const OCT4_HZ: [f64; 12] = [
+const OCT4_HZ: [f32; 12] = [
     261.626, 277.183, 293.665, 311.127, 329.628, 349.228, 369.994, 391.995, 415.305, 440.000,
     466.164, 493.883,
 ];
 
 /// Analysis sample rate after decimation.
-const ANALYSIS_RATE: f64 = 4000.0;
+const ANALYSIS_RATE: f32 = 4000.0;
 /// Goertzel block size at 4 kHz → ~64 ms per block (good freq resolution).
 const BLOCK_SIZE: usize = 256;
 
 impl ChromaDetector {
     /// Create a new detector for audio at `src_sample_rate`.
-    pub fn new(src_sample_rate: f64) -> Result<Self, super::AnalysisError> {
+    pub fn new(src_sample_rate: f32) -> Result<Self, super::AnalysisError> {
         if src_sample_rate <= 0.0 {
             return Err(super::AnalysisError::InvalidSampleRate(src_sample_rate));
         }
@@ -251,7 +251,7 @@ impl ChromaDetector {
 
     /// Feed a chunk of stereo samples.  Internally mixes to mono, anti-alias
     /// filters, decimates to 4 kHz, and feeds the Goertzel bank.
-    pub fn feed(&mut self, samples: &[(f64, f64)]) {
+    pub fn feed(&mut self, samples: &[(f32, f32)]) {
         let step = self.src_rate / ANALYSIS_RATE;
         for &(l, r) in samples {
             let mono = (l + r) * 0.5;
@@ -283,14 +283,14 @@ impl ChromaDetector {
         }
 
         // Build 12-element chroma vector: sum octave 3 and octave 4 powers.
-        let mut chroma = [0.0f64; 12];
+        let mut chroma = [0.0f32; 12];
         for (i, c) in chroma.iter_mut().enumerate() {
             *c = self.filters_oct3[i].power_mean + self.filters_oct4[i].power_mean;
         }
 
         // Normalise to unit sum to make correlation scale-invariant.
-        let total: f64 = chroma.iter().sum();
-        if total < 1e-12 {
+        let total: f32 = chroma.iter().sum();
+        if total < 1e-6 {
             return None; // silence
         }
         for c in &mut chroma {
@@ -299,14 +299,14 @@ impl ChromaDetector {
 
         // Correlate against all 24 key profiles (12 major + 12 minor),
         // each rotated to the corresponding tonic.
-        let mut best_corr = f64::MIN;
+        let mut best_corr = f32::MIN;
         let mut best_tonic = 0usize;
         let mut best_major = true;
 
         for tonic in 0..12 {
             // Rotate profile so it starts at `tonic`.
-            let mut maj_rot = [0.0f64; 12];
-            let mut min_rot = [0.0f64; 12];
+            let mut maj_rot = [0.0f32; 12];
+            let mut min_rot = [0.0f32; 12];
             for i in 0..12 {
                 maj_rot[i] = MAJOR_PROFILE[(i + 12 - tonic) % 12];
                 min_rot[i] = MINOR_PROFILE[(i + 12 - tonic) % 12];
@@ -369,11 +369,11 @@ impl ChromaDetector {
 mod tests {
     use super::*;
 
-    fn sine(freq: f64, amp: f64, dur: f64, sr: f64) -> Vec<(f64, f64)> {
+    fn sine(freq: f32, amp: f32, dur: f32, sr: f32) -> Vec<(f32, f32)> {
         let n = (sr * dur) as usize;
         (0..n)
             .map(|i| {
-                let v = amp * (2.0 * PI * freq * i as f64 / sr).sin();
+                let v = amp * (2.0 * PI * freq * i as f32 / sr).sin();
                 (v, v)
             })
             .collect()
@@ -389,7 +389,7 @@ mod tests {
     #[test]
     fn test_silence_returns_none() {
         let mut d = ChromaDetector::new(44100.0).unwrap();
-        let silence = vec![(0.0f64, 0.0f64); 44100 * 5];
+        let silence = vec![(0.0f32, 0.0f32); 44100 * 5];
         d.feed(&silence);
         // Silence has no tonal content → None (total chroma ≈ 0).
         assert!(d.detect().is_none());
@@ -418,9 +418,9 @@ mod tests {
         // C major chord: C4 + E4 + G4.  Should detect major mode.
         let sr = 44100.0;
         let n = (sr * 12.0) as usize;
-        let samples: Vec<(f64, f64)> = (0..n)
+        let samples: Vec<(f32, f32)> = (0..n)
             .map(|i| {
-                let t = i as f64 / sr;
+                let t = i as f32 / sr;
                 let v = 0.3 * (2.0 * PI * 261.63 * t).sin()   // C4
                   + 0.3 * (2.0 * PI * 329.63 * t).sin()   // E4
                   + 0.3 * (2.0 * PI * 392.00 * t).sin(); // G4
@@ -441,9 +441,9 @@ mod tests {
         // A minor chord: A3 + C4 + E4.  Should detect minor mode.
         let sr = 44100.0;
         let n = (sr * 12.0) as usize;
-        let samples: Vec<(f64, f64)> = (0..n)
+        let samples: Vec<(f32, f32)> = (0..n)
             .map(|i| {
-                let t = i as f64 / sr;
+                let t = i as f32 / sr;
                 let v = 0.3 * (2.0 * PI * 220.00 * t).sin()   // A3
                   + 0.3 * (2.0 * PI * 261.63 * t).sin()   // C4
                   + 0.3 * (2.0 * PI * 329.63 * t).sin(); // E4

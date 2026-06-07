@@ -1,7 +1,7 @@
 //! Core decode-and-process loop for single and crossfade playback modes.
 //!
 //! v0.29.0: Eliminated real-time heap allocations in the crossfade decode path.
-//! Previously, `decode_transitioning_stream` allocated 4 `Vec<(f64, f64)>` per
+//! Previously, `decode_transitioning_stream` allocated 4 `Vec<(f32, f32)>` per
 //! tick (two resampler output buffers + two drain buffers). These are now
 //! pre-allocated as fields on `AudioEngine` and cleared/reused each tick,
 //! removing ~8–16 heap allocations per tick from the audio hot path.
@@ -237,7 +237,7 @@ impl AudioEngine {
             self.speed
         };
         let wall_clock_delta =
-            processed_frames as f64 / (self.source_sample_rate as f64 * effective_speed);
+            processed_frames as f32 / (self.source_sample_rate as f32 * effective_speed);
         self.position_secs += wall_clock_delta;
 
         match self.playback_info.write() {
@@ -260,7 +260,7 @@ impl AudioEngine {
     ///
     /// v0.29.0: Uses pre-allocated scratch buffers (`rs_out_buf`, `rs_in_buf`,
     /// `drain_out_buf`, `drain_in_buf`) on `AudioEngine` instead of creating
-    /// new `Vec<(f64, f64)>` on every tick. This eliminates ~8–16 heap
+    /// new `Vec<(f32, f32)>` on every tick. This eliminates ~8–16 heap
     /// allocations per tick from the real-time audio path.
     #[allow(clippy::too_many_arguments)]
     fn decode_transitioning_stream(
@@ -578,7 +578,7 @@ impl AudioEngine {
             self.speed
         };
         let incoming_rate = incoming_decoder.info().sample_rate;
-        let wall_clock_delta = processed_frames as f64 / (incoming_rate as f64 * effective_speed);
+        let wall_clock_delta = processed_frames as f32 / (incoming_rate as f32 * effective_speed);
 
         // During crossfade, track position advances based on the incoming
         // track since that's what the user will hear after the transition.

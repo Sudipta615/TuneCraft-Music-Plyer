@@ -448,7 +448,7 @@ pub enum Sentiment {
 pub struct SentimentResult {
     pub sentiment: Sentiment,
     /// ∈ [0, 1]; values below 0.15 are treated as Ambiguous.
-    pub confidence: f64,
+    pub confidence: f32,
     /// Raw romantic hit count (for debugging / logging).
     pub romantic_hits: u32,
     /// Raw sad hit count.
@@ -547,13 +547,13 @@ impl LyricsSentiment {
         let total = romantic_hits + sad_hits;
 
         // Score: normalised difference.
-        let score = (romantic_hits as f64 - sad_hits as f64) / (total as f64 + 1.0);
+        let score = (romantic_hits as f32 - sad_hits as f32) / (total as f32 + 1.0);
 
         // Confidence: how decisive is the split?
         let confidence =
-            ((romantic_hits as f64 - sad_hits as f64).abs() / (total as f64 + 1.0)).min(1.0);
+            ((romantic_hits as f32 - sad_hits as f32).abs() / (total as f32 + 1.0)).min(1.0);
 
-        const CONFIDENCE_THRESHOLD: f64 = 0.15;
+        const CONFIDENCE_THRESHOLD: f32 = 0.15;
 
         let sentiment = if confidence < CONFIDENCE_THRESHOLD {
             Sentiment::Ambiguous

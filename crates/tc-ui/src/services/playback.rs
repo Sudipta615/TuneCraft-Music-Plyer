@@ -99,10 +99,10 @@ pub struct PlaybackState {
     pub current_track_id: Option<i64>,
     pub is_playing: bool,
     pub is_favorited: bool,
-    pub position_secs: f64,
-    pub duration_secs: f64,
-    pub volume: f64,
-    pub speed: f64,
+    pub position_secs: f32,
+    pub duration_secs: f32,
+    pub volume: f32,
+    pub speed: f32,
     pub shuffle: bool,
     pub repeat: RepeatMode,
     pub play_queue: Vec<i64>,
@@ -110,7 +110,7 @@ pub struct PlaybackState {
     pub shuffle_order: Vec<usize>,
     pub shuffle_position: usize,
     pub play_started_at: Option<std::time::Instant>,
-    pub accumulated_play_secs: f64,
+    pub accumulated_play_secs: f32,
     /// Version counter — increments on every state mutation (v0.9.3: H-04).
     pub version: u64,
     /// Whether the resampler has been disabled due to creation or rebuild failures.
@@ -177,10 +177,10 @@ impl PlaybackService {
         platform: Arc<PlatformService>,
         scrobble: Arc<ScrobbleService>,
         tokio_runtime: Arc<Runtime>,
-        volume: f64,
+        volume: f32,
         shuffle: bool,
         repeat: RepeatMode,
-        speed: f64,
+        speed: f32,
     ) -> Self {
         let clamped_vol = volume.clamp(0.0, 1.0);
         engine.send_command(EngineCommand::SetVolume(clamped_vol * clamped_vol));
@@ -208,10 +208,10 @@ impl PlaybackService {
         platform: Arc<PlatformService>,
         scrobble: Arc<ScrobbleService>,
         tokio_runtime: Arc<Runtime>,
-        volume: f64,
+        volume: f32,
         shuffle: bool,
         repeat: RepeatMode,
-        speed: f64,
+        speed: f32,
     ) -> Self {
         let state = PlaybackState {
             volume: volume.clamp(0.0, 1.0),
@@ -335,7 +335,7 @@ impl PlaybackService {
             self.engine.send_command(EngineCommand::Pause);
             state.is_playing = false;
             if let Some(started) = state.play_started_at {
-                state.accumulated_play_secs += started.elapsed().as_secs_f64();
+                state.accumulated_play_secs += started.elapsed().as_secs_f32();
             }
             state.play_started_at = None;
             state.version += 1;
@@ -380,7 +380,7 @@ impl PlaybackService {
         self.scrobble.clear_now_playing();
     }
 
-    pub fn seek(&self, pos_secs: f64) {
+    pub fn seek(&self, pos_secs: f32) {
         #[cfg(feature = "audio-output")]
         self.engine.send_command(EngineCommand::Seek(pos_secs));
 
@@ -405,7 +405,7 @@ impl PlaybackService {
     ///
     /// The engine pipeline has been updated to clamp at 1.0 to prevent clipping.
     /// We apply a perceptual (quadratic) curve before sending to the engine.
-    pub fn set_volume(&self, volume: f64) {
+    pub fn set_volume(&self, volume: f32) {
         let clamped = volume.clamp(0.0, 1.0);
         #[cfg(feature = "audio-output")]
         self.engine
@@ -418,7 +418,7 @@ impl PlaybackService {
         self.platform.update_mpris_volume(clamped);
     }
 
-    pub fn set_speed(&self, speed: f64) {
+    pub fn set_speed(&self, speed: f32) {
         let clamped = speed.clamp(0.25, 4.0);
         #[cfg(feature = "audio-output")]
         self.engine.send_command(EngineCommand::SetSpeed(clamped));
@@ -656,7 +656,7 @@ impl PlaybackService {
                 // position_secs relative to when play_started_at was set.
                 // accumulated_play_secs is snapshotted on pause/seek/stop.
                 match state.play_started_at {
-                    Some(t) => t.elapsed().as_secs_f64() * state.speed,
+                    Some(t) => t.elapsed().as_secs_f32() * state.speed,
                     None => 0.0,
                 }
             } else {
@@ -765,20 +765,20 @@ mod tests {
     fn test_set_volume_clamps() {
         let svc = make_service();
         svc.set_volume(2.0); // should clamp to 1.5
-        assert!((svc.state().volume - 1.5).abs() < 1e-12);
+        assert!((svc.state().volume - 1.5).abs() < 1e-6);
         svc.set_volume(-1.0); // should clamp to 0.0
-        assert!((svc.state().volume - 0.0).abs() < 1e-12);
+        assert!((svc.state().volume - 0.0).abs() < 1e-6);
         svc.set_volume(0.8);
-        assert!((svc.state().volume - 0.8).abs() < 1e-12);
+        assert!((svc.state().volume - 0.8).abs() < 1e-6);
     }
 
     #[test]
     fn test_set_speed_clamps() {
         let svc = make_service();
         svc.set_speed(10.0); // should clamp to 4.0
-        assert!((svc.state().speed - 4.0).abs() < 1e-12);
+        assert!((svc.state().speed - 4.0).abs() < 1e-6);
         svc.set_speed(0.0); // should clamp to 0.25
-        assert!((svc.state().speed - 0.25).abs() < 1e-12);
+        assert!((svc.state().speed - 0.25).abs() < 1e-6);
     }
 
     #[test]
@@ -884,14 +884,14 @@ mod tests {
         svc.stop_playback();
         let state = svc.state();
         assert!(!state.is_playing);
-        assert!((state.position_secs - 0.0).abs() < 1e-12);
+        assert!((state.position_secs - 0.0).abs() < 1e-6);
     }
 
     #[test]
     fn test_seek_updates_position() {
         let svc = make_service();
         svc.seek(30.0);
-        assert!((svc.state().position_secs - 30.0).abs() < 1e-12);
+        assert!((svc.state().position_secs - 30.0).abs() < 1e-6);
     }
 
     #[test]

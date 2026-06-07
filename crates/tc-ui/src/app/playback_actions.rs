@@ -84,7 +84,7 @@ impl TuneCraftApp {
         self.sync_from_playback_service();
     }
 
-    pub fn seek(&self, pos_secs: f64) {
+    pub fn seek(&self, pos_secs: f32) {
         self.ctx.playback.seek(pos_secs);
     }
 
@@ -101,14 +101,14 @@ impl TuneCraftApp {
 
     /// Set volume.
     ///
-    pub fn set_volume(&mut self, volume: f64) {
+    pub fn set_volume(&mut self, volume: f32) {
         let clamped = volume.clamp(0.0, 1.0);
         self.volume = clamped;
         self.ctx.playback.set_volume(clamped);
         self.ctx.config.write(|c| c.playback.volume = clamped);
     }
 
-    pub fn set_speed(&mut self, speed: f64) {
+    pub fn set_speed(&mut self, speed: f32) {
         let clamped = speed.clamp(0.25, 4.0);
         self.speed = clamped;
         self.ctx.playback.set_speed(clamped);

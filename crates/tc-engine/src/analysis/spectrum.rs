@@ -26,9 +26,9 @@ pub enum WindowType {
 #[derive(Debug, Clone)]
 pub struct SpectrumFrame {
     /// Magnitude for each frequency bin (normalized 0.0 to 1.0)
-    pub magnitudes: Vec<f64>,
+    pub magnitudes: Vec<f32>,
     /// Frequency for each bin center
-    pub frequencies: Vec<f64>,
+    pub frequencies: Vec<f32>,
     /// Sample rate
     pub sample_rate: u32,
 }
@@ -36,15 +36,15 @@ pub struct SpectrumFrame {
 /// Spectrum analyzer (runs off audio thread)
 pub struct SpectrumAnalyzer {
     fft_size: usize,
-    sample_rate: f64,
-    window: Vec<f64>,
-    fft: Arc<dyn RealToComplex<f64>>,
-    prev_magnitudes: Vec<f64>,
-    smoothing: f64,
+    sample_rate: f32,
+    window: Vec<f32>,
+    fft: Arc<dyn RealToComplex<f32>>,
+    prev_magnitudes: Vec<f32>,
+    smoothing: f32,
     /// Pre-allocated FFT input workspace
-    input_workspace: Vec<f64>,
+    input_workspace: Vec<f32>,
     /// Pre-allocated FFT output workspace
-    output_workspace: Vec<realfft::num_complex::Complex<f64>>,
+    output_workspace: Vec<realfft::num_complex::Complex<f32>>,
 }
 
 impl SpectrumAnalyzer {
@@ -53,7 +53,7 @@ impl SpectrumAnalyzer {
     /// Returns an error instead of panicking if parameters are invalid:
     /// - `fft_size` must be >= 2 and a power of two
     /// - `sample_rate` must be > 0
-    pub fn new(fft_size: usize, sample_rate: f64) -> Result<Self, AnalysisError> {
+    pub fn new(fft_size: usize, sample_rate: f32) -> Result<Self, AnalysisError> {
         if fft_size < 2 {
             return Err(AnalysisError::InvalidFftSize(fft_size));
         }
@@ -82,17 +82,17 @@ impl SpectrumAnalyzer {
     }
 
     /// Generate Hann window
-    fn hann_window(size: usize) -> Vec<f64> {
+    fn hann_window(size: usize) -> Vec<f32> {
         (0..size)
             .map(|i| {
-                0.5 * (1.0 - (2.0 * std::f64::consts::PI * i as f64 / (size - 1) as f64).cos())
+                0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (size - 1) as f32).cos())
             })
             .collect()
     }
 
     /// Analyze a buffer of stereo samples, producing a spectrum frame.
     /// Uses pre-allocated workspace buffers — no heap allocation on the hot path.
-    pub fn analyze(&mut self, samples: &[(f64, f64)]) -> SpectrumFrame {
+    pub fn analyze(&mut self, samples: &[(f32, f32)]) -> SpectrumFrame {
         // Mix to mono, apply window, write into pre-allocated workspace
         for s in &mut self.input_workspace {
             *s = 0.0;
@@ -111,7 +111,7 @@ impl SpectrumAnalyzer {
         let mut magnitudes = Vec::with_capacity(num_bins);
         for (i, complex) in self.output_workspace.iter().take(num_bins).enumerate() {
             let magnitude = (complex.re * complex.re + complex.im * complex.im).sqrt()
-                / (self.fft_size as f64).sqrt();
+                / (self.fft_size as f32).sqrt();
             // Apply smoothing with previous frame
             let smoothed = self.prev_magnitudes.get(i).copied().unwrap_or(0.0) * self.smoothing
                 + magnitude * (1.0 - self.smoothing);
@@ -120,15 +120,15 @@ impl SpectrumAnalyzer {
         }
 
         // Normalize magnitudes to 0.0-1.0 range
-        let max_mag = magnitudes.iter().cloned().fold(0.0_f64, f64::max);
+        let max_mag = magnitudes.iter().cloned().fold(0.0_f32, f32::max);
         if max_mag > 0.0 {
             for m in &mut magnitudes {
                 *m /= max_mag;
             }
         }
 
-        let frequencies: Vec<f64> = (0..num_bins)
-            .map(|i| i as f64 * self.sample_rate / self.fft_size as f64)
+        let frequencies: Vec<f32> = (0..num_bins)
+            .map(|i| i as f32 * self.sample_rate / self.fft_size as f32)
             .collect();
 
         SpectrumFrame {
@@ -139,7 +139,7 @@ impl SpectrumAnalyzer {
     }
 
     /// Set smoothing factor (0.0 = no smoothing, 1.0 = max smoothing)
-    pub fn set_smoothing(&mut self, smoothing: f64) {
+    pub fn set_smoothing(&mut self, smoothing: f32) {
         self.smoothing = smoothing.clamp(0.0, 0.99);
     }
 

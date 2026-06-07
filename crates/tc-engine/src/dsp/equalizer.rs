@@ -43,11 +43,11 @@ impl EqFilterType {
 #[derive(Debug, Clone, Copy)]
 pub struct EqBandParams {
     /// Centre/cutoff frequency in Hz
-    pub frequency: f64,
+    pub frequency: f32,
     /// Gain in dB (for shelving/peaking)
-    pub gain_db: f64,
+    pub gain_db: f32,
     /// Quality factor (bandwidth)
-    pub q: f64,
+    pub q: f32,
     /// Filter type
     pub filter_type: EqFilterType,
     /// Whether this band is enabled
@@ -68,7 +68,7 @@ impl Default for EqBandParams {
 
 impl EqBandParams {
     /// Create a peaking EQ band
-    pub fn peaking(frequency: f64, gain_db: f64, q: f64) -> Self {
+    pub fn peaking(frequency: f32, gain_db: f32, q: f32) -> Self {
         Self {
             frequency,
             gain_db,
@@ -79,7 +79,7 @@ impl EqBandParams {
     }
 
     /// Create a low-shelf band
-    pub fn lowshelf(frequency: f64, gain_db: f64, q: f64) -> Self {
+    pub fn lowshelf(frequency: f32, gain_db: f32, q: f32) -> Self {
         Self {
             frequency,
             gain_db,
@@ -90,7 +90,7 @@ impl EqBandParams {
     }
 
     /// Create a high-shelf band
-    pub fn highshelf(frequency: f64, gain_db: f64, q: f64) -> Self {
+    pub fn highshelf(frequency: f32, gain_db: f32, q: f32) -> Self {
         Self {
             frequency,
             gain_db,
@@ -118,7 +118,7 @@ impl EqBand {
         }
     }
 
-    fn update_coefficients(&mut self, sample_rate: f64) {
+    fn update_coefficients(&mut self, sample_rate: f32) {
         if !self.params.enabled {
             return;
         }
@@ -134,7 +134,7 @@ impl EqBand {
 
     /// Process a stereo sample pair
     #[inline]
-    fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         if !self.params.enabled {
             return (left, right);
         }
@@ -156,30 +156,30 @@ impl EqBand {
 #[derive(Debug, Clone)]
 pub struct ParametricEq {
     bands: Vec<EqBand>,
-    sample_rate: f64,
+    sample_rate: f32,
     enabled: bool,
-    preamp_db: f64,
-    preamp_linear: f64,
-    post_gain_db: f64,
+    preamp_db: f32,
+    preamp_linear: f32,
+    post_gain_db: f32,
     /// Cached linear gain derived from `post_gain_db` — avoids a per-sample
     /// `powf` call in the hot path.  Updated by `set_post_gain_db()`.
-    post_gain_linear: f64,
-    headroom_db: f64,
+    post_gain_linear: f32,
+    headroom_db: f32,
     /// Current headroom scale factor (smoothed for zipper-noise prevention)
-    headroom_scale: f64,
+    headroom_scale: f32,
     /// Target headroom scale factor (computed from headroom_db and signal peak)
-    headroom_scale_target: f64,
+    headroom_scale_target: f32,
     /// Slew rate for headroom scale attack — when signal exceeds threshold,
     /// the scale reduces quickly to prevent clipping (per sample, 0.0–1.0).
-    headroom_attack_rate: f64,
+    headroom_attack_rate: f32,
     /// Slew rate for headroom scale release — when signal falls below threshold,
     /// the scale returns to unity slowly to avoid pumping artifacts.
-    headroom_release_rate: f64,
+    headroom_release_rate: f32,
 }
 
 impl ParametricEq {
     /// Create a new 10-band parametric EQ with standard ISO frequencies
-    pub fn default_10_band(sample_rate: f64) -> Self {
+    pub fn default_10_band(sample_rate: f32) -> Self {
         let freqs = [
             31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
         ];
@@ -227,7 +227,7 @@ impl ParametricEq {
     }
 
     /// Create a new EQ with all bands disabled
-    pub fn new(num_bands: usize, sample_rate: f64) -> Self {
+    pub fn new(num_bands: usize, sample_rate: f32) -> Self {
         let bands = (0..num_bands).map(|_| EqBand::new()).collect();
         Self {
             bands,
@@ -256,26 +256,26 @@ impl ParametricEq {
     }
 
     /// Set preamp gain in dB (applied before EQ)
-    pub fn set_preamp_db(&mut self, gain_db: f64) {
+    pub fn set_preamp_db(&mut self, gain_db: f32) {
         self.preamp_db = gain_db;
-        self.preamp_linear = 10.0_f64.powf(gain_db / 20.0);
+        self.preamp_linear = 10.0_f32.powf(gain_db / 20.0);
     }
 
     /// Set post-EQ gain in dB
-    pub fn set_post_gain_db(&mut self, gain_db: f64) {
+    pub fn set_post_gain_db(&mut self, gain_db: f32) {
         self.post_gain_db = gain_db;
         // Cache the linear equivalent so process() doesn't call powf() per sample.
-        self.post_gain_linear = 10.0_f64.powf(gain_db / 20.0);
+        self.post_gain_linear = 10.0_f32.powf(gain_db / 20.0);
     }
 
     /// Set headroom in dB for headroom management
-    pub fn set_headroom_db(&mut self, headroom_db: f64) {
+    pub fn set_headroom_db(&mut self, headroom_db: f32) {
         self.headroom_db = headroom_db;
     }
 
     /// Process a stereo sample pair through the full EQ chain
     #[inline]
-    pub fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         if !self.enabled {
             return (left, right);
         }
@@ -297,7 +297,7 @@ impl ParametricEq {
         //
         // the scale returns to unity gradually, avoiding pumping artifacts.
         // At 0.0005, 95% return takes ~6000 samples (~136ms at 44.1kHz).
-        let headroom_linear = 10.0_f64.powf(self.headroom_db / 20.0);
+        let headroom_linear = 10.0_f32.powf(self.headroom_db / 20.0);
         let peak = l.abs().max(r.abs());
         if peak > headroom_linear {
             self.headroom_scale_target = headroom_linear / peak;
@@ -360,7 +360,7 @@ impl ParametricEq {
     }
 
     /// Update sample rate and recompute all coefficients
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
         for band in &mut self.bands {
             band.update_coefficients(sample_rate);
@@ -386,8 +386,8 @@ mod tests {
     fn test_eq_passthrough_when_disabled() {
         let mut eq = ParametricEq::default_10_band(44100.0);
         let (l, r) = eq.process(0.5, 0.5);
-        assert!((l - 0.5).abs() < 1e-10);
-        assert!((r - 0.5).abs() < 1e-10);
+        assert!((l - 0.5).abs() < 1e-5);
+        assert!((r - 0.5).abs() < 1e-5);
     }
 
     #[test]
@@ -492,12 +492,12 @@ mod tests {
 
         eq.reset();
         assert!(
-            (eq.headroom_scale - 1.0).abs() < 1e-10,
+            (eq.headroom_scale - 1.0).abs() < 1e-5,
             "Headroom scale should be 1.0 after reset, got {}",
             eq.headroom_scale
         );
         assert!(
-            (eq.headroom_scale_target - 1.0).abs() < 1e-10,
+            (eq.headroom_scale_target - 1.0).abs() < 1e-5,
             "Headroom scale target should be 1.0 after reset"
         );
     }
@@ -511,7 +511,7 @@ mod tests {
             eq.process(0.01, 0.01);
         }
         assert!(
-            eq.headroom_scale <= 1.0 + 1e-10,
+            eq.headroom_scale <= 1.0 + 1e-5,
             "Headroom scale should never exceed 1.0, got {}",
             eq.headroom_scale
         );

@@ -168,7 +168,7 @@ impl CrossPlatformMediaControls {
     }
 
     /// Update the volume shown in the OS media controls.
-    pub fn set_volume(&mut self, volume: f64) {
+    pub fn set_volume(&mut self, volume: f32) {
         if let Some(ref mut ctrl) = self.controls {
             if let Err(e) = ctrl.set_volume(volume) {
                 log::warn!("Failed to update media volume: {}", e);

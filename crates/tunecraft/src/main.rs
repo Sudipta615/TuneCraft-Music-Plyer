@@ -390,7 +390,7 @@ fn run_with_audio(
                     MediaKeyAction::Seek(offset_us) => {
                         let info = engine.playback_info();
                         let current_pos = info.position_secs;
-                        let offset_secs = offset_us as f64 / 1_000_000.0;
+                        let offset_secs = offset_us as f32 / 1_000_000.0;
                         let new_pos = (current_pos + offset_secs).max(0.0);
                         info!(
                             "MPRIS Seek: offset={:.1}s, new_pos={:.1}s",
@@ -403,7 +403,7 @@ fn run_with_audio(
                         track_id: _,
                         position_us,
                     } => {
-                        let pos_secs = position_us as f64 / 1_000_000.0;
+                        let pos_secs = position_us as f32 / 1_000_000.0;
                         info!("MPRIS SetPosition: {:.1}s", pos_secs);
                         engine.send_command(tc_engine::buffer::EngineCommand::Seek(pos_secs));
                     },
@@ -477,7 +477,7 @@ fn run_with_audio(
             let info = engine.playback_info();
             // L15: Direct `as i64` cast overflows if position_secs is negative or
             // very large. Clamp to [0, i64::MAX] range before casting.
-            let pos_us = (info.position_secs * 1_000_000.0).clamp(0.0, i64::MAX as f64) as i64;
+            let pos_us = (info.position_secs * 1_000_000.0).clamp(0.0, i64::MAX as f32) as i64;
             p.set_mpris_position(pos_us);
         }
 

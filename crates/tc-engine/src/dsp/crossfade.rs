@@ -68,15 +68,15 @@ pub struct TrackMixer {
     /// Whether crossfade is enabled (when disabled, transitions are gapless only)
     enabled: bool,
     /// Buffer for outgoing track tail (pre-read for gapless/crossfade)
-    outgoing_buffer_left: Vec<f64>,
-    outgoing_buffer_right: Vec<f64>,
+    outgoing_buffer_left: Vec<f32>,
+    outgoing_buffer_right: Vec<f32>,
     /// Read position in outgoing buffer
     outgoing_pos: usize,
 }
 
 impl TrackMixer {
     /// Create a new mixer with a default 2-second crossfade
-    pub fn new(sample_rate: f64) -> Self {
+    pub fn new(sample_rate: f32) -> Self {
         let default_duration = (2.0 * sample_rate) as usize;
         Self {
             state: MixerState::Silent,
@@ -99,17 +99,17 @@ impl TrackMixer {
     }
 
     /// Get the crossfade duration in milliseconds (rounded)
-    pub fn duration_ms(&self, sample_rate: f64) -> u64 {
+    pub fn duration_ms(&self, sample_rate: f32) -> u64 {
         if sample_rate > 0.0 {
-            (self.config.duration_frames as f64 / sample_rate * 1000.0).round() as u64
+            (self.config.duration_frames as f32 / sample_rate * 1000.0).round() as u64
         } else {
             0
         }
     }
 
     /// Set crossfade duration in milliseconds
-    pub fn set_duration_ms(&mut self, duration_ms: u64, sample_rate: f64) {
-        self.config.duration_frames = (duration_ms as f64 * 0.001 * sample_rate) as usize;
+    pub fn set_duration_ms(&mut self, duration_ms: u64, sample_rate: f32) {
+        self.config.duration_frames = (duration_ms as f32 * 0.001 * sample_rate) as usize;
     }
 
     /// Enable or disable the crossfade mixer.
@@ -166,7 +166,7 @@ impl TrackMixer {
     }
 
     /// Set the outgoing track's tail samples (for gapless/crossfade)
-    pub fn set_outgoing_tail(&mut self, left: Vec<f64>, right: Vec<f64>) {
+    pub fn set_outgoing_tail(&mut self, left: Vec<f32>, right: Vec<f32>) {
         self.outgoing_buffer_left = left;
         self.outgoing_buffer_right = right;
         self.outgoing_pos = 0;
@@ -178,15 +178,15 @@ impl TrackMixer {
     /// At `t=0.0`, outgoing is full and incoming is silent.
     /// At `t=1.0`, outgoing is silent and incoming is full.
     #[inline]
-    pub fn compute_gains_for_curve(t: f64, curve: CrossfadeCurve) -> (f64, f64) {
+    pub fn compute_gains_for_curve(t: f32, curve: CrossfadeCurve) -> (f32, f32) {
         let t = t.clamp(0.0, 1.0);
         match curve {
             CrossfadeCurve::Linear => (1.0 - t, t),
             CrossfadeCurve::EqualPower => {
                 // Equal-power crossfade: preserves perceived loudness
                 // because cos²(θ) + sin²(θ) = 1
-                let cos_t = (std::f64::consts::FRAC_PI_2 * t).cos();
-                let sin_t = (std::f64::consts::FRAC_PI_2 * t).sin();
+                let cos_t = (std::f32::consts::FRAC_PI_2 * t).cos();
+                let sin_t = (std::f32::consts::FRAC_PI_2 * t).sin();
                 (cos_t, sin_t)
             },
             CrossfadeCurve::SCurve => {
@@ -199,7 +199,7 @@ impl TrackMixer {
 
     /// Compute crossfade gains using the currently configured curve.
     #[inline]
-    fn compute_gains(&self, t: f64) -> (f64, f64) {
+    fn compute_gains(&self, t: f32) -> (f32, f32) {
         Self::compute_gains_for_curve(t, self.config.curve)
     }
 
@@ -214,18 +214,18 @@ impl TrackMixer {
     #[inline]
     pub fn process(
         &mut self,
-        current_left: f64,
-        current_right: f64,
-        next_left: f64,
-        next_right: f64,
-    ) -> (f64, f64) {
+        current_left: f32,
+        current_right: f32,
+        next_left: f32,
+        next_right: f32,
+    ) -> (f32, f32) {
         match self.state {
             MixerState::PlayingCurrent => (current_left, current_right),
             MixerState::PlayingNext => (next_left, next_right),
             MixerState::Silent => (0.0, 0.0),
             MixerState::Crossfading => {
                 let t = if self.config.duration_frames > 0 {
-                    self.crossfade_pos as f64 / self.config.duration_frames as f64
+                    self.crossfade_pos as f32 / self.config.duration_frames as f32
                 } else {
                     1.0
                 };
@@ -265,12 +265,12 @@ impl TrackMixer {
     #[inline]
     pub fn process_gapless(
         &mut self,
-        current_left: f64,
-        current_right: f64,
+        current_left: f32,
+        current_right: f32,
         next_available: bool,
-        next_left: f64,
-        next_right: f64,
-    ) -> (f64, f64) {
+        next_left: f32,
+        next_right: f32,
+    ) -> (f32, f32) {
         if next_available {
             (next_left, next_right)
         } else {
@@ -284,9 +284,9 @@ impl TrackMixer {
     }
 
     /// Get the crossfade progress (0.0 to 1.0) if crossfading
-    pub fn crossfade_progress(&self) -> Option<f64> {
+    pub fn crossfade_progress(&self) -> Option<f32> {
         if self.state == MixerState::Crossfading && self.config.duration_frames > 0 {
-            Some(self.crossfade_pos as f64 / self.config.duration_frames as f64)
+            Some(self.crossfade_pos as f32 / self.config.duration_frames as f32)
         } else {
             None
         }
@@ -337,10 +337,10 @@ mod tests {
     fn test_s_curve_monotonic() {
         let mut prev_in = 0.0;
         for i in 0..=100 {
-            let t = i as f64 / 100.0;
+            let t = i as f32 / 100.0;
             let (_, in_gain) = TrackMixer::compute_gains_for_curve(t, CrossfadeCurve::SCurve);
             assert!(
-                in_gain >= prev_in - 1e-10,
+                in_gain >= prev_in - 1e-5,
                 "S-curve should be monotonically increasing"
             );
             prev_in = in_gain;
@@ -363,16 +363,13 @@ mod tests {
     fn test_crossfade_start_and_end_gains() {
         // At t=0: outgoing should be full, incoming should be silent
         let (out0, in0) = TrackMixer::compute_gains_for_curve(0.0, CrossfadeCurve::EqualPower);
-        assert!(
-            (out0 - 1.0).abs() < 1e-10,
-            "Outgoing at start should be 1.0"
-        );
-        assert!((in0 - 0.0).abs() < 1e-10, "Incoming at start should be 0.0");
+        assert!((out0 - 1.0).abs() < 1e-5, "Outgoing at start should be 1.0");
+        assert!((in0 - 0.0).abs() < 1e-5, "Incoming at start should be 0.0");
 
         // At t=1: outgoing should be silent, incoming should be full
         let (out1, in1) = TrackMixer::compute_gains_for_curve(1.0, CrossfadeCurve::EqualPower);
-        assert!((out1 - 0.0).abs() < 1e-10, "Outgoing at end should be 0.0");
-        assert!((in1 - 1.0).abs() < 1e-10, "Incoming at end should be 1.0");
+        assert!((out1 - 0.0).abs() < 1e-5, "Outgoing at end should be 0.0");
+        assert!((in1 - 1.0).abs() < 1e-5, "Incoming at end should be 1.0");
     }
 
     #[test]
@@ -380,13 +377,13 @@ mod tests {
         let mut mixer = TrackMixer::new(44100.0);
         // Before next track is available
         let (l, r) = mixer.process_gapless(0.5, 0.5, false, 0.0, 0.0);
-        assert!((l - 0.5).abs() < 1e-10);
-        assert!((r - 0.5).abs() < 1e-10);
+        assert!((l - 0.5).abs() < 1e-5);
+        assert!((r - 0.5).abs() < 1e-5);
 
         // After next track is available
         let (l, r) = mixer.process_gapless(0.5, 0.5, true, 0.8, 0.8);
-        assert!((l - 0.8).abs() < 1e-10);
-        assert!((r - 0.8).abs() < 1e-10);
+        assert!((l - 0.8).abs() < 1e-5);
+        assert!((r - 0.8).abs() < 1e-5);
     }
 
     #[test]
@@ -395,8 +392,8 @@ mod tests {
         mixer.set_duration_ms(10, 44100.0); // Very short crossfade for testing
 
         let tail_len = mixer.config.duration_frames;
-        let tail_left: Vec<f64> = (0..tail_len).map(|i| 0.5 - i as f64 * 0.001).collect();
-        let tail_right: Vec<f64> = (0..tail_len).map(|i| 0.5 - i as f64 * 0.001).collect();
+        let tail_left: Vec<f32> = (0..tail_len).map(|i| 0.5 - i as f32 * 0.001).collect();
+        let tail_right: Vec<f32> = (0..tail_len).map(|i| 0.5 - i as f32 * 0.001).collect();
         mixer.set_outgoing_tail(tail_left, tail_right);
         mixer.start_crossfade();
 

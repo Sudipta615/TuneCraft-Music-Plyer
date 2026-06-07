@@ -46,7 +46,7 @@ struct LrclibSearchResult {
     track_name: Option<String>,
     artist_name: Option<String>,
     album_name: Option<String>,
-    duration: Option<f64>,
+    duration: Option<f32>,
     instrumental: Option<bool>,
     plain_lyrics: Option<String>,
     synced_lyrics: Option<String>,
@@ -304,7 +304,7 @@ impl LyricsClient {
                         let parts: Vec<&str> = time_str.split(':').collect();
                         if parts.len() >= 2 {
                             if let (Ok(mins), Ok(secs)) =
-                                (parts[0].parse::<f64>(), parts[1].parse::<f64>())
+                                (parts[0].parse::<f32>(), parts[1].parse::<f32>())
                             {
                                 let timestamp_ms = ((mins * 60.0 + secs) * 1000.0) as u64;
                                 timestamps.push(timestamp_ms);

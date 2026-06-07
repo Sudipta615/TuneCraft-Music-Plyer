@@ -46,7 +46,7 @@ impl super::LibraryManager {
     /// convert to `0.0` before storing (see `build_track`).
     pub(crate) fn probe_file(
         path: &Path,
-    ) -> Option<(f64, u32, usize, FileTags, Option<CoverArtData>)> {
+    ) -> Option<(f32, u32, usize, FileTags, Option<CoverArtData>)> {
         use symphonia::core::{
             codecs::CODEC_TYPE_NULL, formats::FormatOptions, io::MediaSourceStream,
             meta::MetadataOptions, probe::Hint,
@@ -90,7 +90,7 @@ impl super::LibraryManager {
 
         let duration = codec_params
             .n_frames
-            .map(|n| n as f64 / sample_rate.max(1) as f64)
+            .map(|n| n as f32 / sample_rate.max(1) as f32)
             .unwrap_or(-1.0);
 
         let (tags, cover_art) = Self::extract_tags_and_cover_from_probed(&mut probed);
@@ -104,7 +104,7 @@ impl super::LibraryManager {
         path: &Path,
         file_size: i64,
         file_modified: i64,
-        duration_secs: f64,
+        duration_secs: f32,
         sample_rate: u32,
         channels: usize,
         tags: FileTags,
@@ -117,13 +117,13 @@ impl super::LibraryManager {
         }
 
         let bitrate_kbps = if duration_secs > 0.0 {
-            Some(((file_size as f64 * 8.0) / duration_secs / 1000.0).round() as i32)
+            Some(((file_size as f32 * 8.0) / duration_secs / 1000.0).round() as i32)
         } else if file_size > 0 {
             warn!(
                 "Duration unavailable for {}; bitrate estimated from file size assuming 3 min",
                 path.display()
             );
-            Some(((file_size as f64 * 8.0) / 180.0 / 1000.0).round() as i32)
+            Some(((file_size as f32 * 8.0) / 180.0 / 1000.0).round() as i32)
         } else {
             None
         };
@@ -134,7 +134,7 @@ impl super::LibraryManager {
                 "Duration unknown for {} (n_frames unavailable); storing 0.0",
                 path.display()
             );
-            0.0_f64
+            0.0_f32
         } else {
             duration_secs
         };

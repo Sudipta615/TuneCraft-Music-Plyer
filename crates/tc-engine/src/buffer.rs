@@ -26,13 +26,13 @@ pub enum BufferError {
 /// A single audio frame (interleaved, up to MAX_CHANNELS)
 #[derive(Debug, Clone, Copy)]
 pub struct AudioFrame {
-    pub channels: [f64; MAX_CHANNELS],
+    pub channels: [f32; MAX_CHANNELS],
     pub num_channels: u8,
 }
 
 impl AudioFrame {
     #[inline]
-    pub fn stereo(left: f64, right: f64) -> Self {
+    pub fn stereo(left: f32, right: f32) -> Self {
         Self {
             channels: [left, right],
             num_channels: 2,
@@ -43,7 +43,7 @@ impl AudioFrame {
     /// downstream stereo code (output device, stereo pipeline) receives the
     /// correct signal on both L and R instead of silence on the right channel.
     #[inline]
-    pub fn mono(sample: f64) -> Self {
+    pub fn mono(sample: f32) -> Self {
         Self {
             channels: [sample, sample],
             num_channels: 1,
@@ -70,12 +70,12 @@ impl AudioFrame {
     }
 
     #[inline]
-    pub fn get(&self, channel: usize) -> f64 {
+    pub fn get(&self, channel: usize) -> f32 {
         self.channels.get(channel).copied().unwrap_or(0.0)
     }
 
     #[inline]
-    pub fn set(&mut self, channel: usize, value: f64) {
+    pub fn set(&mut self, channel: usize, value: f32) {
         if channel < MAX_CHANNELS {
             self.channels[channel] = value;
         }
@@ -88,7 +88,7 @@ impl AudioFrame {
     /// channel[1] slot would produce incorrect gain. Scaling all MAX_CHANNELS
     /// slots is negligible overhead and prevents stale values from escaping.
     #[inline]
-    pub fn scale(&mut self, gain: f64) {
+    pub fn scale(&mut self, gain: f32) {
         for ch in &mut self.channels {
             *ch *= gain;
         }
@@ -103,7 +103,7 @@ impl AudioFrame {
     /// Using 0.0 caused an abrupt amplitude drop on the wider channel during
     /// crossfades between mono and stereo sources.
     #[inline]
-    pub fn lerp(&self, other: &AudioFrame, t: f64) -> AudioFrame {
+    pub fn lerp(&self, other: &AudioFrame, t: f32) -> AudioFrame {
         let max_ch = self.num_channels.max(other.num_channels) as usize;
         let mut result = *self;
         for i in 0..max_ch {
@@ -358,9 +358,9 @@ pub enum EngineCommand {
     Pause,
     Stop,
     /// Seek to position in seconds. Must be finite and >= 0; invalid values are ignored.
-    Seek(f64),
-    SetVolume(f64),
-    SetSpeed(f64),
+    Seek(f32),
+    SetVolume(f32),
+    SetSpeed(f32),
     NextTrack,
     PrevTrack,
     LoadTrack(u64),
@@ -368,14 +368,14 @@ pub enum EngineCommand {
     SetEqEnabled(bool),
     SetEqBand {
         index: usize,
-        frequency: f64,
-        gain_db: f64,
-        q: f64,
+        frequency: f32,
+        gain_db: f32,
+        q: f32,
         enabled: bool,
     },
-    SetPreamp(f64),
-    SetStereoWidth(f64),
-    SetBalance(f64),
+    SetPreamp(f32),
+    SetStereoWidth(f32),
+    SetBalance(f32),
     SetDitherEnabled(bool),
     SetMidsideEq(bool),
     /// Set shuffle on/off (used by MPRIS integration to propagate shuffle state to the engine)
@@ -405,13 +405,13 @@ pub enum PlaybackState {
 #[derive(Debug, Clone)]
 pub struct PlaybackInfo {
     pub state: PlaybackState,
-    pub position_secs: f64,
-    pub duration_secs: f64,
-    pub volume: f64,
-    pub speed: f64,
+    pub position_secs: f32,
+    pub duration_secs: f32,
+    pub volume: f32,
+    pub speed: f32,
     pub track_id: Option<u64>,
     pub sample_rate: u32,
-    pub cpu_usage_pct: f64,
+    pub cpu_usage_pct: f32,
     /// Whether the resampler has been disabled due to creation or rebuild failures.
     /// UI should display a warning when true.
     pub resampler_disabled: bool,
@@ -440,10 +440,10 @@ impl Default for PlaybackInfo {
     }
 }
 
-pub const DENORMAL_OFFSET: f64 = 1e-18;
+pub const DENORMAL_OFFSET: f32 = 1e-6;
 
 #[inline]
-pub fn flush_denormal(sample: f64) -> f64 {
+pub fn flush_denormal(sample: f32) -> f32 {
     if sample.abs() < DENORMAL_OFFSET {
         0.0
     } else {
@@ -452,7 +452,7 @@ pub fn flush_denormal(sample: f64) -> f64 {
 }
 
 #[inline]
-pub fn prevent_denormal(sample: f64) -> f64 {
+pub fn prevent_denormal(sample: f32) -> f32 {
     sample + DENORMAL_OFFSET
 }
 
@@ -464,24 +464,24 @@ mod tests {
     fn test_audio_frame_stereo() {
         let f = AudioFrame::stereo(0.5, -0.3);
         assert_eq!(f.num_channels, 2);
-        assert!((f.get(0) - 0.5).abs() < 1e-12);
-        assert!((f.get(1) - (-0.3)).abs() < 1e-12);
-        assert!((f.get(2) - 0.0).abs() < 1e-12); // out of range returns 0
+        assert!((f.get(0) - 0.5).abs() < 1e-6);
+        assert!((f.get(1) - (-0.3)).abs() < 1e-6);
+        assert!((f.get(2) - 0.0).abs() < 1e-6); // out of range returns 0
     }
 
     #[test]
     fn test_audio_frame_mono() {
         let f = AudioFrame::mono(0.75);
         assert_eq!(f.num_channels, 1);
-        assert!((f.get(0) - 0.75).abs() < 1e-12);
-        assert!((f.get(1) - 0.75).abs() < 1e-12); // mono duplicates to ch1
+        assert!((f.get(0) - 0.75).abs() < 1e-6);
+        assert!((f.get(1) - 0.75).abs() < 1e-6); // mono duplicates to ch1
     }
 
     #[test]
     fn test_audio_frame_zero() {
         let f = AudioFrame::zero(2).unwrap();
         assert_eq!(f.num_channels, 2);
-        assert!((f.get(0) - 0.0).abs() < 1e-12);
+        assert!((f.get(0) - 0.0).abs() < 1e-6);
     }
 
     #[test]
@@ -494,8 +494,8 @@ mod tests {
     fn test_audio_frame_scale() {
         let mut f = AudioFrame::stereo(1.0, 2.0);
         f.scale(0.5);
-        assert!((f.get(0) - 0.5).abs() < 1e-12);
-        assert!((f.get(1) - 1.0).abs() < 1e-12);
+        assert!((f.get(0) - 0.5).abs() < 1e-6);
+        assert!((f.get(1) - 1.0).abs() < 1e-6);
     }
 
     #[test]
@@ -504,8 +504,8 @@ mod tests {
         let b = AudioFrame::stereo(1.0, 0.0);
         let mid = a.lerp(&b, 0.5);
         assert_eq!(mid.num_channels, 2);
-        assert!((mid.get(0) - 0.5).abs() < 1e-12);
-        assert!((mid.get(1) - 0.5).abs() < 1e-12);
+        assert!((mid.get(0) - 0.5).abs() < 1e-6);
+        assert!((mid.get(1) - 0.5).abs() < 1e-6);
     }
 
     #[test]
@@ -514,17 +514,17 @@ mod tests {
         let b = AudioFrame::stereo(0.6, 0.8);
         let result = a.lerp(&b, 0.5);
         assert_eq!(result.num_channels, 2);
-        assert!((result.get(0) - 0.5).abs() < 1e-12);
-        assert!((result.get(1) - 0.6).abs() < 1e-12); // mono ch0 duplicated, not 0
+        assert!((result.get(0) - 0.5).abs() < 1e-6);
+        assert!((result.get(1) - 0.6).abs() < 1e-6); // mono ch0 duplicated, not 0
     }
 
     #[test]
     fn test_audio_frame_set() {
         let mut f = AudioFrame::stereo(0.0, 0.0);
         f.set(0, 0.5);
-        assert!((f.get(0) - 0.5).abs() < 1e-12);
+        assert!((f.get(0) - 0.5).abs() < 1e-6);
         f.set(5, 1.0); // out of range, should be no-op
-        assert!((f.get(1) - 0.0).abs() < 1e-12);
+        assert!((f.get(1) - 0.0).abs() < 1e-6);
     }
 
     #[test]
@@ -547,8 +547,8 @@ mod tests {
         let popped = cons.pop();
         assert!(popped.is_some());
         let f = popped.unwrap();
-        assert!((f.get(0) - 0.1).abs() < 1e-12);
-        assert!((f.get(1) - 0.2).abs() < 1e-12);
+        assert!((f.get(0) - 0.1).abs() < 1e-6);
+        assert!((f.get(1) - 0.2).abs() < 1e-6);
     }
 
     #[test]
@@ -561,11 +561,11 @@ mod tests {
     fn test_spsc_fill_and_drain() {
         let (prod, cons) = create_fixed_frame_buffer(16).unwrap();
         for i in 0..15 {
-            assert!(prod.push(AudioFrame::stereo(i as f64, (i + 1) as f64)));
+            assert!(prod.push(AudioFrame::stereo(i as f32, (i + 1) as f32)));
         }
         for i in 0..15 {
             let f = cons.pop().unwrap();
-            assert!((f.get(0) - i as f64).abs() < 1e-12);
+            assert!((f.get(0) - i as f32).abs() < 1e-6);
         }
         assert!(cons.pop().is_none());
     }
@@ -575,19 +575,19 @@ mod tests {
         let (prod, cons) = create_fixed_frame_buffer(4).unwrap();
         // Fill 3 slots (capacity-1 usable in ring buffer)
         for i in 0..3 {
-            assert!(prod.push(AudioFrame::stereo(i as f64, 0.0)));
+            assert!(prod.push(AudioFrame::stereo(i as f32, 0.0)));
         }
         // Buffer is full
         assert!(!prod.push(AudioFrame::stereo(99.0, 0.0)));
         // Drain one
         let f = cons.pop().unwrap();
-        assert!((f.get(0) - 0.0).abs() < 1e-12);
+        assert!((f.get(0) - 0.0).abs() < 1e-6);
         // Now we can push again
         assert!(prod.push(AudioFrame::stereo(3.0, 0.0)));
         // Drain remaining
         for expected in [1.0, 2.0, 3.0] {
             let f = cons.pop().unwrap();
-            assert!((f.get(0) - expected).abs() < 1e-12);
+            assert!((f.get(0) - expected).abs() < 1e-6);
         }
         assert!(cons.pop().is_none());
     }
@@ -608,7 +608,7 @@ mod tests {
         assert_eq!(buf.capacity(), 8);
         buf.push(AudioFrame::stereo(0.5, 0.5));
         let f = buf.pop().unwrap();
-        assert!((f.get(0) - 0.5).abs() < 1e-12);
+        assert!((f.get(0) - 0.5).abs() < 1e-6);
     }
 
     #[test]
@@ -616,7 +616,7 @@ mod tests {
         let info = PlaybackInfo::default();
         assert_eq!(info.state, PlaybackState::Stopped);
         assert_eq!(info.position_secs, 0.0);
-        assert!((info.volume - 1.0).abs() < 1e-12);
+        assert!((info.volume - 1.0).abs() < 1e-6);
         assert!(!info.resampler_disabled);
         assert!(!info.convolution_ir_needs_reload);
     }
@@ -632,15 +632,15 @@ mod tests {
 
     #[test]
     fn test_flush_denormal() {
-        assert!((flush_denormal(0.0) - 0.0).abs() < 1e-30);
-        assert!((flush_denormal(1e-20) - 0.0).abs() < 1e-30);
-        assert!((flush_denormal(0.5) - 0.5).abs() < 1e-12);
+        assert!((flush_denormal(0.0) - 0.0).abs() < 1e-15);
+        assert!((flush_denormal(1e-20) - 0.0).abs() < 1e-15);
+        assert!((flush_denormal(0.5) - 0.5).abs() < 1e-6);
     }
 
     #[test]
     fn test_prevent_denormal() {
         let val = prevent_denormal(0.0);
-        assert!((val - DENORMAL_OFFSET).abs() < 1e-30);
+        assert!((val - DENORMAL_OFFSET).abs() < 1e-15);
     }
 
     #[test]

@@ -214,7 +214,7 @@ impl AudioEngine {
                 );
             },
             EngineCommand::SetPreamp(db) => {
-                self.pipeline.eq_mut().set_preamp_db(db);
+                self.pipeline.set_preamp_db(db);
             },
             EngineCommand::SetStereoWidth(width) => {
                 self.pipeline.set_stereo_width(width);

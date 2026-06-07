@@ -44,7 +44,7 @@ pub enum AnalysisError {
     #[error("Decode error: {0}")]
     Decode(String),
     #[error("Invalid sample rate: {0}")]
-    InvalidSampleRate(f64),
+    InvalidSampleRate(f32),
     #[error("FFT size must be >= 2 and a power of two, got {0}")]
     InvalidFftSize(usize),
     #[error("WaveformGenerator samples_per_pixel must be > 0, got {0}")]
@@ -54,22 +54,22 @@ pub enum AnalysisError {
 /// BPM detection result
 #[derive(Debug, Clone)]
 pub struct BpmResult {
-    pub bpm: f64,
-    pub confidence: f64,
+    pub bpm: f32,
+    pub confidence: f32,
 }
 
 /// Mood classification result
 #[derive(Debug, Clone)]
 pub struct MoodResult {
     pub mood: String,
-    pub energy: f64,
-    pub valence: f64,
+    pub energy: f32,
+    pub valence: f32,
 }
 
 /// Waveform data for visualization
 #[derive(Debug, Clone)]
 pub struct WaveformResult {
-    pub peaks: Vec<(f64, f64)>,
+    pub peaks: Vec<(f32, f32)>,
     pub samples_per_pixel: usize,
     /// Total number of audio frames analyzed
     pub total_frames: usize,
@@ -83,7 +83,7 @@ pub struct TrackAnalysis {
     /// Detected musical key and mode (None if tonality is ambiguous or
     /// insufficient audio was processed).
     pub key: Option<KeyMode>,
-    pub duration_secs: f64,
+    pub duration_secs: f32,
     pub sample_rate: u32,
     pub channels: usize,
 }
@@ -107,7 +107,7 @@ pub struct TrackAnalysis {
 /// from the audio callback or the UI thread.
 pub fn analyze_file(
     path: &Path,
-    max_duration_secs: Option<f64>,
+    max_duration_secs: Option<f32>,
     lyrics: Option<&str>,
 ) -> Result<TrackAnalysis, AnalysisError> {
     use symphonia::core::{
@@ -144,11 +144,11 @@ pub fn analyze_file(
         .ok_or_else(|| AnalysisError::Decode("No audio track found".to_string()))?;
 
     let codec_params = &track.codec_params;
-    let sample_rate = codec_params.sample_rate.unwrap_or(44100) as f64;
+    let sample_rate = codec_params.sample_rate.unwrap_or(44100) as f32;
     let channels = codec_params.channels.map(|c| c.count()).unwrap_or(2);
     let duration = codec_params
         .n_frames
-        .map(|n| n as f64 / sample_rate)
+        .map(|n| n as f32 / sample_rate)
         .unwrap_or(0.0);
 
     let track_id = track.id;
@@ -166,7 +166,7 @@ pub fn analyze_file(
 
     let mut total_samples: u64 = 0;
     let max_samples = (max_duration * sample_rate) as u64;
-    let mut stereo_chunk: Vec<(f64, f64)> = Vec::with_capacity(512);
+    let mut stereo_chunk: Vec<(f32, f32)> = Vec::with_capacity(512);
     let mut decode_errors: u32 = 0;
 
     loop {
@@ -197,8 +197,8 @@ pub fn analyze_file(
                 stereo_chunk.clear();
                 if num_channels > 1 {
                     for frame in samples.chunks_exact(num_channels) {
-                        let l = frame[0] as f64;
-                        let r = frame[1] as f64;
+                        let l = frame[0] as f32;
+                        let r = frame[1] as f32;
                         stereo_chunk.push((l, r));
                         if stereo_chunk.len() >= 512 {
                             bpm_detector.feed(&stereo_chunk);
@@ -210,7 +210,7 @@ pub fn analyze_file(
                     total_samples += (samples.len() / num_channels) as u64;
                 } else {
                     for &s in samples.iter() {
-                        let v = s as f64;
+                        let v = s as f32;
                         stereo_chunk.push((v, v));
                         if stereo_chunk.len() >= 512 {
                             bpm_detector.feed(&stereo_chunk);
@@ -349,7 +349,7 @@ pub fn analyze_file(
     let actual_duration = if duration > 0.0 {
         duration
     } else if sample_rate > 0.0 {
-        total_samples as f64 / sample_rate
+        total_samples as f32 / sample_rate
     } else {
         0.0
     };

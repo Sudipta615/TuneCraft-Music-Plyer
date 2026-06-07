@@ -114,11 +114,11 @@ pub struct AudioEngine {
     config: EngineConfig,
     /// Wall-clock position in seconds (updated per tick using
     /// `frames / (source_rate * speed)` rather than `frames / source_rate`).
-    position_secs: f64,
-    duration_secs: f64,
+    position_secs: f32,
+    duration_secs: f32,
     source_sample_rate: u32,
     output_sample_rate: u32,
-    speed: f64,
+    speed: f32,
     current_track_id: Option<u64>,
     dsp_time: Duration,
     total_time: Duration,
@@ -156,13 +156,13 @@ pub struct AudioEngine {
     /// decode. Reused across ticks to avoid per-frame Vec allocation.
     /// v0.29.0: Eliminates ~8–16 heap allocations per tick in the crossfade path
     /// (two per resampler per tick: one for outgoing, one for incoming, plus
-    /// two for drain). Each Vec<(f64,f64)> was previously allocated with
+    /// two for drain). Each Vec<(f32,f32)> was previously allocated with
     /// `Vec::new()` and `push()` inside decode_transitioning_stream.
-    rs_out_buf: Vec<(f64, f64)>,
-    rs_in_buf: Vec<(f64, f64)>,
+    rs_out_buf: Vec<(f32, f32)>,
+    rs_in_buf: Vec<(f32, f32)>,
     /// Scratch buffer for resampler drain output.
-    drain_out_buf: Vec<(f64, f64)>,
-    drain_in_buf: Vec<(f64, f64)>,
+    drain_out_buf: Vec<(f32, f32)>,
+    drain_in_buf: Vec<(f32, f32)>,
 }
 
 impl AudioEngine {
@@ -174,7 +174,7 @@ impl AudioEngine {
         );
         let (cmd_tx, cmd_rx) = channel::bounded(256);
         let output_sample_rate = Self::detect_output_sample_rate().unwrap_or(DEFAULT_SAMPLE_RATE);
-        let pipeline = DspPipeline::from_config(&config, output_sample_rate as f64);
+        let pipeline = DspPipeline::from_config(&config, output_sample_rate as f32);
         let info = PlaybackInfo {
             sample_rate: output_sample_rate,
             ..Default::default()
@@ -245,7 +245,7 @@ impl AudioEngine {
 
         self.running.store(true, Ordering::Release);
         self.pipeline
-            .set_sample_rate(self.output_sample_rate as f64);
+            .set_sample_rate(self.output_sample_rate as f32);
         self.update_playback_state(PlaybackState::Stopped);
         self.stream_recovery_attempts = 0;
         info!(
@@ -291,8 +291,8 @@ impl AudioEngine {
         #[cfg(feature = "resample")]
         let resampler = recovery::build_resampler(
             self.config.resampler_quality,
-            self.source_sample_rate as f64,
-            self.output_sample_rate as f64,
+            self.source_sample_rate as f32,
+            self.output_sample_rate as f32,
             self.speed,
         );
 
@@ -385,7 +385,7 @@ impl AudioEngine {
 
         if now.duration_since(self.last_cpu_reset) >= Duration::from_secs(2) {
             let cpu_pct = if self.total_time.as_nanos() > 0 {
-                (self.dsp_time.as_nanos() as f64 / self.total_time.as_nanos() as f64) * 100.0
+                (self.dsp_time.as_nanos() as f32 / self.total_time.as_nanos() as f32) * 100.0
             } else {
                 0.0
             };
@@ -451,19 +451,18 @@ impl AudioEngine {
             tc_config::LoudnessMode::EbuR128 => crate::dsp::loudness::LoudnessMode::EbuR128,
         });
         p.set_stereo_width(config.stereo_enhancer.width);
-        p.stereo_enhancer_mut()
-            .set_enabled(config.stereo_enhancer.enabled);
+        p.set_stereo_enhancer_enabled(config.stereo_enhancer.enabled);
         p.set_dither_enabled(config.dither_enabled);
-        p.limiter_mut().set_enabled(config.limiter.enabled);
+        p.set_limiter_enabled(config.limiter.enabled);
         if config.crossfade.enabled != self.config.crossfade.enabled
             || config.crossfade.duration_ms != self.config.crossfade.duration_ms
         {
             p.mixer_mut().set_enabled(config.crossfade.enabled);
             p.mixer_mut()
-                .set_duration_ms(config.crossfade.duration_ms, self.output_sample_rate as f64);
+                .set_duration_ms(config.crossfade.duration_ms, self.output_sample_rate as f32);
         }
         if config.performance_mode != self.config.performance_mode {
-            self.pipeline = DspPipeline::from_config(&config, self.output_sample_rate as f64);
+            self.pipeline = DspPipeline::from_config(&config, self.output_sample_rate as f32);
         }
         self.config = config;
     }

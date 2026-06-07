@@ -37,7 +37,7 @@ pub enum AnalysisError {
     #[error("FFT size must be >= 2 and a power of two, got {0}")]
     InvalidFftSize(usize),
     #[error("Sample rate must be > 0, got {0}")]
-    InvalidSampleRate(f64),
+    InvalidSampleRate(f32),
     #[error("WaveformGenerator samples_per_pixel must be > 0, got {0}")]
     InvalidSamplesPerPixel(usize),
 }
@@ -54,7 +54,7 @@ pub enum AnalysisError {
 pub struct AnalysisBuffer {
     /// Decimated capture buffer (stores every Nth sample) wrapped in UnsafeCell
     /// to declare interior mutability to the compiler, making mutations sound.
-    buffer: UnsafeCell<Vec<(f64, f64)>>, // (left, right) pairs
+    buffer: UnsafeCell<Vec<(f32, f32)>>, // (left, right) pairs
     write_pos: AtomicUsize,
     decimation_factor: usize,
     sample_counter: AtomicUsize,
@@ -88,14 +88,14 @@ impl AnalysisBuffer {
     /// The sample is written **before** the write position is advanced,
     /// ensuring readers never see stale/uninitialized data.
     #[inline]
-    pub fn feed(&self, left: f64, right: f64) {
+    pub fn feed(&self, left: f32, right: f32) {
         let count = self.sample_counter.fetch_add(1, Ordering::Relaxed);
         if count % self.decimation_factor == 0 {
             let current_write = self.write_pos.load(Ordering::Relaxed);
             let pos = current_write % self.capacity;
             // SAFETY: Single writer (DSP thread), atomic position
             // never observe an uninitialized slot.
-            // Note: A torn read of (f64, f64) is possible since 16 bytes
+            // Note: A torn read of (f32, f32) is possible since 16 bytes
             // is not atomic on any mainstream architecture. This is
             // acceptable for visualization/analysis data — the reader
             // may occasionally see a mismatched left/right pair, but
@@ -115,7 +115,7 @@ impl AnalysisBuffer {
     }
 
     /// Read the current buffer contents for analysis
-    pub fn read(&self) -> Vec<(f64, f64)> {
+    pub fn read(&self) -> Vec<(f32, f32)> {
         let write_pos = self.write_pos.load(Ordering::Acquire) % self.capacity;
         let mut result = Vec::with_capacity(self.capacity);
         for i in 0..self.capacity {
@@ -173,7 +173,7 @@ mod tests {
     fn test_analysis_buffer_feed_and_read() {
         let buf = AnalysisBuffer::new(64, 1).unwrap(); // decimation=1 captures every sample
         for i in 1..=32 {
-            buf.feed(i as f64 * 0.1, i as f64 * 0.05);
+            buf.feed(i as f32 * 0.1, i as f32 * 0.05);
         }
         let data = buf.read();
         // All 32 samples should have been captured (decimation=1)
@@ -183,17 +183,17 @@ mod tests {
             .collect();
         assert_eq!(nonzero.len(), 32);
         // First sample
-        assert!((nonzero[0].0 - 0.1).abs() < 1e-12);
-        assert!((nonzero[0].1 - 0.05).abs() < 1e-12);
+        assert!((nonzero[0].0 - 0.1).abs() < 1e-6);
+        assert!((nonzero[0].1 - 0.05).abs() < 1e-6);
         // Last sample (index 31)
-        assert!((nonzero[31].0 - 3.2).abs() < 1e-10);
+        assert!((nonzero[31].0 - 3.2).abs() < 1e-5);
     }
 
     #[test]
     fn test_analysis_buffer_decimation() {
         let buf = AnalysisBuffer::new(64, 3).unwrap(); // capture every 3rd sample
         for i in 1..=30 {
-            buf.feed(i as f64, i as f64);
+            buf.feed(i as f32, i as f32);
         }
         let data = buf.read();
         let nonzero: Vec<_> = data
@@ -208,14 +208,14 @@ mod tests {
     fn test_analysis_buffer_reset() {
         let buf = AnalysisBuffer::new(32, 1).unwrap();
         for i in 0..16 {
-            buf.feed(i as f64, 0.0);
+            buf.feed(i as f32, 0.0);
         }
         buf.reset();
         let data = buf.read();
         // After reset, all data should be zeroed
         for (l, r) in &data {
-            assert!((l - 0.0).abs() < 1e-12);
-            assert!((r - 0.0).abs() < 1e-12);
+            assert!((l - 0.0).abs() < 1e-6);
+            assert!((r - 0.0).abs() < 1e-6);
         }
     }
 
@@ -223,14 +223,14 @@ mod tests {
     fn test_analysis_buffer_wrap_around() {
         let buf = AnalysisBuffer::new(8, 1).unwrap(); // tiny buffer
         for i in 0..20 {
-            buf.feed(i as f64, 0.0);
+            buf.feed(i as f32, 0.0);
         }
         let data = buf.read();
         // Should contain the last 8 samples written (indices 12-19)
         // Oldest first (circular buffer ordering)
         let nonzero: Vec<_> = data.iter().filter(|(l, _)| *l != 0.0).collect();
         assert_eq!(nonzero.len(), 8);
-        assert!((nonzero[0].0 - 12.0).abs() < 1e-12);
-        assert!((nonzero[7].0 - 19.0).abs() < 1e-12);
+        assert!((nonzero[0].0 - 12.0).abs() < 1e-6);
+        assert!((nonzero[7].0 - 19.0).abs() < 1e-6);
     }
 }

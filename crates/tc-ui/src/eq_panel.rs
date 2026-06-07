@@ -383,7 +383,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             if drag_resp.dragged() {
                 if let Some(ptr) = drag_resp.interact_pointer_pos() {
                     let t = ((ptr.x - slider_x_start) / slider_w).clamp(0.0, 1.0);
-                    let new_preamp = (t * 24.0 - 12.0) as f64;
+                    let new_preamp = (t * 24.0 - 12.0) as f32;
                     app.eq_preamp = new_preamp;
                     app.ctx.eq.set_preamp(new_preamp);
                 }
@@ -446,7 +446,7 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
         Pos2::new(rect.left() + left_margin, rect.top() + 8.0),
         Pos2::new(rect.right() - 8.0, rect.bottom() - bottom_margin),
     );
-    let freq_values: [f64; 10] = [
+    let freq_values: [f32; 10] = [
         31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
     ];
 
@@ -566,7 +566,7 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
             if let Some(ptr) = drag_resp.interact_pointer_pos() {
                 let t = (ptr.y - track_top) / (track_bot - track_top);
                 let new_norm = (1.0 - t).clamp(0.0, 1.0);
-                let new_gain = (new_norm * 24.0 - 12.0) as f64;
+                let new_gain = (new_norm * 24.0 - 12.0) as f32;
                 app.eq_bands[i] = new_gain.clamp(-12.0, 12.0);
                 app.eq_preset = "Custom".to_string();
                 if i == 0 {
@@ -606,14 +606,14 @@ fn secondary_slider_vertical(
     ui: &mut Ui,
     title: &str,
     subtitle: &str,
-    value: &mut f64,
-    min: f64,
-    max: f64,
+    value: &mut f32,
+    min: f32,
+    max: f32,
     unit: &str,
     width: f32,
     height: f32,
     colors: &TuneCraftColors,
-    _on_change: impl Fn(f64),
+    _on_change: impl Fn(f32),
 ) {
     let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
     let cx = rect.center().x;
@@ -705,7 +705,7 @@ fn secondary_slider_vertical(
         if let Some(ptr) = drag_resp.interact_pointer_pos() {
             let t = (ptr.y - track_top) / track_h;
             let new_norm = (1.0 - t).clamp(0.0, 1.0);
-            *value = (min + (max - min) * new_norm as f64).clamp(min, max);
+            *value = (min + (max - min) * new_norm as f32).clamp(min, max);
         }
     }
 }
@@ -773,7 +773,7 @@ fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
     }
     app.eq_bass_shelf = app.eq_bands[0];
     app.eq_treble_shelf = app.eq_bands[9];
-    let freq_values: [f64; 10] = [
+    let freq_values: [f32; 10] = [
         31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
     ];
     for (i, &gain) in app.eq_bands.iter().enumerate() {
@@ -826,7 +826,7 @@ fn reset_eq(app: &mut TuneCraftApp) {
     app.ctx.eq.set_balance(0.0);
     app.ctx.eq.set_dither(true);
     app.ctx.eq.set_midside(false);
-    let freq_values: [f64; 10] = [
+    let freq_values: [f32; 10] = [
         31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
     ];
     for (i, &freq) in freq_values.iter().enumerate() {

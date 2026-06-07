@@ -3,18 +3,18 @@
 //! Implements Direct Form II Transposed (DFII-T) which has the best numerical
 //! behaviour for audio-rate IIR filters at the cost of two state variables.
 
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 use crate::buffer::AudioFrame;
 
 /// Biquad filter coefficients (normalised, a0 = 1)
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BiquadCoeffs {
-    pub b0: f64,
-    pub b1: f64,
-    pub b2: f64,
-    pub a1: f64,
-    pub a2: f64,
+    pub b0: f32,
+    pub b1: f32,
+    pub b2: f32,
+    pub a1: f32,
+    pub a2: f32,
 }
 
 impl BiquadCoeffs {
@@ -35,7 +35,7 @@ impl BiquadCoeffs {
     /// division by zero producing Inf; `q = 0` caused division by zero;
     /// `freq >= sample_rate/2` produced meaningless/unstable filters.
     #[inline]
-    fn validate_params(sample_rate: f64, freq: f64, q: f64) -> (f64, f64, f64) {
+    fn validate_params(sample_rate: f32, freq: f32, q: f32) -> (f32, f32, f32) {
         // Ensure minimum sample rate to prevent division by zero
         let sr = if sample_rate <= 0.0 || !sample_rate.is_finite() {
             log::warn!(
@@ -64,7 +64,7 @@ impl BiquadCoeffs {
     }
 
     /// Second-order (biquad) low-pass filter
-    pub fn lowpass(sample_rate: f64, freq: f64, q: f64) -> Self {
+    pub fn lowpass(sample_rate: f32, freq: f32, q: f32) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
         let w0 = 2.0 * PI * freq / sample_rate;
         let cos_w0 = w0.cos();
@@ -86,7 +86,7 @@ impl BiquadCoeffs {
     }
 
     /// Second-order (biquad) high-pass filter
-    pub fn highpass(sample_rate: f64, freq: f64, q: f64) -> Self {
+    pub fn highpass(sample_rate: f32, freq: f32, q: f32) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
         let w0 = 2.0 * PI * freq / sample_rate;
         let cos_w0 = w0.cos();
@@ -108,9 +108,9 @@ impl BiquadCoeffs {
     }
 
     /// Peaking EQ filter
-    pub fn peaking(sample_rate: f64, freq: f64, gain_db: f64, q: f64) -> Self {
+    pub fn peaking(sample_rate: f32, freq: f32, gain_db: f32, q: f32) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
-        let a = 10.0_f64.powf(gain_db / 40.0);
+        let a = 10.0_f32.powf(gain_db / 40.0);
         let w0 = 2.0 * PI * freq / sample_rate;
         let cos_w0 = w0.cos();
         let sin_w0 = w0.sin();
@@ -131,9 +131,9 @@ impl BiquadCoeffs {
     }
 
     /// Low-shelf filter
-    pub fn lowshelf(sample_rate: f64, freq: f64, gain_db: f64, q: f64) -> Self {
+    pub fn lowshelf(sample_rate: f32, freq: f32, gain_db: f32, q: f32) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
-        let a = 10.0_f64.powf(gain_db / 40.0);
+        let a = 10.0_f32.powf(gain_db / 40.0);
         let w0 = 2.0 * PI * freq / sample_rate;
         let cos_w0 = w0.cos();
         let sin_w0 = w0.sin();
@@ -156,9 +156,9 @@ impl BiquadCoeffs {
     }
 
     /// High-shelf filter
-    pub fn highshelf(sample_rate: f64, freq: f64, gain_db: f64, q: f64) -> Self {
+    pub fn highshelf(sample_rate: f32, freq: f32, gain_db: f32, q: f32) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
-        let a = 10.0_f64.powf(gain_db / 40.0);
+        let a = 10.0_f32.powf(gain_db / 40.0);
         let w0 = 2.0 * PI * freq / sample_rate;
         let cos_w0 = w0.cos();
         let sin_w0 = w0.sin();
@@ -181,7 +181,7 @@ impl BiquadCoeffs {
     }
 
     /// Band-pass filter (constant skirt gain)
-    pub fn bandpass(sample_rate: f64, freq: f64, q: f64) -> Self {
+    pub fn bandpass(sample_rate: f32, freq: f32, q: f32) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
         let w0 = 2.0 * PI * freq / sample_rate;
         let cos_w0 = w0.cos();
@@ -203,7 +203,7 @@ impl BiquadCoeffs {
     }
 
     /// Notch filter
-    pub fn notch(sample_rate: f64, freq: f64, q: f64) -> Self {
+    pub fn notch(sample_rate: f32, freq: f32, q: f32) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
         let w0 = 2.0 * PI * freq / sample_rate;
         let cos_w0 = w0.cos();
@@ -225,7 +225,7 @@ impl BiquadCoeffs {
     }
 
     /// All-pass filter
-    pub fn allpass(sample_rate: f64, freq: f64, q: f64) -> Self {
+    pub fn allpass(sample_rate: f32, freq: f32, q: f32) -> Self {
         let (sample_rate, freq, q) = Self::validate_params(sample_rate, freq, q);
         let w0 = 2.0 * PI * freq / sample_rate;
         let cos_w0 = w0.cos();
@@ -262,7 +262,7 @@ pub enum FilterType {
 
 impl FilterType {
     /// Compute coefficients for this filter type at the given parameters
-    pub fn compute_coeffs(self, sample_rate: f64, freq: f64, gain_db: f64, q: f64) -> BiquadCoeffs {
+    pub fn compute_coeffs(self, sample_rate: f32, freq: f32, gain_db: f32, q: f32) -> BiquadCoeffs {
         match self {
             Self::Lowpass => BiquadCoeffs::lowpass(sample_rate, freq, q),
             Self::Highpass => BiquadCoeffs::highpass(sample_rate, freq, q),
@@ -279,14 +279,14 @@ impl FilterType {
 /// Biquad filter state (Direct Form II Transposed)
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BiquadState {
-    pub z1: f64,
-    pub z2: f64,
+    pub z1: f32,
+    pub z2: f32,
 }
 
 impl BiquadState {
     /// Process a single sample through the biquad filter
     #[inline]
-    pub fn process(&mut self, sample: f64, coeffs: &BiquadCoeffs) -> f64 {
+    pub fn process(&mut self, sample: f32, coeffs: &BiquadCoeffs) -> f32 {
         let output = coeffs.b0 * sample + self.z1;
         self.z1 = crate::buffer::flush_denormal(coeffs.b1 * sample - coeffs.a1 * output + self.z2);
         self.z2 = crate::buffer::flush_denormal(coeffs.b2 * sample - coeffs.a2 * output);
@@ -336,14 +336,14 @@ impl SmoothedBiquad {
     }
 
     /// Update the sample rate, recomputing smooth steps for ~1.5ms duration
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
         // Target ~1.5ms smoothing duration regardless of sample rate
         self.smooth_steps = (sample_rate * 0.0015).max(8.0) as u32;
     }
 
     /// Set new target coefficients — begins smooth transition
     pub fn set_target(&mut self, coeffs: BiquadCoeffs) {
-        let steps = self.smooth_steps as f64;
+        let steps = self.smooth_steps as f32;
         self.target = coeffs;
         self.increment = BiquadCoeffs {
             b0: (coeffs.b0 - self.current.b0) / steps,
@@ -378,7 +378,7 @@ impl SmoothedBiquad {
 
     /// Process a single sample on a given channel
     #[inline]
-    pub fn process_sample(&mut self, ch: usize, sample: f64) -> f64 {
+    pub fn process_sample(&mut self, ch: usize, sample: f32) -> f32 {
         if ch < 2 {
             self.states[ch].process(sample, &self.current)
         } else {
@@ -436,7 +436,7 @@ mod tests {
         let mut state = BiquadState::default();
         let input = 0.5;
         let output = state.process(input, &coeffs);
-        assert_relative_eq!(output, input, epsilon = 1e-12);
+        assert_relative_eq!(output, input, epsilon = 1e-6);
     }
 
     #[test]
@@ -467,7 +467,7 @@ mod tests {
             bq.process_frame(&mut frame);
         }
         assert_eq!(bq.remaining, 0);
-        assert_relative_eq!(bq.current.b0, target.b0, epsilon = 1e-12);
+        assert_relative_eq!(bq.current.b0, target.b0, epsilon = 1e-6);
     }
 
     #[test]

@@ -22,9 +22,9 @@
 /// - `width = 2.0`: maximum safe widening
 #[derive(Debug, Clone)]
 pub struct StereoEnhancer {
-    width: f64,
-    current_width: f64,
-    slew_rate: f64,
+    width: f32,
+    current_width: f32,
+    slew_rate: f32,
     enabled: bool,
 }
 
@@ -45,12 +45,12 @@ impl StereoEnhancer {
     /// - 0.0 = mono collapse
     /// - 1.0 = passthrough
     /// - 2.0 = maximum widening
-    pub fn set_width(&mut self, width: f64) {
+    pub fn set_width(&mut self, width: f32) {
         self.width = width.clamp(0.0, 2.0);
     }
 
     /// Get the current width setting
-    pub fn width(&self) -> f64 {
+    pub fn width(&self) -> f32 {
         self.width
     }
 
@@ -69,7 +69,7 @@ impl StereoEnhancer {
     /// This is phase-safe: if the input is mono (L == R), the output
     /// will also be mono regardless of the width setting.
     #[inline]
-    pub fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         if !self.enabled || (self.width - 1.0).abs() < 0.001 {
             return (left, right);
         }
@@ -119,8 +119,8 @@ mod tests {
         enhancer.set_enabled(true);
         enhancer.set_width(1.0);
         let (l, r) = enhancer.process(0.5, 0.3);
-        assert!((l - 0.5).abs() < 1e-10);
-        assert!((r - 0.3).abs() < 1e-10);
+        assert!((l - 0.5).abs() < 1e-5);
+        assert!((r - 0.3).abs() < 1e-5);
     }
 
     #[test]
@@ -144,7 +144,7 @@ mod tests {
         enhancer.set_width(1.5);
         // If input is mono, output should remain mono (no artificial stereo)
         let (l, r) = enhancer.process(0.5, 0.5);
-        assert!((l - r).abs() < 1e-10, "Mono input should stay mono");
+        assert!((l - r).abs() < 1e-5, "Mono input should stay mono");
     }
 
     #[test]
@@ -176,13 +176,13 @@ mod tests {
         let mut enhancer = StereoEnhancer::new();
         enhancer.set_width(5.0); // Should be clamped to 2.0
         assert!(
-            (enhancer.width() - 2.0).abs() < 1e-10,
+            (enhancer.width() - 2.0).abs() < 1e-5,
             "Width should be clamped to 2.0"
         );
 
         enhancer.set_width(-1.0); // Should be clamped to 0.0
         assert!(
-            (enhancer.width() - 0.0).abs() < 1e-10,
+            (enhancer.width() - 0.0).abs() < 1e-5,
             "Width should be clamped to 0.0"
         );
     }
@@ -194,11 +194,11 @@ mod tests {
         enhancer.set_width(0.0); // Even with width=0
         let (l, r) = enhancer.process(0.8, 0.2);
         assert!(
-            (l - 0.8).abs() < 1e-10,
+            (l - 0.8).abs() < 1e-5,
             "Disabled enhancer should pass through"
         );
         assert!(
-            (r - 0.2).abs() < 1e-10,
+            (r - 0.2).abs() < 1e-5,
             "Disabled enhancer should pass through"
         );
     }
@@ -217,7 +217,7 @@ mod tests {
         let input_mid = (input_l + input_r) * 0.5;
         let output_mid = (out_l + out_r) * 0.5;
         assert!(
-            (input_mid - output_mid).abs() < 1e-10,
+            (input_mid - output_mid).abs() < 1e-5,
             "Mid component should be preserved"
         );
     }

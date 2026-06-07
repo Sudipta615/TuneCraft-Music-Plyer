@@ -37,9 +37,9 @@ pub enum MediaKeyAction {
         position_us: i64,
     },
     /// Set volume (0.0 to 1.0 mapped from MPRIS 0.0-1.0+ range)
-    SetVolume(f64),
+    SetVolume(f32),
     /// Set playback rate
-    SetRate(f64),
+    SetRate(f32),
     /// Set shuffle on/off
     SetShuffle(bool),
     /// Set loop status: "None", "Track", or "Playlist"
@@ -72,8 +72,8 @@ impl PartialEq for MediaKeyAction {
                     position_us: b2,
                 },
             ) => a1 == b1 && a2 == b2,
-            (Self::SetVolume(a), Self::SetVolume(b)) => (a - b).abs() < f64::EPSILON,
-            (Self::SetRate(a), Self::SetRate(b)) => (a - b).abs() < f64::EPSILON,
+            (Self::SetVolume(a), Self::SetVolume(b)) => (a - b).abs() < f32::EPSILON,
+            (Self::SetRate(a), Self::SetRate(b)) => (a - b).abs() < f32::EPSILON,
             (Self::SetShuffle(a), Self::SetShuffle(b)) => a == b,
             (Self::SetLoopStatus(a), Self::SetLoopStatus(b)) => a == b,
             (Self::OpenUri(a), Self::OpenUri(b)) => a == b,

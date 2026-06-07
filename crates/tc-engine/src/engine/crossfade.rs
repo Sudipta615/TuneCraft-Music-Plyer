@@ -55,7 +55,7 @@ impl AudioEngine {
         // M1: Clamp to 0.0 to prevent negative values when position slightly
         // overshoots duration due to floating-point drift or seek rounding.
         let remaining_secs = (self.duration_secs - self.position_secs).max(0.0);
-        let crossfade_duration_secs = self.config.crossfade.duration_ms as f64 / 1000.0;
+        let crossfade_duration_secs = self.config.crossfade.duration_ms as f32 / 1000.0;
 
         // Add a small lead time (0.5s) so the incoming decoder has time
         // to start producing samples before the crossfade begins.
@@ -100,8 +100,8 @@ impl AudioEngine {
         #[cfg(feature = "resample")]
         let incoming_resampler = recovery::build_resampler(
             self.config.resampler_quality,
-            incoming_sample_rate as f64,
-            self.output_sample_rate as f64,
+            incoming_sample_rate as f32,
+            self.output_sample_rate as f32,
             self.speed,
         );
 
@@ -109,9 +109,9 @@ impl AudioEngine {
         let incoming_resampler: Option<()> = None;
 
         // Calculate crossfade frame count based on output sample rate.
-        let crossfade_total_frames = (self.config.crossfade.duration_ms as f64
+        let crossfade_total_frames = (self.config.crossfade.duration_ms as f32
             * 0.001
-            * self.output_sample_rate as f64) as usize;
+            * self.output_sample_rate as f32) as usize;
 
         // Extract the current decoder and resampler from the stream.
         let current_stream = self.stream.take();
@@ -120,7 +120,7 @@ impl AudioEngine {
                 info!(
                     "Crossfade transition starting: {} frames ({:.1}s), incoming: {} Hz",
                     crossfade_total_frames,
-                    self.config.crossfade.duration_ms as f64 / 1000.0,
+                    self.config.crossfade.duration_ms as f32 / 1000.0,
                     incoming_sample_rate
                 );
 

@@ -268,7 +268,7 @@ impl Database {
         Ok(())
     }
 
-    pub fn update_bpm(&self, id: i64, bpm: f64) -> Result<(), DbError> {
+    pub fn update_bpm(&self, id: i64, bpm: f32) -> Result<(), DbError> {
         self.write_lock()?
             .execute("UPDATE tracks SET bpm = ?1 WHERE id = ?2", params![bpm, id])?;
         Ok(())

@@ -51,7 +51,7 @@ impl PlaybackStream {
     }
 
     /// Get the duration of the outgoing (current) track in seconds.
-    pub fn outgoing_duration_secs(&self) -> f64 {
+    pub fn outgoing_duration_secs(&self) -> f32 {
         match self {
             PlaybackStream::Single { decoder, .. } => decoder.duration_secs(),
             PlaybackStream::Transitioning {

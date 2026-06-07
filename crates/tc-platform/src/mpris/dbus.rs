@@ -226,13 +226,13 @@ pub(crate) fn run_dbus_server(
         }
 
         #[zbus(property)]
-        fn rate(&self) -> zbus::fdo::Result<f64> {
+        fn rate(&self) -> zbus::fdo::Result<f32> {
             let state = self.state.lock();
             Ok(state.rate)
         }
 
         #[zbus(property)]
-        fn set_rate(&self, rate: f64) -> zbus::Result<()> {
+        fn set_rate(&self, rate: f32) -> zbus::Result<()> {
             if !(0.25..=4.0).contains(&rate) {
                 return Err(zbus::fdo::Error::InvalidArgs(format!(
                     "Rate {} out of range [0.25, 4.0]",
@@ -345,13 +345,13 @@ pub(crate) fn run_dbus_server(
         }
 
         #[zbus(property)]
-        fn volume(&self) -> zbus::fdo::Result<f64> {
+        fn volume(&self) -> zbus::fdo::Result<f32> {
             let state = self.state.lock();
             Ok(state.volume)
         }
 
         #[zbus(property)]
-        fn set_volume(&self, volume: f64) -> zbus::Result<()> {
+        fn set_volume(&self, volume: f32) -> zbus::Result<()> {
             // MPRIS allows values > 1.0 for amplification but we cap at 1.0.
             // NOTE: Returns zbus::Result — see set_loop_status for rationale.
             let clamped = volume.clamp(0.0, 1.0);
@@ -368,12 +368,12 @@ pub(crate) fn run_dbus_server(
         }
 
         #[zbus(property)]
-        fn minimum_rate(&self) -> zbus::fdo::Result<f64> {
+        fn minimum_rate(&self) -> zbus::fdo::Result<f32> {
             Ok(0.25)
         }
 
         #[zbus(property)]
-        fn maximum_rate(&self) -> zbus::fdo::Result<f64> {
+        fn maximum_rate(&self) -> zbus::fdo::Result<f32> {
             Ok(4.0)
         }
 

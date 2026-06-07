@@ -20,19 +20,19 @@ impl WaveformGenerator {
     }
 
     /// Generate waveform from stereo samples
-    pub fn generate(&self, samples: &[(f64, f64)]) -> super::WaveformResult {
+    pub fn generate(&self, samples: &[(f32, f32)]) -> super::WaveformResult {
         let num_peaks = samples.len().div_ceil(self.samples_per_pixel);
         let mut peaks = Vec::with_capacity(num_peaks);
 
         for chunk in samples.chunks(self.samples_per_pixel) {
-            let mut min = f64::MAX;
-            let mut max = f64::MIN;
+            let mut min = f32::MAX;
+            let mut max = f32::MIN;
             for (l, r) in chunk {
                 let mono = (l + r) * 0.5;
                 min = min.min(mono);
                 max = max.max(mono);
             }
-            if min == f64::MAX {
+            if min == f32::MAX {
                 min = 0.0;
                 max = 0.0;
             }
@@ -54,9 +54,9 @@ mod tests {
     #[test]
     fn test_waveform_generator() {
         let gen = WaveformGenerator::new(100).unwrap();
-        let samples: Vec<(f64, f64)> = (0..1000)
+        let samples: Vec<(f32, f32)> = (0..1000)
             .map(|i| {
-                let v = (i as f64 / 100.0).sin();
+                let v = (i as f32 / 100.0).sin();
                 (v, v)
             })
             .collect();

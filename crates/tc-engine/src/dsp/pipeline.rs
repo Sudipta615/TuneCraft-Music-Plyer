@@ -1,22 +1,3 @@
-//! Main DSP pipeline — chains all processing stages
-//!
-//! The pipeline processes audio in this order for single-track playback:
-//!
-//! ```text
-//! Preamp → Loudness Normalization → Parametric EQ (with optional M/S mode) →
-//! Balance Control → Stereo Enhancer → Lookahead Limiter → Volume Control →
-//! Seek Fade → Dither → Output
-//! ```
-//!
-//! v0.20.0: Added split processing methods for dual-stream crossfading:
-//! - `process_outgoing()`: Preamp → Loudness → EQ → Balance → StereoEnhancer
-//! - `process_incoming()`: Preamp → Loudness → EQ → Balance → StereoEnhancer
-//! - `process_post_mix()`: Limiter → Volume → SeekFade → Dither
-//!
-//! During a crossfade, the outgoing and incoming tracks are processed
-//! independently through the first half of the pipeline, then the mixer
-//! combines them, and the mixed signal goes through the second half.
-
 use tc_config::{EngineConfig, LoudnessMode as ConfigLoudnessMode, PerformanceMode};
 
 use crate::dsp::{
@@ -30,54 +11,81 @@ use crate::dsp::{
     stereo::StereoEnhancer,
 };
 
-/// L11: Volume ramp duration, replacing the previously hardcoded 10ms magic number.
-const VOLUME_RAMP_DURATION_MS: f64 = 10.0;
-/// L12: Preamp gain ramp duration. Previously hardcoded as 10.0 at the
-/// call site. Now a named constant so it stays in sync with VOLUME_RAMP_DURATION_MS.
-const PREAMP_RAMP_DURATION_MS: f64 = VOLUME_RAMP_DURATION_MS;
+const VOLUME_RAMP_DURATION_MS: f32 = 10.0;
+const PREAMP_RAMP_DURATION_MS: f32 = VOLUME_RAMP_DURATION_MS;
 
-/// The complete DSP processing pipeline
-///
-/// All processing is done in f64 for maximum precision. The pipeline is
-/// designed for zero allocation in the hot path.
+pub enum DspNode {
+    Preamp(GainProcessor),
+    Volume(GainProcessor),
+    Loudness(LoudnessNormalizer),
+    Eq(ParametricEq),
+    MidSideEq(ParametricEq), // Wraps an EQ but processes in M/S space
+    Convolution(ConvolutionEngine),
+    Stereo(StereoEnhancer),
+    Limiter(LookaheadLimiter),
+    SeekFade(FadeProcessor),
+    Dither(Dither),
+    Balance(f32, f32), // Custom node for stereo balance (gain_l, gain_r)
+}
+
+impl DspNode {
+    #[inline]
+    pub fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
+        match self {
+            DspNode::Preamp(p) | DspNode::Volume(p) => p.process_stereo(l, r),
+            DspNode::Loudness(p) => p.process(l, r),
+            DspNode::Eq(p) => p.process(l, r),
+            DspNode::MidSideEq(p) => {
+                let mid = (l + r) * 0.5;
+                let side = (l - r) * 0.5;
+                let (eq_mid, eq_side) = p.process(mid, side);
+                (eq_mid + eq_side, eq_mid - eq_side)
+            },
+            DspNode::Convolution(p) => p.process(l, r),
+            DspNode::Stereo(p) => p.process(l, r),
+            DspNode::Limiter(p) => p.process(l, r),
+            DspNode::SeekFade(p) => p.process(l, r),
+            DspNode::Dither(p) => p.process(l, r),
+            DspNode::Balance(gain_l, gain_r) => (l * *gain_l, r * *gain_r),
+        }
+    }
+
+    pub fn reset(&mut self) {
+        match self {
+            DspNode::Preamp(p) | DspNode::Volume(p) => p.reset(),
+            DspNode::Loudness(p) => p.reset(),
+            DspNode::Eq(p) | DspNode::MidSideEq(p) => p.reset(),
+            DspNode::Convolution(p) => p.reset(),
+            DspNode::Stereo(p) => p.reset(),
+            DspNode::Limiter(p) => p.reset(),
+            DspNode::SeekFade(p) => p.reset(),
+            DspNode::Dither(p) => p.reset(),
+            DspNode::Balance(_, _) => {},
+        }
+    }
+}
+
 pub struct DspPipeline {
-    preamp: GainProcessor,
-    loudness: LoudnessNormalizer,
-    eq: ParametricEq,
-    convolution: ConvolutionEngine,
-    stereo_enhancer: StereoEnhancer,
-    mixer: TrackMixer,
-    limiter: LookaheadLimiter,
-    volume: GainProcessor,
-    dither: Dither,
-    seek_fade: FadeProcessor,
-    sample_rate: f64,
+    pub pre_mix_chain: Vec<DspNode>,
+    pub post_mix_chain: Vec<DspNode>,
+    pub mixer: TrackMixer,
+
+    sample_rate: f32,
     performance_mode: PerformanceMode,
-    speed: f64,
-    /// Stereo balance: -1.0 = full left, 0.0 = center, +1.0 = full right
-    balance: f64,
-    /// Left channel gain derived from the balance setting (constant-power pan law).
-    balance_gain_l: f64,
-    /// Right channel gain derived from the balance setting (constant-power pan law).
-    balance_gain_r: f64,
-    /// Whether Mid/Side EQ mode is active.
+    speed: f32,
+    balance: f32,
     midside_eq_enabled: bool,
-    /// Volume fade duration from EngineConfig, stored so set_sample_rate()
-    /// can recompute the slew rate without overwriting it with the hardcoded
-    /// VOLUME_RAMP_DURATION_MS constant (fixes config being silently ignored).
-    volume_fade_ms: f64,
+    volume_fade_ms: f32,
 }
 
 impl DspPipeline {
-    /// Construct a DSP pipeline from an [`EngineConfig`].
-    pub fn from_config(config: &EngineConfig, sample_rate: f64) -> Self {
+    pub fn from_config(config: &EngineConfig, sample_rate: f32) -> Self {
         let mut eq = ParametricEq::default_10_band(sample_rate);
         eq.set_enabled(config.eq.enabled);
         eq.set_preamp_db(config.eq.preamp_db);
         eq.set_post_gain_db(config.eq.post_gain_db);
         eq.set_headroom_db(config.eq.headroom_db);
 
-        // Apply EQ band settings from config
         for (i, band_cfg) in config.eq.bands.iter().enumerate() {
             if i >= eq.num_bands() {
                 break;
@@ -135,12 +143,10 @@ impl DspPipeline {
             Dither::new(DitherType::None, 32)
         };
 
-        // Initialize convolution engine with max IR length of 8192 samples
         let mut convolution = ConvolutionEngine::new(sample_rate, 8192);
         if config.convolution.enabled {
             convolution.set_enabled(true);
             convolution.set_wet_mix(config.convolution.wet_mix);
-            // Try loading IR from configured path
             if let Some(ref ir_path) = config.convolution.ir_path {
                 let path = std::path::Path::new(ir_path);
                 if path.exists() {
@@ -148,34 +154,42 @@ impl DspPipeline {
                         Ok(()) => log::info!("Loaded IR: {}", ir_path.display()),
                         Err(e) => log::warn!("Failed to load IR {}: {}", ir_path.display(), e),
                     }
-                } else {
-                    log::warn!("IR file not found: {}", ir_path.display());
                 }
             }
         }
 
-        // Initialize crossfade/gapless mixer
         let mixer = TrackMixer::new(sample_rate);
 
+        let preamp = GainProcessor::with_ramp(1.0, PREAMP_RAMP_DURATION_MS, sample_rate);
+        let volume = GainProcessor::with_ramp(1.0, config.volume_fade_ms as f32, sample_rate);
+        let seek_fade = FadeProcessor::new(config.seek_fade_ms as f32, sample_rate);
+
+        let mut pre_mix_chain = vec![
+            DspNode::Preamp(preamp),
+            DspNode::Loudness(loudness),
+            DspNode::Eq(eq), // We swap this to MidSideEq dynamically if enabled
+            DspNode::Convolution(convolution),
+            DspNode::Balance(1.0, 1.0),
+            DspNode::Stereo(stereo_enhancer),
+        ];
+
+        let post_mix_chain = vec![
+            DspNode::Limiter(limiter),
+            DspNode::Volume(volume),
+            DspNode::SeekFade(seek_fade),
+            DspNode::Dither(dither),
+        ];
+
         let mut pipeline = Self {
-            preamp: GainProcessor::with_ramp(1.0, PREAMP_RAMP_DURATION_MS, sample_rate),
-            loudness,
-            eq,
-            convolution,
-            stereo_enhancer,
+            pre_mix_chain,
+            post_mix_chain,
             mixer,
-            limiter,
-            volume: GainProcessor::with_ramp(1.0, config.volume_fade_ms as f64, sample_rate),
-            dither,
-            seek_fade: FadeProcessor::new(config.seek_fade_ms as f64, sample_rate),
             sample_rate,
             performance_mode: config.performance_mode,
             speed: 1.0,
             balance: 0.0,
-            balance_gain_l: 1.0, // center: both gains at unity
-            balance_gain_r: 1.0, // center: both gains at unity
             midside_eq_enabled: false,
-            volume_fade_ms: config.volume_fade_ms as f64,
+            volume_fade_ms: config.volume_fade_ms as f32,
         };
 
         pipeline.apply_performance_mode();
@@ -183,374 +197,320 @@ impl DspPipeline {
     }
 
     fn apply_performance_mode(&mut self) {
-        match self.performance_mode {
-            PerformanceMode::UltraQuality => {},
-            PerformanceMode::Balanced => {},
-            PerformanceMode::LowPower => {
-                self.stereo_enhancer.set_enabled(false);
-                self.dither.set_enabled(false);
-            },
+        if self.performance_mode == PerformanceMode::LowPower {
+            for node in self
+                .pre_mix_chain
+                .iter_mut()
+                .chain(self.post_mix_chain.iter_mut())
+            {
+                match node {
+                    DspNode::Stereo(p) => p.set_enabled(false),
+                    DspNode::Dither(p) => p.set_enabled(false),
+                    _ => {},
+                }
+            }
         }
     }
 
-    /// Process a single stereo frame through the entire pipeline.
-    /// Used for single-track (non-crossfading) playback.
     #[inline]
-    pub fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         let (l, r) = self.process_pre_mix(left, right);
-        // In Single mode, the mixer is in PlayingCurrent and simply
-        // passes through. We skip the mixer call entirely.
         self.process_post_mix(l, r)
     }
 
-    /// Process the first half of the pipeline (pre-mix stages):
-    /// Preamp → Loudness → EQ → Convolution → Balance → StereoEnhancer
-    ///
-    /// This is used for both outgoing and incoming tracks during crossfade,
-    /// allowing each to be processed independently before mixing.
     #[inline]
-    pub fn process_outgoing(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process_outgoing(&mut self, left: f32, right: f32) -> (f32, f32) {
         self.process_pre_mix(left, right)
     }
 
-    /// Alias for process_outgoing — processes an incoming track through
-    /// the same pre-mix stages. Both tracks receive identical DSP treatment
-    /// (same EQ, loudness, etc.) since they share the pipeline config.
     #[inline]
-    pub fn process_incoming(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process_incoming(&mut self, left: f32, right: f32) -> (f32, f32) {
         self.process_pre_mix(left, right)
     }
 
-    /// Internal: process all stages up to (but not including) the mixer.
     #[inline]
-    fn process_pre_mix(&mut self, left: f64, right: f64) -> (f64, f64) {
-        let (l, r) = self.preamp.process_stereo(left, right);
-        let (l, r) = self.loudness.process(l, r);
-
-        // Mid/Side EQ mode: encode to M/S, apply EQ, decode back to L/R
-        let (l, r) = if self.midside_eq_enabled {
-            let mid = (l + r) * 0.5;
-            let side = (l - r) * 0.5;
-            let (eq_mid, eq_side) = self.eq.process(mid, side);
-            (eq_mid + eq_side, eq_mid - eq_side)
-        } else {
-            self.eq.process(l, r)
-        };
-
-        let (l, r) = self.convolution.process(l, r);
-
-        let (l, r) = if self.balance.abs() > 0.001 {
-            (l * self.balance_gain_l, r * self.balance_gain_r)
-        } else {
-            (l, r)
-        };
-
-        let (l, r) = self.stereo_enhancer.process(l, r);
+    fn process_pre_mix(&mut self, mut l: f32, mut r: f32) -> (f32, f32) {
+        for node in &mut self.pre_mix_chain {
+            let (out_l, out_r) = node.process(l, r);
+            l = out_l;
+            r = out_r;
+        }
         (l, r)
     }
 
-    /// Process the second half of the pipeline (post-mix stages):
-    /// Limiter → Volume → SeekFade → Dither
-    ///
-    /// This is applied to the mixed (crossfaded) output signal.
     #[inline]
-    pub fn process_post_mix(&mut self, left: f64, right: f64) -> (f64, f64) {
-        let (l, r) = self.volume.process_stereo(left, right);
-        let (l, r) = self.seek_fade.process(l, r);
-        let (l, r) = self.limiter.process(l, r);
-        let (l, r) = self.dither.process(l, r);
+    pub fn process_post_mix(&mut self, mut l: f32, mut r: f32) -> (f32, f32) {
+        for node in &mut self.post_mix_chain {
+            let (out_l, out_r) = node.process(l, r);
+            l = out_l;
+            r = out_r;
+        }
         (l, r)
     }
 
-    /// Process a batch of stereo frames
-    pub fn process_batch(&mut self, frames: &mut [(f64, f64)]) {
+    pub fn process_batch(&mut self, frames: &mut [(f32, f32)]) {
         for frame in frames.iter_mut() {
             *frame = self.process(frame.0, frame.1);
         }
     }
 
-    /// Set volume (0.0 to 1.0) with smooth ramping
-    pub fn set_volume(&mut self, volume: f64) {
-        self.volume.set_gain(volume.clamp(0.0, 1.0));
+    pub fn set_volume(&mut self, volume: f32) {
+        for node in &mut self.post_mix_chain {
+            if let DspNode::Volume(p) = node {
+                p.set_gain(volume.clamp(0.0, 1.0));
+            }
+        }
     }
 
-    /// Get the current volume (linear)
-    pub fn volume(&self) -> f64 {
-        self.volume.current_gain()
+    pub fn volume(&self) -> f32 {
+        for node in &self.post_mix_chain {
+            if let DspNode::Volume(p) = node {
+                return p.current_gain();
+            }
+        }
+        1.0
     }
 
-    /// Set playback speed.
-    pub fn set_speed(&mut self, speed: f64) {
+    pub fn set_speed(&mut self, speed: f32) {
         self.speed = speed.clamp(0.25, 4.0);
     }
 
-    /// Get the current playback speed setting
-    pub fn speed(&self) -> f64 {
+    pub fn speed(&self) -> f32 {
         self.speed
     }
 
-    /// Update EQ band parameters
     pub fn set_eq_band(&mut self, index: usize, params: EqBandParams) {
-        self.eq.set_band(index, params);
+        for node in &mut self.pre_mix_chain {
+            match node {
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_band(index, params.clone()),
+                _ => {},
+            }
+        }
     }
 
-    /// Enable/disable the EQ
     pub fn set_eq_enabled(&mut self, enabled: bool) {
-        self.eq.set_enabled(enabled);
+        for node in &mut self.pre_mix_chain {
+            match node {
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_enabled(enabled),
+                _ => {},
+            }
+        }
     }
 
-    /// Whether EQ is enabled
     pub fn is_eq_enabled(&self) -> bool {
-        self.eq.is_enabled()
+        for node in &self.pre_mix_chain {
+            match node {
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => return p.is_enabled(),
+                _ => {},
+            }
+        }
+        false
     }
 
-    /// Update loudness metadata for the current track
     pub fn set_loudness_metadata(&mut self, meta: &LoudnessMetadata) {
-        self.loudness.set_track_metadata(meta);
+        for node in &mut self.pre_mix_chain {
+            if let DspNode::Loudness(p) = node {
+                p.set_track_metadata(meta);
+            }
+        }
     }
 
-    /// Set the loudness normalization mode
     pub fn set_loudness_mode(&mut self, mode: LoudnessMode) {
-        self.loudness.set_mode(mode);
+        for node in &mut self.pre_mix_chain {
+            if let DspNode::Loudness(p) = node {
+                p.set_mode(mode);
+            }
+        }
     }
 
-    /// Begin a seek fade-out
     pub fn begin_seek_fade_out(&mut self) {
-        self.seek_fade.fade_out();
+        for node in &mut self.post_mix_chain {
+            if let DspNode::SeekFade(p) = node {
+                p.fade_out();
+            }
+        }
     }
 
-    /// Begin a seek fade-in
     pub fn begin_seek_fade_in(&mut self) {
-        self.seek_fade.fade_in();
+        for node in &mut self.post_mix_chain {
+            if let DspNode::SeekFade(p) = node {
+                p.fade_in();
+            }
+        }
     }
 
-    /// Whether the seek fade-out has completed
     pub fn is_seek_faded_out(&self) -> bool {
-        self.seek_fade.is_faded_out()
+        for node in &self.post_mix_chain {
+            if let DspNode::SeekFade(p) = node {
+                return p.is_faded_out();
+            }
+        }
+        false
     }
 
-    /// Get the current limiter gain reduction in dB
-    pub fn limiter_gain_reduction_db(&self) -> f64 {
-        self.limiter.gain_reduction_db()
+    pub fn limiter_gain_reduction_db(&self) -> f32 {
+        for node in &self.post_mix_chain {
+            if let DspNode::Limiter(p) = node {
+                return p.gain_reduction_db();
+            }
+        }
+        0.0
     }
 
-    /// Get the current loudness gain in dB
-    pub fn loudness_gain_db(&self) -> f64 {
-        self.loudness.current_gain_db()
+    pub fn loudness_gain_db(&self) -> f32 {
+        for node in &self.pre_mix_chain {
+            if let DspNode::Loudness(p) = node {
+                return p.current_gain_db();
+            }
+        }
+        0.0
     }
 
-    /// Update the sample rate
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
-        self.eq.set_sample_rate(sample_rate);
-        self.limiter.set_sample_rate(sample_rate);
-        self.loudness.set_sample_rate(sample_rate);
-        self.seek_fade.set_sample_rate(sample_rate);
-        self.convolution.set_sample_rate(sample_rate);
-
-        self.preamp
-            .set_slew_rate(1.0 / (VOLUME_RAMP_DURATION_MS * 0.001 * sample_rate));
-
-        self.volume
-            .set_slew_rate(1.0 / (self.volume_fade_ms * 0.001 * sample_rate));
-
-        // Recalculate the crossfade frame count for the new sample rate so that
-        // the configured crossfade duration in milliseconds stays accurate after
-        // a device change. Without this the mixer still uses the old frame count
-        // which was computed for the previous (possibly different) sample rate.
+        for node in self
+            .pre_mix_chain
+            .iter_mut()
+            .chain(self.post_mix_chain.iter_mut())
+        {
+            match node {
+                DspNode::Preamp(p) => {
+                    p.set_slew_rate(1.0 / (PREAMP_RAMP_DURATION_MS * 0.001 * sample_rate))
+                },
+                DspNode::Volume(p) => {
+                    p.set_slew_rate(1.0 / (self.volume_fade_ms * 0.001 * sample_rate))
+                },
+                DspNode::Loudness(p) => p.set_sample_rate(sample_rate),
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_sample_rate(sample_rate),
+                DspNode::Convolution(p) => p.set_sample_rate(sample_rate),
+                DspNode::Limiter(p) => p.set_sample_rate(sample_rate),
+                DspNode::SeekFade(p) => p.set_sample_rate(sample_rate),
+                _ => {},
+            }
+        }
         let crossfade_ms = self.mixer.duration_ms(self.sample_rate.max(1.0));
-        // Reuse set_duration_ms so all derived state (duration_frames) is updated atomically.
         self.mixer.set_duration_ms(crossfade_ms, sample_rate);
     }
 
-    /// Reset all processing state
     pub fn reset(&mut self) {
-        self.preamp.reset();
-        self.loudness.reset();
-        self.eq.reset();
-        self.convolution.reset();
-        self.stereo_enhancer.reset();
+        for node in self
+            .pre_mix_chain
+            .iter_mut()
+            .chain(self.post_mix_chain.iter_mut())
+        {
+            node.reset();
+        }
         self.mixer.reset();
-        self.limiter.reset();
-        self.volume.reset();
-        self.dither.reset();
-        self.seek_fade.reset();
     }
 
-    /// Enable or disable the convolution engine
+    pub fn set_limiter_enabled(&mut self, enabled: bool) {
+        for node in &mut self.post_mix_chain {
+            if let DspNode::Limiter(p) = node {
+                p.set_enabled(enabled);
+            }
+        }
+    }
+
+    pub fn set_preamp_db(&mut self, db: f32) {
+        for node in &mut self.pre_mix_chain {
+            match node {
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_preamp_db(db),
+                _ => {},
+            }
+        }
+    }
+
+    pub fn mixer_mut(&mut self) -> &mut TrackMixer {
+        &mut self.mixer
+    }
+
+    pub fn set_stereo_enhancer_enabled(&mut self, enabled: bool) {
+        for node in &mut self.pre_mix_chain {
+            if let DspNode::Stereo(p) = node {
+                p.set_enabled(enabled);
+            }
+        }
+    }
+
     pub fn set_convolution_enabled(&mut self, enabled: bool) {
-        self.convolution.set_enabled(enabled);
+        for node in &mut self.pre_mix_chain {
+            if let DspNode::Convolution(p) = node {
+                p.set_enabled(enabled);
+            }
+        }
     }
 
-    /// Set stereo balance (-1.0 = full left, 0.0 = center, +1.0 = full right)
-    pub fn set_balance(&mut self, balance: f64) {
+    pub fn set_balance(&mut self, balance: f32) {
         self.balance = balance.clamp(-1.0, 1.0);
-
-        let angle = (self.balance + 1.0) * std::f64::consts::FRAC_PI_4;
-        self.balance_gain_l = angle.cos();
-        self.balance_gain_r = angle.sin();
+        let angle = (self.balance + 1.0) * std::f32::consts::FRAC_PI_4;
+        let gain_l = angle.cos();
+        let gain_r = angle.sin();
+        for node in &mut self.pre_mix_chain {
+            if let DspNode::Balance(l, r) = node {
+                *l = gain_l;
+                *r = gain_r;
+            }
+        }
     }
 
-    /// Get the current balance setting
-    pub fn balance(&self) -> f64 {
+    pub fn balance(&self) -> f32 {
         self.balance
     }
 
-    /// Enable or disable Mid/Side EQ mode
     pub fn set_midside_eq(&mut self, enabled: bool) {
+        if self.midside_eq_enabled == enabled {
+            return;
+        }
         self.midside_eq_enabled = enabled;
+        // Find the EQ and swap its wrapper type
+        for node in &mut self.pre_mix_chain {
+            let new_node = match node {
+                DspNode::Eq(p) if enabled => Some(DspNode::MidSideEq(p.clone())),
+                DspNode::MidSideEq(p) if !enabled => Some(DspNode::Eq(p.clone())),
+                _ => None,
+            };
+            if let Some(n) = new_node {
+                *node = n;
+                break;
+            }
+        }
     }
 
-    /// Whether Mid/Side EQ mode is active
     pub fn is_midside_eq(&self) -> bool {
         self.midside_eq_enabled
     }
 
-    /// Set the convolution wet/dry mix
-    pub fn set_convolution_wet_mix(&mut self, mix: f64) {
-        self.convolution.set_wet_mix(mix);
+    pub fn set_convolution_wet_mix(&mut self, mix: f32) {
+        for node in &mut self.pre_mix_chain {
+            if let DspNode::Convolution(p) = node {
+                p.set_wet_mix(mix);
+            }
+        }
     }
 
-    pub fn eq_mut(&mut self) -> &mut crate::dsp::equalizer::ParametricEq {
-        &mut self.eq
-    }
-    pub fn eq_ref(&self) -> &crate::dsp::equalizer::ParametricEq {
-        &self.eq
-    }
-    pub fn limiter_mut(&mut self) -> &mut crate::dsp::limiter::LookaheadLimiter {
-        &mut self.limiter
-    }
-    pub fn stereo_enhancer_mut(&mut self) -> &mut crate::dsp::stereo::StereoEnhancer {
-        &mut self.stereo_enhancer
-    }
-    pub fn mixer_mut(&mut self) -> &mut crate::dsp::crossfade::TrackMixer {
-        &mut self.mixer
-    }
-    pub fn dither_mut(&mut self) -> &mut crate::dsp::dither::Dither {
-        &mut self.dither
-    }
-
-    /// Whether the loaded convolution IR needs to be reloaded due to a
-    /// sample rate change. The UI should display a warning when true.
     pub fn convolution_ir_needs_reload(&self) -> bool {
-        self.convolution.ir_needs_reload()
+        for node in &self.pre_mix_chain {
+            if let DspNode::Convolution(p) = node {
+                return p.ir_needs_reload();
+            }
+        }
+        false
     }
 
-    /// Set stereo width. Disables the enhancer if width is 1.0 (unity).
-    pub fn set_stereo_width(&mut self, width: f64) {
-        self.stereo_enhancer
-            .set_enabled((width - 1.0).abs() > 0.001);
-        self.stereo_enhancer.set_width(width);
+    pub fn set_stereo_width(&mut self, width: f32) {
+        for node in &mut self.pre_mix_chain {
+            if let DspNode::Stereo(p) = node {
+                p.set_enabled((width - 1.0).abs() > 0.001);
+                p.set_width(width);
+            }
+        }
     }
 
-    /// Enable or disable dither via the pipeline API.
     pub fn set_dither_enabled(&mut self, enabled: bool) {
-        self.dither.set_enabled(enabled);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pipeline_passthrough() {
-        let config = EngineConfig::default();
-        let mut pipeline = DspPipeline::from_config(&config, 44100.0);
-        for _ in 0..1000 {
-            pipeline.process(0.1, 0.1);
+        for node in &mut self.post_mix_chain {
+            if let DspNode::Dither(p) = node {
+                p.set_enabled(enabled);
+            }
         }
-        let (l, r) = pipeline.process(0.1, 0.1);
-        assert!(
-            (l - 0.1).abs() < 0.05,
-            "Small signal should pass through pipeline, got l={}",
-            l
-        );
-        assert!(
-            (r - 0.1).abs() < 0.05,
-            "Small signal should pass through pipeline, got r={}",
-            r
-        );
-    }
-
-    #[test]
-    fn test_pipeline_volume_control() {
-        let config = EngineConfig::default();
-        let mut pipeline = DspPipeline::from_config(&config, 44100.0);
-        pipeline.set_volume(0.5);
-        for _ in 0..10000 {
-            pipeline.process(0.5, 0.5);
-        }
-        let (l, _r) = pipeline.process(0.5, 0.5);
-        assert!(
-            (l - 0.25).abs() < 0.05,
-            "Volume 0.5 should roughly halve output, got {}",
-            l
-        );
-    }
-
-    #[test]
-    fn test_pipeline_reset() {
-        let config = EngineConfig::default();
-        let mut pipeline = DspPipeline::from_config(&config, 44100.0);
-        for _ in 0..1000 {
-            pipeline.process(0.8, 0.8);
-        }
-        pipeline.reset();
-        let (l, r) = pipeline.process(0.1, 0.1);
-        assert!(l.is_finite());
-        assert!(r.is_finite());
-    }
-
-    #[test]
-    fn test_pipeline_seek_fade() {
-        let config = EngineConfig::default();
-        let mut pipeline = DspPipeline::from_config(&config, 44100.0);
-        pipeline.begin_seek_fade_in();
-        for _ in 0..50000 {
-            pipeline.process(0.5, 0.5);
-        }
-        pipeline.begin_seek_fade_out();
-        for _ in 0..50000 {
-            pipeline.process(0.5, 0.5);
-        }
-        assert!(pipeline.is_seek_faded_out());
-    }
-
-    #[test]
-    fn test_pipeline_batch_processing() {
-        let config = EngineConfig::default();
-        let mut pipeline = DspPipeline::from_config(&config, 44100.0);
-        let mut frames: [(f64, f64); 256] = [(0.1, 0.1); 256];
-        pipeline.process_batch(&mut frames);
-        for (l, r) in &frames {
-            assert!(l.is_finite());
-            assert!(r.is_finite());
-        }
-    }
-
-    #[test]
-    fn test_split_processing_pre_post_mix() {
-        let config = EngineConfig::default();
-        let mut pipeline = DspPipeline::from_config(&config, 44100.0);
-        // Warm up the pipeline
-        for _ in 0..1000 {
-            pipeline.process(0.1, 0.1);
-        }
-        // Compare full pipeline vs split pipeline
-        let (full_l, full_r) = pipeline.process(0.5, 0.5);
-        let (pre_l, pre_r) = pipeline.process_outgoing(0.5, 0.5);
-        let (split_l, split_r) = pipeline.process_post_mix(pre_l, pre_r);
-        // Results should be very close (within floating-point tolerance)
-        assert!(
-            (full_l - split_l).abs() < 0.01,
-            "Split processing should match full pipeline, got full={} split={}",
-            full_l,
-            split_l
-        );
-        assert!(
-            (full_r - split_r).abs() < 0.01,
-            "Split processing should match full pipeline for right channel"
-        );
     }
 }

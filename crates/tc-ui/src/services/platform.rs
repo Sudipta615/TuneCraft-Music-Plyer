@@ -43,7 +43,7 @@ impl PlatformService {
         title: &str,
         artist: Option<&str>,
         album: Option<&str>,
-        duration_secs: f64,
+        duration_secs: f32,
         track_id: i64,
     ) {
         let mut platform = recover_from_poison_write(self.inner.write());
@@ -76,7 +76,7 @@ impl PlatformService {
     }
 
     /// Update MPRIS volume.
-    pub fn update_mpris_volume(&self, volume: f64) {
+    pub fn update_mpris_volume(&self, volume: f32) {
         recover_from_poison_write(self.inner.write()).set_mpris_volume(volume);
     }
 
@@ -103,7 +103,7 @@ impl PlatformService {
 
     /// Called periodically from the UI sync loop to keep MPRIS clients
     /// (desktop panels, media applets) in sync with the actual position.
-    pub fn update_mpris_position(&self, position_secs: f64) {
+    pub fn update_mpris_position(&self, position_secs: f32) {
         let position_us = (position_secs * 1_000_000.0) as i64;
         recover_from_poison_write(self.inner.write()).set_mpris_position(position_us);
     }

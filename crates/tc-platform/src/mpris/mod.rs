@@ -30,7 +30,7 @@ use crate::types::{MediaKeyAction, MprisPlaybackStatus, MprisPropertyChanged, Mp
 pub struct MprisState {
     pub playback_status: MprisPlaybackStatus,
     pub track_info: MprisTrackInfo,
-    pub volume: f64,
+    pub volume: f32,
     pub identity: String,
     pub desktop_entry: String,
     /// Whether shuffle is enabled
@@ -38,7 +38,7 @@ pub struct MprisState {
     /// Loop status string: must be one of "None", "Track", "Playlist"
     pub loop_status: String,
     /// Playback rate (must be > 0)
-    pub rate: f64,
+    pub rate: f32,
     /// Playback position in microseconds
     pub position_microseconds: i64,
 }

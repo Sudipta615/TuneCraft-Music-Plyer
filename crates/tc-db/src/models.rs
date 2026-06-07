@@ -14,7 +14,7 @@ pub struct Track {
     pub year: Option<i32>,
     pub track_number: Option<i32>,
     pub disc_number: Option<i32>,
-    pub duration_secs: f64,
+    pub duration_secs: f32,
     pub sample_rate: i32,
     pub channels: i32,
     pub bitrate_kbps: Option<i32>,
@@ -22,13 +22,13 @@ pub struct Track {
     pub file_size: i64,
     pub file_modified: i64, // Unix timestamp
     pub crc32: Option<u32>,
-    pub replaygain_track_db: Option<f64>,
-    pub replaygain_album_db: Option<f64>,
-    pub replaygain_track_peak: Option<f64>,
-    pub replaygain_album_peak: Option<f64>,
-    pub ebu_r128_loudness: Option<f64>,
-    pub ebu_r128_peak: Option<f64>,
-    pub bpm: Option<f64>,
+    pub replaygain_track_db: Option<f32>,
+    pub replaygain_album_db: Option<f32>,
+    pub replaygain_track_peak: Option<f32>,
+    pub replaygain_album_peak: Option<f32>,
+    pub ebu_r128_loudness: Option<f32>,
+    pub ebu_r128_peak: Option<f32>,
+    pub bpm: Option<f32>,
     pub mood: Option<String>,
     pub lyrics_synced: Option<String>,
     pub lyrics_unsynced: Option<String>,
@@ -47,7 +47,7 @@ pub struct Album {
     pub year: Option<i32>,
     pub genre: Option<String>,
     pub track_count: i32,
-    pub duration_secs: f64,
+    pub duration_secs: f32,
     pub has_cover: bool,
     pub date_added: NaiveDateTime,
 }
@@ -70,7 +70,7 @@ pub struct Playlist {
     pub is_smart: bool,
     pub smart_rules: Option<String>, // JSON
     pub track_count: i32,
-    pub duration_secs: f64,
+    pub duration_secs: f32,
     pub date_created: NaiveDateTime,
     pub date_modified: NaiveDateTime,
 }
@@ -101,12 +101,12 @@ pub struct CoverArt {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoudnessMeta {
     pub track_id: i64,
-    pub replaygain_track_db: Option<f64>,
-    pub replaygain_album_db: Option<f64>,
-    pub replaygain_track_peak: Option<f64>,
-    pub replaygain_album_peak: Option<f64>,
-    pub ebu_r128_loudness: Option<f64>,
-    pub ebu_r128_peak: Option<f64>,
+    pub replaygain_track_db: Option<f32>,
+    pub replaygain_album_db: Option<f32>,
+    pub replaygain_track_peak: Option<f32>,
+    pub replaygain_album_peak: Option<f32>,
+    pub ebu_r128_loudness: Option<f32>,
+    pub ebu_r128_peak: Option<f32>,
 }
 
 /// Waveform cache entry

@@ -13,26 +13,26 @@ pub struct EqBand {
     pub filter_type: FilterType,
     /// Hz, 20.0 - 20000.0
     #[serde(default = "EqBand::default_frequency")]
-    pub frequency: f64,
+    pub frequency: f32,
     /// dB, -20.0 to +20.0
     #[serde(default)]
-    pub gain_db: f64,
+    pub gain_db: f32,
     /// Q factor, 0.1 to 30.0
     #[serde(default = "EqBand::default_q")]
-    pub q: f64,
+    pub q: f32,
     /// Optional slope for shelf filters (dB/oct).
     /// NOTE: This field is currently unused by the DSP pipeline. Shelf filter
     /// slope is determined by the Q factor. The field is retained for forward
     /// compatibility but is not serialized when None.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub slope: Option<f64>,
+    pub slope: Option<f32>,
 }
 
 impl EqBand {
-    fn default_frequency() -> f64 {
+    fn default_frequency() -> f32 {
         1000.0
     }
-    fn default_q() -> f64 {
+    fn default_q() -> f32 {
         1.414
     }
 
@@ -141,17 +141,17 @@ pub struct EqConfig {
     pub bands: Vec<EqBand>,
     /// Pre-EQ gain
     #[serde(default)]
-    pub preamp_db: f64,
+    pub preamp_db: f32,
     /// Post-EQ gain
     #[serde(default)]
-    pub post_gain_db: f64,
+    pub post_gain_db: f32,
     /// Headroom management
     #[serde(default = "EqConfig::default_headroom_db")]
-    pub headroom_db: f64,
+    pub headroom_db: f32,
 }
 
 impl EqConfig {
-    fn default_headroom_db() -> f64 {
+    fn default_headroom_db() -> f32 {
         1.0
     }
 
@@ -168,15 +168,15 @@ impl EqConfig {
             };
         }
 
-        let min_freq: f64 = 31.0;
-        let max_freq: f64 = 16000.0;
+        let min_freq: f32 = 31.0;
+        let max_freq: f32 = 16000.0;
         let log_min = min_freq.ln();
         let log_max = max_freq.ln();
 
         let bands: Vec<EqBand> = (0..n)
             .map(|i| {
                 let t = if n > 1 {
-                    i as f64 / (n - 1) as f64
+                    i as f32 / (n - 1) as f32
                 } else {
                     0.5
                 };
@@ -301,24 +301,24 @@ pub struct LoudnessConfig {
     pub mode: LoudnessMode,
     /// Target loudness in LUFS (default -23)
     #[serde(default = "LoudnessConfig::default_target_lufs")]
-    pub target_lufs: f64,
+    pub target_lufs: f32,
     #[serde(default = "LoudnessConfig::default_true_peak_guard")]
     pub true_peak_guard: bool,
     /// True peak ceiling in dBTP
     #[serde(default = "LoudnessConfig::default_true_peak_dbtp")]
-    pub true_peak_dbtp: f64,
+    pub true_peak_dbtp: f32,
     #[serde(default)]
-    pub preamp_db: f64,
+    pub preamp_db: f32,
 }
 
 impl LoudnessConfig {
-    fn default_target_lufs() -> f64 {
+    fn default_target_lufs() -> f32 {
         -23.0
     }
     fn default_true_peak_guard() -> bool {
         true
     }
-    fn default_true_peak_dbtp() -> f64 {
+    fn default_true_peak_dbtp() -> f32 {
         -1.0
     }
 
@@ -387,16 +387,16 @@ pub struct LimiterConfig {
     pub enabled: bool,
     /// Output ceiling in dB
     #[serde(default = "LimiterConfig::default_ceiling_db")]
-    pub ceiling_db: f64,
+    pub ceiling_db: f32,
     /// Attack time in ms
     #[serde(default = "LimiterConfig::default_attack_ms")]
-    pub attack_ms: f64,
+    pub attack_ms: f32,
     /// Release time in ms
     #[serde(default = "LimiterConfig::default_release_ms")]
-    pub release_ms: f64,
+    pub release_ms: f32,
     /// Lookahead time in ms
     #[serde(default = "LimiterConfig::default_lookahead_ms")]
-    pub lookahead_ms: f64,
+    pub lookahead_ms: f32,
     /// Soft clipping safety mode
     #[serde(default)]
     pub soft_clip: bool,
@@ -406,16 +406,16 @@ impl LimiterConfig {
     fn default_enabled() -> bool {
         true
     }
-    fn default_ceiling_db() -> f64 {
+    fn default_ceiling_db() -> f32 {
         -0.3
     }
-    fn default_attack_ms() -> f64 {
+    fn default_attack_ms() -> f32 {
         5.0
     }
-    fn default_release_ms() -> f64 {
+    fn default_release_ms() -> f32 {
         50.0
     }
-    fn default_lookahead_ms() -> f64 {
+    fn default_lookahead_ms() -> f32 {
         5.0
     }
 
@@ -536,14 +536,14 @@ pub struct ConvolutionConfig {
     pub ir_path: Option<PathBuf>,
     /// Wet/dry mix (0.0 - 1.0)
     #[serde(default = "ConvolutionConfig::default_wet_mix")]
-    pub wet_mix: f64,
+    pub wet_mix: f32,
     /// Auto-disable when in low power mode
     #[serde(default = "ConvolutionConfig::default_auto_disable_low_power")]
     pub auto_disable_low_power: bool,
 }
 
 impl ConvolutionConfig {
-    fn default_wet_mix() -> f64 {
+    fn default_wet_mix() -> f32 {
         1.0
     }
     fn default_auto_disable_low_power() -> bool {
@@ -585,11 +585,11 @@ pub struct StereoEnhancerConfig {
     pub enabled: bool,
     /// 0.0 to 2.0, 1.0 = no change
     #[serde(default = "StereoEnhancerConfig::default_width")]
-    pub width: f64,
+    pub width: f32,
 }
 
 impl StereoEnhancerConfig {
-    fn default_width() -> f64 {
+    fn default_width() -> f32 {
         1.0
     }
 

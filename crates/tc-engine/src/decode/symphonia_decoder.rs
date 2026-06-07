@@ -37,7 +37,7 @@ pub enum DecodeError {
 pub struct DecodeInfo {
     pub sample_rate: u32,
     pub channels: usize,
-    pub duration_secs: f64,
+    pub duration_secs: f32,
     pub codec: String,
     pub bitrate_kbps: Option<u32>,
 }
@@ -45,8 +45,8 @@ pub struct DecodeInfo {
 /// A chunk of decoded PCM audio
 #[derive(Debug, Clone)]
 pub struct DecodedChunk {
-    /// Interleaved f64 samples (L, R, L, R, ...)
-    pub samples: Vec<f64>,
+    /// Interleaved f32 samples (L, R, L, R, ...)
+    pub samples: Vec<f32>,
     pub channels: usize,
     pub sample_rate: u32,
     pub frame_count: usize,
@@ -60,7 +60,7 @@ pub struct SymphoniaDecoder {
     info: DecodeInfo,
     /// Reusable sample buffer for decoded output, passed across
     /// decode_next calls instead of allocating a new Vec each time.
-    sample_buffer: Vec<f64>,
+    sample_buffer: Vec<f32>,
 }
 
 impl SymphoniaDecoder {
@@ -120,8 +120,8 @@ impl SymphoniaDecoder {
         let duration_secs = codec_params
             .n_frames
             .map(|n| {
-                let n_frames = n as f64;
-                let rate = sample_rate as f64;
+                let n_frames = n as f32;
+                let rate = sample_rate as f32;
                 if rate > 0.0 {
                     n_frames / rate
                 } else {
@@ -195,42 +195,42 @@ impl SymphoniaDecoder {
         })
     }
 
-    /// Extract f64 samples from a decoded audio buffer reference
+    /// Extract f32 samples from a decoded audio buffer reference
     fn extract_samples(
         buffer: AudioBufferRef,
-        output: &mut Vec<f64>,
+        output: &mut Vec<f32>,
         target_channels: usize,
     ) -> usize {
         let frames = buffer.frames();
         let spec = buffer.spec();
         let src_channels = spec.channels.count();
 
-        // Use the convert utility from symphonia to get f32 samples, then convert to f64
+        // Use the convert utility from symphonia to get f32 samples, then convert to f32
         // This is the most robust approach across Symphonia versions
         match &buffer {
             AudioBufferRef::U8(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    ((*s as f64) - 128.0) / 128.0
+                    ((*s as f32) - 128.0) / 128.0
                 })
             },
             AudioBufferRef::S16(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    *s as f64 / 32768.0
+                    *s as f32 / 32768.0
                 })
             },
             AudioBufferRef::S24(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    s.0 as f64 / 8388608.0
+                    s.0 as f32 / 8388608.0
                 })
             },
             AudioBufferRef::S32(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    *s as f64 / 2147483648.0
+                    *s as f32 / 2147483648.0
                 })
             },
             AudioBufferRef::F32(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    *s as f64
+                    *s as f32
                 })
             },
             AudioBufferRef::F64(buf) => {
@@ -252,14 +252,14 @@ impl SymphoniaDecoder {
     /// Copy samples from an AudioBuffer using a conversion function
     fn copy_buf<T, F>(
         buffer: &symphonia::core::audio::AudioBuffer<T>,
-        output: &mut Vec<f64>,
+        output: &mut Vec<f32>,
         src_channels: usize,
         target_channels: usize,
         frames: usize,
         convert: F,
     ) where
         T: symphonia::core::sample::Sample + Copy,
-        F: Fn(&T) -> f64,
+        F: Fn(&T) -> f32,
     {
         for frame in 0..frames {
             for ch in 0..target_channels {
@@ -276,7 +276,7 @@ impl SymphoniaDecoder {
     }
 
     /// Seek to a position in seconds
-    pub fn seek(&mut self, position_secs: f64) -> Result<(), DecodeError> {
+    pub fn seek(&mut self, position_secs: f32) -> Result<(), DecodeError> {
         let seek_to = SeekTo::Time {
             time: Time::from(position_secs),
             track_id: Some(self.track_id),
@@ -294,7 +294,7 @@ impl SymphoniaDecoder {
         &self.info
     }
 
-    pub fn duration_secs(&self) -> f64 {
+    pub fn duration_secs(&self) -> f32 {
         self.info.duration_secs
     }
 }

@@ -175,8 +175,8 @@ fn test_seek_command_validation() {
     let engine = AudioEngine::new_default().unwrap();
     // These should be silently ignored (no track loaded).
     engine.send_command(EngineCommand::Seek(-1.0));
-    engine.send_command(EngineCommand::Seek(f64::NAN));
-    engine.send_command(EngineCommand::Seek(f64::INFINITY));
+    engine.send_command(EngineCommand::Seek(f32::NAN));
+    engine.send_command(EngineCommand::Seek(f32::INFINITY));
     engine.send_command(EngineCommand::Seek(30.0));
 }
 
@@ -186,8 +186,8 @@ fn test_seek_command_validation() {
 fn test_speed_command_validation() {
     let engine = AudioEngine::new_default().unwrap();
     engine.send_command(EngineCommand::SetSpeed(0.5));
-    engine.send_command(EngineCommand::SetSpeed(f64::NAN));
-    engine.send_command(EngineCommand::SetSpeed(f64::INFINITY));
+    engine.send_command(EngineCommand::SetSpeed(f32::NAN));
+    engine.send_command(EngineCommand::SetSpeed(f32::INFINITY));
 }
 
 // ── Volume command test ───────────────────────────────────────────────────

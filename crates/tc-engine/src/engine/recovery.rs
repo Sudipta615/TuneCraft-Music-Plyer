@@ -76,7 +76,7 @@ impl AudioEngine {
                 "Sample rate changed during recovery: {} Hz -> {} Hz",
                 old_rate, actual_rate
             );
-            self.pipeline.set_sample_rate(actual_rate as f64);
+            self.pipeline.set_sample_rate(actual_rate as f32);
 
             // Rebuild resampler(s) if we have an active stream.
             // v0.21.0: When in Transitioning state, we now rebuild BOTH
@@ -91,8 +91,8 @@ impl AudioEngine {
                         let source_rate = decoder.info().sample_rate;
                         *resampler = build_resampler(
                             self.config.resampler_quality,
-                            source_rate as f64,
-                            actual_rate as f64,
+                            source_rate as f32,
+                            actual_rate as f32,
                             self.speed,
                         );
                     },
@@ -107,16 +107,16 @@ impl AudioEngine {
                         let out_rate = outgoing_decoder.info().sample_rate;
                         *outgoing_resampler = build_resampler(
                             self.config.resampler_quality,
-                            out_rate as f64,
-                            actual_rate as f64,
+                            out_rate as f32,
+                            actual_rate as f32,
                             self.speed,
                         );
                         // Rebuild incoming resampler
                         let in_rate = incoming_decoder.info().sample_rate;
                         *incoming_resampler = build_resampler(
                             self.config.resampler_quality,
-                            in_rate as f64,
-                            actual_rate as f64,
+                            in_rate as f32,
+                            actual_rate as f32,
                             self.speed,
                         );
                     },
@@ -168,9 +168,9 @@ impl AudioEngine {
 #[cfg(feature = "resample")]
 pub(super) fn build_resampler(
     quality: tc_config::ResamplerQuality,
-    source_rate: f64,
-    output_rate: f64,
-    speed: f64,
+    source_rate: f32,
+    output_rate: f32,
+    speed: f32,
 ) -> Option<AudioResampler> {
     match AudioResampler::new(quality, source_rate, output_rate) {
         Ok(mut r) => {

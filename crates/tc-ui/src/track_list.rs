@@ -250,7 +250,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 );
 
                 let total_tracks = app.tracks.len();
-                let total_duration_mins: f64 =
+                let total_duration_mins: f32 =
                     app.tracks.iter().map(|t| t.duration_secs / 60.0).sum();
                 let hours = (total_duration_mins / 60.0) as u32;
                 let mins = (total_duration_mins % 60.0) as u32;

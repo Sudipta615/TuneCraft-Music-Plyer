@@ -39,9 +39,9 @@ pub struct ConvolutionEngine {
     /// Whether convolution is enabled
     enabled: bool,
     /// Wet/dry mix (0.0 = fully dry, 1.0 = fully wet)
-    wet_mix: f64,
+    wet_mix: f32,
     /// Sample rate
-    sample_rate: f64,
+    sample_rate: f32,
     /// Maximum IR length allowed
     max_ir_length: usize,
 
@@ -50,19 +50,19 @@ pub struct ConvolutionEngine {
     /// Block size = fft_size / 2
     block_size: usize,
     /// Forward FFT planner
-    fft_forward: Arc<dyn RealToComplex<f64>>,
+    fft_forward: Arc<dyn RealToComplex<f32>>,
     /// Inverse FFT planner
-    fft_inverse: Arc<dyn realfft::ComplexToReal<f64>>,
+    fft_inverse: Arc<dyn realfft::ComplexToReal<f32>>,
 
     /// Left channel IR spectrum (or mono IR)
-    ir_spectrum_left: Vec<Complex<f64>>,
+    ir_spectrum_left: Vec<Complex<f32>>,
     /// Right channel IR spectrum (None if mono IR)
-    ir_spectrum_right: Option<Vec<Complex<f64>>>,
+    ir_spectrum_right: Option<Vec<Complex<f32>>>,
 
     /// Input accumulation buffer (time domain, per channel)
-    input_buffer_left: Vec<f64>,
+    input_buffer_left: Vec<f32>,
     /// Input accumulation buffer for the right channel
-    input_buffer_right: Vec<f64>,
+    input_buffer_right: Vec<f32>,
     /// Number of samples accumulated in the input buffer
     input_count: usize,
     /// Output overlap-add tail buffer (per channel)
@@ -73,16 +73,16 @@ pub struct ConvolutionEngine {
     /// `fft_size + block_size` (one full IFFT result plus a partial from
     /// the previous block). The buffer is compacted when the write position
     /// would exceed capacity, preventing unbounded growth.
-    overlap_left: Vec<f64>,
-    overlap_right: Vec<f64>,
+    overlap_left: Vec<f32>,
+    overlap_right: Vec<f32>,
     /// Read position in overlap buffers
     overlap_read_pos: usize,
     /// Available output samples in overlap buffers
     overlap_available: usize,
     /// Pre-allocated product buffers for frequency-domain multiplication (left channel)
-    product_left: Vec<Complex<f64>>,
+    product_left: Vec<Complex<f32>>,
     /// Pre-allocated product buffers for frequency-domain multiplication (right channel)
-    product_right: Vec<Complex<f64>>,
+    product_right: Vec<Complex<f32>>,
 
     /// These buffers are allocated once in new() and reused on every process_block()
     /// call, ensuring ZERO heap allocation on the real-time audio thread.
@@ -90,19 +90,19 @@ pub struct ConvolutionEngine {
     /// Previously, forward_fft() called input.to_vec() and make_output_vec() on
     /// every invocation, which allocated memory on the hot path — a real-time safety
     /// violation that could cause audio dropouts under memory pressure.
-    fft_workspace_input_left: Vec<f64>,
-    fft_workspace_output_left: Vec<Complex<f64>>,
-    fft_workspace_input_right: Vec<f64>,
-    fft_workspace_output_right: Vec<Complex<f64>>,
-    ifft_workspace_spectrum_left: Vec<Complex<f64>>,
-    ifft_workspace_output_left: Vec<f64>,
-    ifft_workspace_spectrum_right: Vec<Complex<f64>>,
-    ifft_workspace_output_right: Vec<f64>,
+    fft_workspace_input_left: Vec<f32>,
+    fft_workspace_output_left: Vec<Complex<f32>>,
+    fft_workspace_input_right: Vec<f32>,
+    fft_workspace_output_right: Vec<Complex<f32>>,
+    ifft_workspace_spectrum_left: Vec<Complex<f32>>,
+    ifft_workspace_output_left: Vec<f32>,
+    ifft_workspace_spectrum_right: Vec<Complex<f32>>,
+    ifft_workspace_output_right: Vec<f32>,
     /// Scratch copies of IFFT output used in `process_block()` to pass to
     /// `add_to_overlap()` without a borrow-checker conflict.  Pre-allocated
     /// once in `new()` so there is ZERO heap allocation on the hot path.
-    scratch_left: Vec<f64>,
-    scratch_right: Vec<f64>,
+    scratch_left: Vec<f32>,
+    scratch_right: Vec<f32>,
 
     /// Whether an IR has been loaded
     ir_loaded: bool,
@@ -123,7 +123,7 @@ impl ConvolutionEngine {
     ///
     /// `max_ir_length` determines the maximum impulse response length supported.
     /// The FFT size will be the next power of 2 >= 2 * max_ir_length.
-    pub fn new(sample_rate: f64, max_ir_length: usize) -> Self {
+    pub fn new(sample_rate: f32, max_ir_length: usize) -> Self {
         let fft_size = (2 * max_ir_length).next_power_of_two().max(64);
         let block_size = fft_size / 2;
 
@@ -179,13 +179,13 @@ impl ConvolutionEngine {
         }
     }
 
-    /// Load an impulse response from stereo or mono f64 samples.
+    /// Load an impulse response from stereo or mono f32 samples.
     ///
     /// If `ir_samples` has length > max_ir_length, it will be truncated.
     /// Stereo IR: pairs of (left, right). Mono IR: pairs of (sample, sample).
     pub fn load_ir_from_samples(
         &mut self,
-        ir_samples: &[(f64, f64)],
+        ir_samples: &[(f32, f32)],
     ) -> Result<(), ConvolutionError> {
         let len = ir_samples.len().min(self.max_ir_length);
 
@@ -195,7 +195,7 @@ impl ConvolutionEngine {
         let scan_len = len.min(512);
         let is_stereo = ir_samples[..scan_len]
             .iter()
-            .any(|(l, r)| (l - r).abs() > 1e-10);
+            .any(|(l, r)| (l - r).abs() > 1e-5);
 
         let mut ir_left = vec![0.0; self.fft_size];
         for (i, (l, _r)) in ir_samples[..len].iter().enumerate() {
@@ -267,7 +267,7 @@ impl ConvolutionEngine {
         let mut decoder = decoder;
 
         // Decode the entire IR file
-        let mut ir_samples: Vec<(f64, f64)> = Vec::new();
+        let mut ir_samples: Vec<(f32, f32)> = Vec::new();
 
         while let Ok(packet) = format_reader.next_packet() {
             if packet.track_id() != track_id {
@@ -281,9 +281,9 @@ impl ConvolutionEngine {
                         symphonia::core::audio::AudioBufferRef::F32(buf) => {
                             let buf = &**buf;
                             for i in 0..frames {
-                                let l = buf.chan(0)[i] as f64;
+                                let l = buf.chan(0)[i] as f32;
                                 let r = if channels > 1 {
-                                    buf.chan(1)[i] as f64
+                                    buf.chan(1)[i] as f32
                                 } else {
                                     l
                                 };
@@ -293,9 +293,9 @@ impl ConvolutionEngine {
                         symphonia::core::audio::AudioBufferRef::S16(buf) => {
                             let buf = &**buf;
                             for i in 0..frames {
-                                let l = buf.chan(0)[i] as f64 / 32768.0;
+                                let l = buf.chan(0)[i] as f32 / 32768.0;
                                 let r = if channels > 1 {
-                                    buf.chan(1)[i] as f64 / 32768.0
+                                    buf.chan(1)[i] as f32 / 32768.0
                                 } else {
                                     l
                                 };
@@ -308,9 +308,9 @@ impl ConvolutionEngine {
                                 // S24: 24-bit samples stored in i32 (sign-extended)
                                 // symphonia's i24 is a newtype i24(pub i32),
                                 // so we access the inner value via .0
-                                let l = buf.chan(0)[i].0 as f64 / 8388608.0; // 2^23
+                                let l = buf.chan(0)[i].0 as f32 / 8388608.0; // 2^23
                                 let r = if channels > 1 {
-                                    buf.chan(1)[i].0 as f64 / 8388608.0
+                                    buf.chan(1)[i].0 as f32 / 8388608.0
                                 } else {
                                     l
                                 };
@@ -320,9 +320,9 @@ impl ConvolutionEngine {
                         symphonia::core::audio::AudioBufferRef::S32(buf) => {
                             let buf = &**buf;
                             for i in 0..frames {
-                                let l = buf.chan(0)[i] as f64 / 2147483648.0; // 2^31
+                                let l = buf.chan(0)[i] as f32 / 2147483648.0; // 2^31
                                 let r = if channels > 1 {
-                                    buf.chan(1)[i] as f64 / 2147483648.0
+                                    buf.chan(1)[i] as f32 / 2147483648.0
                                 } else {
                                     l
                                 };
@@ -368,10 +368,10 @@ impl ConvolutionEngine {
     ///
     /// the result is placed in `workspace_output`, both of which were allocated in new().
     fn forward_fft_into(
-        fft_forward: &Arc<dyn realfft::RealToComplex<f64>>,
-        input: &[f64],
-        workspace_input: &mut [f64],
-        workspace_output: &mut [Complex<f64>],
+        fft_forward: &Arc<dyn realfft::RealToComplex<f32>>,
+        input: &[f32],
+        workspace_input: &mut [f32],
+        workspace_output: &mut [Complex<f32>],
     ) -> Result<(), ConvolutionError> {
         workspace_input[..input.len()].copy_from_slice(input);
         // Zero-fill remaining if input is shorter than workspace (shouldn't happen in practice)
@@ -387,7 +387,7 @@ impl ConvolutionEngine {
     /// Perform forward FFT on a time-domain signal (allocating version for IR loading).
     ///
     /// This is only used during IR loading (not the hot path), so allocation is acceptable.
-    fn forward_fft(&self, input: &[f64]) -> Result<Vec<Complex<f64>>, ConvolutionError> {
+    fn forward_fft(&self, input: &[f32]) -> Result<Vec<Complex<f32>>, ConvolutionError> {
         let mut input_vec = input.to_vec();
         let mut output = self.fft_forward.make_output_vec();
         self.fft_forward
@@ -401,7 +401,7 @@ impl ConvolutionEngine {
     /// Returns the convolved output with wet/dry mix applied.
     /// If disabled or no IR is loaded, returns the input unchanged.
     #[inline]
-    pub fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         if !self.enabled || !self.ir_loaded {
             return (left, right);
         }
@@ -554,11 +554,11 @@ impl ConvolutionEngine {
     ///
     /// the result is placed in `workspace_output`, both pre-allocated in new().
     fn inverse_fft_into(
-        fft_inverse: &Arc<dyn realfft::ComplexToReal<f64>>,
+        fft_inverse: &Arc<dyn realfft::ComplexToReal<f32>>,
         fft_size: usize,
-        spectrum: &[Complex<f64>],
-        workspace_spectrum: &mut [Complex<f64>],
-        workspace_output: &mut [f64],
+        spectrum: &[Complex<f32>],
+        workspace_spectrum: &mut [Complex<f32>],
+        workspace_output: &mut [f32],
     ) -> bool {
         let copy_len = spectrum.len().min(workspace_spectrum.len());
         workspace_spectrum[..copy_len].copy_from_slice(&spectrum[..copy_len]);
@@ -573,7 +573,7 @@ impl ConvolutionEngine {
             return false;
         }
         // Normalize by FFT size (realfft's IFFT doesn't normalize)
-        let scale = 1.0 / fft_size as f64;
+        let scale = 1.0 / fft_size as f32;
         for s in workspace_output.iter_mut() {
             *s *= scale;
         }
@@ -594,7 +594,7 @@ impl ConvolutionEngine {
     /// valid output, leaving at most fft_size - block_size = block_size tail
     /// samples. With two blocks' worth of tail, the maximum is 2 * block_size,
     /// which equals fft_size. The fft_size * 2 buffer provides ample headroom.
-    fn add_to_overlap(&mut self, left: &[f64], right: &[f64]) {
+    fn add_to_overlap(&mut self, left: &[f32], right: &[f32]) {
         let frames = left.len().min(self.fft_size);
         let write_start = self.overlap_read_pos + self.overlap_available;
 
@@ -685,7 +685,7 @@ impl ConvolutionEngine {
     }
 
     /// Process a batch of stereo frames through the convolution engine
-    pub fn process_batch(&mut self, frames: &mut [(f64, f64)]) {
+    pub fn process_batch(&mut self, frames: &mut [(f32, f32)]) {
         for frame in frames.iter_mut() {
             *frame = self.process(frame.0, frame.1);
         }
@@ -702,12 +702,12 @@ impl ConvolutionEngine {
     }
 
     /// Set the wet/dry mix (0.0 = fully dry, 1.0 = fully wet)
-    pub fn set_wet_mix(&mut self, mix: f64) {
+    pub fn set_wet_mix(&mut self, mix: f32) {
         self.wet_mix = mix.clamp(0.0, 1.0);
     }
 
     /// Get the current wet/dry mix
-    pub fn wet_mix(&self) -> f64 {
+    pub fn wet_mix(&self) -> f32 {
         self.wet_mix
     }
 
@@ -735,7 +735,7 @@ impl ConvolutionEngine {
     /// at different sample rates. The IR must be re-loaded or the engine must
     /// be rebuilt if the rate changes significantly; however, updating the
     /// stored sample rate ensures that any future IR loads use the correct rate.
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
         if (self.sample_rate - sample_rate).abs() > 0.01 {
             log::info!(
                 "ConvolutionEngine sample rate changed: {:.0} Hz -> {:.0} Hz. \
@@ -806,15 +806,15 @@ mod tests {
     fn test_convolution_passthrough_when_disabled() {
         let mut engine = ConvolutionEngine::new(44100.0, 1024);
         let (l, r) = engine.process(0.5, 0.3);
-        assert!((l - 0.5).abs() < 1e-10);
-        assert!((r - 0.3).abs() < 1e-10);
+        assert!((l - 0.5).abs() < 1e-5);
+        assert!((r - 0.3).abs() < 1e-5);
     }
 
     #[test]
     fn test_convolution_load_mono_ir() {
         let mut engine = ConvolutionEngine::new(44100.0, 512);
         // Simple impulse IR (delta function = passthrough)
-        let ir: Vec<(f64, f64)> = vec![(1.0, 1.0)];
+        let ir: Vec<(f32, f32)> = vec![(1.0, 1.0)];
         engine.load_ir_from_samples(&ir).unwrap();
         assert!(engine.is_ir_loaded());
     }
@@ -823,7 +823,7 @@ mod tests {
     fn test_convolution_load_stereo_ir() {
         let mut engine = ConvolutionEngine::new(44100.0, 512);
         // Stereo IR
-        let ir: Vec<(f64, f64)> = vec![(1.0, 0.5), (0.3, 0.7), (0.1, 0.2)];
+        let ir: Vec<(f32, f32)> = vec![(1.0, 0.5), (0.3, 0.7), (0.1, 0.2)];
         engine.load_ir_from_samples(&ir).unwrap();
         assert!(engine.is_ir_loaded());
     }
@@ -832,7 +832,7 @@ mod tests {
     fn test_convolution_wet_mix() {
         let mut engine = ConvolutionEngine::new(44100.0, 512);
         engine.set_wet_mix(0.5);
-        assert!((engine.wet_mix() - 0.5).abs() < 1e-10);
+        assert!((engine.wet_mix() - 0.5).abs() < 1e-5);
         engine.set_wet_mix(-0.1);
         assert!(engine.wet_mix() >= 0.0);
         engine.set_wet_mix(1.5);
@@ -842,7 +842,7 @@ mod tests {
     #[test]
     fn test_convolution_reset() {
         let mut engine = ConvolutionEngine::new(44100.0, 512);
-        let ir: Vec<(f64, f64)> = vec![(1.0, 1.0)];
+        let ir: Vec<(f32, f32)> = vec![(1.0, 1.0)];
         engine.load_ir_from_samples(&ir).unwrap();
         engine.set_enabled(true);
         engine.reset();
@@ -904,7 +904,7 @@ mod tests {
         // Test that convolution with a delta IR produces output using
         // the pre-allocated workspace path (process_block → forward_fft_into).
         let mut engine = ConvolutionEngine::new(44100.0, 64);
-        let ir: Vec<(f64, f64)> = vec![(1.0, 1.0)];
+        let ir: Vec<(f32, f32)> = vec![(1.0, 1.0)];
         engine.load_ir_from_samples(&ir).unwrap();
         engine.set_enabled(true);
 
@@ -921,7 +921,7 @@ mod tests {
     #[test]
     fn test_convolution_reset_clears_workspaces() {
         let mut engine = ConvolutionEngine::new(44100.0, 64);
-        let ir: Vec<(f64, f64)> = vec![(1.0, 1.0)];
+        let ir: Vec<(f32, f32)> = vec![(1.0, 1.0)];
         engine.load_ir_from_samples(&ir).unwrap();
         engine.set_enabled(true);
 
@@ -948,7 +948,7 @@ mod tests {
         // Process many blocks and verify overlap buffers never grow beyond
         // the initial pre-allocated size (fft_size * 2).
         let mut engine = ConvolutionEngine::new(44100.0, 64);
-        let ir: Vec<(f64, f64)> = vec![(1.0, 1.0)];
+        let ir: Vec<(f32, f32)> = vec![(1.0, 1.0)];
         engine.load_ir_from_samples(&ir).unwrap();
         engine.set_enabled(true);
 
@@ -980,7 +980,7 @@ mod tests {
         // Verify that sustained processing produces correct finite output
         // even after many compaction cycles in add_to_overlap.
         let mut engine = ConvolutionEngine::new(44100.0, 64);
-        let ir: Vec<(f64, f64)> = vec![(1.0, 1.0)];
+        let ir: Vec<(f32, f32)> = vec![(1.0, 1.0)];
         engine.load_ir_from_samples(&ir).unwrap();
         engine.set_enabled(true);
 

@@ -14,23 +14,23 @@ pub struct EqState {
     /// Whether EQ is enabled
     pub enabled: bool,
     /// Gain for each of the 10 EQ bands (dB)
-    pub bands: [f64; 10],
+    pub bands: [f32; 10],
     /// Current EQ preset name
     pub preset: String,
     /// Preamp gain (dB)
-    pub preamp: f64,
+    pub preamp: f32,
     /// Bass shelf gain (dB)
-    pub bass_shelf: f64,
+    pub bass_shelf: f32,
     /// Treble shelf gain (dB)
-    pub treble_shelf: f64,
+    pub treble_shelf: f32,
     /// Stereo width (0.0 to 2.0, 1.0 = normal)
     ///
     /// Previously stored as percentage (100.0) in some places and ratio
     /// (1.0) in others, causing a 50x amplification bug. Now consistently
     /// a ratio: 0.0 = mono, 1.0 = normal, 2.0 = extra wide.
-    pub stereo_width: f64,
+    pub stereo_width: f32,
     /// Stereo balance (-1.0 left to 1.0 right)
-    pub balance: f64,
+    pub balance: f32,
     /// Whether dither is enabled
     pub dither: bool,
     /// Whether Mid/Side EQ mode is enabled
@@ -62,12 +62,12 @@ impl Default for EqState {
 }
 
 /// Standard EQ band frequencies.
-pub const EQ_FREQUENCIES: [f64; 10] = [
+pub const EQ_FREQUENCIES: [f32; 10] = [
     31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
 ];
 
 /// Default Q factor for EQ bands.
-pub const DEFAULT_Q: f64 = 1.4;
+pub const DEFAULT_Q: f32 = 1.4;
 
 /// The EQ service manages equalizer state and applies changes to the DSP pipeline
 /// via lock-free EngineCommand channel.
@@ -86,9 +86,9 @@ impl EqService {
     pub fn new(
         engine_cmd_tx: crossbeam::channel::Sender<tc_engine::buffer::EngineCommand>,
         enabled: bool,
-        preamp: f64,
+        preamp: f32,
         dither: bool,
-        bands: [f64; 10],
+        bands: [f32; 10],
     ) -> Self {
         let state = EqState {
             enabled,
@@ -121,7 +121,7 @@ impl EqService {
     }
 
     #[cfg(not(feature = "audio-output"))]
-    pub fn new(enabled: bool, preamp: f64, dither: bool, bands: [f64; 10]) -> Self {
+    pub fn new(enabled: bool, preamp: f32, dither: bool, bands: [f32; 10]) -> Self {
         let state = EqState {
             enabled,
             preamp,
@@ -168,7 +168,7 @@ impl EqService {
     }
 
     /// Set a specific EQ band gain.
-    pub fn set_band(&self, index: usize, gain_db: f64) {
+    pub fn set_band(&self, index: usize, gain_db: f32) {
         if index >= 10 {
             return;
         }
@@ -188,9 +188,9 @@ impl EqService {
     pub fn set_band_with_params(
         &self,
         index: usize,
-        frequency: f64,
-        gain_db: f64,
-        q: f64,
+        frequency: f32,
+        gain_db: f32,
+        q: f32,
         enabled: bool,
     ) {
         if index >= 10 {
@@ -202,13 +202,13 @@ impl EqService {
     }
 
     /// Set preamp gain.
-    pub fn set_preamp(&self, db: f64) {
+    pub fn set_preamp(&self, db: f32) {
         self.apply_preamp(db);
         self.state.write().unwrap_or_else(|e| e.into_inner()).preamp = db;
     }
 
     /// Set stereo width.
-    pub fn set_stereo_width(&self, width: f64) {
+    pub fn set_stereo_width(&self, width: f32) {
         let clamped = width.clamp(0.0, 2.0);
         self.apply_stereo_width(clamped);
         self.state
@@ -218,7 +218,7 @@ impl EqService {
     }
 
     /// Set balance.
-    pub fn set_balance(&self, balance: f64) {
+    pub fn set_balance(&self, balance: f32) {
         self.apply_balance(balance);
         self.state
             .write()
@@ -255,7 +255,7 @@ impl EqService {
 
     /// Apply an EQ band change to the engine via lock-free channel.
     #[cfg(feature = "audio-output")]
-    fn apply_eq_band(&self, index: usize, frequency: f64, gain_db: f64, q: f64, enabled: bool) {
+    fn apply_eq_band(&self, index: usize, frequency: f32, gain_db: f32, q: f32, enabled: bool) {
         if let Some(ref tx) = self.engine_cmd_tx {
             let _ = tx.send(tc_engine::buffer::EngineCommand::SetEqBand {
                 index,
@@ -271,45 +271,45 @@ impl EqService {
     fn apply_eq_band(
         &self,
         _index: usize,
-        _frequency: f64,
-        _gain_db: f64,
-        _q: f64,
+        _frequency: f32,
+        _gain_db: f32,
+        _q: f32,
         _enabled: bool,
     ) {
     }
 
     /// Apply preamp change via lock-free channel.
     #[cfg(feature = "audio-output")]
-    fn apply_preamp(&self, db: f64) {
+    fn apply_preamp(&self, db: f32) {
         if let Some(ref tx) = self.engine_cmd_tx {
             let _ = tx.send(tc_engine::buffer::EngineCommand::SetPreamp(db));
         }
     }
 
     #[cfg(not(feature = "audio-output"))]
-    fn apply_preamp(&self, _db: f64) {}
+    fn apply_preamp(&self, _db: f32) {}
 
     /// Apply stereo width change via lock-free channel.
     #[cfg(feature = "audio-output")]
-    fn apply_stereo_width(&self, width: f64) {
+    fn apply_stereo_width(&self, width: f32) {
         if let Some(ref tx) = self.engine_cmd_tx {
             let _ = tx.send(tc_engine::buffer::EngineCommand::SetStereoWidth(width));
         }
     }
 
     #[cfg(not(feature = "audio-output"))]
-    fn apply_stereo_width(&self, _width: f64) {}
+    fn apply_stereo_width(&self, _width: f32) {}
 
     /// Apply balance change via lock-free channel.
     #[cfg(feature = "audio-output")]
-    fn apply_balance(&self, balance: f64) {
+    fn apply_balance(&self, balance: f32) {
         if let Some(ref tx) = self.engine_cmd_tx {
             let _ = tx.send(tc_engine::buffer::EngineCommand::SetBalance(balance));
         }
     }
 
     #[cfg(not(feature = "audio-output"))]
-    fn apply_balance(&self, _balance: f64) {}
+    fn apply_balance(&self, _balance: f32) {}
 
     /// Apply dither change via lock-free channel.
     #[cfg(feature = "audio-output")]
@@ -357,17 +357,17 @@ mod tests {
         assert!(!state.enabled);
         assert_eq!(state.bands, [0.0; 10]);
         assert_eq!(state.preset, "Custom");
-        assert!((state.preamp - 0.0).abs() < 1e-12);
-        assert!((state.stereo_width - 1.0).abs() < 1e-12);
-        assert!((state.balance - 0.0).abs() < 1e-12);
+        assert!((state.preamp - 0.0).abs() < 1e-6);
+        assert!((state.stereo_width - 1.0).abs() < 1e-6);
+        assert!((state.balance - 0.0).abs() < 1e-6);
         assert!(state.dither);
         assert!(!state.midside);
     }
 
     #[test]
     fn test_eq_frequencies() {
-        assert!((EQ_FREQUENCIES[0] - 31.25).abs() < 1e-12);
-        assert!((EQ_FREQUENCIES[9] - 16000.0).abs() < 1e-12);
+        assert!((EQ_FREQUENCIES[0] - 31.25).abs() < 1e-6);
+        assert!((EQ_FREQUENCIES[9] - 16000.0).abs() < 1e-6);
     }
 
     #[test]
@@ -392,9 +392,9 @@ mod tests {
     fn test_set_band() {
         let svc = make_service();
         svc.set_band(0, 3.0);
-        assert!((svc.state_snapshot().bands[0] - 3.0).abs() < 1e-12);
+        assert!((svc.state_snapshot().bands[0] - 3.0).abs() < 1e-6);
         // Other bands unchanged
-        assert!((svc.state_snapshot().bands[1] - 0.0).abs() < 1e-12);
+        assert!((svc.state_snapshot().bands[1] - 0.0).abs() < 1e-6);
     }
 
     #[test]
@@ -408,23 +408,23 @@ mod tests {
     fn test_set_preamp() {
         let svc = make_service();
         svc.set_preamp(-3.0);
-        assert!((svc.state_snapshot().preamp - (-3.0)).abs() < 1e-12);
+        assert!((svc.state_snapshot().preamp - (-3.0)).abs() < 1e-6);
     }
 
     #[test]
     fn test_set_stereo_width_clamped() {
         let svc = make_service();
         svc.set_stereo_width(3.0); // clamped to 2.0
-        assert!((svc.state_snapshot().stereo_width - 2.0).abs() < 1e-12);
+        assert!((svc.state_snapshot().stereo_width - 2.0).abs() < 1e-6);
         svc.set_stereo_width(-1.0); // clamped to 0.0
-        assert!((svc.state_snapshot().stereo_width - 0.0).abs() < 1e-12);
+        assert!((svc.state_snapshot().stereo_width - 0.0).abs() < 1e-6);
     }
 
     #[test]
     fn test_set_balance() {
         let svc = make_service();
         svc.set_balance(-0.5);
-        assert!((svc.state_snapshot().balance - (-0.5)).abs() < 1e-12);
+        assert!((svc.state_snapshot().balance - (-0.5)).abs() < 1e-6);
     }
 
     #[test]
@@ -458,6 +458,6 @@ mod tests {
         let svc = make_service();
         svc.set_band_with_params(2, 250.0, 4.5, 2.0, true);
         let state = svc.state_snapshot();
-        assert!((state.bands[2] - 4.5).abs() < 1e-12);
+        assert!((state.bands[2] - 4.5).abs() < 1e-6);
     }
 }

@@ -7,10 +7,10 @@ use super::enums::RepeatMode;
 pub struct PlaybackConfig {
     /// 0.0 to 1.0
     #[serde(default = "PlaybackConfig::default_volume")]
-    pub volume: f64,
+    pub volume: f32,
     /// 0.25 to 4.0
     #[serde(default = "PlaybackConfig::default_speed")]
-    pub speed: f64,
+    pub speed: f32,
     #[serde(default)]
     pub shuffle: bool,
     #[serde(default)]
@@ -20,10 +20,10 @@ pub struct PlaybackConfig {
 }
 
 impl PlaybackConfig {
-    fn default_volume() -> f64 {
+    fn default_volume() -> f32 {
         1.0
     }
-    fn default_speed() -> f64 {
+    fn default_speed() -> f32 {
         1.0
     }
     fn default_resume_on_start() -> bool {

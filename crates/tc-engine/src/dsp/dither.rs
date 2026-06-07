@@ -34,9 +34,9 @@ pub struct Dither {
     dither_type: DitherType,
     bit_depth: u32,
     /// Previous quantization error for noise shaping (left channel)
-    shape_left: f64,
+    shape_left: f32,
     /// Previous quantization error for noise shaping (right channel)
-    shape_right: f64,
+    shape_right: f32,
     /// PRNG state for left channel (xorshift64)
     rng_state_left: u64,
     /// PRNG state for right channel (xorshift64)
@@ -104,31 +104,31 @@ impl Dither {
 
     /// Generate a random value in [-1.0, 1.0] using the PRNG.
     #[inline]
-    fn next_random_f64(state: &mut u64) -> f64 {
+    fn next_random_f32(state: &mut u64) -> f32 {
         let bits = Self::next_random(state);
-        // Map u64 → i64 → f64 in [-1, 1]
-        (bits as i64 as f64) / (i64::MIN as f64).abs()
+        // Map u64 → i64 → f32 in [-1, 1]
+        (bits as i64 as f32) / (i64::MIN as f32).abs()
     }
 
     /// Process a stereo sample with dithering and quantization.
     ///
     /// Returns the dithered and quantized sample pair, clamped to [-1.0, 1.0].
     #[inline]
-    pub fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         if !self.enabled || self.bit_depth >= 32 {
             return (left, right);
         }
 
         let quant_steps = 1u64 << (self.bit_depth - 1);
-        let quant_steps_f = quant_steps as f64;
+        let quant_steps_f = quant_steps as f32;
         let half_lsb = 0.5 / quant_steps_f;
 
         let (dithered_l, dithered_r) = match self.dither_type {
             DitherType::None => (left, right),
 
             DitherType::Rectangular => {
-                let noise_l = Self::next_random_f64(&mut self.rng_state_left) * half_lsb;
-                let noise_r = Self::next_random_f64(&mut self.rng_state_right) * half_lsb;
+                let noise_l = Self::next_random_f32(&mut self.rng_state_left) * half_lsb;
+                let noise_r = Self::next_random_f32(&mut self.rng_state_right) * half_lsb;
                 (left + noise_l, right + noise_r)
             },
 
@@ -139,11 +139,11 @@ impl Dither {
                 // that introduced a DC bias of -0.5 LSB. The formula
                 // `(rng1 + rng2) * half_lsb` produces a triangular distribution
                 // with mean 0, which is the correct TPDF dither.
-                let noise_l = (Self::next_random_f64(&mut self.rng_state_left)
-                    + Self::next_random_f64(&mut self.rng_state_left))
+                let noise_l = (Self::next_random_f32(&mut self.rng_state_left)
+                    + Self::next_random_f32(&mut self.rng_state_left))
                     * half_lsb;
-                let noise_r = (Self::next_random_f64(&mut self.rng_state_right)
-                    + Self::next_random_f64(&mut self.rng_state_right))
+                let noise_r = (Self::next_random_f32(&mut self.rng_state_right)
+                    + Self::next_random_f32(&mut self.rng_state_right))
                     * half_lsb;
                 (left + noise_l, right + noise_r)
             },
@@ -153,11 +153,11 @@ impl Dither {
                 // Feeds quantization error back with a negative coefficient
                 // to push dither energy into less audible high frequencies.
 
-                let noise_l = (Self::next_random_f64(&mut self.rng_state_left)
-                    + Self::next_random_f64(&mut self.rng_state_left))
+                let noise_l = (Self::next_random_f32(&mut self.rng_state_left)
+                    + Self::next_random_f32(&mut self.rng_state_left))
                     * half_lsb;
-                let noise_r = (Self::next_random_f64(&mut self.rng_state_right)
-                    + Self::next_random_f64(&mut self.rng_state_right))
+                let noise_r = (Self::next_random_f32(&mut self.rng_state_right)
+                    + Self::next_random_f32(&mut self.rng_state_right))
                     * half_lsb;
                 let shaped_l = left + noise_l - self.shape_left * 0.5;
                 let shaped_r = right + noise_r - self.shape_right * 0.5;
@@ -222,8 +222,8 @@ mod tests {
     fn test_no_dither_at_high_bit_depth() {
         let mut dither = Dither::new(DitherType::Triangular, 32);
         let (l, r) = dither.process(0.5, 0.5);
-        assert!((l - 0.5).abs() < 1e-10, "32-bit should pass through");
-        assert!((r - 0.5).abs() < 1e-10, "32-bit should pass through");
+        assert!((l - 0.5).abs() < 1e-5, "32-bit should pass through");
+        assert!((r - 0.5).abs() < 1e-5, "32-bit should pass through");
     }
 
     #[test]
@@ -247,7 +247,7 @@ mod tests {
             let (l, _) = dither.process(0.0, 0.0);
             sum += l;
         }
-        let mean = sum / n as f64;
+        let mean = sum / n as f32;
         assert!(
             mean.abs() < 0.001,
             "TPDF dither mean should be near zero, got {}",

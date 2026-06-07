@@ -10,14 +10,14 @@ fn bench_pipeline(c: &mut Criterion) {
 
     // Single frame throughput
     group.bench_function("full_chain/single_frame", |b| {
-        b.iter(|| black_box(pipeline.process(black_box(0.5_f64), black_box(0.3_f64))))
+        b.iter(|| black_box(pipeline.process(black_box(0.5_f32), black_box(0.3_f32))))
     });
 
     // Block throughput (realistic audio callback size)
     const BLOCK: usize = 512;
     group.throughput(Throughput::Elements(BLOCK as u64));
     group.bench_function("full_chain/block_512", |b| {
-        let mut frames: [(f64, f64); BLOCK] = [(0.5, 0.3); BLOCK];
+        let mut frames: [(f32, f32); BLOCK] = [(0.5, 0.3); BLOCK];
         b.iter(|| {
             pipeline.process_batch(&mut frames);
             black_box(&frames);
@@ -28,7 +28,7 @@ fn bench_pipeline(c: &mut Criterion) {
     const BLOCK_4K: usize = 4096;
     group.throughput(Throughput::Elements(BLOCK_4K as u64));
     group.bench_function("full_chain/block_4096", |b| {
-        let mut frames: Vec<(f64, f64)> = vec![(0.5, 0.3); BLOCK_4K];
+        let mut frames: Vec<(f32, f32)> = vec![(0.5, 0.3); BLOCK_4K];
         b.iter(|| {
             pipeline.process_batch(&mut frames);
             black_box(&frames);

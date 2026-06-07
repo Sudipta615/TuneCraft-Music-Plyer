@@ -50,7 +50,7 @@ pub struct LocalScrobbleEntry {
     pub track_id: i64,
     pub artist: String,
     pub track: String,
-    pub duration_played_secs: f64,
+    pub duration_played_secs: f32,
 }
 
 /// Offline local scrobble service.
@@ -258,13 +258,13 @@ impl ScrobbleService {
     }
 
     /// Total listening time in seconds across all recorded plays.
-    pub fn total_listening_secs(&self) -> f64 {
+    pub fn total_listening_secs(&self) -> f32 {
         self.db
             .with_connection(|conn| {
                 conn.query_row(
                     "SELECT COALESCE(SUM(total_seconds_listened), 0.0) FROM listening_stats",
                     [],
-                    |row| row.get::<_, f64>(0),
+                    |row| row.get::<_, f32>(0),
                 )
             })
             .unwrap_or(0.0)
@@ -414,7 +414,7 @@ pub struct TopTrack {
     pub artist: String,
     pub album: Option<String>,
     pub play_count: u32,
-    pub total_seconds_listened: f64,
+    pub total_seconds_listened: f32,
 }
 
 /// An artist entry in the most-listened list.
@@ -423,7 +423,7 @@ pub struct TopArtist {
     pub artist: String,
     pub track_count: u32,
     pub total_plays: u32,
-    pub total_seconds_listened: f64,
+    pub total_seconds_listened: f32,
 }
 
 /// One row from the listening history.
@@ -435,7 +435,7 @@ pub struct HistoryEntry {
     pub artist: String,
     pub album: Option<String>,
     pub played_at: i64, // Unix timestamp
-    pub duration_played_secs: f64,
+    pub duration_played_secs: f32,
 }
 
 // ---------------------------------------------------------------------------

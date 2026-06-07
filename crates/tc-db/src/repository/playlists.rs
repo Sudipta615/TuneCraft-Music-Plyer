@@ -113,7 +113,7 @@ impl Database {
         let tx = conn.unchecked_transaction().map_err(DbError::Sqlite)?;
 
         // Verify the track exists and get its duration
-        let _track_duration: f64 = tx
+        let _track_duration: f32 = tx
             .query_row(
                 "SELECT duration_secs FROM tracks WHERE id = ?1",
                 params![track_id],

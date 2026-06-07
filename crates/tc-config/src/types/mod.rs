@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn test_eq_band_validate_rejects_nan_q() {
         let mut band = EqBand {
-            q: f64::NAN,
+            q: f32::NAN,
             ..Default::default()
         };
         band.validate();

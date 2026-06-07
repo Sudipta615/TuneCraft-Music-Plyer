@@ -9,42 +9,42 @@ use crate::buffer::{AudioFrame, MAX_CHANNELS};
 /// Lookahead brick-wall limiter
 pub struct LookaheadLimiter {
     /// Ceiling in linear amplitude
-    ceiling_linear: f64,
+    ceiling_linear: f32,
     /// Attack time in seconds
-    attack_secs: f64,
+    attack_secs: f32,
     /// Release time in seconds
-    release_secs: f64,
+    release_secs: f32,
     /// Lookahead time in seconds (stored for sample rate changes)
-    lookahead_secs: f64,
+    lookahead_secs: f32,
     /// Lookahead delay in samples
     lookahead_samples: usize,
     /// Sample rate
-    sample_rate: f64,
+    sample_rate: f32,
     /// Whether soft clipping is enabled
     soft_clip: bool,
     /// Whether the limiter is enabled
     enabled: bool,
 
     /// Delay line per channel — circular buffer
-    delay_lines: [Vec<f64>; MAX_CHANNELS],
+    delay_lines: [Vec<f32>; MAX_CHANNELS],
     /// Write position in the delay line
     delay_write_pos: usize,
     /// Current gain reduction (linear, 0.0–1.0)
-    current_gain: f64,
+    current_gain: f32,
     /// Attack coefficient (per sample)
-    attack_coeff: f64,
+    attack_coeff: f32,
     /// Release coefficient (per sample)
-    release_coeff: f64,
+    release_coeff: f32,
 }
 
 impl LookaheadLimiter {
     /// Create a new limiter with full configuration
     pub fn new_with_params(
-        sample_rate: f64,
-        lookahead_ms: f64,
-        attack_ms: f64,
-        release_ms: f64,
-        ceiling_db: f64,
+        sample_rate: f32,
+        lookahead_ms: f32,
+        attack_ms: f32,
+        release_ms: f32,
+        ceiling_db: f32,
         soft_clip: bool,
     ) -> Self {
         let lookahead_secs = lookahead_ms / 1000.0;
@@ -52,7 +52,7 @@ impl LookaheadLimiter {
         let lookahead_samples = lookahead_samples.max(1);
         let attack_secs = attack_ms / 1000.0;
         let release_secs = release_ms / 1000.0;
-        let ceiling_linear = 10.0_f64.powf(ceiling_db / 20.0);
+        let ceiling_linear = 10.0_f32.powf(ceiling_db / 20.0);
 
         let attack_coeff = if attack_secs > 0.0 {
             (-1.0 / (attack_secs * sample_rate)).exp()
@@ -86,7 +86,7 @@ impl LookaheadLimiter {
     }
 
     /// Create a new limiter with default settings
-    pub fn new(sample_rate: f64) -> Self {
+    pub fn new(sample_rate: f32) -> Self {
         Self::new_with_params(sample_rate, 5.0, 5.0, 50.0, -0.3, false)
     }
 
@@ -96,25 +96,25 @@ impl LookaheadLimiter {
     }
 
     /// Set the ceiling in dB. Must be <= 0 dBFS; non-finite or positive values are clamped.
-    pub fn set_ceiling_db(&mut self, ceiling_db: f64) {
+    pub fn set_ceiling_db(&mut self, ceiling_db: f32) {
         if !ceiling_db.is_finite() {
             log::warn!(
                 "LookaheadLimiter: non-finite ceiling_db {}; using -0.3",
                 ceiling_db
             );
-            self.ceiling_linear = 10.0_f64.powf(-0.3 / 20.0);
+            self.ceiling_linear = 10.0_f32.powf(-0.3 / 20.0);
             return;
         }
-        self.ceiling_linear = 10.0_f64.powf(ceiling_db.min(0.0) / 20.0);
+        self.ceiling_linear = 10.0_f32.powf(ceiling_db.min(0.0) / 20.0);
     }
 
     /// Set the threshold in dB (alias for ceiling)
-    pub fn set_threshold_db(&mut self, threshold_db: f64) {
+    pub fn set_threshold_db(&mut self, threshold_db: f32) {
         self.set_ceiling_db(threshold_db);
     }
 
     /// Set attack time in seconds. Non-positive/non-finite values are clamped to 0.1 ms.
-    pub fn set_attack(&mut self, secs: f64) {
+    pub fn set_attack(&mut self, secs: f32) {
         if !secs.is_finite() || secs <= 0.0 {
             log::warn!(
                 "LookaheadLimiter: invalid attack {}; clamping to 0.0001s",
@@ -126,7 +126,7 @@ impl LookaheadLimiter {
     }
 
     /// Set release time in seconds. Non-positive/non-finite values are clamped to 1 ms.
-    pub fn set_release(&mut self, secs: f64) {
+    pub fn set_release(&mut self, secs: f32) {
         if !secs.is_finite() || secs <= 0.0 {
             log::warn!(
                 "LookaheadLimiter: invalid release {}; clamping to 0.001s",
@@ -139,7 +139,7 @@ impl LookaheadLimiter {
 
     /// Process a stereo sample pair
     #[inline]
-    pub fn process(&mut self, left: f64, right: f64) -> (f64, f64) {
+    pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         if !self.enabled {
             return (left, right);
         }
@@ -160,6 +160,7 @@ impl LookaheadLimiter {
             self.current_gain =
                 desired_gain + (self.current_gain - desired_gain) * self.release_coeff;
         }
+        self.current_gain = crate::buffer::flush_denormal(self.current_gain);
 
         // giving exactly lookahead_samples of delay
         let delay_len = self.delay_lines[0].len();
@@ -193,7 +194,7 @@ impl LookaheadLimiter {
 
     /// Soft clip using tanh saturation
     #[inline]
-    fn soft_clip_sample(&self, sample: f64) -> f64 {
+    fn soft_clip_sample(&self, sample: f32) -> f32 {
         if sample.abs() <= self.ceiling_linear {
             return sample;
         }
@@ -202,12 +203,12 @@ impl LookaheadLimiter {
     }
 
     /// Get the current gain reduction in dB (always <= 0)
-    pub fn gain_reduction_db(&self) -> f64 {
+    pub fn gain_reduction_db(&self) -> f32 {
         20.0 * self.current_gain.log10().max(-60.0)
     }
 
     /// Get the current gain (linear)
-    pub fn current_gain(&self) -> f64 {
+    pub fn current_gain(&self) -> f32 {
         self.current_gain
     }
 
@@ -221,7 +222,7 @@ impl LookaheadLimiter {
     }
 
     /// Update sample rate (rebuilds delay lines)
-    pub fn set_sample_rate(&mut self, sample_rate: f64) {
+    pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
         let lookahead_samples = (self.lookahead_secs * sample_rate).ceil() as usize;
         self.lookahead_samples = lookahead_samples.max(1);
@@ -276,8 +277,8 @@ mod tests {
         let mut limiter = LookaheadLimiter::new(44100.0);
         limiter.set_enabled(false);
         let (l, r) = limiter.process(0.5, 0.5);
-        assert!((l - 0.5).abs() < 1e-10);
-        assert!((r - 0.5).abs() < 1e-10);
+        assert!((l - 0.5).abs() < 1e-5);
+        assert!((r - 0.5).abs() < 1e-5);
     }
 
     #[test]
@@ -288,6 +289,6 @@ mod tests {
             limiter.process(1.0, 1.0);
         }
         limiter.reset();
-        assert!((limiter.current_gain() - 1.0).abs() < 1e-10);
+        assert!((limiter.current_gain() - 1.0).abs() < 1e-5);
     }
 }

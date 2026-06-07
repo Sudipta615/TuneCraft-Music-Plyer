@@ -63,7 +63,7 @@ pub struct PlatformIntegration {
     /// Current track info for MPRIS (local mirror)
     mpris_track: MprisTrackInfo,
     /// Current volume (0.0 to 1.0) for MPRIS (local mirror)
-    mpris_volume: f64,
+    mpris_volume: f32,
     /// Registered keyboard shortcuts
     shortcuts: Vec<KeyboardShortcut>,
     /// Background thread running flag
@@ -193,7 +193,7 @@ impl PlatformIntegration {
     }
 
     /// Update MPRIS volume.
-    pub fn set_mpris_volume(&mut self, volume: f64) {
+    pub fn set_mpris_volume(&mut self, volume: f32) {
         self.mpris_volume = volume.clamp(0.0, 1.0);
 
         // Update cross-platform media controls.
@@ -242,7 +242,7 @@ impl PlatformIntegration {
     }
 
     /// Get the current MPRIS volume
-    pub fn mpris_volume(&self) -> f64 {
+    pub fn mpris_volume(&self) -> f32 {
         self.mpris_volume
     }
 

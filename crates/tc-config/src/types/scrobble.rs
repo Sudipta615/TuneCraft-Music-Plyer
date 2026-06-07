@@ -15,7 +15,7 @@ pub struct ScrobbleConfig {
     /// Fraction of track duration that must play before a listen is recorded.
     /// Range: (0.0, 1.0]. Default: 0.5 (50%).
     #[serde(default = "ScrobbleConfig::default_scrobble_threshold_pct")]
-    pub scrobble_threshold_pct: f64,
+    pub scrobble_threshold_pct: f32,
 
     /// Hard maximum listen time (seconds) after which a play is always recorded,
     /// regardless of percentage. Default: 240 s (4 minutes), a common scrobble
@@ -28,7 +28,7 @@ impl ScrobbleConfig {
     fn default_enabled() -> bool {
         true
     }
-    fn default_scrobble_threshold_pct() -> f64 {
+    fn default_scrobble_threshold_pct() -> f32 {
         0.5
     }
     fn default_scrobble_threshold_sec() -> u64 {

@@ -39,7 +39,7 @@
 //!   separated from Sad by their moderate energy level and the presence of sustained vocal
 //!   harmonics (higher ZCR than purely instrumental sad tracks).
 
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 // ---------------------------------------------------------------------------
 // Filter helpers
@@ -49,13 +49,13 @@ use std::f64::consts::PI;
 /// H(z) = b0 / (1 + a1·z⁻¹)
 #[derive(Clone)]
 struct LowPass {
-    b0: f64,
-    a1: f64,
-    y1: f64,
+    b0: f32,
+    a1: f32,
+    y1: f32,
 }
 
 impl LowPass {
-    fn new(cutoff_hz: f64, sample_rate: f64) -> Self {
+    fn new(cutoff_hz: f32, sample_rate: f32) -> Self {
         // Bilinear transform of RC low-pass
         let w = 2.0 * PI * cutoff_hz / sample_rate;
         let k = w / (w + 2.0); // = w/(w+2) from BLT
@@ -66,7 +66,7 @@ impl LowPass {
     }
 
     #[inline(always)]
-    fn process(&mut self, x: f64) -> f64 {
+    fn process(&mut self, x: f32) -> f32 {
         // y[n] = b0·x[n] + b0·x[n-1] − a1·y[n-1]
         // Store b0*(x+x_prev) but we omit x_prev for a simpler 1-pole version:
         //   y[n] = b0·x[n] − a1·y[n-1]
@@ -83,13 +83,13 @@ impl LowPass {
 /// First-order IIR high-pass filter state (Direct Form I).
 #[derive(Clone)]
 struct HighPass {
-    alpha: f64, // = RC/(RC+T)
-    x1: f64,
-    y1: f64,
+    alpha: f32, // = RC/(RC+T)
+    x1: f32,
+    y1: f32,
 }
 
 impl HighPass {
-    fn new(cutoff_hz: f64, sample_rate: f64) -> Self {
+    fn new(cutoff_hz: f32, sample_rate: f32) -> Self {
         let rc = 1.0 / (2.0 * PI * cutoff_hz);
         let t = 1.0 / sample_rate;
         let alpha = rc / (rc + t);
@@ -101,7 +101,7 @@ impl HighPass {
     }
 
     #[inline(always)]
-    fn process(&mut self, x: f64) -> f64 {
+    fn process(&mut self, x: f32) -> f32 {
         let y = self.alpha * (self.y1 + x - self.x1);
         self.x1 = x;
         self.y1 = y;
@@ -120,15 +120,15 @@ impl HighPass {
 
 #[derive(Clone, Default)]
 struct Welford {
-    mean: f64,
+    mean: f32,
     count: u64,
 }
 
 impl Welford {
     #[inline(always)]
-    fn update(&mut self, x: f64) {
+    fn update(&mut self, x: f32) {
         self.count += 1;
-        self.mean += (x - self.mean) / self.count as f64;
+        self.mean += (x - self.mean) / self.count as f32;
     }
 
     fn reset(&mut self) {
@@ -151,7 +151,7 @@ impl Welford {
 /// allocation in the hot path.
 pub struct MoodClassifier {
     #[expect(dead_code)]
-    pub(crate) sample_rate: f64,
+    pub(crate) sample_rate: f32,
 
     // Filters
     lp_500: LowPass,  // ≤ 500 Hz  (warm / body band)
@@ -167,8 +167,8 @@ pub struct MoodClassifier {
     acc_zcr: Welford,       // zero-crossing rate
 
     // State for flux and ZCR
-    prev_energy: f64,
-    prev_sample: f64,
+    prev_energy: f32,
+    prev_sample: f32,
     sample_count: u64,
 }
 
@@ -176,7 +176,7 @@ impl MoodClassifier {
     /// Create a new classifier for the given sample rate.
     ///
     /// Returns `Err` if `sample_rate` ≤ 0.
-    pub fn new(sample_rate: f64) -> Result<Self, super::AnalysisError> {
+    pub fn new(sample_rate: f32) -> Result<Self, super::AnalysisError> {
         if sample_rate <= 0.0 {
             return Err(super::AnalysisError::InvalidSampleRate(sample_rate));
         }
@@ -203,7 +203,7 @@ impl MoodClassifier {
     /// already uses — no extra buffering needed.
     ///
     /// **Zero heap allocation.** All state lives in `self`.
-    pub fn feed(&mut self, samples: &[(f64, f64)]) {
+    pub fn feed(&mut self, samples: &[(f32, f32)]) {
         for &(l, r) in samples {
             let mono = (l + r) * 0.5;
 
@@ -265,14 +265,14 @@ impl MoodClassifier {
         // Centroid proxy: fraction of signal energy above 500 Hz.
         // hi/(lo+hi) ∈ [0,1]; bright signals → 1, warm/bass-heavy → 0.
         let total_band = self.acc_lo_energy.mean + self.acc_hi_energy.mean;
-        let centroid = if total_band > 1e-12 {
+        let centroid = if total_band > 1e-6 {
             self.acc_hi_energy.mean / total_band
         } else {
             0.5
         };
 
         // High-frequency ratio: hf / total energy.
-        let hf_ratio = if self.acc_energy.mean > 1e-12 {
+        let hf_ratio = if self.acc_energy.mean > 1e-6 {
             (self.acc_hf_energy.mean / self.acc_energy.mean).min(1.0)
         } else {
             0.0
@@ -281,10 +281,10 @@ impl MoodClassifier {
         // Flux: mean absolute energy delta.  Scale empirically:
         //  quiet ambient ≈ 0.0001, loud percussive ≈ 0.01+.
         // Log-scale normalisation gives good separation.
-        let flux_raw = self.acc_flux.mean.max(1e-12);
+        let flux_raw = self.acc_flux.mean.max(1e-6);
         // Map [1e-6, 0.01] → [0, 1] on a log scale
-        let flux = ((flux_raw.ln() - (-6.0_f64 * std::f64::consts::LN_10))
-            / ((-2.0_f64 * std::f64::consts::LN_10) - (-6.0_f64 * std::f64::consts::LN_10)))
+        let flux = ((flux_raw.ln() - (-6.0_f32 * std::f32::consts::LN_10))
+            / ((-2.0_f32 * std::f32::consts::LN_10) - (-6.0_f32 * std::f32::consts::LN_10)))
             .clamp(0.0, 1.0);
 
         // ZCR: typical speech/vocals ≈ 0.05–0.15, noise ≈ 0.4+
@@ -310,7 +310,7 @@ impl MoodClassifier {
 
     /// Like [`classify`] but also takes the detected BPM for tempo-aware
     /// mood mapping.  Called by `analyze_file` after both detectors finish.
-    pub fn classify_with_bpm(&self, bpm: f64, bpm_confidence: f64) -> super::MoodResult {
+    pub fn classify_with_bpm(&self, bpm: f32, bpm_confidence: f32) -> super::MoodResult {
         if self.sample_count == 0 {
             return super::MoodResult {
                 mood: "Unknown".to_string(),
@@ -322,19 +322,19 @@ impl MoodClassifier {
         let energy = (self.acc_energy.mean * 4.0).sqrt().min(1.0);
 
         let total_band = self.acc_lo_energy.mean + self.acc_hi_energy.mean;
-        let centroid = if total_band > 1e-12 {
+        let centroid = if total_band > 1e-6 {
             self.acc_hi_energy.mean / total_band
         } else {
             0.5
         };
-        let hf_ratio = if self.acc_energy.mean > 1e-12 {
+        let hf_ratio = if self.acc_energy.mean > 1e-6 {
             (self.acc_hf_energy.mean / self.acc_energy.mean).min(1.0)
         } else {
             0.0
         };
-        let flux_raw = self.acc_flux.mean.max(1e-12);
-        let flux = ((flux_raw.ln() - (-6.0_f64 * std::f64::consts::LN_10))
-            / ((-2.0_f64 * std::f64::consts::LN_10) - (-6.0_f64 * std::f64::consts::LN_10)))
+        let flux_raw = self.acc_flux.mean.max(1e-6);
+        let flux = ((flux_raw.ln() - (-6.0_f32 * std::f32::consts::LN_10))
+            / ((-2.0_f32 * std::f32::consts::LN_10) - (-6.0_f32 * std::f32::consts::LN_10)))
             .clamp(0.0, 1.0);
         let zcr = (self.acc_zcr.mean * 6.0).min(1.0);
 
@@ -372,17 +372,17 @@ impl MoodClassifier {
     /// Bollywood notes inline in the branches.
     fn classify_features(
         &self,
-        energy: f64,
-        centroid: f64,
-        flux: f64,
-        warmth: f64,
-        vocal: f64,
-        bpm: Option<f64>,
+        energy: f32,
+        centroid: f32,
+        flux: f32,
+        warmth: f32,
+        vocal: f32,
+        bpm: Option<f32>,
     ) -> super::MoodResult {
         // Convenience: is BPM in a given range?
-        let bpm_in = |lo: f64, hi: f64| -> bool { bpm.is_none_or(|b| b >= lo && b < hi) };
-        let bpm_above = |thresh: f64| -> bool { bpm.is_none_or(|b| b >= thresh) };
-        let bpm_below = |thresh: f64| -> bool { bpm.is_none_or(|b| b < thresh) };
+        let bpm_in = |lo: f32, hi: f32| -> bool { bpm.is_none_or(|b| b >= lo && b < hi) };
+        let bpm_above = |thresh: f32| -> bool { bpm.is_none_or(|b| b >= thresh) };
+        let bpm_below = |thresh: f32| -> bool { bpm.is_none_or(|b| b < thresh) };
 
         // valence is a secondary output used by the UI for colour-coding;
         // derive it independently from warmth and energy.
@@ -488,10 +488,10 @@ impl MoodClassifier {
         #[derive(Clone)]
         struct Prototype {
             mood: &'static str,
-            e: f64,
-            c: f64,
-            f: f64,
-            w: f64,
+            e: f32,
+            c: f32,
+            f: f32,
+            w: f32,
         }
         let prototypes = [
             Prototype {
@@ -532,7 +532,7 @@ impl MoodClassifier {
         ];
 
         let mut best = &prototypes[0];
-        let mut best_dist = f64::MAX;
+        let mut best_dist = f32::MAX;
         for p in &prototypes {
             let dist = (energy - p.e).abs()
                 + (centroid - p.c).abs()
@@ -579,26 +579,26 @@ impl MoodClassifier {
 
 #[cfg(test)]
 mod tests {
-    use std::f64::consts::PI;
+    use std::f32::consts::PI;
 
     use super::*;
 
     fn make_samples_sine(
-        freq_hz: f64,
-        amplitude: f64,
-        duration_secs: f64,
-        sr: f64,
-    ) -> Vec<(f64, f64)> {
+        freq_hz: f32,
+        amplitude: f32,
+        duration_secs: f32,
+        sr: f32,
+    ) -> Vec<(f32, f32)> {
         let n = (sr * duration_secs) as usize;
         (0..n)
             .map(|i| {
-                let v = amplitude * (2.0 * PI * freq_hz * i as f64 / sr).sin();
+                let v = amplitude * (2.0 * PI * freq_hz * i as f32 / sr).sin();
                 (v, v)
             })
             .collect()
     }
 
-    fn make_samples_noise(amplitude: f64, n: usize) -> Vec<(f64, f64)> {
+    fn make_samples_noise(amplitude: f32, n: usize) -> Vec<(f32, f32)> {
         // Deterministic pseudo-noise via xorshift for reproducibility.
         let mut state: u64 = 0xDEAD_BEEF_CAFE_1234;
         (0..n)
@@ -606,7 +606,7 @@ mod tests {
                 state ^= state << 13;
                 state ^= state >> 7;
                 state ^= state << 17;
-                let v = ((state as i64) as f64 / i64::MAX as f64) * amplitude;
+                let v = ((state as i64) as f32 / i64::MAX as f32) * amplitude;
                 (v, v)
             })
             .collect()
@@ -777,7 +777,7 @@ mod tests {
     #[test]
     fn test_long_silence_does_not_panic() {
         let mut c = MoodClassifier::new(44100.0).unwrap();
-        let silence: Vec<(f64, f64)> = vec![(0.0, 0.0); 44100 * 30];
+        let silence: Vec<(f32, f32)> = vec![(0.0, 0.0); 44100 * 30];
         c.feed(&silence);
         let r = c.classify();
         // Silence: very low energy; must not be Unknown (sample_count > 0).
@@ -788,7 +788,7 @@ mod tests {
     #[test]
     fn test_full_scale_clip_does_not_produce_nan() {
         let mut c = MoodClassifier::new(44100.0).unwrap();
-        let clip: Vec<(f64, f64)> = vec![(1.0, 1.0); 44100 * 5];
+        let clip: Vec<(f32, f32)> = vec![(1.0, 1.0); 44100 * 5];
         c.feed(&clip);
         let r = c.classify();
         assert!(!r.energy.is_nan());
