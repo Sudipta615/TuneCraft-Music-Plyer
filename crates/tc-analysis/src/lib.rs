@@ -197,8 +197,8 @@ pub fn analyze_file(
                 stereo_chunk.clear();
                 if num_channels > 1 {
                     for frame in samples.chunks_exact(num_channels) {
-                        let l = frame[0] as f32;
-                        let r = frame[1] as f32;
+                        let l = frame[0];
+                        let r = frame[1];
                         stereo_chunk.push((l, r));
                         if stereo_chunk.len() >= 512 {
                             bpm_detector.feed(&stereo_chunk);
@@ -210,7 +210,7 @@ pub fn analyze_file(
                     total_samples += (samples.len() / num_channels) as u64;
                 } else {
                     for &s in samples.iter() {
-                        let v = s as f32;
+                        let v = s;
                         stereo_chunk.push((v, v));
                         if stereo_chunk.len() >= 512 {
                             bpm_detector.feed(&stereo_chunk);
