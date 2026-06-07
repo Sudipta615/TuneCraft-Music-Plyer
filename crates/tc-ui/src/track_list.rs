@@ -75,10 +75,6 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
 
     let (bar_rect, _) = ui.allocate_exact_size(Vec2::new(total_w, bar_h), Sense::hover());
     ui.painter().rect_filled(bar_rect, 0.0, colors.bg);
-    ui.painter().line_segment(
-        [bar_rect.left_bottom(), bar_rect.right_bottom()],
-        egui::Stroke::new(1.0, colors.border),
-    );
 
     ui.allocate_new_ui(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
         ui.horizontal(|ui| {
@@ -108,12 +104,8 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                 Vec2::new(search_w, search_h),
             );
             let (_, _) = ui.allocate_exact_size(Vec2::new(search_w, search_h), Sense::hover());
-            ui.painter().rect_filled(search_rect, 8.0, colors.search_bg);
-            ui.painter().rect_stroke(
-                search_rect,
-                8.0,
-                egui::Stroke::new(1.0, colors.search_border),
-            );
+            ui.painter()
+                .rect_filled(search_rect, 16.0, colors.search_bg);
 
             // Search icon
             ui.painter().text(
@@ -244,11 +236,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.add_space(if is_narrow { 12.0 } else { 24.0 });
             ui.vertical(|ui| {
                 let heading_size = if is_narrow {
-                    18.0
-                } else if is_medium {
                     20.0
-                } else {
+                } else if is_medium {
                     24.0
+                } else {
+                    28.0
                 };
                 ui.label(
                     RichText::new(app.nav.label())
@@ -631,7 +623,7 @@ fn draw_album_art(
         let uv = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0));
         ui.painter().add(egui::epaint::RectShape::filled(
             rect,
-            egui::Rounding::same(4.0),
+            egui::Rounding::same(6.0),
             colors.card,
         ));
         // Draw the texture as a mesh with rounded clip
@@ -654,7 +646,7 @@ fn draw_album_art(
         } else {
             colors.card
         };
-        ui.painter().rect_filled(rect, 4.0, art_color);
+        ui.painter().rect_filled(rect, 6.0, art_color);
         if is_playing {
             ui.painter().text(
                 rect.center(),
@@ -787,15 +779,8 @@ fn draw_list_view(
     }
     if vis.show_mood {
         ui.painter().text(
-            Pos2::new(lx + col_offsets[4] + 18.0, header_y),
-            Align2::LEFT_CENTER,
-            "\u{23F1}",
-            FontId::proportional(12.0),
-            header_color,
-        );
-        ui.painter().text(
-            Pos2::new(lx + col_offsets[4] + 32.0, header_y),
-            Align2::LEFT_CENTER,
+            Pos2::new(lx + col_offsets[5] - 16.0, header_y),
+            Align2::RIGHT_CENTER,
             "DURATION",
             header_font.clone(),
             header_color,
@@ -809,8 +794,8 @@ fn draw_list_view(
         );
     } else {
         ui.painter().text(
-            Pos2::new(lx + col_offsets[4] + 4.0, header_y),
-            Align2::LEFT_CENTER,
+            Pos2::new(lx + width - 48.0, header_y),
+            Align2::RIGHT_CENTER,
             "DURATION",
             header_font,
             header_color,
@@ -823,7 +808,7 @@ fn draw_list_view(
         egui::Stroke::new(1.0, colors.border),
     );
 
-    let track_row_h = 56.0;
+    let track_row_h = 64.0;
 
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
@@ -839,13 +824,6 @@ fn draw_list_view(
                 let is_playing = app.current_track_id == Some(track_id);
                 let display_num = row_range.start + i + 1;
 
-                // Alternate row colors
-                let row_base = if (row_range.start + i) % 2 == 0 {
-                    colors.table_row_even
-                } else {
-                    colors.table_row_odd
-                };
-
                 let (row_rect, row_resp) = ui.allocate_exact_size(
                     Vec2::new(ui.available_width(), track_row_h),
                     Sense::click(),
@@ -856,11 +834,11 @@ fn draw_list_view(
                 } else if is_playing {
                     if colors.dark_mode {
                         Color32::from_rgba_premultiplied(
-                            (colors.accent.r() as u16 * 12 / 100 + row_base.r() as u16 * 88 / 100)
+                            (colors.accent.r() as u16 * 12 / 100 + colors.bg.r() as u16 * 88 / 100)
                                 as u8,
-                            (colors.accent.g() as u16 * 12 / 100 + row_base.g() as u16 * 88 / 100)
+                            (colors.accent.g() as u16 * 12 / 100 + colors.bg.g() as u16 * 88 / 100)
                                 as u8,
-                            (colors.accent.b() as u16 * 12 / 100 + row_base.b() as u16 * 88 / 100)
+                            (colors.accent.b() as u16 * 12 / 100 + colors.bg.b() as u16 * 88 / 100)
                                 as u8,
                             255,
                         )
@@ -868,7 +846,7 @@ fn draw_list_view(
                         colors.active_bg
                     }
                 } else {
-                    row_base
+                    colors.bg
                 };
                 ui.painter().rect_filled(row_rect, 0.0, bg);
 
@@ -929,7 +907,7 @@ fn draw_list_view(
                 // Album art — real cover art or placeholder — only if visible
                 let row_art_tex = get_or_load_album_art(app, ui, track_id);
                 if row_vis.show_art {
-                    let art_size = 40.0;
+                    let art_size = 44.0;
                     let art_rect = egui::Rect::from_center_size(
                         Pos2::new(cx[1] + art_w / 2.0, cy),
                         Vec2::new(art_size, art_size),
@@ -941,9 +919,13 @@ fn draw_list_view(
                 let title_end_x = if row_vis.show_album { cx[3] } else { cx[4] };
                 let title_max_w = title_end_x - cx[2] - 8.0;
                 let title_font = FontId::proportional(14.0);
-                let artist_font = FontId::proportional(12.0);
+                let artist_font = FontId::proportional(13.0);
                 let title_color = if is_playing {
-                    colors.accent
+                    if colors.dark_mode {
+                        colors.accent_light
+                    } else {
+                        colors.accent
+                    }
                 } else {
                     colors.text
                 };
@@ -983,12 +965,16 @@ fn draw_list_view(
                 // Duration
                 let dur_secs = track_duration as u32;
                 let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
-                let dur_x = cx[4];
+                let dur_x = if row_vis.show_mood {
+                    cx[5] - 16.0
+                } else {
+                    row_rect.right() - 48.0
+                };
                 ui.painter().text(
-                    Pos2::new(dur_x + 4.0, cy),
-                    Align2::LEFT_CENTER,
+                    Pos2::new(dur_x, cy),
+                    Align2::RIGHT_CENTER,
                     &dur_str,
-                    FontId::proportional(14.0),
+                    FontId::monospace(13.0),
                     colors.text_dim,
                 );
 

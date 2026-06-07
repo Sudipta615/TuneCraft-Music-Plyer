@@ -1,76 +1,74 @@
-//! TuneCraft theming — dark/light modes with purple accent (#4231F1)
+//! TuneCraft theming — dark/light modes with purple accent
 //!
-//! Provides consistent Visuals for the entire UI, matching the reference design:
-//! - Dark: #0B1220 bg, #0D1421 sidebar, #4231F1 accent
-//! - Light: #FAFAFC bg, #FFFFFF sidebar, #4231F1 accent
+//! Provides consistent Visuals for the entire UI, matching the reference design.
 
 use egui::{Color32, Rounding, Stroke, Visuals};
 
 // ── Primary purple palette ──
 
 /// Primary purple accent color
-pub const ACCENT: Color32 = Color32::from_rgb(0x42, 0x31, 0xF1);
+pub const ACCENT: Color32 = Color32::from_rgb(0x27, 0x23, 0x4B);
 /// Purple variant — slightly darker, for pressed states
-pub const ACCENT_DARK: Color32 = Color32::from_rgb(0x35, 0x2D, 0xD9);
+pub const ACCENT_DARK: Color32 = Color32::from_rgb(0x1F, 0x1B, 0x3D);
 /// Deep purple — even darker variant
-pub const ACCENT_DEEP: Color32 = Color32::from_rgb(0x2F, 0x22, 0xA4);
+pub const ACCENT_DEEP: Color32 = Color32::from_rgb(0x18, 0x15, 0x30);
 /// Violet tint — lighter, for hover states
-pub const ACCENT_LIGHT: Color32 = Color32::from_rgb(0x8A, 0x5E, 0xED);
+pub const ACCENT_LIGHT: Color32 = Color32::from_rgb(0x40, 0x3B, 0x73);
 /// Light lavender tint — very light, for backgrounds / selections
-pub const ACCENT_LAVENDER: Color32 = Color32::from_rgb(0xAF, 0xAE, 0xD6);
-/// Indigo accent — another dark variant
-pub const ACCENT_INDIGO: Color32 = Color32::from_rgb(0x32, 0x2A, 0xA9);
+pub const ACCENT_LAVENDER: Color32 = Color32::from_rgb(0xEE, 0xED, 0xFD);
+/// Indigo accent
+pub const ACCENT_INDIGO: Color32 = Color32::from_rgb(0x2A, 0x25, 0x54);
 
 // ── Dark theme: navy-tinted dark colors matching reference design ──
 
-pub const DARK_BG: Color32 = Color32::from_rgb(0x0B, 0x12, 0x20);
-pub const DARK_SIDEBAR: Color32 = Color32::from_rgb(0x0D, 0x14, 0x21);
-pub const DARK_SURFACE: Color32 = Color32::from_rgb(0x0D, 0x14, 0x21);
-pub const DARK_CARD: Color32 = Color32::from_rgb(0x17, 0x1E, 0x2B);
-pub const DARK_TEXT: Color32 = Color32::from_rgb(0xE9, 0xE9, 0xEC);
-pub const DARK_TEXT_DIM: Color32 = Color32::from_rgb(0x9A, 0x9B, 0xA5);
-pub const DARK_TEXT_MUTED: Color32 = Color32::from_rgb(0x6C, 0x72, 0x8B);
-pub const DARK_BORDER: Color32 = Color32::from_rgb(0x2D, 0x34, 0x4C);
-pub const DARK_HOVER: Color32 = Color32::from_rgb(0x17, 0x1E, 0x2B);
-pub const DARK_ACTIVE: Color32 = Color32::from_rgb(0x22, 0x21, 0x51);
+pub const DARK_BG: Color32 = Color32::from_rgb(0x14, 0x15, 0x2A);
+pub const DARK_SIDEBAR: Color32 = Color32::from_rgb(0x1F, 0x20, 0x3C);
+pub const DARK_SURFACE: Color32 = Color32::from_rgb(0x14, 0x15, 0x2A);
+pub const DARK_CARD: Color32 = Color32::from_rgb(0x1F, 0x20, 0x3C);
+pub const DARK_TEXT: Color32 = Color32::from_rgb(0xE8, 0xE7, 0xF5);
+pub const DARK_TEXT_DIM: Color32 = Color32::from_rgb(0x6B, 0x6A, 0x85);
+pub const DARK_TEXT_MUTED: Color32 = Color32::from_rgb(0x6B, 0x6A, 0x85);
+pub const DARK_BORDER: Color32 = Color32::from_rgb(0x2A, 0x29, 0x3D);
+pub const DARK_HOVER: Color32 = Color32::from_rgb(0x1A, 0x1B, 0x33);
+pub const DARK_ACTIVE: Color32 = Color32::from_rgb(0x1E, 0x1B, 0x38);
 
 // ── Light theme matching reference design ──
 
-pub const LIGHT_BG: Color32 = Color32::from_rgb(0xFA, 0xFA, 0xFC);
-pub const LIGHT_SIDEBAR: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
-pub const LIGHT_SURFACE: Color32 = Color32::from_rgb(0xFA, 0xFA, 0xFC);
-pub const LIGHT_CARD: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
-pub const LIGHT_TEXT: Color32 = Color32::from_rgb(0x16, 0x13, 0x18);
-pub const LIGHT_TEXT_DIM: Color32 = Color32::from_rgb(0x5A, 0x5A, 0x66);
-pub const LIGHT_TEXT_MUTED: Color32 = Color32::from_rgb(0x9A, 0x9C, 0xA8);
-pub const LIGHT_BORDER: Color32 = Color32::from_rgb(0xDF, 0xDF, 0xE5);
+pub const LIGHT_BG: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
+pub const LIGHT_SIDEBAR: Color32 = Color32::from_rgb(0xF8, 0xF7, 0xFF);
+pub const LIGHT_SURFACE: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
+pub const LIGHT_CARD: Color32 = Color32::from_rgb(0xFA, 0xFA, 0xFC);
+pub const LIGHT_TEXT: Color32 = Color32::from_rgb(0x1A, 0x1A, 0x2A);
+pub const LIGHT_TEXT_DIM: Color32 = Color32::from_rgb(0x88, 0x88, 0x99);
+pub const LIGHT_TEXT_MUTED: Color32 = Color32::from_rgb(0x88, 0x88, 0x99);
+pub const LIGHT_BORDER: Color32 = Color32::from_rgb(0xE5, 0xE4, 0xF0);
 pub const LIGHT_HOVER: Color32 = Color32::from_rgb(0xF3, 0xF2, 0xFB);
-pub const LIGHT_ACTIVE: Color32 = Color32::from_rgb(0xF3, 0xF2, 0xFB);
+pub const LIGHT_ACTIVE: Color32 = Color32::from_rgb(0xEE, 0xED, 0xFD);
 
 /// Light sidebar selected tint — distinct from general selected surface
-pub const LIGHT_SIDEBAR_ACTIVE: Color32 = Color32::from_rgb(0xD9, 0xD7, 0xE5);
+pub const LIGHT_SIDEBAR_ACTIVE: Color32 = Color32::from_rgb(0xEE, 0xED, 0xFD);
 
 // ── Mood colors (shared across themes) ──
 
-pub const MOOD_ROMANTIC: Color32 = Color32::from_rgb(0x8A, 0x5E, 0xED);
-pub const MOOD_DANCE: Color32 = Color32::from_rgb(0xDD, 0x6E, 0x3E);
-pub const MOOD_SAD: Color32 = Color32::from_rgb(0x4C, 0x6F, 0xD6);
-pub const MOOD_SUFI: Color32 = Color32::from_rgb(0x9C, 0x56, 0x2B);
-pub const MOOD_CHILL: Color32 = Color32::from_rgb(0x1F, 0x8A, 0x78);
+pub const MOOD_ROMANTIC: Color32 = Color32::from_rgb(0xEC, 0x48, 0x99); // pink
+pub const MOOD_DANCE: Color32 = Color32::from_rgb(0xF9, 0x73, 0x16); // orange-red
+pub const MOOD_SAD: Color32 = Color32::from_rgb(0x3B, 0x82, 0xF6); // blue
+pub const MOOD_SUFI: Color32 = Color32::from_rgb(0xF5, 0x9E, 0x0B); // amber
+pub const MOOD_CHILL: Color32 = Color32::from_rgb(0x10, 0xB9, 0x81); // green
 
 // Light mode mood pill tints (background colors)
-pub const LIGHT_MOOD_ROMANTIC_BG: Color32 = Color32::from_rgb(0xED, 0xE5, 0xFB);
-pub const LIGHT_MOOD_DANCE_BG: Color32 = Color32::from_rgb(0xFC, 0xEE, 0xE6);
-pub const LIGHT_MOOD_SAD_BG: Color32 = Color32::from_rgb(0xDF, 0xE7, 0xF8);
-pub const LIGHT_MOOD_SUFI_BG: Color32 = Color32::from_rgb(0xF2, 0xE6, 0xD9);
-pub const LIGHT_MOOD_CHILL_BG: Color32 = Color32::from_rgb(0xD6, 0xF0, 0xEC);
+pub const LIGHT_MOOD_ROMANTIC_BG: Color32 = Color32::from_rgb(0xFD, 0xE8, 0xF3);
+pub const LIGHT_MOOD_DANCE_BG: Color32 = Color32::from_rgb(0xFF, 0xED, 0xD5);
+pub const LIGHT_MOOD_SAD_BG: Color32 = Color32::from_rgb(0xDB, 0xEAF, 0xFE);
+pub const LIGHT_MOOD_SUFI_BG: Color32 = Color32::from_rgb(0xFE, 0xF3, 0xC7);
+pub const LIGHT_MOOD_CHILL_BG: Color32 = Color32::from_rgb(0xD1, 0xFA, 0xE5);
 
 // Light mode mood pill text/border colors
-pub const LIGHT_MOOD_ROMANTIC_FG: Color32 = Color32::from_rgb(0x6D, 0x48, 0xCC);
-pub const LIGHT_MOOD_DANCE_FG: Color32 = Color32::from_rgb(0xC0, 0x5A, 0x30);
-pub const LIGHT_MOOD_SAD_FG: Color32 = Color32::from_rgb(0x3B, 0x5A, 0xB0);
-pub const LIGHT_MOOD_SUFI_FG: Color32 = Color32::from_rgb(0x7D, 0x45, 0x22);
-pub const LIGHT_MOOD_CHILL_FG: Color32 = Color32::from_rgb(0x16, 0x6E, 0x60);
+pub const LIGHT_MOOD_ROMANTIC_FG: Color32 = MOOD_ROMANTIC;
+pub const LIGHT_MOOD_DANCE_FG: Color32 = MOOD_DANCE;
+pub const LIGHT_MOOD_SAD_FG: Color32 = MOOD_SAD;
+pub const LIGHT_MOOD_SUFI_FG: Color32 = MOOD_SUFI;
+pub const LIGHT_MOOD_CHILL_FG: Color32 = MOOD_CHILL;
 
 /// Collection of colors for the current theme
 #[derive(Debug, Clone, Copy)]
@@ -109,7 +107,7 @@ impl TuneCraftColors {
         Self {
             bg: DARK_BG,
             sidebar: DARK_SIDEBAR,
-            surface: DARK_SURFACE,
+            surface: DARK_BG,
             card: DARK_CARD,
             text: DARK_TEXT,
             text_dim: DARK_TEXT_DIM,
@@ -117,22 +115,22 @@ impl TuneCraftColors {
             border: DARK_BORDER,
             hover: DARK_HOVER,
             active_bg: DARK_ACTIVE,
-            sidebar_active_bg: DARK_ACTIVE, // #222151
-            accent: ACCENT,                 // #4231F1
-            accent_light: ACCENT_LIGHT,     // #8A5EED
-            accent_dark: ACCENT_DARK,       // #352DD9
-            player_bar: DARK_SIDEBAR,       // #0D1421
-            player_bar_border: DARK_BORDER, // #2D344C
-            slider_track: Color32::from_rgb(0x3A, 0x42, 0x58), // navy-tinted track
+            sidebar_active_bg: DARK_ACTIVE,
+            accent: ACCENT,
+            accent_light: ACCENT_LIGHT,
+            accent_dark: ACCENT_DARK,
+            player_bar: DARK_CARD, // matching deep navy
+            player_bar_border: DARK_BORDER,
+            slider_track: Color32::from_rgb(0x2A, 0x29, 0x3D),
             slider_fill: ACCENT,
             toggle_bg_on: ACCENT,
-            toggle_bg_off: Color32::from_rgb(0x3A, 0x42, 0x58),
-            table_header_bg: DARK_SIDEBAR,                  // #0D1421
-            table_row_even: DARK_BG,                        // #0B1220
-            table_row_odd: DARK_CARD,                       // #171E2B
-            table_row_hover: DARK_CARD,                     // #171E2B
-            search_bg: Color32::from_rgb(0x17, 0x1E, 0x2B), // card bg for input
-            search_border: DARK_BORDER,                     // #2D344C
+            toggle_bg_off: DARK_BORDER,
+            table_header_bg: DARK_BG,
+            table_row_even: DARK_BG,
+            table_row_odd: DARK_BG,
+            table_row_hover: DARK_HOVER,
+            search_bg: DARK_CARD,
+            search_border: DARK_BORDER,
             dark_mode: true,
         }
     }
@@ -148,23 +146,23 @@ impl TuneCraftColors {
             text_muted: LIGHT_TEXT_MUTED,
             border: LIGHT_BORDER,
             hover: LIGHT_HOVER,
-            active_bg: LIGHT_ACTIVE,                 // #F3F2FB
-            sidebar_active_bg: LIGHT_SIDEBAR_ACTIVE, // #D9D7E5
-            accent: ACCENT,                          // #4231F1
-            accent_light: ACCENT_LIGHT,              // #8A5EED
-            accent_dark: ACCENT_DARK,                // #352DD9
-            player_bar: LIGHT_CARD,                  // #FFFFFF
-            player_bar_border: LIGHT_BORDER,         // #DFDFE5
-            slider_track: LIGHT_BORDER,              // #DFDFE5
-            slider_fill: ACCENT,                     // #4231F1
+            active_bg: LIGHT_ACTIVE,
+            sidebar_active_bg: LIGHT_SIDEBAR_ACTIVE,
+            accent: ACCENT,
+            accent_light: ACCENT_LIGHT,
+            accent_dark: ACCENT_DARK,
+            player_bar: LIGHT_BG, // white
+            player_bar_border: LIGHT_BORDER,
+            slider_track: LIGHT_BORDER,
+            slider_fill: ACCENT,
             toggle_bg_on: ACCENT,
-            toggle_bg_off: Color32::from_rgb(0xDF, 0xDF, 0xE5), // matches border
-            table_header_bg: LIGHT_SURFACE,                     // #FAFAFC
-            table_row_even: LIGHT_CARD,                         // #FFFFFF
-            table_row_odd: LIGHT_BG,                            // #FAFAFC
-            table_row_hover: LIGHT_HOVER,                       // #F3F2FB
-            search_bg: LIGHT_SURFACE,                           // #FAFAFC
-            search_border: Color32::from_rgb(0xDF, 0xDF, 0xE5), // matches border
+            toggle_bg_off: LIGHT_BORDER,
+            table_header_bg: LIGHT_BG,
+            table_row_even: LIGHT_BG,
+            table_row_odd: LIGHT_BG,
+            table_row_hover: LIGHT_HOVER,
+            search_bg: LIGHT_CARD, // light gray
+            search_border: LIGHT_BORDER,
             dark_mode: false,
         }
     }
@@ -174,10 +172,10 @@ impl TuneCraftColors {
 pub fn dark_visuals() -> Visuals {
     let mut v = Visuals::dark();
     v.extreme_bg_color = DARK_BG;
-    v.panel_fill = DARK_SIDEBAR;
-    v.window_fill = DARK_SURFACE;
+    v.panel_fill = DARK_BG;
+    v.window_fill = DARK_BG;
     v.faint_bg_color = DARK_CARD;
-    v.widgets.noninteractive.bg_fill = DARK_SURFACE;
+    v.widgets.noninteractive.bg_fill = DARK_BG;
     v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, DARK_TEXT_DIM);
     v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, DARK_BORDER);
     v.widgets.inactive.fg_stroke = Stroke::new(1.0, DARK_TEXT);
@@ -192,11 +190,11 @@ pub fn dark_visuals() -> Visuals {
     v.selection.bg_fill = ACCENT_DARK;
     v.selection.stroke = Stroke::new(1.0, DARK_TEXT);
     v.override_text_color = Some(DARK_TEXT);
-    v.window_rounding = Rounding::same(8.0);
-    v.widgets.noninteractive.rounding = Rounding::same(6.0);
-    v.widgets.inactive.rounding = Rounding::same(6.0);
-    v.widgets.hovered.rounding = Rounding::same(6.0);
-    v.widgets.active.rounding = Rounding::same(6.0);
+    v.window_rounding = Rounding::same(12.0);
+    v.widgets.noninteractive.rounding = Rounding::same(8.0);
+    v.widgets.inactive.rounding = Rounding::same(8.0);
+    v.widgets.hovered.rounding = Rounding::same(8.0);
+    v.widgets.active.rounding = Rounding::same(8.0);
     v.slider_trailing_fill = true;
     v
 }
@@ -205,10 +203,10 @@ pub fn dark_visuals() -> Visuals {
 pub fn light_visuals() -> Visuals {
     let mut v = Visuals::light();
     v.extreme_bg_color = LIGHT_BG;
-    v.panel_fill = LIGHT_SIDEBAR;
-    v.window_fill = LIGHT_SURFACE;
+    v.panel_fill = LIGHT_BG;
+    v.window_fill = LIGHT_BG;
     v.faint_bg_color = LIGHT_CARD;
-    v.widgets.noninteractive.bg_fill = LIGHT_SURFACE;
+    v.widgets.noninteractive.bg_fill = LIGHT_BG;
     v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, LIGHT_TEXT_DIM);
     v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, LIGHT_BORDER);
     v.widgets.inactive.fg_stroke = Stroke::new(1.0, LIGHT_TEXT);
@@ -223,11 +221,11 @@ pub fn light_visuals() -> Visuals {
     v.selection.bg_fill = ACCENT_LAVENDER;
     v.selection.stroke = Stroke::new(1.0, LIGHT_TEXT);
     v.override_text_color = Some(LIGHT_TEXT);
-    v.window_rounding = Rounding::same(8.0);
-    v.widgets.noninteractive.rounding = Rounding::same(6.0);
-    v.widgets.inactive.rounding = Rounding::same(6.0);
-    v.widgets.hovered.rounding = Rounding::same(6.0);
-    v.widgets.active.rounding = Rounding::same(6.0);
+    v.window_rounding = Rounding::same(12.0);
+    v.widgets.noninteractive.rounding = Rounding::same(8.0);
+    v.widgets.inactive.rounding = Rounding::same(8.0);
+    v.widgets.hovered.rounding = Rounding::same(8.0);
+    v.widgets.active.rounding = Rounding::same(8.0);
     v.slider_trailing_fill = true;
     v
 }
@@ -240,7 +238,7 @@ pub fn mood_color(mood: &str) -> Color32 {
         "sad" => MOOD_SAD,
         "sufi" => MOOD_SUFI,
         "chill" => MOOD_CHILL,
-        _ => Color32::from_rgb(0x6C, 0x72, 0x8B),
+        _ => Color32::from_rgb(0x88, 0x88, 0x99),
     }
 }
 
@@ -264,6 +262,6 @@ pub fn mood_color_light_fg(mood: &str) -> Color32 {
         "sad" => LIGHT_MOOD_SAD_FG,
         "sufi" => LIGHT_MOOD_SUFI_FG,
         "chill" => LIGHT_MOOD_CHILL_FG,
-        _ => Color32::from_rgb(0x5A, 0x5A, 0x66),
+        _ => Color32::from_rgb(0x88, 0x88, 0x99),
     }
 }

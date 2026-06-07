@@ -113,7 +113,7 @@ impl NavSection {
 pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     let colors = app.colors();
 
-    // Sidebar background — #1E1E2E in dark, #FFFFFF in light
+    // Sidebar background
     let sidebar_rect = ui.available_rect_before_wrap();
     ui.painter().rect_filled(sidebar_rect, 0.0, colors.sidebar);
 
@@ -123,11 +123,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         egui::Stroke::new(1.0, colors.border),
     );
 
-    ui.add_space(12.0);
+    ui.add_space(16.0);
 
     // Logo row: waveform bars icon + "TuneCraft" text
     ui.horizontal(|ui| {
-        ui.add_space(24.0);
+        ui.add_space(20.0);
         // Draw waveform-like bars icon (matching reference design)
         let icon_size = 22.0;
         let (icon_rect, _) =
@@ -155,7 +155,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
         // Push collapse button to the right
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.add_space(8.0);
+            ui.add_space(12.0);
             let chevron = if app.sidebar_collapsed {
                 "\u{00BB}" // »
             } else {
@@ -165,7 +165,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 .add(
                     egui::Button::new(
                         RichText::new(chevron)
-                            .font(FontId::proportional(16.0))
+                            .font(FontId::proportional(14.0))
                             .color(colors.text_dim),
                     )
                     .frame(false),
@@ -184,7 +184,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     nav_item(ui, app, NavSection::Albums);
     nav_item(ui, app, NavSection::Artists);
 
-    ui.add_space(12.0);
+    ui.add_space(16.0);
 
     section_header(ui, "PLAYLISTS", &colors);
     nav_item(ui, app, NavSection::Favorites);
@@ -204,17 +204,43 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         .collect();
     for (id, name) in &playlists_snapshot {
         let selected = app.selected_playlist_id == Some(*id);
-        let label = egui::RichText::new(format!("  \u{266A}  {}", name))
-            .font(egui::FontId::proportional(14.0))
-            .color(if selected {
-                colors.accent
-            } else {
-                colors.text_dim
-            });
-        if ui
-            .add(egui::Label::new(label).sense(Sense::click()))
-            .clicked()
-        {
+        let text_color = if selected {
+            colors.accent
+        } else {
+            colors.text_dim
+        };
+        let (rect, resp) =
+            ui.allocate_exact_size(Vec2::new(ui.available_width(), 36.0), Sense::click());
+        let pad_x = 12.0;
+        let pill_rect = Rect::from_min_max(
+            Pos2::new(rect.left() + pad_x, rect.top()),
+            Pos2::new(rect.right() - pad_x, rect.bottom()),
+        );
+
+        if selected {
+            ui.painter()
+                .rect_filled(pill_rect, 6.0, colors.sidebar_active_bg);
+        } else if resp.hovered() {
+            ui.painter().rect_filled(pill_rect, 6.0, colors.hover);
+        }
+
+        ui.painter().text(
+            Pos2::new(pill_rect.left() + 12.0, pill_rect.center().y),
+            Align2::LEFT_CENTER,
+            "\u{266A}",
+            FontId::proportional(16.0),
+            text_color,
+        );
+
+        ui.painter().text(
+            Pos2::new(pill_rect.left() + 36.0, pill_rect.center().y),
+            Align2::LEFT_CENTER,
+            name,
+            FontId::proportional(14.0),
+            if selected { colors.accent } else { colors.text },
+        );
+
+        if resp.clicked() {
             app.selected_playlist_id = Some(*id);
             app.nav = NavSection::Favorites;
             let playlist_tracks = app.ctx.library.get_playlist_tracks(*id);
@@ -228,21 +254,24 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     }
 
     ui.add_space(4.0);
-    if ui
-        .add(
-            egui::Button::new(
-                egui::RichText::new("+ New playlist")
-                    .font(egui::FontId::proportional(11.0))
-                    .color(colors.text_dim),
+    ui.horizontal(|ui| {
+        ui.add_space(24.0);
+        if ui
+            .add(
+                egui::Button::new(
+                    egui::RichText::new("+ New playlist")
+                        .font(egui::FontId::proportional(12.0))
+                        .color(colors.text_dim),
+                )
+                .frame(false),
             )
-            .frame(false),
-        )
-        .clicked()
-    {
-        app.show_create_playlist_dialog = true;
-    }
+            .clicked()
+        {
+            app.show_create_playlist_dialog = true;
+        }
+    });
 
-    ui.add_space(12.0);
+    ui.add_space(16.0);
 
     section_header(ui, "MOOD", &colors);
     for nav in &[
@@ -261,29 +290,21 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.add_space(remaining - 48.0);
     }
 
-    // Separator
-    let (sep_rect, _) =
-        ui.allocate_exact_size(Vec2::new(ui.available_width(), 1.0), Sense::hover());
-    ui.painter().line_segment(
-        [sep_rect.left_top(), sep_rect.right_top()],
-        egui::Stroke::new(1.0, colors.border),
-    );
-
     nav_item(ui, app, NavSection::Settings);
 }
 
 fn section_header(ui: &mut Ui, label: &str, colors: &TuneCraftColors) {
-    ui.add_space(4.0);
+    ui.add_space(8.0);
     ui.horizontal(|ui| {
         ui.add_space(24.0);
         ui.label(
-            RichText::new(label)
-                .font(FontId::proportional(12.0))
+            RichText::new(label.to_uppercase())
+                .font(FontId::proportional(11.0))
                 .color(colors.text_muted)
                 .strong(),
         );
     });
-    ui.add_space(4.0);
+    ui.add_space(8.0);
 }
 
 fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
@@ -294,29 +315,41 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
         .get(&format!("{:?}", nav))
         .copied()
         .or_else(|| nav.badge_count(&app.tracks));
-    let height = 40.0;
+    let height = 36.0;
 
     let (rect, response) =
         ui.allocate_exact_size(Vec2::new(ui.available_width(), height), Sense::click());
 
-    // Active background — navy purple in dark, sidebar selected tint in light
+    let pad_x = 12.0;
+    let pill_rect = Rect::from_min_max(
+        Pos2::new(rect.left() + pad_x, rect.top()),
+        Pos2::new(rect.right() - pad_x, rect.bottom()),
+    );
+
+    // Active background
     if is_active {
         ui.painter()
-            .rect_filled(rect, 6.0, colors.sidebar_active_bg);
-        // Left accent bar — full height, rounded
-        let bar = Rect::from_min_size(rect.left_top(), Vec2::new(3.0, height));
-        ui.painter().rect_filled(bar, 1.5, colors.accent);
+            .rect_filled(pill_rect, 6.0, colors.sidebar_active_bg);
     } else if response.hovered() {
-        ui.painter().rect_filled(rect, 6.0, colors.hover);
+        ui.painter().rect_filled(pill_rect, 6.0, colors.hover);
     }
 
     let cy = rect.center().y;
-    let icon_color = if is_active {
+    let is_settings = nav == NavSection::Settings;
+
+    let icon_color = if is_settings {
+        colors.text_dim
+    } else if is_active {
         colors.accent
+    } else if let Some(c) = nav.mood_color() {
+        c
     } else {
         colors.text_dim
     };
-    let text_color = if is_active {
+
+    let text_color = if is_settings {
+        colors.text_dim
+    } else if is_active {
         colors.accent
     } else {
         colors.text
@@ -324,7 +357,7 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
 
     // Icon — 18px
     ui.painter().text(
-        Pos2::new(rect.left() + 24.0, cy),
+        Pos2::new(pill_rect.left() + 12.0, cy),
         Align2::LEFT_CENTER,
         nav.icon(),
         FontId::proportional(18.0),
@@ -332,35 +365,40 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
     );
 
     // Label — 14px
-    ui.painter().text(
-        Pos2::new(rect.left() + 48.0, cy),
-        Align2::LEFT_CENTER,
-        nav.label(),
-        FontId::proportional(14.0),
-        text_color,
+    let label_x = pill_rect.left() + 40.0;
+    // For bold text simulation, use label or just paint. We'll put a label to support `strong()`
+    ui.put(
+        Rect::from_min_max(
+            Pos2::new(label_x, rect.top()),
+            Pos2::new(pill_rect.right() - 40.0, rect.bottom()),
+        ),
+        egui::Label::new(
+            RichText::new(nav.label())
+                .font(FontId::proportional(14.0))
+                .color(text_color)
+                .strong(),
+        ),
     );
 
     // Badge
     if let Some(count) = badge {
         let badge_text = count.to_string();
-        let badge_font = FontId::proportional(10.0);
+        let badge_font = FontId::proportional(11.0);
         let badge_galley =
             ui.painter()
                 .layout_no_wrap(badge_text.clone(), badge_font.clone(), Color32::WHITE);
-        let badge_w = (badge_galley.size().x + 12.0).max(22.0);
+        let badge_w = (badge_galley.size().x + 16.0).max(24.0);
         let badge_h = 20.0;
-        let badge_x = rect.right() - badge_w - 16.0;
+        let badge_x = pill_rect.right() - badge_w - 8.0;
         let badge_y = cy - badge_h / 2.0;
         let badge_rect =
             Rect::from_min_size(Pos2::new(badge_x, badge_y), Vec2::new(badge_w, badge_h));
 
-        // Badge colors: match reference design
-        // Dark mode: mood badges use mood color bg with white text; non-mood use accent or muted bg
-        // Light mode: mood badges use pastel bg with colored text; non-mood use accent or muted bg
+        // Badge colors
         if let Some(mc) = nav.mood_color() {
             if colors.dark_mode {
                 // Dark: solid mood color bg, white text
-                ui.painter().rect_filled(badge_rect, 8.0, mc);
+                ui.painter().rect_filled(badge_rect, 10.0, mc);
                 ui.painter().text(
                     badge_rect.center(),
                     Align2::CENTER_CENTER,
@@ -369,12 +407,10 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
                     Color32::WHITE,
                 );
             } else {
-                // Light: pastel tinted bg, mood-colored text + border
+                // Light: pastel tinted bg, mood-colored text
                 let mood_bg = crate::theme::mood_color_light_bg(nav.mood_tag().unwrap_or(""));
                 let mood_fg = crate::theme::mood_color_light_fg(nav.mood_tag().unwrap_or(""));
-                ui.painter().rect_filled(badge_rect, 8.0, mood_bg);
-                ui.painter()
-                    .rect_stroke(badge_rect, 8.0, egui::Stroke::new(1.0, mood_fg));
+                ui.painter().rect_filled(badge_rect, 10.0, mood_bg);
                 ui.painter().text(
                     badge_rect.center(),
                     Align2::CENTER_CENTER,
@@ -385,7 +421,7 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
             }
         } else if is_active {
             // Active non-mood badge: accent bg, white text
-            ui.painter().rect_filled(badge_rect, 8.0, colors.accent);
+            ui.painter().rect_filled(badge_rect, 10.0, colors.accent);
             ui.painter().text(
                 badge_rect.center(),
                 Align2::CENTER_CENTER,
@@ -413,7 +449,7 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
             } else {
                 colors.text_dim
             };
-            ui.painter().rect_filled(badge_rect, 8.0, muted_bg);
+            ui.painter().rect_filled(badge_rect, 10.0, muted_bg);
             ui.painter().text(
                 badge_rect.center(),
                 Align2::CENTER_CENTER,

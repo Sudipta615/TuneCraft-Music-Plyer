@@ -287,7 +287,7 @@ impl CpalOutput {
                 Some(audio_frame) => {
                     for (ch, sample) in frame.iter_mut().enumerate() {
                         *sample = if ch < audio_frame.num_channels as usize {
-                            audio_frame.channels[ch] as f32
+                            audio_frame.channels[ch].clamp(-1.0, 1.0) as f32
                         } else {
                             0.0
                         };

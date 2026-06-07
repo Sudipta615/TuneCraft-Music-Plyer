@@ -297,7 +297,10 @@ impl TuneCraftApp {
             album_art_cache: std::collections::HashMap::new(),
 
             sidebar_collapsed: false,
-        }
+        };
+
+        app.trigger_background_analysis();
+        app
     }
 
     pub fn colors(&self) -> TuneCraftColors {

@@ -355,6 +355,8 @@ impl LibraryService {
         if let Err(e) = self.db.update_last_played(track_id) {
             warn!("Failed to update last played: {}", e);
         }
+        self.mark_db_dirty();
+        self.refresh_tracks();
     }
 
     /// Compute badge counts for sidebar navigation sections.

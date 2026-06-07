@@ -94,15 +94,15 @@ fn draw_full(
         .and_then(|id| app.album_art_cache.get(&id).cloned());
     if let Some(ref tex) = art_tex {
         // Background fill for rounded corners
-        ui.painter().rect_filled(art_rect, 6.0, colors.card);
+        ui.painter().rect_filled(art_rect, 8.0, colors.card);
         let uv = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0));
         let mut mesh = egui::Mesh::with_texture(tex.id());
         mesh.add_rect_with_uv(art_rect, uv, Color32::WHITE);
         ui.painter().add(egui::Shape::mesh(mesh));
     } else {
-        ui.painter().rect_filled(art_rect, 6.0, colors.card);
+        ui.painter().rect_filled(art_rect, 8.0, colors.card);
         ui.painter()
-            .rect_stroke(art_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+            .rect_stroke(art_rect, 8.0, egui::Stroke::new(1.0, colors.border));
         // Music note icon
         ui.painter().text(
             art_rect.center(),
@@ -129,7 +129,7 @@ fn draw_full(
             colors.text,
         );
 
-        let artist_font = FontId::proportional(12.0);
+        let artist_font = FontId::proportional(13.0);
         let artist = track.artist.as_deref().unwrap_or("Unknown Artist");
         let artist_t = truncate(ui, artist, &artist_font, info_w);
         ui.painter().text(
@@ -205,12 +205,12 @@ fn draw_full(
             Pos2::new(vol_rect.left(), vy),
             Pos2::new(vol_rect.right(), vy),
         ],
-        egui::Stroke::new(3.0, colors.slider_track),
+        egui::Stroke::new(2.0, colors.slider_track),
     );
     let vfx = vol_rect.left() + vol_rect.width() * vol;
     ui.painter().line_segment(
         [Pos2::new(vol_rect.left(), vy), Pos2::new(vfx, vy)],
-        egui::Stroke::new(3.0, colors.slider_fill),
+        egui::Stroke::new(2.0, colors.slider_fill),
     );
     ui.painter()
         .circle_filled(Pos2::new(vfx, vy), 5.0, colors.accent);
@@ -259,13 +259,13 @@ fn draw_full(
     let center_w = right_x - center_x;
 
     // Play/Pause button (large circle)
-    let play_btn_size = if total_w > 900.0 { 48.0 } else { 40.0 };
+    let play_btn_size = 44.0;
     let play_radius = play_btn_size / 2.0;
     let play_cx = center_x + center_w / 2.0;
 
     // Controls row y position (upper part of center)
     let controls_y = cy - 14.0;
-    let icon_size = if total_w > 900.0 { 18.0 } else { 15.0 };
+    let icon_size = 18.0;
 
     // Shuffle button
     let shuffle_color = if app.shuffle {
@@ -285,7 +285,7 @@ fn draw_full(
         shuffle_rect.center(),
         Align2::CENTER_CENTER,
         "\u{21C4}",
-        FontId::proportional(icon_size),
+        FontId::proportional(icon_size * 1.3),
         shuffle_color,
     );
     if shuffle_resp.clicked() {
@@ -379,7 +379,7 @@ fn draw_full(
         repeat_rect.center(),
         Align2::CENTER_CENTER,
         repeat_icon,
-        FontId::proportional(icon_size * 0.9),
+        FontId::proportional(icon_size * 1.2),
         repeat_color,
     );
     if repeat_resp.clicked() {
@@ -410,7 +410,7 @@ fn draw_full(
         Pos2::new(center_x + prog_margin, prog_y),
         Align2::LEFT_CENTER,
         &pos_str,
-        FontId::proportional(10.0),
+        FontId::monospace(11.0),
         colors.text_dim,
     );
 
@@ -426,7 +426,7 @@ fn draw_full(
         Pos2::new(prog_x_end + 4.0, prog_y),
         Align2::LEFT_CENTER,
         &dur_str,
-        FontId::proportional(10.0),
+        FontId::monospace(11.0),
         colors.text_dim,
     );
 
@@ -436,12 +436,12 @@ fn draw_full(
             Pos2::new(prog_x_start, prog_y),
             Pos2::new(prog_x_end, prog_y),
         ],
-        egui::Stroke::new(3.0, colors.slider_track),
+        egui::Stroke::new(4.0, colors.slider_track),
     );
     let fill_x = prog_x_start + prog_w * progress;
     ui.painter().line_segment(
         [Pos2::new(prog_x_start, prog_y), Pos2::new(fill_x, prog_y)],
-        egui::Stroke::new(3.0, colors.slider_fill),
+        egui::Stroke::new(4.0, colors.slider_fill),
     );
     ui.painter()
         .circle_filled(Pos2::new(fill_x, prog_y), 6.0, colors.accent);

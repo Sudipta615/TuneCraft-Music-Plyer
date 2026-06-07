@@ -153,6 +153,9 @@ impl TuneCraftApp {
                 MediaKeyAction::Stop => {
                     self.stop_playback();
                 },
+                MediaKeyAction::SetVolume(vol) => {
+                    self.set_volume(vol);
+                },
                 _ => {},
             }
         }
@@ -165,5 +168,52 @@ impl TuneCraftApp {
             self.current_lyrics = state.current_lyrics.clone();
             self.lyrics_loading = state.loading;
         }
+    }
+
+    pub fn trigger_background_analysis(&self) {
+        let db = self.ctx.library.db().clone();
+        let library_svc = Arc::clone(&self.ctx.library);
+
+        std::thread::Builder::new()
+            .name("tunecraft-mood-analysis".into())
+            .spawn(move || {
+                use std::path::PathBuf;
+                use tc_analysis::analyze_file;
+
+                let unanalyzed = match db.get_unanalyzed_tracks() {
+                    Ok(tracks) => tracks,
+                    Err(_) => return,
+                };
+
+                if unanalyzed.is_empty() {
+                    return;
+                }
+
+                let mut changed = false;
+                for track in &unanalyzed {
+                    let path = PathBuf::from(&track.path);
+                    let lyrics_text: Option<String> = track
+                        .lyrics_synced
+                        .clone()
+                        .or_else(|| track.lyrics_unsynced.clone());
+
+                    if let Ok(analysis) = analyze_file(&path, Some(60.0), lyrics_text.as_deref()) {
+                        if track.bpm.is_none() {
+                            let _ = db.update_bpm(track.id, analysis.bpm.bpm);
+                            changed = true;
+                        }
+                        if track.mood.is_none() {
+                            let _ = db.update_mood(track.id, &analysis.mood.mood);
+                            changed = true;
+                        }
+                    }
+                }
+
+                if changed {
+                    library_svc.mark_db_dirty();
+                    library_svc.refresh_tracks();
+                }
+            })
+            .ok();
     }
 }

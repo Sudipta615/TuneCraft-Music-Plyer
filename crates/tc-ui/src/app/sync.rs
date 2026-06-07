@@ -112,6 +112,7 @@ impl TuneCraftApp {
                     self.play_queue = new_queue;
                 }
             }
+            self.trigger_background_analysis();
         }
     }
 

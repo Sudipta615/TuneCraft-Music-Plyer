@@ -13,6 +13,7 @@ impl TuneCraftApp {
             let artist = track.artist.clone().unwrap_or_default();
             let title = track.title.clone();
             self.ctx.lyrics.fetch(&artist, &title, track.id);
+            self.ctx.library.record_play(track_id);
 
             self.sync_from_playback_service();
         } else {
