@@ -198,7 +198,7 @@ fn draw_full(
         Vec2::new(vol_slider_w, 14.0),
     );
     let vy = vol_rect.center().y;
-    let vol = app.volume as f32;
+    let vol = app.volume;
 
     ui.painter().line_segment(
         [
@@ -229,7 +229,7 @@ fn draw_full(
     if vol_resp.clicked() || vol_resp.dragged() {
         if let Some(ptr) = vol_resp.interact_pointer_pos() {
             let t = ((ptr.x - vol_rect.left()) / vol_rect.width()).clamp(0.0, 1.0);
-            app.set_volume(t as f32);
+            app.set_volume(t);
         }
     }
 
@@ -414,7 +414,7 @@ fn draw_full(
     } else {
         1.0
     };
-    let progress = (app.position_secs / track_duration).clamp(0.0, 1.0) as f32;
+    let progress = (app.position_secs / track_duration).clamp(0.0, 1.0);
 
     let pos_s = (app.position_secs % 60.0) as u32;
     let pos_m = (app.position_secs / 60.0) as u32;
@@ -472,7 +472,7 @@ fn draw_full(
     if prog_resp.clicked() || prog_resp.dragged() {
         if let Some(ptr) = prog_resp.interact_pointer_pos() {
             let t = ((ptr.x - prog_x_start) / prog_w).clamp(0.0, 1.0);
-            let new_pos = t as f32 * track_duration;
+            let new_pos = t * track_duration;
             app.position_secs = new_pos;
             app.seek(new_pos);
         }
@@ -655,7 +655,7 @@ fn draw_compact(
     } else {
         1.0
     };
-    let progress = (app.position_secs / track_duration).clamp(0.0, 1.0) as f32;
+    let progress = (app.position_secs / track_duration).clamp(0.0, 1.0);
 
     let pos_s = (app.position_secs % 60.0) as u32;
     let pos_m = (app.position_secs / 60.0) as u32;
@@ -708,7 +708,7 @@ fn draw_compact(
     if prog_resp.clicked() || prog_resp.dragged() {
         if let Some(ptr) = prog_resp.interact_pointer_pos() {
             let t = ((ptr.x - prog_x_start) / prog_w).clamp(0.0, 1.0);
-            let new_pos = t as f32 * track_duration;
+            let new_pos = t * track_duration;
             app.position_secs = new_pos;
             app.seek(new_pos);
         }

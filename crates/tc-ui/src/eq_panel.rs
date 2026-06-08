@@ -346,7 +346,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             let slider_y = preamp_rect.center().y;
             let slider_w = slider_x_end - slider_x_start;
 
-            let norm = ((app.eq_preamp + 12.0) / 24.0).clamp(0.0, 1.0) as f32;
+            let norm = ((app.eq_preamp + 12.0) / 24.0).clamp(0.0, 1.0);
             let fill_x = slider_x_start + slider_w * norm;
 
             // Track
@@ -383,7 +383,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             if drag_resp.dragged() {
                 if let Some(ptr) = drag_resp.interact_pointer_pos() {
                     let t = ((ptr.x - slider_x_start) / slider_w).clamp(0.0, 1.0);
-                    let new_preamp = (t * 24.0 - 12.0) as f32;
+                    let new_preamp = (t * 24.0 - 12.0);
                     app.eq_preamp = new_preamp;
                     app.ctx.eq.set_preamp(new_preamp);
                 }
@@ -513,7 +513,7 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
 
         let gain = app.eq_bands[i];
         let zero_y = slider_area.top() + slider_area.height() * (1.0 - 0.5); // 0 dB line
-        let norm = ((gain + 12.0) / 24.0).clamp(0.0, 1.0) as f32;
+        let norm = ((gain + 12.0) / 24.0).clamp(0.0, 1.0);
         let knob_y = slider_area.bottom() - slider_area.height() * norm;
 
         // Colored fill from 0dB to current
@@ -566,7 +566,7 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
             if let Some(ptr) = drag_resp.interact_pointer_pos() {
                 let t = (ptr.y - track_top) / (track_bot - track_top);
                 let new_norm = (1.0 - t).clamp(0.0, 1.0);
-                let new_gain = (new_norm * 24.0 - 12.0) as f32;
+                let new_gain = (new_norm * 24.0 - 12.0);
                 app.eq_bands[i] = new_gain.clamp(-12.0, 12.0);
                 app.eq_preset = "Custom".to_string();
                 if i == 0 {
@@ -651,9 +651,9 @@ fn secondary_slider_vertical(
         egui::Stroke::new(3.0, colors.slider_track),
     );
 
-    let norm = ((*value - min) / (max - min)).clamp(0.0, 1.0) as f32;
+    let norm = ((*value - min) / (max - min)).clamp(0.0, 1.0);
     let knob_y = track_bot - track_h * norm;
-    let zero_y = track_bot - track_h * ((-min / (max - min)).clamp(0.0, 1.0) as f32);
+    let zero_y = track_bot - track_h * ((-min / (max - min)).clamp(0.0, 1.0));
 
     // Fill from zero
     if *value >= 0.0 {
@@ -705,7 +705,7 @@ fn secondary_slider_vertical(
         if let Some(ptr) = drag_resp.interact_pointer_pos() {
             let t = (ptr.y - track_top) / track_h;
             let new_norm = (1.0 - t).clamp(0.0, 1.0);
-            *value = (min + (max - min) * new_norm as f32).clamp(min, max);
+            *value = (min + (max - min) * new_norm).clamp(min, max);
         }
     }
 }
