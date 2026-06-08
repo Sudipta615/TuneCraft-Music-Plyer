@@ -235,7 +235,7 @@ impl SymphoniaDecoder {
             },
             AudioBufferRef::F64(buf) => {
                 Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    *s
+                    *s as f32
                 })
             },
             // Handle any additional sample formats

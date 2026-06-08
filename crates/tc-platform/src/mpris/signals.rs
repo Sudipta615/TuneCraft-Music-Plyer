@@ -73,7 +73,7 @@ pub(crate) fn emit_properties_changed(
         MprisPropertyChanged::Volume => {
             let vol = state.lock().volume;
             let mut map = std::collections::HashMap::<&str, Value>::new();
-            map.insert("Volume", Value::F64(vol));
+            map.insert("Volume", Value::F64(vol as f64));
             send_properties_changed(conn, path, iface_name, map, vec![])?;
         },
         MprisPropertyChanged::Shuffle => {

@@ -103,7 +103,7 @@ impl CrossPlatformMediaControls {
                 return;
             },
             MediaControlEvent::Quit => MediaKeyAction::Quit,
-            MediaControlEvent::SetVolume(volume) => MediaKeyAction::SetVolume(volume),
+            MediaControlEvent::SetVolume(volume) => MediaKeyAction::SetVolume(volume as f32),
             MediaControlEvent::SetPosition(position) => {
                 let pos_us = position.0.as_micros() as i64;
                 MediaKeyAction::SetPosition {
@@ -170,7 +170,7 @@ impl CrossPlatformMediaControls {
     /// Update the volume shown in the OS media controls.
     pub fn set_volume(&mut self, volume: f32) {
         if let Some(ref mut ctrl) = self.controls {
-            if let Err(e) = ctrl.set_volume(volume) {
+            if let Err(e) = ctrl.set_volume(volume as f64) {
                 log::warn!("Failed to update media volume: {}", e);
             }
         }

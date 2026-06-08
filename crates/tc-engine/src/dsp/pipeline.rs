@@ -164,7 +164,7 @@ impl DspPipeline {
         let volume = GainProcessor::with_ramp(1.0, config.volume_fade_ms as f32, sample_rate);
         let seek_fade = FadeProcessor::new(config.seek_fade_ms as f32, sample_rate);
 
-        let mut pre_mix_chain = vec![
+        let pre_mix_chain = vec![
             DspNode::Preamp(preamp),
             DspNode::Loudness(loudness),
             DspNode::Eq(eq), // We swap this to MidSideEq dynamically if enabled
@@ -305,6 +305,16 @@ impl DspPipeline {
             }
         }
         false
+    }
+
+    pub fn eq_num_bands(&self) -> usize {
+        for node in &self.pre_mix_chain {
+            match node {
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => return p.num_bands(),
+                _ => {},
+            }
+        }
+        0
     }
 
     pub fn set_loudness_metadata(&mut self, meta: &LoudnessMetadata) {

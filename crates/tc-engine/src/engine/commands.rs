@@ -194,7 +194,7 @@ impl AudioEngine {
                 // L1: Previously only indices 0 and 9 were mapped to shelf filters,
                 // which is wrong when MAX_EQ_BANDS != 10. Now use first/last index
                 // positions so shelf assignment is correct regardless of band count.
-                let num_bands = self.pipeline.eq_ref().num_bands();
+                let num_bands = self.pipeline.eq_num_bands();
                 let filter_type = if index == 0 {
                     EqFilterType::LowShelf
                 } else if num_bands > 1 && index == num_bands - 1 {

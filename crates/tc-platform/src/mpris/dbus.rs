@@ -226,23 +226,24 @@ pub(crate) fn run_dbus_server(
         }
 
         #[zbus(property)]
-        fn rate(&self) -> zbus::fdo::Result<f32> {
+        fn rate(&self) -> zbus::fdo::Result<f64> {
             let state = self.state.lock();
-            Ok(state.rate)
+            Ok(state.rate as f64)
         }
 
         #[zbus(property)]
-        fn set_rate(&self, rate: f32) -> zbus::Result<()> {
-            if !(0.25..=4.0).contains(&rate) {
+        fn set_rate(&self, rate: f64) -> zbus::Result<()> {
+            let rate_f32 = rate as f32;
+            if !(0.25..=4.0).contains(&rate_f32) {
                 return Err(zbus::fdo::Error::InvalidArgs(format!(
                     "Rate {} out of range [0.25, 4.0]",
                     rate
                 ))
                 .into());
             }
-            let _ = self.action_tx.send(MediaKeyAction::SetRate(rate));
+            let _ = self.action_tx.send(MediaKeyAction::SetRate(rate_f32));
             let mut state = self.state.lock();
-            state.rate = rate;
+            state.rate = rate_f32;
             Ok(())
         }
 
@@ -345,16 +346,16 @@ pub(crate) fn run_dbus_server(
         }
 
         #[zbus(property)]
-        fn volume(&self) -> zbus::fdo::Result<f32> {
+        fn volume(&self) -> zbus::fdo::Result<f64> {
             let state = self.state.lock();
-            Ok(state.volume)
+            Ok(state.volume as f64)
         }
 
         #[zbus(property)]
-        fn set_volume(&self, volume: f32) -> zbus::Result<()> {
+        fn set_volume(&self, volume: f64) -> zbus::Result<()> {
             // MPRIS allows values > 1.0 for amplification but we cap at 1.0.
             // NOTE: Returns zbus::Result — see set_loop_status for rationale.
-            let clamped = volume.clamp(0.0, 1.0);
+            let clamped = (volume as f32).clamp(0.0, 1.0);
             let _ = self.action_tx.send(MediaKeyAction::SetVolume(clamped));
             let mut state = self.state.lock();
             state.volume = clamped;
@@ -368,12 +369,12 @@ pub(crate) fn run_dbus_server(
         }
 
         #[zbus(property)]
-        fn minimum_rate(&self) -> zbus::fdo::Result<f32> {
+        fn minimum_rate(&self) -> zbus::fdo::Result<f64> {
             Ok(0.25)
         }
 
         #[zbus(property)]
-        fn maximum_rate(&self) -> zbus::fdo::Result<f32> {
+        fn maximum_rate(&self) -> zbus::fdo::Result<f64> {
             Ok(4.0)
         }
 
