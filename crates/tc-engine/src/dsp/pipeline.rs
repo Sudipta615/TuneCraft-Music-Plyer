@@ -20,7 +20,7 @@ pub enum DspNode {
     Loudness(LoudnessNormalizer),
     Eq(ParametricEq),
     MidSideEq(ParametricEq), // Wraps an EQ but processes in M/S space
-    Convolution(ConvolutionEngine),
+    Convolution(Box<ConvolutionEngine>),
     Stereo(StereoEnhancer),
     Limiter(LookaheadLimiter),
     SeekFade(FadeProcessor),
@@ -168,7 +168,7 @@ impl DspPipeline {
             DspNode::Preamp(preamp),
             DspNode::Loudness(loudness),
             DspNode::Eq(eq), // We swap this to MidSideEq dynamically if enabled
-            DspNode::Convolution(convolution),
+            DspNode::Convolution(Box::new(convolution)),
             DspNode::Balance(1.0, 1.0),
             DspNode::Stereo(stereo_enhancer),
         ];
@@ -282,7 +282,7 @@ impl DspPipeline {
     pub fn set_eq_band(&mut self, index: usize, params: EqBandParams) {
         for node in &mut self.pre_mix_chain {
             match node {
-                DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_band(index, params.clone()),
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_band(index, params),
                 _ => {},
             }
         }

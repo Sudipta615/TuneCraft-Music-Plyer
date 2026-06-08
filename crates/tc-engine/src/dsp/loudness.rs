@@ -57,9 +57,9 @@ impl KWeightStage1 {
             );
             44100.0
         };
-        let f0: f32 = 1681.974450955533;
-        let g: f32 = 3.999843853973347;
-        let q: f32 = 0.7071752369554196;
+        let f0: f32 = 1_681.974_5;
+        let g: f32 = 3.999_843_8;
+        let q: f32 = 0.707_175_25;
         let k = (PI * f0 / sample_rate).tan();
         let vh = g.powf(0.5) * k * k + k / q + 1.0;
         let vb = g.powf(0.5) - 1.0;
@@ -104,8 +104,8 @@ impl KWeightStage2 {
             );
             44100.0
         };
-        let f0 = 38.13547087602444;
-        let q = 0.5003270373238773;
+        let f0 = 38.135_47;
+        let q = 0.500_327_05;
         let k = (PI * f0 / sample_rate).tan();
         let kk = k * k;
         let norm = kk + k / q + 1.0;

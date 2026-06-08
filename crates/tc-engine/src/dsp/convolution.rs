@@ -281,12 +281,8 @@ impl ConvolutionEngine {
                         symphonia::core::audio::AudioBufferRef::F32(buf) => {
                             let buf = &**buf;
                             for i in 0..frames {
-                                let l = buf.chan(0)[i] as f32;
-                                let r = if channels > 1 {
-                                    buf.chan(1)[i] as f32
-                                } else {
-                                    l
-                                };
+                                let l = buf.chan(0)[i];
+                                let r = if channels > 1 { buf.chan(1)[i] } else { l };
                                 ir_samples.push((l, r));
                             }
                         },
