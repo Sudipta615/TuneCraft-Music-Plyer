@@ -764,8 +764,8 @@ mod tests {
     #[test]
     fn test_set_volume_clamps() {
         let svc = make_service();
-        svc.set_volume(2.0); // should clamp to 1.5
-        assert!((svc.state().volume - 1.5).abs() < 1e-6);
+        svc.set_volume(2.0); // should clamp to 1.0
+        assert!((svc.state().volume - 1.0).abs() < 1e-6);
         svc.set_volume(-1.0); // should clamp to 0.0
         assert!((svc.state().volume - 0.0).abs() < 1e-6);
         svc.set_volume(0.8);
