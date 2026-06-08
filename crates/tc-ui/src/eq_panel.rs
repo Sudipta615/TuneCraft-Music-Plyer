@@ -383,7 +383,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             if drag_resp.dragged() {
                 if let Some(ptr) = drag_resp.interact_pointer_pos() {
                     let t = ((ptr.x - slider_x_start) / slider_w).clamp(0.0, 1.0);
-                    let new_preamp = (t * 24.0 - 12.0);
+                    let new_preamp = t * 24.0 - 12.0;
                     app.eq_preamp = new_preamp;
                     app.ctx.eq.set_preamp(new_preamp);
                 }
@@ -566,7 +566,7 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
             if let Some(ptr) = drag_resp.interact_pointer_pos() {
                 let t = (ptr.y - track_top) / (track_bot - track_top);
                 let new_norm = (1.0 - t).clamp(0.0, 1.0);
-                let new_gain = (new_norm * 24.0 - 12.0);
+                let new_gain = new_norm * 24.0 - 12.0;
                 app.eq_bands[i] = new_gain.clamp(-12.0, 12.0);
                 app.eq_preset = "Custom".to_string();
                 if i == 0 {
