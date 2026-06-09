@@ -101,6 +101,13 @@ impl SymphoniaDecoder {
         let track_id = track.id;
         let codec_params = &track.codec_params;
 
+        if let Some(delay) = codec_params.delay {
+            log::info!("Gapless metadata found: {} samples delay", delay);
+        }
+        if let Some(padding) = codec_params.padding {
+            log::info!("Gapless metadata found: {} samples padding", padding);
+        }
+
         let decoder = symphonia::default::get_codecs()
             .make(codec_params, &decoder_opts)
             .map_err(|e| DecodeError::Decode(format!("Cannot create decoder: {}", e)))?;

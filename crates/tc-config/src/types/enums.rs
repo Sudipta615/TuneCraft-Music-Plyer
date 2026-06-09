@@ -113,3 +113,16 @@ pub enum AudioBackend {
     #[serde(alias = "ExclusiveCoreAudioHog")]
     ExclusiveCoreAudioHog,
 }
+
+/// Profile for the Crossfeed DSP node
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CrossfeedProfile {
+    #[serde(alias = "Bauer")]
+    #[default]
+    Bauer,
+    #[serde(alias = "ChuMoy")]
+    ChuMoy,
+    #[serde(alias = "Jmeier")]
+    Jmeier,
+}

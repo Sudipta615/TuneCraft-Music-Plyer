@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use super::enums::{
-    AudioBackend, CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, ResamplerQuality,
+    AudioBackend, CrossfadeCurve, CrossfeedProfile, FilterType, LoudnessMode, PerformanceMode,
+    ResamplerQuality,
 };
 
 /// A single parametric EQ band configuration
@@ -620,6 +621,103 @@ impl Default for StereoEnhancerConfig {
     }
 }
 
+/// Crossfeed configuration
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CrossfeedConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub profile: CrossfeedProfile,
+    /// 0.0 to 1.0, blend level
+    #[serde(default = "CrossfeedConfig::default_level")]
+    pub level: f32,
+}
+
+impl CrossfeedConfig {
+    fn default_level() -> f32 {
+        1.0
+    }
+
+    pub fn validate(&mut self) -> Vec<String> {
+        let mut warnings = Vec::new();
+        if self.level.is_nan() || self.level.is_infinite() {
+            warnings.push(format!(
+                "Crossfeed level ({:.2}) is NaN/inf, resetting to 1.0",
+                self.level
+            ));
+            self.level = 1.0;
+        } else {
+            self.level = self.level.clamp(0.0, 1.0);
+        }
+        warnings
+    }
+}
+
+impl Default for CrossfeedConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            profile: CrossfeedProfile::Bauer,
+            level: 1.0,
+        }
+    }
+}
+
+/// Multiband Compressor configuration
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MultibandCompressorConfig {
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+impl MultibandCompressorConfig {
+    pub fn validate(&mut self) -> Vec<String> {
+        Vec::new()
+    }
+}
+
+impl Default for MultibandCompressorConfig {
+    fn default() -> Self {
+        Self { enabled: false }
+    }
+}
+
+/// Time Stretch configuration
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimeStretchConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "TimeStretchConfig::default_pitch_shift")]
+    pub pitch_shift: f32,
+}
+
+impl TimeStretchConfig {
+    fn default_pitch_shift() -> f32 {
+        1.0
+    }
+
+    pub fn validate(&mut self) -> Vec<String> {
+        let mut warnings = Vec::new();
+        if self.pitch_shift.is_nan() || self.pitch_shift.is_infinite() || self.pitch_shift <= 0.0 {
+            warnings.push(format!(
+                "TimeStretch pitch_shift ({:.2}) is invalid, resetting to 1.0",
+                self.pitch_shift
+            ));
+            self.pitch_shift = 1.0;
+        }
+        warnings
+    }
+}
+
+impl Default for TimeStretchConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            pitch_shift: 1.0,
+        }
+    }
+}
+
 /// Audio engine configuration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EngineConfig {
@@ -637,6 +735,12 @@ pub struct EngineConfig {
     pub convolution: ConvolutionConfig,
     #[serde(default)]
     pub stereo_enhancer: StereoEnhancerConfig,
+    #[serde(default)]
+    pub crossfeed: CrossfeedConfig,
+    #[serde(default)]
+    pub multiband_compressor: MultibandCompressorConfig,
+    #[serde(default)]
+    pub time_stretch: TimeStretchConfig,
     #[serde(default = "EngineConfig::default_gapless_enabled")]
     pub gapless_enabled: bool,
     #[serde(default = "EngineConfig::default_seek_fade_ms")]
@@ -720,6 +824,9 @@ impl EngineConfig {
         warnings.extend(self.crossfade.validate());
         warnings.extend(self.convolution.validate());
         warnings.extend(self.stereo_enhancer.validate());
+        warnings.extend(self.crossfeed.validate());
+        warnings.extend(self.multiband_compressor.validate());
+        warnings.extend(self.time_stretch.validate());
 
         if self.seek_fade_ms > 5000 {
             warnings.push(format!(
@@ -751,6 +858,9 @@ impl Default for EngineConfig {
             crossfade: CrossfadeConfig::default(),
             convolution: ConvolutionConfig::default(),
             stereo_enhancer: StereoEnhancerConfig::default(),
+            crossfeed: CrossfeedConfig::default(),
+            multiband_compressor: MultibandCompressorConfig::default(),
+            time_stretch: TimeStretchConfig::default(),
             gapless_enabled: true,
             seek_fade_ms: 10,
             volume_fade_ms: 50,

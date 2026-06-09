@@ -3,12 +3,15 @@ use tc_config::{EngineConfig, LoudnessMode as ConfigLoudnessMode, PerformanceMod
 use crate::dsp::{
     convolution::ConvolutionEngine,
     crossfade::TrackMixer,
+    crossfeed::Crossfeed,
     dither::{Dither, DitherType},
     equalizer::{EqBandParams, EqFilterType, ParametricEq},
     gain::{FadeProcessor, GainProcessor},
     limiter::LookaheadLimiter,
     loudness::{LoudnessMetadata, LoudnessMode, LoudnessNormalizer},
+    multiband_compressor::MultibandCompressor,
     stereo::StereoEnhancer,
+    time_stretch::TimeStretcher,
 };
 
 const VOLUME_RAMP_DURATION_MS: f32 = 10.0;
@@ -20,8 +23,11 @@ pub enum DspNode {
     Loudness(LoudnessNormalizer),
     Eq(ParametricEq),
     MidSideEq(ParametricEq), // Wraps an EQ but processes in M/S space
+    MultibandCompressor(MultibandCompressor),
     Convolution(Box<ConvolutionEngine>),
+    Crossfeed(Crossfeed),
     Stereo(StereoEnhancer),
+    TimeStretch(TimeStretcher),
     Limiter(LookaheadLimiter),
     SeekFade(FadeProcessor),
     Dither(Dither),
@@ -41,8 +47,11 @@ impl DspNode {
                 let (eq_mid, eq_side) = p.process(mid, side);
                 (eq_mid + eq_side, eq_mid - eq_side)
             },
+            DspNode::MultibandCompressor(p) => p.process(l, r),
             DspNode::Convolution(p) => p.process(l, r),
+            DspNode::Crossfeed(p) => p.process(l, r),
             DspNode::Stereo(p) => p.process(l, r),
+            DspNode::TimeStretch(p) => p.process(l, r),
             DspNode::Limiter(p) => p.process(l, r),
             DspNode::SeekFade(p) => p.process(l, r),
             DspNode::Dither(p) => p.process(l, r),
@@ -55,8 +64,11 @@ impl DspNode {
             DspNode::Preamp(p) | DspNode::Volume(p) => p.reset(),
             DspNode::Loudness(p) => p.reset(),
             DspNode::Eq(p) | DspNode::MidSideEq(p) => p.reset(),
+            DspNode::MultibandCompressor(p) => p.reset(),
             DspNode::Convolution(p) => p.reset(),
+            DspNode::Crossfeed(p) => p.reset(),
             DspNode::Stereo(p) => p.reset(),
+            DspNode::TimeStretch(p) => p.reset(),
             DspNode::Limiter(p) => p.reset(),
             DspNode::SeekFade(p) => p.reset(),
             DspNode::Dither(p) => p.reset(),
@@ -137,6 +149,17 @@ impl DspPipeline {
         stereo_enhancer.set_enabled(config.stereo_enhancer.enabled);
         stereo_enhancer.set_width(config.stereo_enhancer.width);
 
+        let mut crossfeed = Crossfeed::new(sample_rate);
+        crossfeed.set_enabled(config.crossfeed.enabled);
+        crossfeed.set_profile(config.crossfeed.profile);
+        crossfeed.set_level(config.crossfeed.level);
+
+        let mut multiband_compressor = MultibandCompressor::new(sample_rate);
+        multiband_compressor.set_enabled(config.multiband_compressor.enabled);
+
+        let mut time_stretch = TimeStretcher::new(sample_rate);
+        time_stretch.set_enabled(config.time_stretch.enabled);
+
         let dither = if config.dither_enabled {
             Dither::new(DitherType::Triangular, 24)
         } else {
@@ -168,9 +191,12 @@ impl DspPipeline {
             DspNode::Preamp(preamp),
             DspNode::Loudness(loudness),
             DspNode::Eq(eq), // We swap this to MidSideEq dynamically if enabled
+            DspNode::MultibandCompressor(multiband_compressor),
             DspNode::Convolution(Box::new(convolution)),
             DspNode::Balance(1.0, 1.0),
+            DspNode::Crossfeed(crossfeed),
             DspNode::Stereo(stereo_enhancer),
+            DspNode::TimeStretch(time_stretch),
         ];
 
         let post_mix_chain = vec![
@@ -273,6 +299,11 @@ impl DspPipeline {
 
     pub fn set_speed(&mut self, speed: f32) {
         self.speed = speed.clamp(0.25, 4.0);
+        for node in &mut self.pre_mix_chain {
+            if let DspNode::TimeStretch(p) = node {
+                p.set_speed(self.speed);
+            }
+        }
     }
 
     pub fn speed(&self) -> f32 {
@@ -410,7 +441,10 @@ impl DspPipeline {
                 },
                 DspNode::Loudness(p) => p.set_sample_rate(sample_rate),
                 DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_sample_rate(sample_rate),
+                DspNode::MultibandCompressor(p) => p.set_sample_rate(sample_rate),
                 DspNode::Convolution(p) => p.set_sample_rate(sample_rate),
+                DspNode::Crossfeed(p) => p.set_sample_rate(sample_rate),
+                DspNode::TimeStretch(p) => p.set_sample_rate(sample_rate),
                 DspNode::Limiter(p) => p.set_sample_rate(sample_rate),
                 DspNode::SeekFade(p) => p.set_sample_rate(sample_rate),
                 _ => {},
