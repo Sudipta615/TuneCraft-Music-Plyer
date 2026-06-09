@@ -18,7 +18,7 @@ pub const TRACK_COLUMNS: &str = "id, path, title, artist, album, album_artist, g
     track_number, disc_number, duration_secs, sample_rate, channels, bitrate_kbps, format, \
     file_size, file_modified, crc32, replaygain_track_db, replaygain_album_db, \
     replaygain_track_peak, replaygain_album_peak, ebu_r128_loudness, ebu_r128_peak, \
-    bpm, mood, lyrics_synced, lyrics_unsynced, last_played, play_count, date_added, date_scanned";
+    bpm, lyrics_synced, lyrics_unsynced, last_played, play_count, date_added, date_scanned";
 
 pub(crate) fn prefixed_track_columns(prefix: &str) -> String {
     TRACK_COLUMNS
@@ -58,7 +58,6 @@ pub(crate) fn row_to_track(row: &rusqlite::Row<'_>) -> Result<Track, rusqlite::E
         ebu_r128_loudness: row.get("ebu_r128_loudness")?,
         ebu_r128_peak: row.get("ebu_r128_peak")?,
         bpm: row.get("bpm")?,
-        mood: row.get("mood")?,
         lyrics_synced: row.get("lyrics_synced")?,
         lyrics_unsynced: row.get("lyrics_unsynced")?,
         last_played: row.get("last_played")?,
@@ -85,7 +84,7 @@ impl Database {
     /// Insert a track, using UPSERT to handle conflicts on the `path` column.
     ///
     ///
-    /// columns (bpm, mood, replaygain_*, ebu_r128_*). These fields are
+    /// columns (bpm, replaygain_*, ebu_r128_*). These fields are
     /// computed by tc-analysis and tc-engine after the initial scan, and
     /// overwriting them during re-insertion would destroy expensive analysis
     /// results. Only file-derived metadata (title, artist, album, duration,
@@ -101,13 +100,13 @@ impl Database {
         // UPSERT keeps the same rowid and preserves user data columns.
         //
         // ON CONFLICT UPDATE only sets file-derived metadata columns.
-        // Analysis columns (bpm, mood, replaygain_*, ebu_r128_*) are NOT
+        // Analysis columns (bpm, replaygain_*, ebu_r128_*) are NOT
         // overwritten on conflict — they are preserved from any prior
         // analysis run. Only the INSERT path sets these to the values
         // provided in the Track struct (typically NULL for new tracks).
         conn.execute(
-            "INSERT INTO tracks (path, title, artist, album, album_artist, genre, year, track_number, disc_number, duration_secs, sample_rate, channels, bitrate_kbps, format, file_size, file_modified, crc32, replaygain_track_db, replaygain_album_db, replaygain_track_peak, replaygain_album_peak, ebu_r128_loudness, ebu_r128_peak, bpm, mood, play_count, date_scanned)\
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27)\
+            "INSERT INTO tracks (path, title, artist, album, album_artist, genre, year, track_number, disc_number, duration_secs, sample_rate, channels, bitrate_kbps, format, file_size, file_modified, crc32, replaygain_track_db, replaygain_album_db, replaygain_track_peak, replaygain_album_peak, ebu_r128_loudness, ebu_r128_peak, bpm, play_count, date_scanned)\
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26)\
              ON CONFLICT(path) DO UPDATE SET \
              title=excluded.title, artist=excluded.artist, album=excluded.album,\
              album_artist=excluded.album_artist, genre=excluded.genre, year=excluded.year,\
@@ -125,7 +124,7 @@ impl Database {
                 track.replaygain_track_db, track.replaygain_album_db,
                 track.replaygain_track_peak, track.replaygain_album_peak,
                 track.ebu_r128_loudness, track.ebu_r128_peak,
-                track.bpm, track.mood, track.play_count,
+                track.bpm, track.play_count,
                 track.date_scanned,
             ],
         )?;
@@ -274,14 +273,6 @@ impl Database {
         Ok(())
     }
 
-    pub fn update_mood(&self, id: i64, mood: &str) -> Result<(), DbError> {
-        self.write_lock()?.execute(
-            "UPDATE tracks SET mood = ?1 WHERE id = ?2",
-            params![mood, id],
-        )?;
-        Ok(())
-    }
-
     /// Delete a track by ID.
     ///
     ///
@@ -400,7 +391,7 @@ impl Database {
     /// The following columns are preserved (not overwritten):
     /// - `play_count`, `last_played`, `date_added` — user interaction data
     /// - `lyrics_synced`, `lyrics_unsynced` — user/lyrics-provider data
-    /// - `bpm`, `mood` — analysis results (set via `update_bpm`/`update_mood`)
+    /// - `bpm` — analysis results (set via `update_bpm`)
     /// - `replaygain_*`, `ebu_r128_*` — loudness analysis (set via `update_loudness_meta`)
     ///
     /// Only file-derived metadata (title, artist, album, duration, format,
@@ -412,16 +403,15 @@ impl Database {
              track_number=?7, disc_number=?8, duration_secs=?9, sample_rate=?10, channels=?11, \
              bitrate_kbps=?12, format=?13, file_size=?14, file_modified=?15, crc32=?16, \
              bpm=COALESCE(NULLIF(?17, NULL), bpm), \
-             mood=COALESCE(NULLIF(?18, NULL), mood), \
-             replaygain_track_db=COALESCE(NULLIF(?19, NULL), replaygain_track_db), \
-             replaygain_album_db=COALESCE(NULLIF(?20, NULL), replaygain_album_db), \
-             replaygain_track_peak=COALESCE(NULLIF(?21, NULL), replaygain_track_peak), \
-             replaygain_album_peak=COALESCE(NULLIF(?22, NULL), replaygain_album_peak), \
-             ebu_r128_loudness=COALESCE(NULLIF(?23, NULL), ebu_r128_loudness), \
-             ebu_r128_peak=COALESCE(NULLIF(?24, NULL), ebu_r128_peak), \
-             lyrics_synced=COALESCE(NULLIF(?25, ''), lyrics_synced), \
-             lyrics_unsynced=COALESCE(NULLIF(?26, ''), lyrics_unsynced), \
-             date_scanned=?27 WHERE path=?28",
+             replaygain_track_db=COALESCE(NULLIF(?18, NULL), replaygain_track_db), \
+             replaygain_album_db=COALESCE(NULLIF(?19, NULL), replaygain_album_db), \
+             replaygain_track_peak=COALESCE(NULLIF(?20, NULL), replaygain_track_peak), \
+             replaygain_album_peak=COALESCE(NULLIF(?21, NULL), replaygain_album_peak), \
+             ebu_r128_loudness=COALESCE(NULLIF(?22, NULL), ebu_r128_loudness), \
+             ebu_r128_peak=COALESCE(NULLIF(?23, NULL), ebu_r128_peak), \
+             lyrics_synced=COALESCE(NULLIF(?24, ''), lyrics_synced), \
+             lyrics_unsynced=COALESCE(NULLIF(?25, ''), lyrics_unsynced), \
+             date_scanned=?26 WHERE path=?27",
             params![
                 track.title,
                 track.artist,
@@ -440,7 +430,6 @@ impl Database {
                 track.file_modified,
                 track.crc32,
                 track.bpm,
-                track.mood,
                 track.replaygain_track_db,
                 track.replaygain_album_db,
                 track.replaygain_track_peak,
@@ -558,12 +547,9 @@ impl Database {
         Ok(deleted)
     }
 
-    /// Get tracks that haven't been analyzed yet (no BPM or mood)
+    /// Get tracks that haven't been analyzed yet (no BPM)
     pub fn get_unanalyzed_tracks(&self) -> Result<Vec<Track>, DbError> {
-        let sql = format!(
-            "SELECT {} FROM tracks WHERE bpm IS NULL OR mood IS NULL",
-            TRACK_COLUMNS
-        );
+        let sql = format!("SELECT {} FROM tracks WHERE bpm IS NULL", TRACK_COLUMNS);
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
@@ -595,7 +581,7 @@ impl Database {
     /// and reuses the prepared statement for all inserts.
     ///
     ///
-    /// columns (bpm, mood, replaygain_*, ebu_r128_*), consistent with
+    /// columns (bpm, replaygain_*, ebu_r128_*), consistent with
     /// `insert_track()`. Only file-derived metadata is updated on conflict.
     ///
     /// Returns a list of `(track_index, track_id)` for successfully inserted tracks.
@@ -605,8 +591,8 @@ impl Database {
         let tx = conn.unchecked_transaction().map_err(DbError::Sqlite)?;
 
         let mut stmt = tx.prepare_cached(
-            "INSERT INTO tracks (path, title, artist, album, album_artist, genre, year, track_number, disc_number, duration_secs, sample_rate, channels, bitrate_kbps, format, file_size, file_modified, crc32, replaygain_track_db, replaygain_album_db, replaygain_track_peak, replaygain_album_peak, ebu_r128_loudness, ebu_r128_peak, bpm, mood, play_count, date_scanned)\
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27)\
+            "INSERT INTO tracks (path, title, artist, album, album_artist, genre, year, track_number, disc_number, duration_secs, sample_rate, channels, bitrate_kbps, format, file_size, file_modified, crc32, replaygain_track_db, replaygain_album_db, replaygain_track_peak, replaygain_album_peak, ebu_r128_loudness, ebu_r128_peak, bpm, play_count, date_scanned)\
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26)\
              ON CONFLICT(path) DO UPDATE SET \
              title=excluded.title, artist=excluded.artist, album=excluded.album,\
              album_artist=excluded.album_artist, genre=excluded.genre, year=excluded.year,\
@@ -653,7 +639,6 @@ impl Database {
                 track.ebu_r128_loudness,
                 track.ebu_r128_peak,
                 track.bpm,
-                track.mood,
                 track.play_count,
                 track.date_scanned,
             ]) {
@@ -694,16 +679,15 @@ impl Database {
              track_number=?7, disc_number=?8, duration_secs=?9, sample_rate=?10, channels=?11, \
              bitrate_kbps=?12, format=?13, file_size=?14, file_modified=?15, crc32=?16, \
              bpm=COALESCE(NULLIF(?17, NULL), bpm), \
-             mood=COALESCE(NULLIF(?18, NULL), mood), \
-             replaygain_track_db=COALESCE(NULLIF(?19, NULL), replaygain_track_db), \
-             replaygain_album_db=COALESCE(NULLIF(?20, NULL), replaygain_album_db), \
-             replaygain_track_peak=COALESCE(NULLIF(?21, NULL), replaygain_track_peak), \
-             replaygain_album_peak=COALESCE(NULLIF(?22, NULL), replaygain_album_peak), \
-             ebu_r128_loudness=COALESCE(NULLIF(?23, NULL), ebu_r128_loudness), \
-             ebu_r128_peak=COALESCE(NULLIF(?24, NULL), ebu_r128_peak), \
-             lyrics_synced=COALESCE(NULLIF(?25, ''), lyrics_synced), \
-             lyrics_unsynced=COALESCE(NULLIF(?26, ''), lyrics_unsynced), \
-             date_scanned=?27 WHERE path=?28"
+             replaygain_track_db=COALESCE(NULLIF(?18, NULL), replaygain_track_db), \
+             replaygain_album_db=COALESCE(NULLIF(?19, NULL), replaygain_album_db), \
+             replaygain_track_peak=COALESCE(NULLIF(?20, NULL), replaygain_track_peak), \
+             replaygain_album_peak=COALESCE(NULLIF(?21, NULL), replaygain_album_peak), \
+             ebu_r128_loudness=COALESCE(NULLIF(?22, NULL), ebu_r128_loudness), \
+             ebu_r128_peak=COALESCE(NULLIF(?23, NULL), ebu_r128_peak), \
+             lyrics_synced=COALESCE(NULLIF(?24, ''), lyrics_synced), \
+             lyrics_unsynced=COALESCE(NULLIF(?25, ''), lyrics_unsynced), \
+             date_scanned=?26 WHERE path=?27"
         ).map_err(DbError::Sqlite)?;
 
         let mut updated = 0;
@@ -726,7 +710,6 @@ impl Database {
                 track.file_modified,
                 track.crc32,
                 track.bpm,
-                track.mood,
                 track.replaygain_track_db,
                 track.replaygain_album_db,
                 track.replaygain_track_peak,
@@ -785,7 +768,6 @@ pub(crate) mod tests {
             ebu_r128_loudness: None,
             ebu_r128_peak: None,
             bpm: None,
-            mood: None,
             lyrics_synced: None,
             lyrics_unsynced: None,
             last_played: None,
@@ -802,7 +784,6 @@ pub(crate) mod tests {
     pub(crate) fn make_test_track_with_analysis(path: &str, title: &str) -> Track {
         let mut track = make_test_track(path, title);
         track.bpm = Some(120.0);
-        track.mood = Some("happy".to_string());
         track.replaygain_track_db = Some(-5.0);
         track.replaygain_album_db = Some(-6.0);
         track.replaygain_track_peak = Some(0.95);
@@ -836,7 +817,6 @@ pub(crate) mod tests {
         // Verify analysis data is stored
         let fetched = db.get_track(id).unwrap().unwrap();
         assert_eq!(fetched.bpm, Some(120.0));
-        assert_eq!(fetched.mood.as_deref(), Some("happy"));
         assert_eq!(fetched.replaygain_track_db, Some(-5.0));
 
         // Re-insert the same track without analysis data (simulating a re-scan)
@@ -855,11 +835,6 @@ pub(crate) mod tests {
             fetched.bpm,
             Some(120.0),
             "BPM should be preserved on re-insert"
-        );
-        assert_eq!(
-            fetched.mood.as_deref(),
-            Some("happy"),
-            "Mood should be preserved on re-insert"
         );
         assert_eq!(
             fetched.replaygain_track_db,
@@ -893,11 +868,6 @@ pub(crate) mod tests {
             fetched.bpm,
             Some(120.0),
             "BPM should be preserved in batch upsert"
-        );
-        assert_eq!(
-            fetched.mood.as_deref(),
-            Some("happy"),
-            "Mood should be preserved in batch upsert"
         );
     }
 
@@ -978,18 +948,12 @@ pub(crate) mod tests {
 
         let mut updated_track = make_test_track("/music/test.flac", "Updated Title");
         updated_track.bpm = None;
-        updated_track.mood = None;
         db.update_track_preserving_userdata(&updated_track).unwrap();
 
         // Analysis data should be preserved
         let fetched = db.get_track(id).unwrap().unwrap();
         assert_eq!(fetched.title, "Updated Title");
         assert_eq!(fetched.bpm, Some(120.0), "BPM should be preserved");
-        assert_eq!(
-            fetched.mood.as_deref(),
-            Some("happy"),
-            "Mood should be preserved"
-        );
     }
 
     #[test]
@@ -1008,7 +972,6 @@ pub(crate) mod tests {
 
         let id = unanalyzed[0].id;
         db.update_bpm(id, 120.0).unwrap();
-        db.update_mood(id, "happy").unwrap();
 
         let unanalyzed = db.get_unanalyzed_tracks().unwrap();
         assert!(

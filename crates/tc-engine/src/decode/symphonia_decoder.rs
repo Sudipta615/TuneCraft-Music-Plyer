@@ -61,6 +61,8 @@ pub struct SymphoniaDecoder {
     /// Reusable sample buffer for decoded output, passed across
     /// decode_next calls instead of allocating a new Vec each time.
     sample_buffer: Vec<f32>,
+    /// Symphonia sample buffer for safe format conversion
+    conversion_buffer: Option<symphonia::core::audio::SampleBuffer<f32>>,
 }
 
 impl SymphoniaDecoder {
@@ -145,6 +147,7 @@ impl SymphoniaDecoder {
             track_id,
             info,
             sample_buffer: Vec::with_capacity(4096 * channels),
+            conversion_buffer: None,
         })
     }
 
@@ -174,8 +177,23 @@ impl SymphoniaDecoder {
 
             match self.decoder.decode(&packet) {
                 Ok(decoded) => {
-                    let frames =
-                        Self::extract_samples(decoded, &mut self.sample_buffer, self.info.channels);
+                    if self.conversion_buffer.is_none()
+                        || self.conversion_buffer.as_ref().unwrap().capacity() < decoded.capacity()
+                    {
+                        self.conversion_buffer =
+                            Some(symphonia::core::audio::SampleBuffer::<f32>::new(
+                                decoded.capacity() as u64,
+                                *decoded.spec(),
+                            ));
+                    }
+                    let conv_buf = self.conversion_buffer.as_mut().unwrap();
+                    conv_buf.copy_interleaved_ref(decoded);
+
+                    let frames = Self::extract_from_sample_buffer(
+                        conv_buf,
+                        &mut self.sample_buffer,
+                        self.info.channels,
+                    );
                     frames_decoded += frames;
                 },
                 Err(SymphoniaError::DecodeError(_)) => continue,
@@ -195,84 +213,30 @@ impl SymphoniaDecoder {
         })
     }
 
-    /// Extract f32 samples from a decoded audio buffer reference
-    fn extract_samples(
-        buffer: AudioBufferRef,
+    /// Extract f32 samples from a SampleBuffer and handle downmixing/upmixing
+    fn extract_from_sample_buffer(
+        conv_buf: &symphonia::core::audio::SampleBuffer<f32>,
         output: &mut Vec<f32>,
         target_channels: usize,
     ) -> usize {
-        let frames = buffer.frames();
-        let spec = buffer.spec();
-        let src_channels = spec.channels.count();
+        let samples = conv_buf.samples();
+        let src_channels = conv_buf.spec().channels.count();
+        let frames = conv_buf.frames();
 
-        // Use the convert utility from symphonia to get f32 samples, then convert to f32
-        // This is the most robust approach across Symphonia versions
-        match &buffer {
-            AudioBufferRef::U8(buf) => {
-                Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    ((*s as f32) - 128.0) / 128.0
-                })
-            },
-            AudioBufferRef::S16(buf) => {
-                Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    *s as f32 / 32768.0
-                })
-            },
-            AudioBufferRef::S24(buf) => {
-                Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    s.0 as f32 / 8388608.0
-                })
-            },
-            AudioBufferRef::S32(buf) => {
-                Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    *s as f32 / 2147483648.0
-                })
-            },
-            AudioBufferRef::F32(buf) => {
-                Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    *s
-                })
-            },
-            AudioBufferRef::F64(buf) => {
-                Self::copy_buf(&**buf, output, src_channels, target_channels, frames, |s| {
-                    *s as f32
-                })
-            },
-            // Handle any additional sample formats
-            _ => {
-                // For unsupported formats, output silence
-                for _ in 0..frames * target_channels {
-                    output.push(0.0);
-                }
-            },
-        }
-        frames
-    }
-
-    /// Copy samples from an AudioBuffer using a conversion function
-    fn copy_buf<T, F>(
-        buffer: &symphonia::core::audio::AudioBuffer<T>,
-        output: &mut Vec<f32>,
-        src_channels: usize,
-        target_channels: usize,
-        frames: usize,
-        convert: F,
-    ) where
-        T: symphonia::core::sample::Sample + Copy,
-        F: Fn(&T) -> f32,
-    {
         for frame in 0..frames {
+            let frame_offset = frame * src_channels;
             for ch in 0..target_channels {
                 let sample = if ch < src_channels {
-                    convert(&buffer.chan(ch)[frame])
+                    samples[frame_offset + ch]
                 } else if src_channels > 0 {
-                    convert(&buffer.chan(src_channels - 1)[frame])
+                    samples[frame_offset + src_channels - 1]
                 } else {
                     0.0
                 };
                 output.push(sample);
             }
         }
+        frames
     }
 
     /// Seek to a position in seconds

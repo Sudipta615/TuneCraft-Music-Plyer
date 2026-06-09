@@ -175,7 +175,7 @@ impl TuneCraftApp {
         let library_svc = Arc::clone(&self.ctx.library);
 
         std::thread::Builder::new()
-            .name("tunecraft-mood-analysis".into())
+            .name("tunecraft-audio-analysis".into())
             .spawn(move || {
                 use std::path::PathBuf;
                 use tc_analysis::analyze_file;
@@ -200,10 +200,6 @@ impl TuneCraftApp {
                     if let Ok(analysis) = analyze_file(&path, Some(60.0), lyrics_text.as_deref()) {
                         if track.bpm.is_none() {
                             let _ = db.update_bpm(track.id, analysis.bpm.bpm);
-                            changed = true;
-                        }
-                        if track.mood.is_none() {
-                            let _ = db.update_mood(track.id, &analysis.mood.mood);
                             changed = true;
                         }
                     }

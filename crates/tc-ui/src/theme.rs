@@ -48,28 +48,6 @@ pub const LIGHT_ACTIVE: Color32 = Color32::from_rgb(0xEE, 0xED, 0xFD);
 /// Light sidebar selected tint — distinct from general selected surface
 pub const LIGHT_SIDEBAR_ACTIVE: Color32 = Color32::from_rgb(0xEE, 0xED, 0xFD);
 
-// ── Mood colors (shared across themes) ──
-
-pub const MOOD_ROMANTIC: Color32 = Color32::from_rgb(0xEC, 0x48, 0x99); // pink
-pub const MOOD_DANCE: Color32 = Color32::from_rgb(0xF9, 0x73, 0x16); // orange-red
-pub const MOOD_SAD: Color32 = Color32::from_rgb(0x3B, 0x82, 0xF6); // blue
-pub const MOOD_SUFI: Color32 = Color32::from_rgb(0xF5, 0x9E, 0x0B); // amber
-pub const MOOD_CHILL: Color32 = Color32::from_rgb(0x10, 0xB9, 0x81); // green
-
-// Light mode mood pill tints (background colors)
-pub const LIGHT_MOOD_ROMANTIC_BG: Color32 = Color32::from_rgb(0xFD, 0xE8, 0xF3);
-pub const LIGHT_MOOD_DANCE_BG: Color32 = Color32::from_rgb(0xFF, 0xED, 0xD5);
-pub const LIGHT_MOOD_SAD_BG: Color32 = Color32::from_rgb(0xDB, 0xEA, 0xFE);
-pub const LIGHT_MOOD_SUFI_BG: Color32 = Color32::from_rgb(0xFE, 0xF3, 0xC7);
-pub const LIGHT_MOOD_CHILL_BG: Color32 = Color32::from_rgb(0xD1, 0xFA, 0xE5);
-
-// Light mode mood pill text/border colors
-pub const LIGHT_MOOD_ROMANTIC_FG: Color32 = MOOD_ROMANTIC;
-pub const LIGHT_MOOD_DANCE_FG: Color32 = MOOD_DANCE;
-pub const LIGHT_MOOD_SAD_FG: Color32 = MOOD_SAD;
-pub const LIGHT_MOOD_SUFI_FG: Color32 = MOOD_SUFI;
-pub const LIGHT_MOOD_CHILL_FG: Color32 = MOOD_CHILL;
-
 /// Collection of colors for the current theme
 #[derive(Debug, Clone, Copy)]
 pub struct TuneCraftColors {
@@ -228,40 +206,4 @@ pub fn light_visuals() -> Visuals {
     v.widgets.active.rounding = Rounding::same(8.0);
     v.slider_trailing_fill = true;
     v
-}
-
-/// Mood tag color lookup
-pub fn mood_color(mood: &str) -> Color32 {
-    match mood.to_lowercase().as_str() {
-        "romantic" => MOOD_ROMANTIC,
-        "dance" => MOOD_DANCE,
-        "sad" => MOOD_SAD,
-        "sufi" => MOOD_SUFI,
-        "chill" => MOOD_CHILL,
-        _ => Color32::from_rgb(0x88, 0x88, 0x99),
-    }
-}
-
-/// Mood tag background tint color for light mode pills
-pub fn mood_color_light_bg(mood: &str) -> Color32 {
-    match mood.to_lowercase().as_str() {
-        "romantic" => LIGHT_MOOD_ROMANTIC_BG,
-        "dance" => LIGHT_MOOD_DANCE_BG,
-        "sad" => LIGHT_MOOD_SAD_BG,
-        "sufi" => LIGHT_MOOD_SUFI_BG,
-        "chill" => LIGHT_MOOD_CHILL_BG,
-        _ => Color32::from_rgb(0xF3, 0xF2, 0xFB),
-    }
-}
-
-/// Mood tag foreground/text color for light mode pills
-pub fn mood_color_light_fg(mood: &str) -> Color32 {
-    match mood.to_lowercase().as_str() {
-        "romantic" => LIGHT_MOOD_ROMANTIC_FG,
-        "dance" => LIGHT_MOOD_DANCE_FG,
-        "sad" => LIGHT_MOOD_SAD_FG,
-        "sufi" => LIGHT_MOOD_SUFI_FG,
-        "chill" => LIGHT_MOOD_CHILL_FG,
-        _ => Color32::from_rgb(0x88, 0x88, 0x99),
-    }
 }

@@ -17,11 +17,6 @@ pub enum NavSection {
     Favorites,
     RecentlyPlayed,
     MostPlayed,
-    MoodDance,
-    MoodRomantic,
-    MoodSad,
-    MoodSufi,
-    MoodChill,
     Settings,
 }
 
@@ -34,11 +29,6 @@ impl NavSection {
             Self::Favorites => "Favorites",
             Self::RecentlyPlayed => "Recently Played",
             Self::MostPlayed => "Most Played",
-            Self::MoodDance => "Dance",
-            Self::MoodRomantic => "Romantic",
-            Self::MoodSad => "Sad",
-            Self::MoodSufi => "Sufi",
-            Self::MoodChill => "Chill",
             Self::Settings => "Settings",
         }
     }
@@ -51,54 +41,13 @@ impl NavSection {
             Self::Favorites => "\u{2605}",      // ★
             Self::RecentlyPlayed => "\u{23F0}", // ⏰
             Self::MostPlayed => "\u{2197}",     // ↗ trending
-            Self::MoodDance => "\u{266B}",      // ♫
-            Self::MoodRomantic => "\u{2665}",   // ♥
-            Self::MoodSad => "\u{1F3B5}",       // 🎵 musical note
-            Self::MoodSufi => "\u{266A}",       // ♪
-            Self::MoodChill => "\u{2744}",      // ❄ snowflake
             Self::Settings => "\u{2699}",       // ⚙
         }
-    }
-
-    pub fn mood_matches(&self, mood: &str) -> bool {
-        match self {
-            Self::MoodDance => mood == "Dance" || mood == "Energetic",
-            Self::MoodRomantic => mood == "Romantic",
-            Self::MoodSad => mood == "Sad" || mood == "Melancholic",
-            Self::MoodSufi => mood == "Sufi",
-            Self::MoodChill => mood == "Chill" || mood == "Calm",
-            _ => false,
-        }
-    }
-
-    pub fn mood_tag(&self) -> Option<&str> {
-        match self {
-            Self::MoodDance => Some("Dance"),
-            Self::MoodRomantic => Some("Romantic"),
-            Self::MoodSad => Some("Sad"),
-            Self::MoodSufi => Some("Sufi"),
-            Self::MoodChill => Some("Chill"),
-            _ => None,
-        }
-    }
-
-    pub fn mood_color(&self) -> Option<Color32> {
-        self.mood_tag().map(theme::mood_color)
     }
 
     pub fn badge_count(&self, tracks: &[tc_db::Track]) -> Option<u32> {
         match self {
             Self::AllTracks => Some(tracks.len() as u32),
-            Self::MoodDance
-            | Self::MoodRomantic
-            | Self::MoodSad
-            | Self::MoodSufi
-            | Self::MoodChill => Some(
-                tracks
-                    .iter()
-                    .filter(|t| t.mood.as_deref().is_some_and(|m| self.mood_matches(m)))
-                    .count() as u32,
-            ),
             Self::Favorites => None,
             Self::RecentlyPlayed => {
                 Some(tracks.iter().filter(|t| t.last_played.is_some()).count() as u32)
@@ -273,17 +222,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
     ui.add_space(16.0);
 
-    section_header(ui, "MOOD", &colors);
-    for nav in &[
-        NavSection::MoodDance,
-        NavSection::MoodRomantic,
-        NavSection::MoodSad,
-        NavSection::MoodSufi,
-        NavSection::MoodChill,
-    ] {
-        nav_item(ui, app, *nav);
-    }
-
     // Push Settings to the bottom
     let remaining = ui.available_height();
     if remaining > 48.0 {
@@ -341,8 +279,6 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
         colors.text_dim
     } else if is_active {
         colors.accent
-    } else if let Some(c) = nav.mood_color() {
-        c
     } else {
         colors.text_dim
     };
@@ -395,31 +331,7 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
             Rect::from_min_size(Pos2::new(badge_x, badge_y), Vec2::new(badge_w, badge_h));
 
         // Badge colors
-        if let Some(mc) = nav.mood_color() {
-            if colors.dark_mode {
-                // Dark: solid mood color bg, white text
-                ui.painter().rect_filled(badge_rect, 10.0, mc);
-                ui.painter().text(
-                    badge_rect.center(),
-                    Align2::CENTER_CENTER,
-                    &badge_text,
-                    badge_font,
-                    Color32::WHITE,
-                );
-            } else {
-                // Light: pastel tinted bg, mood-colored text
-                let mood_bg = crate::theme::mood_color_light_bg(nav.mood_tag().unwrap_or(""));
-                let mood_fg = crate::theme::mood_color_light_fg(nav.mood_tag().unwrap_or(""));
-                ui.painter().rect_filled(badge_rect, 10.0, mood_bg);
-                ui.painter().text(
-                    badge_rect.center(),
-                    Align2::CENTER_CENTER,
-                    &badge_text,
-                    badge_font,
-                    mood_fg,
-                );
-            }
-        } else if is_active {
+        if is_active {
             // Active non-mood badge: accent bg, white text
             ui.painter().rect_filled(badge_rect, 10.0, colors.accent);
             ui.painter().text(

@@ -21,8 +21,6 @@
 
 mod bpm;
 mod chroma;
-mod lyrics_sentiment;
-mod mood;
 mod waveform;
 
 use std::path::Path;
@@ -30,8 +28,6 @@ use std::path::Path;
 pub use bpm::BpmDetector;
 pub use chroma::{ChromaDetector, KeyMode, PitchClass};
 use log::{info, warn};
-pub use lyrics_sentiment::{LyricsSentiment, Sentiment, SentimentResult};
-pub use mood::MoodClassifier;
 use thiserror::Error;
 pub use waveform::WaveformGenerator;
 
@@ -58,14 +54,6 @@ pub struct BpmResult {
     pub confidence: f32,
 }
 
-/// Mood classification result
-#[derive(Debug, Clone)]
-pub struct MoodResult {
-    pub mood: String,
-    pub energy: f32,
-    pub valence: f32,
-}
-
 /// Waveform data for visualization
 #[derive(Debug, Clone)]
 pub struct WaveformResult {
@@ -79,7 +67,6 @@ pub struct WaveformResult {
 #[derive(Debug, Clone)]
 pub struct TrackAnalysis {
     pub bpm: BpmResult,
-    pub mood: MoodResult,
     /// Detected musical key and mode (None if tonality is ambiguous or
     /// insufficient audio was processed).
     pub key: Option<KeyMode>,
@@ -96,9 +83,6 @@ pub struct TrackAnalysis {
 /// - `max_duration_secs` — cap on how much audio to decode.  `None` uses 120 s. The full 120 s
 ///   limit is still used for signal analysis; chroma detection may finish earlier once sufficient
 ///   data is accumulated.
-/// - `lyrics` — optional lyrics text already in the database (synced LRC preferred, plain text
-///   fallback).  When `Some`, the lyrics sentiment analyser runs and can override the Romantic/Sad
-///   classification.
 ///
 /// ## Threading
 ///
@@ -108,7 +92,6 @@ pub struct TrackAnalysis {
 pub fn analyze_file(
     path: &Path,
     max_duration_secs: Option<f32>,
-    lyrics: Option<&str>,
 ) -> Result<TrackAnalysis, AnalysisError> {
     use symphonia::core::{
         audio::SampleBuffer,
@@ -159,8 +142,6 @@ pub fn analyze_file(
     let max_duration = max_duration_secs.unwrap_or(120.0);
     let mut bpm_detector = BpmDetector::new(sample_rate)
         .map_err(|e| AnalysisError::Failed(format!("BpmDetector init failed: {}", e)))?;
-    let mut mood_classifier = MoodClassifier::new(sample_rate)
-        .map_err(|e| AnalysisError::Failed(format!("MoodClassifier init failed: {}", e)))?;
     let mut chroma_detector = ChromaDetector::new(sample_rate)
         .map_err(|e| AnalysisError::Failed(format!("ChromaDetector init failed: {}", e)))?;
 
@@ -202,7 +183,6 @@ pub fn analyze_file(
                         stereo_chunk.push((l, r));
                         if stereo_chunk.len() >= 512 {
                             bpm_detector.feed(&stereo_chunk);
-                            mood_classifier.feed(&stereo_chunk);
                             chroma_detector.feed(&stereo_chunk);
                             stereo_chunk.clear();
                         }
@@ -214,7 +194,6 @@ pub fn analyze_file(
                         stereo_chunk.push((v, v));
                         if stereo_chunk.len() >= 512 {
                             bpm_detector.feed(&stereo_chunk);
-                            mood_classifier.feed(&stereo_chunk);
                             chroma_detector.feed(&stereo_chunk);
                             stereo_chunk.clear();
                         }
@@ -223,7 +202,6 @@ pub fn analyze_file(
                 }
                 if !stereo_chunk.is_empty() {
                     bpm_detector.feed(&stereo_chunk);
-                    mood_classifier.feed(&stereo_chunk);
                     chroma_detector.feed(&stereo_chunk);
                 }
 
@@ -274,78 +252,6 @@ pub fn analyze_file(
     let bpm_result = bpm_detector.detect();
     let key_result = chroma_detector.detect();
 
-    // --- Stage 1: audio-only classification ---
-    let mut mood_result = mood_classifier.classify_with_bpm(bpm_result.bpm, bpm_result.confidence);
-
-    // --- Stage 2: refine with chroma key/mode ---
-    // Only apply when the audio classifier landed in the ambiguous Romantic/Sad
-    // zone (low energy, low flux) AND chroma confidence is reasonable (≥ 0.55).
-    // We deliberately use a high chroma confidence threshold so a noisy or
-    // percussion-heavy signal doesn't incorrectly override the mood label.
-    if let Some(ref km) = key_result {
-        let in_grey_zone = mood_result.mood == "Romantic" || mood_result.mood == "Sad";
-        if in_grey_zone && km.confidence >= 0.55 {
-            if km.is_major && mood_result.mood == "Sad" {
-                // Major key + Sad signal → more likely Romantic; flip.
-                mood_result.mood = "Romantic".to_string();
-                mood_result.valence = (mood_result.valence * 1.3).min(1.0);
-                info!(
-                    "Chroma override: {} major → Romantic (conf={:.2})",
-                    km.tonic.name(),
-                    km.confidence
-                );
-            } else if !km.is_major && mood_result.mood == "Romantic" {
-                // Minor key + Romantic signal → more likely Sad; flip.
-                mood_result.mood = "Sad".to_string();
-                mood_result.valence = (mood_result.valence * 0.7).min(1.0);
-                info!(
-                    "Chroma override: {} minor → Sad (conf={:.2})",
-                    km.tonic.name(),
-                    km.confidence
-                );
-            }
-        }
-    }
-
-    // --- Stage 3: refine with lyrics sentiment (highest priority) ---
-    // Lyrics are the strongest single signal for Romantic/Sad disambiguation.
-    // We only override when:
-    //   (a) lyrics are available,
-    //   (b) the track is already in the Romantic/Sad zone after stages 1+2,
-    //   (c) sentiment confidence ≥ 0.15 (not ambiguous).
-    if let Some(text) = lyrics {
-        if !text.trim().is_empty() {
-            let analyser = LyricsSentiment::new();
-            let sentiment = analyser.analyse(text);
-
-            let in_grey_zone = mood_result.mood == "Romantic" || mood_result.mood == "Sad";
-
-            if in_grey_zone && sentiment.sentiment != Sentiment::Ambiguous {
-                let new_mood = match sentiment.sentiment {
-                    Sentiment::Romantic => "Romantic",
-                    Sentiment::Sad => "Sad",
-                    Sentiment::Ambiguous => unreachable!(),
-                };
-                if new_mood != mood_result.mood {
-                    info!(
-                        "Lyrics override: {} → {} (R={} S={} conf={:.2})",
-                        mood_result.mood,
-                        new_mood,
-                        sentiment.romantic_hits,
-                        sentiment.sad_hits,
-                        sentiment.confidence
-                    );
-                    mood_result.mood = new_mood.to_string();
-                    if new_mood == "Sad" {
-                        mood_result.valence = (mood_result.valence * 0.65).min(1.0);
-                    } else {
-                        mood_result.valence = (mood_result.valence * 1.25).min(1.0);
-                    }
-                }
-            }
-        }
-    }
-
     let actual_duration = if duration > 0.0 {
         duration
     } else if sample_rate > 0.0 {
@@ -355,11 +261,10 @@ pub fn analyze_file(
     };
 
     info!(
-        "Analysis complete for {}: BPM={:.1} (conf={:.2}), mood={}, key={}, duration={:.1}s",
+        "Analysis complete for {}: BPM={:.1} (conf={:.2}), key={}, duration={:.1}s",
         path.display(),
         bpm_result.bpm,
         bpm_result.confidence,
-        mood_result.mood,
         key_result.as_ref().map_or("?".to_string(), |k| format!(
             "{} {}",
             k.tonic.name(),
@@ -370,7 +275,6 @@ pub fn analyze_file(
 
     Ok(TrackAnalysis {
         bpm: bpm_result,
-        mood: mood_result,
         key: key_result,
         duration_secs: actual_duration,
         sample_rate: sample_rate as u32,
@@ -384,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_analyze_file_nonexistent() {
-        let result = analyze_file(std::path::Path::new("/nonexistent/file.mp3"), None, None);
+        let result = analyze_file(std::path::Path::new("/nonexistent/file.mp3"), None);
         assert!(result.is_err());
     }
 }

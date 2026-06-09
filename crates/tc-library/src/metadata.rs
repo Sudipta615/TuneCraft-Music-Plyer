@@ -182,7 +182,6 @@ impl super::LibraryManager {
             ebu_r128_loudness: None,
             ebu_r128_peak: None,
             bpm: None,
-            mood: None,
             lyrics_synced: None,
             lyrics_unsynced: None,
             last_played: None,

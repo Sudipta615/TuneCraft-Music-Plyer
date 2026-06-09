@@ -24,7 +24,6 @@
 //! Drop is implemented for graceful shutdown. Engine JoinHandle is stored
 //! and joined on exit. Scrobble events are consumed for user feedback.
 //! Volume is clamped. Stereo width is standardized as ratio (0.0-2.0).
-//! Mood filtering is consolidated into NavSection::mood_matches().
 
 mod context;
 mod library_actions;

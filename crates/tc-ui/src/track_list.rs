@@ -59,8 +59,8 @@ const COL_DURATION_FRAC: f32 = 0.12;
 // Mood gets the rest: 1.0 - (0.06 + 0.34 + 0.24 + 0.12) = 0.24
 
 /// Responsive breakpoints for the track list
-const BREAKPOINT_NARROW: f32 = 500.0; // hide album + mood columns
-const BREAKPOINT_MEDIUM: f32 = 700.0; // hide mood column only
+const BREAKPOINT_NARROW: f32 = 500.0; // hide album columns
+const BREAKPOINT_MEDIUM: f32 = 700.0;
 
 /// Draw the top search bar + notification + theme toggle
 /// Responsive: hides Add Music button on narrow widths, scales search bar
@@ -387,14 +387,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     },
                     crate::sidebar::NavSection::RecentlyPlayed => track.last_played.is_some(),
                     crate::sidebar::NavSection::MostPlayed => track.play_count > 0,
-                    crate::sidebar::NavSection::MoodDance
-                    | crate::sidebar::NavSection::MoodRomantic
-                    | crate::sidebar::NavSection::MoodSad
-                    | crate::sidebar::NavSection::MoodSufi
-                    | crate::sidebar::NavSection::MoodChill => track
-                        .mood
-                        .as_deref()
-                        .is_some_and(|m| app.nav.mood_matches(m)),
+
                     crate::sidebar::NavSection::Settings => false,
                 })
                 .map(|(i, _)| i)
@@ -670,55 +663,41 @@ fn draw_album_art(
 /// Compute responsive column visibility based on width
 struct ColumnVisibility {
     show_album: bool,
-    show_mood: bool,
     show_art: bool,
 }
 
 fn column_visibility(width: f32) -> ColumnVisibility {
     ColumnVisibility {
         show_album: width >= BREAKPOINT_MEDIUM,
-        show_mood: width >= BREAKPOINT_MEDIUM,
         show_art: width >= BREAKPOINT_NARROW,
     }
 }
 
 /// Compute column offsets given width and visibility
-fn compute_col_offsets(width: f32, vis: &ColumnVisibility) -> [f32; 6] {
+fn compute_col_offsets(width: f32, vis: &ColumnVisibility) -> [f32; 5] {
+    // ...
+    // compute_col_offsets was edited above but we still need to fix array size
     let art_w = if vis.show_art { COL_ART_W } else { 0.0 };
     let art_gap = if vis.show_art { COL_ART_GAP } else { 0.0 };
     let album_frac = if vis.show_album { COL_ALBUM_FRAC } else { 0.0 };
-    let mood_frac = if vis.show_mood {
-        1.0 - COL_NUM_FRAC - COL_TITLE_FRAC - album_frac - COL_DURATION_FRAC
-    } else {
-        0.0
-    };
-    // If album is hidden, title gets the extra space
+    let rest_frac = 1.0 - COL_NUM_FRAC - COL_TITLE_FRAC - album_frac;
     let title_frac = if !vis.show_album {
         COL_TITLE_FRAC + COL_ALBUM_FRAC
     } else {
         COL_TITLE_FRAC
     };
-    // If mood is hidden, duration gets the extra space (or title)
-    let dur_frac = if !vis.show_mood {
-        COL_DURATION_FRAC + mood_frac
-    } else {
-        COL_DURATION_FRAC
-    };
-
+    let dur_frac = rest_frac;
     let usable_w = width - art_w - art_gap;
     let col_num_w = usable_w * COL_NUM_FRAC;
     let col_title_w = usable_w * title_frac;
     let col_album_w = usable_w * album_frac;
-    let col_dur_w = usable_w * dur_frac;
 
     [
-        0.0f32,                                    // col 0: #
-        col_num_w,                                 // col 1: art start
-        col_num_w + art_w + art_gap,               // col 2: title start
-        col_num_w + art_w + art_gap + col_title_w, // col 3: album start
-        col_num_w + art_w + art_gap + col_title_w + col_album_w, /* col 4: duration
-                                                    * start */
-        col_num_w + art_w + art_gap + col_title_w + col_album_w + col_dur_w, // col 5: mood start
+        0.0f32,
+        col_num_w,
+        col_num_w + art_w + art_gap,
+        col_num_w + art_w + art_gap + col_title_w,
+        col_num_w + art_w + art_gap + col_title_w + col_album_w,
     ]
 }
 
@@ -777,30 +756,13 @@ fn draw_list_view(
             header_color,
         );
     }
-    if vis.show_mood {
-        ui.painter().text(
-            Pos2::new(lx + col_offsets[5] - 16.0, header_y),
-            Align2::RIGHT_CENTER,
-            "DURATION",
-            header_font.clone(),
-            header_color,
-        );
-        ui.painter().text(
-            Pos2::new(lx + col_offsets[5] + 4.0, header_y),
-            Align2::LEFT_CENTER,
-            "MOOD",
-            header_font,
-            header_color,
-        );
-    } else {
-        ui.painter().text(
-            Pos2::new(lx + width - 48.0, header_y),
-            Align2::RIGHT_CENTER,
-            "DURATION",
-            header_font,
-            header_color,
-        );
-    }
+    ui.painter().text(
+        Pos2::new(lx + width - 48.0, header_y),
+        Align2::RIGHT_CENTER,
+        "DURATION",
+        header_font,
+        header_color,
+    );
 
     // Separator line
     ui.painter().line_segment(
@@ -819,7 +781,6 @@ fn draw_list_view(
                 let track_title = app.tracks[idx].title.clone();
                 let track_artist = app.tracks[idx].artist.clone();
                 let track_album = app.tracks[idx].album.clone();
-                let track_mood = app.tracks[idx].mood.clone();
                 let track_duration = app.tracks[idx].duration_secs;
                 let is_playing = app.current_track_id == Some(track_id);
                 let display_num = row_range.start + i + 1;
@@ -865,14 +826,7 @@ fn draw_list_view(
                 let row_vis = column_visibility(rw);
                 let cx = compute_col_offsets(rw, &row_vis);
                 // Shift by row's left edge
-                let cx: [f32; 6] = [
-                    lx + cx[0],
-                    lx + cx[1],
-                    lx + cx[2],
-                    lx + cx[3],
-                    lx + cx[4],
-                    lx + cx[5],
-                ];
+                let cx: [f32; 5] = [lx + cx[0], lx + cx[1], lx + cx[2], lx + cx[3], lx + cx[4]];
 
                 // Track number / play indicator (circled ▶ for playing track)
                 let num_font = FontId::proportional(12.0);
@@ -965,11 +919,7 @@ fn draw_list_view(
                 // Duration
                 let dur_secs = track_duration as u32;
                 let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
-                let dur_x = if row_vis.show_mood {
-                    cx[5] - 16.0
-                } else {
-                    row_rect.right() - 48.0
-                };
+                let dur_x = row_rect.right() - 48.0;
                 ui.painter().text(
                     Pos2::new(dur_x, cy),
                     Align2::RIGHT_CENTER,
@@ -977,52 +927,6 @@ fn draw_list_view(
                     FontId::monospace(13.0),
                     colors.text_dim,
                 );
-
-                // Mood tag pill — only if column is visible
-                if row_vis.show_mood {
-                    if let Some(ref mood) = track_mood {
-                        let mood_font = FontId::proportional(12.0);
-                        let galley = ui.painter().layout_no_wrap(
-                            mood.clone(),
-                            mood_font.clone(),
-                            Color32::WHITE,
-                        );
-                        let tag_w = galley.size().x + 16.0;
-                        let tag_h = 24.0;
-                        let tag_rect = egui::Rect::from_center_size(
-                            Pos2::new(cx[5] + tag_w / 2.0 + 4.0, cy),
-                            Vec2::new(tag_w, tag_h),
-                        );
-
-                        if colors.dark_mode {
-                            let mood_color = crate::theme::mood_color(mood);
-                            ui.painter().rect_filled(tag_rect, 12.0, mood_color);
-                            ui.painter().text(
-                                tag_rect.center(),
-                                Align2::CENTER_CENTER,
-                                mood,
-                                mood_font,
-                                Color32::WHITE,
-                            );
-                        } else {
-                            let mood_bg = crate::theme::mood_color_light_bg(mood);
-                            let mood_fg = crate::theme::mood_color_light_fg(mood);
-                            ui.painter().rect_filled(tag_rect, 12.0, mood_bg);
-                            ui.painter().rect_stroke(
-                                tag_rect,
-                                12.0,
-                                egui::Stroke::new(1.0, mood_fg),
-                            );
-                            ui.painter().text(
-                                tag_rect.center(),
-                                Align2::CENTER_CENTER,
-                                mood,
-                                mood_font,
-                                mood_fg,
-                            );
-                        }
-                    }
-                } // end show_mood
 
                 // Three-dot context menu — always visible (matching reference image)
                 let dots_rect = egui::Rect::from_center_size(
@@ -1103,7 +1007,6 @@ fn draw_grid_view(
                         let track_title = app.tracks[idx].title.clone();
                         let track_artist = app.tracks[idx].artist.clone();
                         let track_album = app.tracks[idx].album.clone();
-                        let track_mood = app.tracks[idx].mood.clone();
                         let track_duration = app.tracks[idx].duration_secs;
                         let is_playing = app.current_track_id == Some(track_id);
 
@@ -1209,60 +1112,6 @@ fn draw_grid_view(
                             FontId::proportional(9.5),
                             colors.text_dim,
                         );
-
-                        if let Some(ref mood) = track_mood {
-                            if colors.dark_mode {
-                                let mood_color = crate::theme::mood_color(mood);
-                                let mood_font = FontId::proportional(9.0);
-                                let galley = ui.painter().layout_no_wrap(
-                                    mood.clone(),
-                                    mood_font.clone(),
-                                    Color32::WHITE,
-                                );
-                                let tag_w = galley.size().x + 10.0;
-                                let tag_h = 15.0;
-                                let tag_rect = egui::Rect::from_min_size(
-                                    Pos2::new(text_x, card_rect.bottom() - tag_h - 6.0),
-                                    Vec2::new(tag_w, tag_h),
-                                );
-                                ui.painter().rect_filled(tag_rect, 7.0, mood_color);
-                                ui.painter().text(
-                                    tag_rect.center(),
-                                    Align2::CENTER_CENTER,
-                                    mood,
-                                    mood_font,
-                                    Color32::WHITE,
-                                );
-                            } else {
-                                let mood_bg = crate::theme::mood_color_light_bg(mood);
-                                let mood_fg = crate::theme::mood_color_light_fg(mood);
-                                let mood_font = FontId::proportional(9.0);
-                                let galley = ui.painter().layout_no_wrap(
-                                    mood.clone(),
-                                    mood_font.clone(),
-                                    Color32::WHITE,
-                                );
-                                let tag_w = galley.size().x + 10.0;
-                                let tag_h = 15.0;
-                                let tag_rect = egui::Rect::from_min_size(
-                                    Pos2::new(text_x, card_rect.bottom() - tag_h - 6.0),
-                                    Vec2::new(tag_w, tag_h),
-                                );
-                                ui.painter().rect_filled(tag_rect, 7.0, mood_bg);
-                                ui.painter().rect_stroke(
-                                    tag_rect,
-                                    7.0,
-                                    egui::Stroke::new(1.0, mood_fg),
-                                );
-                                ui.painter().text(
-                                    tag_rect.center(),
-                                    Align2::CENTER_CENTER,
-                                    mood,
-                                    mood_font,
-                                    mood_fg,
-                                );
-                            }
-                        }
 
                         if card_resp.double_clicked() {
                             let new_queue: Vec<i64> = filtered_indices

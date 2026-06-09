@@ -29,7 +29,6 @@ pub struct Track {
     pub ebu_r128_loudness: Option<f32>,
     pub ebu_r128_peak: Option<f32>,
     pub bpm: Option<f32>,
-    pub mood: Option<String>,
     pub lyrics_synced: Option<String>,
     pub lyrics_unsynced: Option<String>,
     pub last_played: Option<NaiveDateTime>,

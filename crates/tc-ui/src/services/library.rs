@@ -369,32 +369,13 @@ impl LibraryService {
         let snapshot = self.snapshot.load();
         let navs = [
             NavSection::AllTracks,
-            NavSection::MoodDance,
-            NavSection::MoodRomantic,
-            NavSection::MoodSad,
-            NavSection::MoodSufi,
-            NavSection::MoodChill,
             NavSection::RecentlyPlayed,
             NavSection::MostPlayed,
         ];
 
         let mut badge_cache = std::collections::HashMap::new();
         for nav in &navs {
-            let count = match nav {
-                NavSection::MoodDance
-                | NavSection::MoodRomantic
-                | NavSection::MoodSad
-                | NavSection::MoodSufi
-                | NavSection::MoodChill => {
-                    // Use mood_matches for consistent filtering (M-08 fix)
-                    snapshot
-                        .tracks
-                        .iter()
-                        .filter(|t| t.mood.as_deref().is_some_and(|m| nav.mood_matches(m)))
-                        .count() as u32
-                },
-                _ => nav.badge_count(&snapshot.tracks).unwrap_or(0),
-            };
+            let count = nav.badge_count(&snapshot.tracks).unwrap_or(0);
             badge_cache.insert(format!("{:?}", nav), count);
         }
 

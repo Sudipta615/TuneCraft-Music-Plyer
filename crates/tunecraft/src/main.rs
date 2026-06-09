@@ -281,11 +281,6 @@ fn run_analysis(db: &tc_db::Database) -> Result<()> {
                         warn!("Failed to update BPM for track {}: {}", track.id, e);
                     }
                 }
-                if track.mood.is_none() {
-                    if let Err(e) = db.update_mood(track.id, &analysis.mood.mood) {
-                        warn!("Failed to update mood for track {}: {}", track.id, e);
-                    }
-                }
                 succeeded += 1;
             },
             Err(e) => {

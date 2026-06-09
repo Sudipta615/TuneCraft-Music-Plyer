@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS tracks (
     ebu_r128_loudness REAL,
     ebu_r128_peak REAL,
     bpm REAL,
-    mood TEXT,
     lyrics_synced TEXT,
     lyrics_unsynced TEXT,
     last_played TIMESTAMP,
@@ -124,7 +123,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS tracks_fts USING fts5(
 );
 
 -- Additional indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_tracks_mood ON tracks(mood);
 CREATE INDEX IF NOT EXISTS idx_tracks_play_count ON tracks(play_count);
 CREATE INDEX IF NOT EXISTS idx_tracks_last_played ON tracks(last_played);
 
