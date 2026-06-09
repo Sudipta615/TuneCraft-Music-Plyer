@@ -769,8 +769,7 @@ fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
         },
         _ => {},
     }
-    app.eq_bass_shelf = app.eq_bands[0];
-    app.eq_treble_shelf = app.eq_bands[9];
+    // Note: We no longer tie bass/treble shelves to graphic bands 0 and 9.
     let freq_values: [f32; 10] = [
         31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
     ];
@@ -784,10 +783,10 @@ fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
         );
     }
     app.ctx.eq.set_preamp(app.eq_preamp);
+    app.ctx.eq.set_bass_shelf(app.eq_bass_shelf);
+    app.ctx.eq.set_treble_shelf(app.eq_treble_shelf);
     {
         let mut eq_state = app.ctx.eq.state_mut();
-        eq_state.bass_shelf = app.eq_bass_shelf;
-        eq_state.treble_shelf = app.eq_treble_shelf;
         eq_state.preset = preset.to_string();
     }
     // Persist all band changes and preamp to config
@@ -824,6 +823,8 @@ fn reset_eq(app: &mut TuneCraftApp) {
     app.ctx.eq.set_balance(0.0);
     app.ctx.eq.set_dither(true);
     app.ctx.eq.set_midside(false);
+    app.ctx.eq.set_bass_shelf(0.0);
+    app.ctx.eq.set_treble_shelf(0.0);
     let freq_values: [f32; 10] = [
         31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
     ];

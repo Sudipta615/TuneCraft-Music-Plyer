@@ -22,6 +22,12 @@ all-codecs = ["codec-mp3", "codec-flac", "codec-ogg", "codec-wav", "codec-aac", 
 
 [dependencies]
 cpal = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+cpal = { workspace = true, optional = true, features = ["asio"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+coreaudio-rs = "0.11"
 rubato = { workspace = true, optional = true }
 symphonia = { workspace = true }
 crossbeam = { workspace = true }

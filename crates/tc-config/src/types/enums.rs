@@ -98,3 +98,18 @@ pub enum Theme {
     #[default]
     System,
 }
+
+/// Audio backend selection for output
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AudioBackend {
+    #[serde(alias = "Auto")]
+    #[default]
+    Auto,
+    #[serde(alias = "ExclusiveAlsa")]
+    ExclusiveAlsa,
+    #[serde(alias = "ExclusiveAsio")]
+    ExclusiveAsio,
+    #[serde(alias = "ExclusiveCoreAudioHog")]
+    ExclusiveCoreAudioHog,
+}

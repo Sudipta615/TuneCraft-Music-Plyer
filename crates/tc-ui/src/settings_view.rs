@@ -91,6 +91,71 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         app.show_add_music_dialog = true;
                     }
                 });
+
+                ui.add_space(32.0);
+
+                // Audio Output Backend
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new("Audio Output")
+                            .font(FontId::proportional(16.0))
+                            .color(colors.text),
+                    );
+                    ui.add_space(16.0);
+
+                    let mut current_backend = app.ctx.config.read().unwrap().engine.output_backend;
+                    let prev_backend = current_backend;
+
+                    egui::ComboBox::from_id_source("audio_backend_combo")
+                        .selected_text(match current_backend {
+                            tc_config::types::enums::AudioBackend::Auto => "Auto (Shared)",
+                            tc_config::types::enums::AudioBackend::ExclusiveAlsa => {
+                                "Exclusive (ALSA)"
+                            },
+                            tc_config::types::enums::AudioBackend::ExclusiveAsio => {
+                                "Exclusive (ASIO)"
+                            },
+                            tc_config::types::enums::AudioBackend::ExclusiveCoreAudioHog => {
+                                "Exclusive (CoreAudio Hog)"
+                            },
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut current_backend,
+                                tc_config::types::enums::AudioBackend::Auto,
+                                "Auto (Shared)",
+                            );
+
+                            #[cfg(target_os = "linux")]
+                            ui.selectable_value(
+                                &mut current_backend,
+                                tc_config::types::enums::AudioBackend::ExclusiveAlsa,
+                                "Exclusive (ALSA)",
+                            );
+
+                            #[cfg(target_os = "windows")]
+                            ui.selectable_value(
+                                &mut current_backend,
+                                tc_config::types::enums::AudioBackend::ExclusiveAsio,
+                                "Exclusive (ASIO)",
+                            );
+
+                            #[cfg(target_os = "macos")]
+                            ui.selectable_value(
+                                &mut current_backend,
+                                tc_config::types::enums::AudioBackend::ExclusiveCoreAudioHog,
+                                "Exclusive (CoreAudio Hog)",
+                            );
+                        });
+
+                    if current_backend != prev_backend {
+                        app.ctx.config.write(|c| {
+                            c.engine.output_backend = current_backend;
+                        });
+                        // Output change requires engine restart (handled automatically by the engine watcher if implemented, or requires app restart)
+                        log::info!("Audio backend changed to {:?}", current_backend);
+                    }
+                });
             });
         });
     });

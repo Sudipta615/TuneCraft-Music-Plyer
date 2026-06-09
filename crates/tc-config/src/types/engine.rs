@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::enums::{CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, ResamplerQuality};
+use super::enums::{
+    AudioBackend, CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, ResamplerQuality,
+};
 
 /// A single parametric EQ band configuration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -647,6 +649,8 @@ pub struct EngineConfig {
     pub dither_enabled: bool,
     #[serde(default = "EngineConfig::default_denormal_prevention")]
     pub denormal_prevention: bool,
+    #[serde(default)]
+    pub output_backend: AudioBackend,
 }
 
 impl EngineConfig {
@@ -753,6 +757,7 @@ impl Default for EngineConfig {
             resampler_quality: ResamplerQuality::Balanced,
             dither_enabled: false,
             denormal_prevention: true,
+            output_backend: AudioBackend::Auto,
         }
     }
 }

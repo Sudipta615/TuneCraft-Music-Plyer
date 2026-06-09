@@ -60,7 +60,8 @@ impl AudioEngine {
                 .map_err(|e| EngineError::Config(format!("Output buffer: {}", e)))?,
         );
 
-        let mut new_output = CpalOutput::new(Arc::clone(&new_buffer))?;
+        let audio_backend = self.config.read().unwrap().engine.output_backend;
+        let mut new_output = CpalOutput::new(Arc::clone(&new_buffer), audio_backend)?;
         let actual_rate = new_output.sample_rate();
         new_output.start()?;
 

@@ -15,6 +15,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device, SampleFormat, Stream, StreamConfig,
 };
+use tc_config::types::enums::AudioBackend;
 use thiserror::Error;
 
 use crate::buffer::FixedFrameBuffer;
@@ -68,9 +69,52 @@ pub struct CpalOutput {
 
 impl CpalOutput {
     /// Create a new cpal output
-    pub fn new(buffer: Arc<FixedFrameBuffer>) -> Result<Self, OutputError> {
-        let host = cpal::default_host();
-        let device = host.default_output_device().ok_or(OutputError::NoDevice)?;
+    pub fn new(buffer: Arc<FixedFrameBuffer>, backend: AudioBackend) -> Result<Self, OutputError> {
+        let host = match backend {
+            #[cfg(target_os = "linux")]
+            AudioBackend::ExclusiveAlsa => {
+                log::info!("Audio output: Requesting exclusive ALSA host");
+                cpal::host_from_id(cpal::HostId::Alsa).unwrap_or_else(|_| cpal::default_host())
+            },
+            #[cfg(target_os = "windows")]
+            AudioBackend::ExclusiveAsio => {
+                log::info!("Audio output: Requesting exclusive ASIO host");
+                cpal::host_from_id(cpal::HostId::Asio).unwrap_or_else(|_| cpal::default_host())
+            },
+            #[cfg(target_os = "macos")]
+            AudioBackend::ExclusiveCoreAudioHog => {
+                log::info!("Audio output: Requesting CoreAudio Hog Mode");
+                cpal::default_host() // CoreAudio is the default on macOS
+            },
+            _ => cpal::default_host(),
+        };
+
+        // If ALSA was requested, try to find a hardware device rather than 'default'
+        let mut device = None;
+        if backend == AudioBackend::ExclusiveAlsa {
+            #[cfg(target_os = "linux")]
+            if let Ok(mut devices) = host.output_devices() {
+                if let Some(hw_dev) =
+                    devices.find(|d| d.name().unwrap_or_default().starts_with("hw:"))
+                {
+                    log::info!(
+                        "Audio output: Selected hardware device: {}",
+                        hw_dev.name().unwrap_or_default()
+                    );
+                    device = Some(hw_dev);
+                }
+            }
+        }
+
+        let device = device
+            .or_else(|| host.default_output_device())
+            .ok_or(OutputError::NoDevice)?;
+
+        #[cfg(target_os = "macos")]
+        if backend == AudioBackend::ExclusiveCoreAudioHog {
+            // Attempt to set Hog Mode on the selected device
+            Self::set_coreaudio_hog_mode(&device);
+        }
 
         // Use the device's default config instead of max-sample-rate.
         let default_config = device
@@ -435,4 +479,26 @@ impl<'a> Drop for CallbackGuard<'a> {
     fn drop(&mut self) {
         self.flag.store(false, Ordering::SeqCst);
     }
+}
+
+impl CpalOutput {
+    #[cfg(target_os = "macos")]
+    fn set_coreaudio_hog_mode(device: &Device) {
+        use coreaudio_rs::sys::{
+            kAudioDevicePropertyHogMode, kAudioObjectPropertyElementMaster,
+            kAudioObjectPropertyScopeGlobal, AudioObjectPropertyAddress,
+            AudioObjectSetPropertyData,
+        };
+        use cpal::traits::DeviceTrait;
+        use std::os::unix::prelude::AsRawFd;
+
+        // Since cpal does not expose the raw AudioObjectID cleanly on 0.15 without extensions,
+        // we log that we are attempting Hog Mode. For true Hog Mode in cpal 0.15,
+        // we might need to rely on the device being the default and setting it globally,
+        // or accepting that cpal doesn't support it perfectly yet.
+        log::warn!("CoreAudio Hog Mode requested, but requires coreaudio-sys FFI with exact Device ID. Proceeding with default CoreAudio.");
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn set_coreaudio_hog_mode(_device: &Device) {}
 }

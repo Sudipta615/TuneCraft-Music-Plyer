@@ -238,7 +238,8 @@ impl AudioEngine {
         if self.running.load(Ordering::Acquire) {
             return Err(EngineError::AlreadyRunning);
         }
-        let mut output = CpalOutput::new(Arc::clone(&self.output_buffer))?;
+        let audio_backend = self.config.read().unwrap().engine.output_backend;
+        let mut output = CpalOutput::new(Arc::clone(&self.output_buffer), audio_backend)?;
         self.output_sample_rate = output.sample_rate();
         output.start()?;
         self.audio_output = Some(output);
