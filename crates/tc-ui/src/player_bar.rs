@@ -107,7 +107,7 @@ fn draw_full(
         ui.painter().text(
             art_rect.center(),
             Align2::CENTER_CENTER,
-            "\u{266A}",
+            egui_phosphor::regular::MUSIC_NOTES,
             FontId::proportional(22.0),
             colors.text_dim,
         );
@@ -161,7 +161,7 @@ fn draw_full(
     ui.painter().text(
         heart_rect.center(),
         Align2::CENTER_CENTER,
-        "\u{2665}",
+        egui_phosphor::regular::HEART,
         FontId::proportional(18.0),
         heart_color,
     );
@@ -175,11 +175,11 @@ fn draw_full(
 
     // Volume icon
     let vol_icon = if app.volume < 0.01 {
-        "\u{1F507}"
+        egui_phosphor::regular::SPEAKER_SLASH
     } else if app.volume < 0.5 {
-        "\u{1F508}"
+        egui_phosphor::regular::SPEAKER_LOW
     } else {
-        "\u{1F509}"
+        egui_phosphor::regular::SPEAKER_HIGH
     };
     let vol_icon_x = right_x + 8.0;
     ui.painter().text(
@@ -258,7 +258,7 @@ fn draw_full(
     ui.painter().text(
         lyrics_rect.center(),
         Align2::CENTER_CENTER,
-        "\u{2630}",
+        egui_phosphor::regular::MICROPHONE_STAGE,
         FontId::proportional(14.0),
         lyrics_color,
     );
@@ -297,7 +297,7 @@ fn draw_full(
     ui.painter().text(
         shuffle_rect.center(),
         Align2::CENTER_CENTER,
-        "\u{21C4}",
+        egui_phosphor::regular::SHUFFLE,
         FontId::proportional(icon_size * 1.3),
         shuffle_color,
     );
@@ -317,7 +317,7 @@ fn draw_full(
     ui.painter().text(
         prev_rect.center(),
         Align2::CENTER_CENTER,
-        "\u{23EE}",
+        egui_phosphor::regular::SKIP_BACK,
         FontId::proportional(icon_size),
         colors.text,
     );
@@ -339,9 +339,9 @@ fn draw_full(
     ui.painter()
         .circle_filled(pb_rect.center(), play_radius, pb_bg);
     let play_label = if app.is_playing {
-        "\u{23F8}"
+        egui_phosphor::regular::PAUSE
     } else {
-        "\u{25B6}"
+        egui_phosphor::regular::PLAY
     };
     ui.painter().text(
         pb_rect.center(),
@@ -366,7 +366,7 @@ fn draw_full(
     ui.painter().text(
         next_rect.center(),
         Align2::CENTER_CENTER,
-        "\u{23ED}",
+        egui_phosphor::regular::SKIP_FORWARD,
         FontId::proportional(icon_size),
         colors.text,
     );
@@ -376,9 +376,9 @@ fn draw_full(
 
     // Repeat button
     let (repeat_color, repeat_icon) = match app.repeat {
-        tc_config::RepeatMode::Off => (colors.text_dim, "\u{1F501}"),
-        tc_config::RepeatMode::All => (colors.accent, "\u{1F501}"),
-        tc_config::RepeatMode::One => (colors.accent, "\u{1F502}"),
+        tc_config::RepeatMode::Off => (colors.text_dim, egui_phosphor::regular::REPEAT),
+        tc_config::RepeatMode::All => (colors.accent, egui_phosphor::regular::REPEAT),
+        tc_config::RepeatMode::One => (colors.accent, egui_phosphor::regular::REPEAT_ONCE),
     };
     let repeat_rect = Rect::from_center_size(
         Pos2::new(play_cx + play_btn_size + icon_size * 2.0 + 20.0, controls_y),
@@ -517,7 +517,7 @@ fn draw_compact(
         ui.painter().text(
             art_rect.center(),
             Align2::CENTER_CENTER,
-            "\u{266A}",
+            egui_phosphor::regular::MUSIC_NOTES,
             FontId::proportional(14.0),
             colors.text_dim,
         );
@@ -561,7 +561,7 @@ fn draw_compact(
     ui.painter().text(
         prev_rect.center(),
         Align2::CENTER_CENTER,
-        "\u{23EE}",
+        egui_phosphor::regular::SKIP_BACK,
         FontId::proportional(16.0),
         colors.text,
     );
@@ -577,9 +577,9 @@ fn draw_compact(
     };
     ui.painter().circle_filled(play_rect.center(), 18.0, pb_bg);
     let play_label = if app.is_playing {
-        "\u{23F8}"
+        egui_phosphor::regular::PAUSE
     } else {
-        "\u{25B6}"
+        egui_phosphor::regular::PLAY
     };
     ui.painter().text(
         play_rect.center(),
@@ -599,7 +599,7 @@ fn draw_compact(
     ui.painter().text(
         next_rect.center(),
         Align2::CENTER_CENTER,
-        "\u{23ED}",
+        egui_phosphor::regular::SKIP_FORWARD,
         FontId::proportional(16.0),
         colors.text,
     );
@@ -609,11 +609,11 @@ fn draw_compact(
 
     // Volume icon (right side)
     let vol_icon = if app.volume < 0.01 {
-        "\u{1F507}"
+        egui_phosphor::regular::SPEAKER_SLASH
     } else if app.volume < 0.5 {
-        "\u{1F508}"
+        egui_phosphor::regular::SPEAKER_LOW
     } else {
-        "\u{1F509}"
+        egui_phosphor::regular::SPEAKER_HIGH
     };
     let vol_rect = Rect::from_center_size(
         Pos2::new(bar_rect.right() - 20.0, row1_y),

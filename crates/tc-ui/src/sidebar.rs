@@ -35,13 +35,13 @@ impl NavSection {
 
     pub fn icon(&self) -> &str {
         match self {
-            Self::AllTracks => "\u{266B}",      // ♫
-            Self::Albums => "\u{25A3}",         // ▣ (album grid)
-            Self::Artists => "\u{263A}",        // ☺ (person)
-            Self::Favorites => "\u{2605}",      // ★
-            Self::RecentlyPlayed => "\u{23F0}", // ⏰
-            Self::MostPlayed => "\u{2197}",     // ↗ trending
-            Self::Settings => "\u{2699}",       // ⚙
+            Self::AllTracks => egui_phosphor::regular::MUSIC_NOTES,
+            Self::Albums => egui_phosphor::regular::SQUARES_FOUR,
+            Self::Artists => egui_phosphor::regular::USERS,
+            Self::Favorites => egui_phosphor::regular::STAR,
+            Self::RecentlyPlayed => egui_phosphor::regular::CLOCK_COUNTER_CLOCKWISE,
+            Self::MostPlayed => egui_phosphor::regular::CHART_BAR,
+            Self::Settings => egui_phosphor::regular::GEAR,
         }
     }
 
@@ -94,13 +94,15 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.painter().rect_filled(bar_r, 1.0, colors.accent);
         }
 
-        ui.add_space(8.0);
-        ui.label(
-            RichText::new("TuneCraft")
-                .font(FontId::proportional(18.0))
-                .color(colors.text)
-                .strong(),
-        );
+        if !app.sidebar_collapsed {
+            ui.add_space(8.0);
+            ui.label(
+                RichText::new("TuneCraft")
+                    .font(FontId::proportional(18.0))
+                    .color(colors.text)
+                    .strong(),
+            );
+        }
 
         // Push collapse button to the right
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -128,14 +130,14 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
     ui.add_space(24.0);
 
-    section_header(ui, "LIBRARY", &colors);
+    section_header(ui, "LIBRARY", &colors, app.sidebar_collapsed);
     nav_item(ui, app, NavSection::AllTracks);
     nav_item(ui, app, NavSection::Albums);
     nav_item(ui, app, NavSection::Artists);
 
     ui.add_space(16.0);
 
-    section_header(ui, "PLAYLISTS", &colors);
+    section_header(ui, "PLAYLISTS", &colors, app.sidebar_collapsed);
     nav_item(ui, app, NavSection::Favorites);
     nav_item(ui, app, NavSection::RecentlyPlayed);
     nav_item(ui, app, NavSection::MostPlayed);
@@ -173,21 +175,34 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.painter().rect_filled(pill_rect, 6.0, colors.hover);
         }
 
+        let icon_x = if app.sidebar_collapsed {
+            pill_rect.center().x
+        } else {
+            pill_rect.left() + 12.0
+        };
+        let align = if app.sidebar_collapsed {
+            Align2::CENTER_CENTER
+        } else {
+            Align2::LEFT_CENTER
+        };
+
         ui.painter().text(
-            Pos2::new(pill_rect.left() + 12.0, pill_rect.center().y),
-            Align2::LEFT_CENTER,
-            "\u{266A}",
+            Pos2::new(icon_x, pill_rect.center().y),
+            align,
+            egui_phosphor::regular::PLAYLIST,
             FontId::proportional(16.0),
             text_color,
         );
 
-        ui.painter().text(
-            Pos2::new(pill_rect.left() + 36.0, pill_rect.center().y),
-            Align2::LEFT_CENTER,
-            name,
-            FontId::proportional(14.0),
-            if selected { colors.accent } else { colors.text },
-        );
+        if !app.sidebar_collapsed {
+            ui.painter().text(
+                Pos2::new(pill_rect.left() + 36.0, pill_rect.center().y),
+                Align2::LEFT_CENTER,
+                name,
+                FontId::proportional(14.0),
+                if selected { colors.accent } else { colors.text },
+            );
+        }
 
         if resp.clicked() {
             app.selected_playlist_id = Some(*id);
@@ -202,25 +217,27 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         }
     }
 
-    ui.add_space(4.0);
-    ui.horizontal(|ui| {
-        ui.add_space(24.0);
-        if ui
-            .add(
-                egui::Button::new(
-                    egui::RichText::new("+ New playlist")
-                        .font(egui::FontId::proportional(12.0))
-                        .color(colors.text_dim),
+    if !app.sidebar_collapsed {
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.add_space(24.0);
+            if ui
+                .add(
+                    egui::Button::new(
+                        egui::RichText::new("+ New playlist")
+                            .font(egui::FontId::proportional(12.0))
+                            .color(colors.text_dim),
+                    )
+                    .frame(false),
                 )
-                .frame(false),
-            )
-            .clicked()
-        {
-            app.show_create_playlist_dialog = true;
-        }
-    });
+                .clicked()
+            {
+                app.show_create_playlist_dialog = true;
+            }
+        });
 
-    ui.add_space(16.0);
+        ui.add_space(16.0);
+    }
 
     // Push Settings to the bottom
     let remaining = ui.available_height();
@@ -231,7 +248,10 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     nav_item(ui, app, NavSection::Settings);
 }
 
-fn section_header(ui: &mut Ui, label: &str, colors: &TuneCraftColors) {
+fn section_header(ui: &mut Ui, label: &str, colors: &TuneCraftColors, collapsed: bool) {
+    if collapsed {
+        return;
+    }
     ui.add_space(8.0);
     ui.horizontal(|ui| {
         ui.add_space(24.0);
@@ -292,83 +312,90 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
     };
 
     // Icon — 18px
+    let icon_x = if app.sidebar_collapsed {
+        pill_rect.center().x
+    } else {
+        pill_rect.left() + 12.0
+    };
+    let align = if app.sidebar_collapsed {
+        Align2::CENTER_CENTER
+    } else {
+        Align2::LEFT_CENTER
+    };
+
     ui.painter().text(
-        Pos2::new(pill_rect.left() + 12.0, cy),
-        Align2::LEFT_CENTER,
+        Pos2::new(icon_x, cy),
+        align,
         nav.icon(),
         FontId::proportional(18.0),
         icon_color,
     );
 
-    // Label — 14px
-    let label_x = pill_rect.left() + 40.0;
-    // For bold text simulation, use label or just paint. We'll put a label to support `strong()`
-    ui.put(
-        Rect::from_min_max(
-            Pos2::new(label_x, rect.top()),
-            Pos2::new(pill_rect.right() - 40.0, rect.bottom()),
-        ),
-        egui::Label::new(
-            RichText::new(nav.label())
-                .font(FontId::proportional(14.0))
-                .color(text_color)
-                .strong(),
-        ),
-    );
+    if !app.sidebar_collapsed {
+        // Label — 14px
+        let label_x = pill_rect.left() + 40.0;
+        ui.painter().text(
+            Pos2::new(label_x, cy),
+            Align2::LEFT_CENTER,
+            nav.label(),
+            FontId::proportional(14.0),
+            text_color,
+        );
 
-    // Badge
-    if let Some(count) = badge {
-        let badge_text = count.to_string();
-        let badge_font = FontId::proportional(11.0);
-        let badge_galley =
-            ui.painter()
-                .layout_no_wrap(badge_text.clone(), badge_font.clone(), Color32::WHITE);
-        let badge_w = (badge_galley.size().x + 16.0).max(24.0);
-        let badge_h = 20.0;
-        let badge_x = pill_rect.right() - badge_w - 8.0;
-        let badge_y = cy - badge_h / 2.0;
-        let badge_rect =
-            Rect::from_min_size(Pos2::new(badge_x, badge_y), Vec2::new(badge_w, badge_h));
+        // Badge
+        if let Some(count) = badge {
+            let badge_text = count.to_string();
+            let badge_font = FontId::proportional(11.0);
+            let badge_galley =
+                ui.painter()
+                    .layout_no_wrap(badge_text.clone(), badge_font.clone(), Color32::WHITE);
+            let badge_w = (badge_galley.size().x + 16.0).max(24.0);
+            let badge_h = 20.0;
+            let badge_x = pill_rect.right() - badge_w - 8.0;
+            let badge_y = cy - badge_h / 2.0;
+            let badge_rect =
+                Rect::from_min_size(Pos2::new(badge_x, badge_y), Vec2::new(badge_w, badge_h));
 
-        // Badge colors
-        if is_active {
-            // Active non-mood badge: accent bg, white text
-            ui.painter().rect_filled(badge_rect, 10.0, colors.accent);
-            ui.painter().text(
-                badge_rect.center(),
-                Align2::CENTER_CENTER,
-                &badge_text,
-                badge_font,
-                Color32::WHITE,
-            );
-        } else {
-            // Inactive non-mood badge: muted bg, dim text
-            let muted_bg = if colors.dark_mode {
-                Color32::from_rgba_premultiplied(
-                    (colors.text_dim.r() as u16 * 40 / 100 + colors.sidebar.r() as u16 * 60 / 100)
-                        as u8,
-                    (colors.text_dim.g() as u16 * 40 / 100 + colors.sidebar.g() as u16 * 60 / 100)
-                        as u8,
-                    (colors.text_dim.b() as u16 * 40 / 100 + colors.sidebar.b() as u16 * 60 / 100)
-                        as u8,
-                    255,
-                )
+            // Badge colors
+            if is_active {
+                // Active non-mood badge: accent bg, white text
+                ui.painter().rect_filled(badge_rect, 10.0, colors.accent);
+                ui.painter().text(
+                    badge_rect.center(),
+                    Align2::CENTER_CENTER,
+                    &badge_text,
+                    badge_font,
+                    Color32::WHITE,
+                );
             } else {
-                Color32::from_rgb(0xF3, 0xF2, 0xFB)
-            };
-            let muted_fg = if colors.dark_mode {
-                Color32::WHITE
-            } else {
-                colors.text_dim
-            };
-            ui.painter().rect_filled(badge_rect, 10.0, muted_bg);
-            ui.painter().text(
-                badge_rect.center(),
-                Align2::CENTER_CENTER,
-                &badge_text,
-                badge_font,
-                muted_fg,
-            );
+                // Inactive non-mood badge: muted bg, dim text
+                let muted_bg = if colors.dark_mode {
+                    Color32::from_rgba_premultiplied(
+                        (colors.text_dim.r() as u16 * 40 / 100
+                            + colors.sidebar.r() as u16 * 60 / 100) as u8,
+                        (colors.text_dim.g() as u16 * 40 / 100
+                            + colors.sidebar.g() as u16 * 60 / 100) as u8,
+                        (colors.text_dim.b() as u16 * 40 / 100
+                            + colors.sidebar.b() as u16 * 60 / 100) as u8,
+                        255,
+                    )
+                } else {
+                    Color32::from_rgb(0xF3, 0xF2, 0xFB)
+                };
+                let muted_fg = if colors.dark_mode {
+                    Color32::WHITE
+                } else {
+                    colors.text_dim
+                };
+                ui.painter().rect_filled(badge_rect, 10.0, muted_bg);
+                ui.painter().text(
+                    badge_rect.center(),
+                    Align2::CENTER_CENTER,
+                    &badge_text,
+                    badge_font,
+                    muted_fg,
+                );
+            }
         }
     }
 

@@ -333,6 +333,7 @@ impl eframe::App for TuneCraftApp {
     /// 8. Draw EQ panel overlay
     /// 9. Draw toast notifications
     /// 10. Save config if dirty
+    #[allow(deprecated)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.sync_from_playback_service();
         self.sync_from_eq_service();
@@ -545,6 +546,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         ..Default::default()
     };
 
-    eframe::run_native("TuneCraft", options, Box::new(|_cc| Ok(Box::new(app))))
-        .map_err(|e| format!("eframe error: {}", e).into())
+    eframe::run_native(
+        "TuneCraft",
+        options,
+        Box::new(|cc| {
+            let mut fonts = egui::FontDefinitions::default();
+            egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+            cc.egui_ctx.set_fonts(fonts);
+            Ok(Box::new(app))
+        }),
+    )
+    .map_err(|e| format!("eframe error: {}", e).into())
 }

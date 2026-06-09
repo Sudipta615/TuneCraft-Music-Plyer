@@ -55,10 +55,9 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.134"
 toml = "0.8.19"
 
-# UI — egui/eframe 0.30+ has breaking changes in App trait and widget API.
-# Pinned to 0.29.x until the UI layer is updated.
-egui = "0.29.1"
-eframe = { version = "0.29.1", default-features = false, features = ["default_fonts", "wgpu", "wayland", "x11"] }
+# UI
+egui = "0.34.3"
+eframe = { version = "0.34.3", default-features = false, features = ["default_fonts", "wgpu", "wayland", "x11"] }
 
 # Utilities
 log = "0.4.22"

@@ -107,11 +107,10 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.painter()
                 .rect_filled(search_rect, 16.0, colors.search_bg);
 
-            // Search icon
             ui.painter().text(
                 Pos2::new(search_rect.left() + 10.0, search_rect.center().y),
                 Align2::LEFT_CENTER,
-                "\u{1F50D}",
+                egui_phosphor::regular::MAGNIFYING_GLASS,
                 FontId::proportional(if total_w < BREAKPOINT_NARROW {
                     12.0
                 } else {
@@ -147,9 +146,9 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
 
                 // Theme toggle
                 let theme_icon = if app.dark_mode {
-                    "\u{2600}"
+                    egui_phosphor::regular::SUN
                 } else {
-                    "\u{263D}"
+                    egui_phosphor::regular::MOON
                 };
                 if ui
                     .add(
@@ -176,13 +175,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
 
                 // Only show bell and Add Music on wider widths
                 if total_w >= BREAKPOINT_MEDIUM {
-                    ui.add_space(8.0);
-                    ui.label(
-                        RichText::new("\u{1F514}")
-                            .font(FontId::proportional(18.0))
-                            .color(colors.text_dim),
-                    );
-                    ui.add_space(12.0);
+                    ui.add_space(20.0);
 
                     let add_btn_w = 110.0;
                     let add_btn_h = 36.0;
@@ -206,11 +199,6 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     }
                 } else if total_w >= BREAKPOINT_NARROW {
                     ui.add_space(4.0);
-                    ui.label(
-                        RichText::new("\u{1F514}")
-                            .font(FontId::proportional(14.0))
-                            .color(colors.text_dim),
-                    );
                 }
             });
         });
@@ -281,7 +269,12 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 // EQ button — hide on narrow
                 if !is_narrow {
                     let eq_active = app.show_eq_panel;
-                    if styled_toolbar_btn(ui, "\u{2AFF} EQ", eq_active, &colors) {
+                    if styled_toolbar_btn(
+                        ui,
+                        &format!("{} EQ", egui_phosphor::regular::SLIDERS_HORIZONTAL),
+                        eq_active,
+                        &colors,
+                    ) {
                         app.ctx.eq.toggle_panel();
                         app.show_eq_panel = !eq_active;
                     }
@@ -292,17 +285,27 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 let list_active = app.list_view;
                 let grid_active = !app.list_view;
 
-                if styled_icon_btn(ui, "\u{229E}", grid_active, &colors) {
+                if styled_icon_btn(
+                    ui,
+                    egui_phosphor::regular::SQUARES_FOUR,
+                    grid_active,
+                    &colors,
+                ) {
                     app.list_view = false;
                 }
-                if styled_icon_btn(ui, "\u{2630}", list_active, &colors) {
+                if styled_icon_btn(ui, egui_phosphor::regular::LIST, list_active, &colors) {
                     app.list_view = true;
                 }
 
                 // Sort & Filter — hide on narrow
                 if !is_narrow {
                     ui.add_space(4.0);
-                    if styled_toolbar_btn(ui, "\u{21F5} Sort", false, &colors) {
+                    if styled_toolbar_btn(
+                        ui,
+                        &format!("{} Sort", egui_phosphor::regular::ARROWS_DOWN_UP),
+                        false,
+                        &colors,
+                    ) {
                         app.sort_ascending = !app.sort_ascending;
                         if app.sort_ascending {
                             app.tracks.sort_by(|a, b| a.title.cmp(&b.title));
@@ -315,7 +318,12 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     }
 
                     ui.add_space(4.0);
-                    if styled_toolbar_btn(ui, "\u{2263} Filter", false, &colors) {
+                    if styled_toolbar_btn(
+                        ui,
+                        &format!("{} Filter", egui_phosphor::regular::FUNNEL),
+                        false,
+                        &colors,
+                    ) {
                         // placeholder
                     }
                 }
@@ -330,7 +338,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     if current_page < max_page
                         && ui
                             .button(
-                                RichText::new("\u{25B6}")
+                                RichText::new(egui_phosphor::regular::CARET_RIGHT)
                                     .font(FontId::proportional(11.0))
                                     .color(colors.text_dim),
                             )
@@ -348,7 +356,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     if current_page > 0
                         && ui
                             .button(
-                                RichText::new("\u{25C0}")
+                                RichText::new(egui_phosphor::regular::CARET_LEFT)
                                     .font(FontId::proportional(11.0))
                                     .color(colors.text_dim),
                             )
@@ -644,15 +652,15 @@ fn draw_album_art(
             ui.painter().text(
                 rect.center(),
                 Align2::CENTER_CENTER,
-                "\u{25B6}",
-                FontId::proportional(10.0),
+                egui_phosphor::regular::PLAY,
+                FontId::proportional(14.0),
                 Color32::WHITE,
             );
         } else {
             ui.painter().text(
                 rect.center(),
                 Align2::CENTER_CENTER,
-                "\u{266A}",
+                egui_phosphor::regular::MUSIC_NOTES,
                 FontId::proportional(14.0),
                 colors.text_dim,
             );
@@ -844,7 +852,7 @@ fn draw_list_view(
                     ui.painter().text(
                         circle_center,
                         Align2::CENTER_CENTER,
-                        "\u{25B6}",
+                        egui_phosphor::regular::PLAY,
                         FontId::proportional(10.0),
                         Color32::WHITE,
                     );
@@ -941,13 +949,13 @@ fn draw_list_view(
                 ui.painter().text(
                     dots_rect.center(),
                     Align2::CENTER_CENTER,
-                    "\u{22EE}",
-                    FontId::proportional(14.0),
+                    egui_phosphor::regular::DOTS_THREE_VERTICAL,
+                    FontId::proportional(18.0),
                     dots_color,
                 );
 
                 // Interactions
-                if row_resp.double_clicked() {
+                if row_resp.clicked() {
                     let new_queue: Vec<i64> = filtered_indices
                         .iter()
                         .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
@@ -955,8 +963,6 @@ fn draw_list_view(
                     app.ctx.playback.set_play_queue(new_queue.clone());
                     app.play_queue = new_queue;
                     app.play_track(track_id);
-                }
-                if row_resp.clicked() {
                     app.selected_track_id = Some(track_id);
                 }
 
@@ -1113,7 +1119,7 @@ fn draw_grid_view(
                             colors.text_dim,
                         );
 
-                        if card_resp.double_clicked() {
+                        if card_resp.clicked() {
                             let new_queue: Vec<i64> = filtered_indices
                                 .iter()
                                 .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
@@ -1121,8 +1127,6 @@ fn draw_grid_view(
                             app.ctx.playback.set_play_queue(new_queue.clone());
                             app.play_queue = new_queue;
                             app.play_track(track_id);
-                        }
-                        if card_resp.clicked() {
                             app.selected_track_id = Some(track_id);
                         }
 
