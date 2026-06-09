@@ -78,18 +78,15 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
 
     ui.allocate_new_ui(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
         ui.horizontal(|ui| {
-            ui.add_space(if total_w < BREAKPOINT_NARROW {
-                8.0
-            } else {
-                16.0
-            });
-
             // Search bar — scales width proportionally
             let search_w = if total_w < BREAKPOINT_NARROW {
                 (total_w * 0.55).min(200.0)
             } else {
                 (total_w * 0.38).min(400.0)
             };
+
+            // Center horizontally in the top bar
+            ui.add_space((total_w - search_w) / 2.0);
             let search_h = if total_w < BREAKPOINT_NARROW {
                 32.0
             } else {
@@ -105,27 +102,21 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
             );
             let (_, _) = ui.allocate_exact_size(Vec2::new(search_w, search_h), Sense::hover());
             ui.painter()
-                .rect_filled(search_rect, 16.0, colors.search_bg);
-
-            ui.painter().text(
-                Pos2::new(search_rect.left() + 10.0, search_rect.center().y),
-                Align2::LEFT_CENTER,
-                egui_phosphor::regular::MAGNIFYING_GLASS,
-                FontId::proportional(if total_w < BREAKPOINT_NARROW {
-                    12.0
-                } else {
-                    14.0
-                }),
-                colors.text_muted,
-            );
+                .rect_filled(search_rect, search_h / 2.0, colors.search_bg);
 
             // Search TextEdit
-            let text_edit_x = search_rect.left() + 30.0;
-            let text_edit_w = search_rect.width() - 38.0;
+            let text_edit_x = search_rect.left() + 16.0;
+            let text_edit_w = search_rect.width() - 32.0;
+            let text_edit_h = if total_w < BREAKPOINT_NARROW {
+                14.0
+            } else {
+                16.0
+            };
+            let text_edit_y = search_rect.top() + (search_h - text_edit_h) / 2.0 - 1.0;
             ui.put(
                 Rect::from_min_size(
-                    Pos2::new(text_edit_x, search_rect.top() + 4.0),
-                    Vec2::new(text_edit_w, search_h - 8.0),
+                    Pos2::new(text_edit_x, text_edit_y),
+                    Vec2::new(text_edit_w, text_edit_h),
                 ),
                 egui::TextEdit::singleline(&mut app.search_query)
                     .hint_text("Search songs, artists, albums...")
@@ -134,7 +125,8 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     } else {
                         14.0
                     }))
-                    .text_color(colors.text),
+                    .text_color(colors.text)
+                    .frame(false),
             );
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -143,63 +135,6 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                 } else {
                     16.0
                 });
-
-                // Theme toggle
-                let theme_icon = if app.dark_mode {
-                    egui_phosphor::regular::SUN
-                } else {
-                    egui_phosphor::regular::MOON
-                };
-                if ui
-                    .add(
-                        egui::Button::new(
-                            RichText::new(theme_icon)
-                                .font(FontId::proportional(16.0))
-                                .color(colors.text_dim),
-                        )
-                        .frame(false),
-                    )
-                    .clicked()
-                {
-                    app.dark_mode = !app.dark_mode;
-                    app.colors_cache = None;
-                    let new_theme = if app.dark_mode {
-                        tc_config::Theme::Dark
-                    } else {
-                        tc_config::Theme::Light
-                    };
-                    app.ctx.config.write(|c| {
-                        c.ui.theme = new_theme;
-                    });
-                }
-
-                // Only show bell and Add Music on wider widths
-                if total_w >= BREAKPOINT_MEDIUM {
-                    ui.add_space(20.0);
-
-                    let add_btn_w = 110.0;
-                    let add_btn_h = 36.0;
-                    let (add_rect, add_resp) =
-                        ui.allocate_exact_size(Vec2::new(add_btn_w, add_btn_h), Sense::click());
-                    let add_bg = if add_resp.hovered() {
-                        colors.accent_dark
-                    } else {
-                        colors.accent
-                    };
-                    ui.painter().rect_filled(add_rect, 8.0, add_bg);
-                    ui.painter().text(
-                        add_rect.center(),
-                        Align2::CENTER_CENTER,
-                        "+ Add Music",
-                        FontId::proportional(14.0),
-                        Color32::WHITE,
-                    );
-                    if add_resp.clicked() {
-                        app.show_add_music_dialog = true;
-                    }
-                } else if total_w >= BREAKPOINT_NARROW {
-                    ui.add_space(4.0);
-                }
             });
         });
     });

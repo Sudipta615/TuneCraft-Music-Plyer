@@ -404,7 +404,11 @@ impl eframe::App for TuneCraftApp {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            crate::track_list::draw(self, ui);
+            if self.nav == crate::sidebar::NavSection::Settings {
+                crate::settings_view::draw(self, ui);
+            } else {
+                crate::track_list::draw(self, ui);
+            }
         });
 
         // EQ panel as a floating window overlay — responsive sizing
@@ -446,47 +450,185 @@ impl eframe::App for TuneCraftApp {
         }
 
         if self.show_create_playlist_dialog {
+            let colors = self.colors();
             egui::Window::new("Create Playlist")
                 .collapsible(false)
                 .resizable(false)
+                .title_bar(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .frame(
+                    egui::Frame::window(ctx.style().as_ref())
+                        .inner_margin(24.0)
+                        .rounding(16.0),
+                )
                 .show(ctx, |ui| {
-                    ui.label("Playlist name:");
-                    ui.text_edit_singleline(&mut self.new_playlist_name);
+                    ui.label(
+                        egui::RichText::new("Create Playlist")
+                            .font(egui::FontId::proportional(20.0))
+                            .strong()
+                            .color(colors.text),
+                    );
+                    ui.add_space(16.0);
+
+                    ui.label(egui::RichText::new("Playlist Name").color(colors.text_dim));
+                    ui.add_space(8.0);
+
+                    let text_edit_h = 40.0;
+                    let (rect, _) = ui.allocate_exact_size(
+                        egui::Vec2::new(320.0, text_edit_h),
+                        egui::Sense::hover(),
+                    );
+                    ui.painter().rect_filled(rect, 8.0, colors.search_bg);
+                    ui.put(
+                        egui::Rect::from_min_size(
+                            egui::Pos2::new(rect.left() + 12.0, rect.top() + 12.0),
+                            egui::Vec2::new(rect.width() - 24.0, rect.height() - 24.0),
+                        ),
+                        egui::TextEdit::singleline(&mut self.new_playlist_name)
+                            .hint_text("E.g., Workout Mix")
+                            .frame(false)
+                            .text_color(colors.text),
+                    );
+
+                    ui.add_space(24.0);
+
                     ui.horizontal(|ui| {
-                        if ui.button("Create").clicked() {
+                        // Cancel button
+                        let cancel_w = 80.0;
+                        let (cancel_rect, cancel_resp) = ui.allocate_exact_size(
+                            egui::Vec2::new(cancel_w, 40.0),
+                            egui::Sense::click(),
+                        );
+                        ui.painter().rect_filled(cancel_rect, 8.0, colors.hover);
+                        ui.painter().text(
+                            cancel_rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "Cancel",
+                            egui::FontId::proportional(14.0),
+                            colors.text,
+                        );
+                        if cancel_resp.clicked() {
+                            self.show_create_playlist_dialog = false;
+                            self.new_playlist_name.clear();
+                        }
+
+                        ui.add_space(8.0);
+
+                        // Create button
+                        let create_w = 232.0;
+                        let (create_rect, create_resp) = ui.allocate_exact_size(
+                            egui::Vec2::new(create_w, 40.0),
+                            egui::Sense::click(),
+                        );
+                        ui.painter().rect_filled(create_rect, 8.0, colors.accent);
+                        ui.painter().text(
+                            create_rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "Create",
+                            egui::FontId::proportional(14.0),
+                            egui::Color32::WHITE,
+                        );
+                        if create_resp.clicked() {
                             if !self.new_playlist_name.is_empty() {
                                 self.create_playlist(&self.new_playlist_name.clone());
                                 self.new_playlist_name.clear();
                             }
                             self.show_create_playlist_dialog = false;
                         }
-                        if ui.button("Cancel").clicked() {
-                            self.show_create_playlist_dialog = false;
-                        }
                     });
                 });
         }
 
-        // Add Music dialog
         if self.show_add_music_dialog {
+            let colors = self.colors();
             egui::Window::new("Add Music Folder")
                 .collapsible(false)
                 .resizable(false)
-                .min_width(420.0)
+                .title_bar(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .frame(
+                    egui::Frame::window(ctx.style().as_ref())
+                        .inner_margin(24.0)
+                        .rounding(16.0),
+                )
                 .show(ctx, |ui| {
+                    ui.label(
+                        egui::RichText::new("Add Music Folder")
+                            .font(egui::FontId::proportional(20.0))
+                            .strong()
+                            .color(colors.text),
+                    );
+                    ui.add_space(16.0);
+
+                    ui.label(
+                        egui::RichText::new("Enter the path to a folder containing music files")
+                            .color(colors.text_dim),
+                    );
                     ui.add_space(8.0);
-                    ui.label("Enter the path to a folder containing music files:");
-                    ui.add_space(4.0);
-                    ui.text_edit_singleline(&mut self.add_music_folder_path);
-                    ui.add_space(4.0);
+
+                    let text_edit_h = 40.0;
+                    let (rect, _) = ui.allocate_exact_size(
+                        egui::Vec2::new(360.0, text_edit_h),
+                        egui::Sense::hover(),
+                    );
+                    ui.painter().rect_filled(rect, 8.0, colors.search_bg);
+                    ui.put(
+                        egui::Rect::from_min_size(
+                            egui::Pos2::new(rect.left() + 12.0, rect.top() + 12.0),
+                            egui::Vec2::new(rect.width() - 24.0, rect.height() - 24.0),
+                        ),
+                        egui::TextEdit::singleline(&mut self.add_music_folder_path)
+                            .hint_text("/home/user/Music")
+                            .frame(false)
+                            .text_color(colors.text),
+                    );
+
+                    ui.add_space(8.0);
                     ui.label(
                         egui::RichText::new("Supported formats: MP3, FLAC, OGG, WAV, AAC, M4A")
                             .font(egui::FontId::proportional(11.0))
-                            .color(self.colors().text_dim),
+                            .color(colors.text_dim),
                     );
-                    ui.add_space(8.0);
+
+                    ui.add_space(24.0);
+
                     ui.horizontal(|ui| {
-                        if ui.button("Add Folder").clicked() {
+                        // Cancel button
+                        let cancel_w = 80.0;
+                        let (cancel_rect, cancel_resp) = ui.allocate_exact_size(
+                            egui::Vec2::new(cancel_w, 40.0),
+                            egui::Sense::click(),
+                        );
+                        ui.painter().rect_filled(cancel_rect, 8.0, colors.hover);
+                        ui.painter().text(
+                            cancel_rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "Cancel",
+                            egui::FontId::proportional(14.0),
+                            colors.text,
+                        );
+                        if cancel_resp.clicked() {
+                            self.show_add_music_dialog = false;
+                            self.add_music_folder_path.clear();
+                        }
+
+                        ui.add_space(8.0);
+
+                        // Add Folder button
+                        let create_w = 272.0; // 360 - 80 - 8 = 272
+                        let (create_rect, create_resp) = ui.allocate_exact_size(
+                            egui::Vec2::new(create_w, 40.0),
+                            egui::Sense::click(),
+                        );
+                        ui.painter().rect_filled(create_rect, 8.0, colors.accent);
+                        ui.painter().text(
+                            create_rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "Add Folder",
+                            egui::FontId::proportional(14.0),
+                            egui::Color32::WHITE,
+                        );
+                        if create_resp.clicked() {
                             let path = self.add_music_folder_path.trim().to_string();
                             if !path.is_empty() {
                                 self.add_music_folder(&path);
@@ -494,12 +636,7 @@ impl eframe::App for TuneCraftApp {
                             self.show_add_music_dialog = false;
                             self.add_music_folder_path.clear();
                         }
-                        if ui.button("Cancel").clicked() {
-                            self.show_add_music_dialog = false;
-                            self.add_music_folder_path.clear();
-                        }
                     });
-                    ui.add_space(4.0);
                 });
         }
 

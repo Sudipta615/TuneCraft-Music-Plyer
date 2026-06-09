@@ -33,6 +33,7 @@ pub mod app;
 pub mod eq_panel;
 pub mod player_bar;
 pub mod services;
+pub mod settings_view;
 pub mod sidebar;
 pub mod theme;
 pub mod track_list;
