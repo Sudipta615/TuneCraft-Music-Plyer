@@ -245,17 +245,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         // Apply changes after the UI closure
         if (new_bass - old_bass).abs() > 0.001 {
             app.eq_bass_shelf = new_bass;
-            app.eq_bands[0] = new_bass;
-            app.ctx
-                .eq
-                .set_band_with_params(0, 31.25, new_bass, 1.4, app.eq_enabled);
+            app.ctx.eq.set_bass_shelf(new_bass);
         }
         if (new_treble - old_treble).abs() > 0.001 {
             app.eq_treble_shelf = new_treble;
-            app.eq_bands[9] = new_treble;
-            app.ctx
-                .eq
-                .set_band_with_params(9, 16000.0, new_treble, 1.4, app.eq_enabled);
+            app.ctx.eq.set_treble_shelf(new_treble);
         }
         if (new_width_pct - old_width_pct).abs() > 0.5 {
             let new_w = (new_width_pct / 100.0).clamp(0.0, 2.0);
@@ -532,23 +526,17 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
                 let new_gain = new_norm * 24.0 - 12.0;
                 app.eq_bands[i] = new_gain.clamp(-12.0, 12.0);
                 app.eq_preset = "Custom".to_string();
-                if i == 0 {
-                    app.eq_bass_shelf = new_gain;
-                }
-                if i == 9 {
-                    app.eq_treble_shelf = new_gain;
-                }
                 app.ctx.eq.set_band_with_params(
                     i,
                     freq_values[i],
                     new_gain,
                     1.4,
-                    app.eq_enabled && new_gain != 0.0,
+                    true, // Master enabled switch handles global on/off
                 );
                 // Persist band gain to config
                 let band_idx = i;
                 let gain_db = new_gain;
-                let enabled = app.eq_enabled && gain_db != 0.0;
+                let enabled = gain_db != 0.0;
                 let freq = freq_values[i];
                 app.ctx.config.write(|c| {
                     while c.engine.eq.bands.len() <= band_idx {
@@ -792,7 +780,7 @@ fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
             freq_values[i],
             gain,
             1.4,
-            app.eq_enabled && gain != 0.0,
+            true, // Always pass true from UI, master switch will handle EQ bypass
         );
     }
     app.ctx.eq.set_preamp(app.eq_preamp);
@@ -814,7 +802,7 @@ fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
         }
         for (i, &gain) in bands_snapshot.iter().enumerate() {
             c.engine.eq.bands[i].gain_db = gain;
-            c.engine.eq.bands[i].enabled = eq_enabled && gain != 0.0;
+            c.engine.eq.bands[i].enabled = gain != 0.0;
         }
     });
 }

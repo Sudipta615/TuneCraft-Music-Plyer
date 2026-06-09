@@ -172,14 +172,13 @@ impl EqService {
         if index >= 10 {
             return;
         }
-        let enabled = self.state.read().unwrap_or_else(|e| e.into_inner()).enabled;
 
         self.apply_eq_band(
             index,
             EQ_FREQUENCIES[index],
             gain_db,
             DEFAULT_Q,
-            enabled && gain_db != 0.0,
+            gain_db != 0.0,
         );
         self.state.write().unwrap_or_else(|e| e.into_inner()).bands[index] = gain_db;
     }
@@ -191,14 +190,31 @@ impl EqService {
         frequency: f32,
         gain_db: f32,
         q: f32,
-        enabled: bool,
+        _enabled: bool, // Ignored from UI, driven by gain
     ) {
         if index >= 10 {
             return;
         }
-        let eq_enabled = self.state.read().unwrap_or_else(|e| e.into_inner()).enabled;
-        self.apply_eq_band(index, frequency, gain_db, q, eq_enabled && enabled);
+        self.apply_eq_band(index, frequency, gain_db, q, gain_db != 0.0);
         self.state.write().unwrap_or_else(|e| e.into_inner()).bands[index] = gain_db;
+    }
+
+    /// Set bass shelf.
+    pub fn set_bass_shelf(&self, db: f32) {
+        self.apply_bass_shelf(db);
+        self.state
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .bass_shelf = db;
+    }
+
+    /// Set treble shelf.
+    pub fn set_treble_shelf(&self, db: f32) {
+        self.apply_treble_shelf(db);
+        self.state
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .treble_shelf = db;
     }
 
     /// Set preamp gain.
@@ -288,6 +304,28 @@ impl EqService {
 
     #[cfg(not(feature = "audio-output"))]
     fn apply_preamp(&self, _db: f32) {}
+
+    /// Apply bass shelf change via lock-free channel.
+    #[cfg(feature = "audio-output")]
+    fn apply_bass_shelf(&self, db: f32) {
+        if let Some(ref tx) = self.engine_cmd_tx {
+            let _ = tx.send(tc_engine::buffer::EngineCommand::SetBassShelf(db));
+        }
+    }
+
+    #[cfg(not(feature = "audio-output"))]
+    fn apply_bass_shelf(&self, _db: f32) {}
+
+    /// Apply treble shelf change via lock-free channel.
+    #[cfg(feature = "audio-output")]
+    fn apply_treble_shelf(&self, db: f32) {
+        if let Some(ref tx) = self.engine_cmd_tx {
+            let _ = tx.send(tc_engine::buffer::EngineCommand::SetTrebleShelf(db));
+        }
+    }
+
+    #[cfg(not(feature = "audio-output"))]
+    fn apply_treble_shelf(&self, _db: f32) {}
 
     /// Apply stereo width change via lock-free channel.
     #[cfg(feature = "audio-output")]

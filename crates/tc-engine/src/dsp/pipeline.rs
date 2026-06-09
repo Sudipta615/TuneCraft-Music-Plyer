@@ -297,6 +297,24 @@ impl DspPipeline {
         }
     }
 
+    pub fn set_bass_shelf(&mut self, gain_db: f32) {
+        for node in &mut self.pre_mix_chain {
+            match node {
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_bass_shelf(gain_db),
+                _ => {},
+            }
+        }
+    }
+
+    pub fn set_treble_shelf(&mut self, gain_db: f32) {
+        for node in &mut self.pre_mix_chain {
+            match node {
+                DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_treble_shelf(gain_db),
+                _ => {},
+            }
+        }
+    }
+
     pub fn is_eq_enabled(&self) -> bool {
         for node in &self.pre_mix_chain {
             match node {

@@ -373,6 +373,8 @@ pub enum EngineCommand {
         q: f32,
         enabled: bool,
     },
+    SetBassShelf(f32),
+    SetTrebleShelf(f32),
     SetPreamp(f32),
     SetStereoWidth(f32),
     SetBalance(f32),

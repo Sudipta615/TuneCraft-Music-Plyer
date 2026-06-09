@@ -156,6 +156,8 @@ impl EqBand {
 #[derive(Debug, Clone)]
 pub struct ParametricEq {
     bands: Vec<EqBand>,
+    bass_band: EqBand,
+    treble_band: EqBand,
     sample_rate: f32,
     enabled: bool,
     preamp_db: f32,
@@ -210,8 +212,15 @@ impl ParametricEq {
             })
             .collect();
 
+        let mut bass_band = EqBand::new();
+        bass_band.params = EqBandParams::lowshelf(100.0, 0.0, 0.7);
+        let mut treble_band = EqBand::new();
+        treble_band.params = EqBandParams::highshelf(10000.0, 0.0, 0.7);
+
         Self {
             bands,
+            bass_band,
+            treble_band,
             sample_rate,
             enabled: false,
             preamp_db: 0.0,
@@ -229,8 +238,15 @@ impl ParametricEq {
     /// Create a new EQ with all bands disabled
     pub fn new(num_bands: usize, sample_rate: f32) -> Self {
         let bands = (0..num_bands).map(|_| EqBand::new()).collect();
+        let mut bass_band = EqBand::new();
+        bass_band.params = EqBandParams::lowshelf(100.0, 0.0, 0.7);
+        let mut treble_band = EqBand::new();
+        treble_band.params = EqBandParams::highshelf(10000.0, 0.0, 0.7);
+
         Self {
             bands,
+            bass_band,
+            treble_band,
             sample_rate,
             enabled: false,
             preamp_db: 0.0,
@@ -289,6 +305,10 @@ impl ParametricEq {
         for band in &mut self.bands {
             (l, r) = band.process(l, r);
         }
+
+        // Process through tone controls
+        (l, r) = self.bass_band.process(l, r);
+        (l, r) = self.treble_band.process(l, r);
 
         // Attack (signal exceeds threshold): Use a fast attack rate so the
         // scale reduces quickly to prevent clipping. At 0.01, 95% of the
@@ -359,12 +379,28 @@ impl ParametricEq {
         self.bands.get(index).map(|b| &b.params)
     }
 
+    /// Set bass shelf gain
+    pub fn set_bass_shelf(&mut self, gain_db: f32) {
+        self.bass_band.params.gain_db = gain_db;
+        self.bass_band.params.enabled = gain_db.abs() > 0.001;
+        self.bass_band.update_coefficients(self.sample_rate);
+    }
+
+    /// Set treble shelf gain
+    pub fn set_treble_shelf(&mut self, gain_db: f32) {
+        self.treble_band.params.gain_db = gain_db;
+        self.treble_band.params.enabled = gain_db.abs() > 0.001;
+        self.treble_band.update_coefficients(self.sample_rate);
+    }
+
     /// Update sample rate and recompute all coefficients
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
         for band in &mut self.bands {
             band.update_coefficients(sample_rate);
         }
+        self.bass_band.update_coefficients(sample_rate);
+        self.treble_band.update_coefficients(sample_rate);
     }
 
     /// Reset all bands
@@ -372,6 +408,8 @@ impl ParametricEq {
         for band in &mut self.bands {
             band.reset();
         }
+        self.bass_band.reset();
+        self.treble_band.reset();
         self.headroom_scale = 1.0;
         self.headroom_scale_target = 1.0;
         // Note: attack/release rates are persistent settings, not reset

@@ -191,9 +191,7 @@ impl AudioEngine {
                 enabled,
             } => {
                 use crate::dsp::equalizer::{EqBandParams, EqFilterType};
-                // L1: Previously only indices 0 and 9 were mapped to shelf filters,
-                // which is wrong when MAX_EQ_BANDS != 10. Now use first/last index
-                // positions so shelf assignment is correct regardless of band count.
+                // Graphic EQ bands defaults (first and last are shelves)
                 let num_bands = self.pipeline.eq_num_bands();
                 let filter_type = if index == 0 {
                     EqFilterType::LowShelf
@@ -212,6 +210,12 @@ impl AudioEngine {
                         enabled,
                     },
                 );
+            },
+            EngineCommand::SetBassShelf(gain_db) => {
+                self.pipeline.set_bass_shelf(gain_db);
+            },
+            EngineCommand::SetTrebleShelf(gain_db) => {
+                self.pipeline.set_treble_shelf(gain_db);
             },
             EngineCommand::SetPreamp(db) => {
                 self.pipeline.set_preamp_db(db);
