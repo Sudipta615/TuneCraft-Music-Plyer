@@ -203,10 +203,7 @@ impl LibraryService {
                     if scan_failed {
                         new_snap.status_message = "Library scan failed".to_string();
                     } else {
-                        new_snap.status_message = format!(
-                            "Scan complete: {} added, {} updated",
-                            progress.files_added, progress.files_updated
-                        );
+                        new_snap.status_message = String::new();
                     }
                 } else {
                     new_snap.status_message = format!(
@@ -219,7 +216,7 @@ impl LibraryService {
                 if scan_failed {
                     new_snap.status_message = "Library scan failed".to_string();
                 } else {
-                    new_snap.status_message = "Library scan complete".to_string();
+                    new_snap.status_message = String::new();
                 }
             } else if !scan_done && !new_snap.is_scanning {
                 // Scan just started, no progress yet

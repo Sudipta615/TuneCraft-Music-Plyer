@@ -4,33 +4,33 @@
 
 use egui::{Color32, Rounding, Stroke, Visuals};
 
-// ── Primary purple palette ──
+// ── Primary cyan palette ──
 
-/// Primary purple accent color
-pub const ACCENT: Color32 = Color32::from_rgb(0x27, 0x23, 0x4B);
-/// Purple variant — slightly darker, for pressed states
-pub const ACCENT_DARK: Color32 = Color32::from_rgb(0x1F, 0x1B, 0x3D);
-/// Deep purple — even darker variant
-pub const ACCENT_DEEP: Color32 = Color32::from_rgb(0x18, 0x15, 0x30);
-/// Violet tint — lighter, for hover states
-pub const ACCENT_LIGHT: Color32 = Color32::from_rgb(0x40, 0x3B, 0x73);
-/// Light lavender tint — very light, for backgrounds / selections
-pub const ACCENT_LAVENDER: Color32 = Color32::from_rgb(0xEE, 0xED, 0xFD);
-/// Indigo accent
-pub const ACCENT_INDIGO: Color32 = Color32::from_rgb(0x2A, 0x25, 0x54);
+/// Primary accent color (button color)
+pub const ACCENT: Color32 = Color32::from_rgb(0x35, 0xC8, 0xE1); // #35c8e1
+/// Variant — slightly darker, for pressed states
+pub const ACCENT_DARK: Color32 = Color32::from_rgb(0x2A, 0xA0, 0xB4);
+/// Deep accent — even darker variant
+pub const ACCENT_DEEP: Color32 = Color32::from_rgb(0x20, 0x78, 0x87);
+/// Light tint — for hover states
+pub const ACCENT_LIGHT: Color32 = Color32::from_rgb(0x5E, 0xD3, 0xE7);
+/// Very light tint — for backgrounds / selections
+pub const ACCENT_LAVENDER: Color32 = Color32::from_rgb(0xE0, 0xF7, 0xFA);
+/// Dark accent
+pub const ACCENT_INDIGO: Color32 = Color32::from_rgb(0x1A, 0x64, 0x70);
 
-// ── Dark theme: navy-tinted dark colors matching reference design ──
+// ── Dark theme: updated matching custom design ──
 
-pub const DARK_BG: Color32 = Color32::from_rgb(0x14, 0x15, 0x2A);
-pub const DARK_SIDEBAR: Color32 = Color32::from_rgb(0x1F, 0x20, 0x3C);
-pub const DARK_SURFACE: Color32 = Color32::from_rgb(0x14, 0x15, 0x2A);
-pub const DARK_CARD: Color32 = Color32::from_rgb(0x1F, 0x20, 0x3C);
-pub const DARK_TEXT: Color32 = Color32::from_rgb(0xE8, 0xE7, 0xF5);
-pub const DARK_TEXT_DIM: Color32 = Color32::from_rgb(0x6B, 0x6A, 0x85);
-pub const DARK_TEXT_MUTED: Color32 = Color32::from_rgb(0x6B, 0x6A, 0x85);
-pub const DARK_BORDER: Color32 = Color32::from_rgb(0x2A, 0x29, 0x3D);
-pub const DARK_HOVER: Color32 = Color32::from_rgb(0x1A, 0x1B, 0x33);
-pub const DARK_ACTIVE: Color32 = Color32::from_rgb(0x1E, 0x1B, 0x38);
+pub const DARK_BG: Color32 = Color32::from_rgb(0x0A, 0x11, 0x1E); // #0a111e
+pub const DARK_SIDEBAR: Color32 = Color32::from_rgb(0x0F, 0x15, 0x23); // #0f1523
+pub const DARK_SURFACE: Color32 = Color32::from_rgb(0x0A, 0x11, 0x1E); // #0a111e
+pub const DARK_CARD: Color32 = Color32::from_rgb(0x0F, 0x15, 0x23); // #0f1523
+pub const DARK_TEXT: Color32 = Color32::from_rgb(0xE6, 0xE7, 0xE7); // #e6e7e7
+pub const DARK_TEXT_DIM: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8); // #babfc8
+pub const DARK_TEXT_MUTED: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8); // #babfc8
+pub const DARK_BORDER: Color32 = Color32::from_rgb(0x1C, 0x23, 0x33);
+pub const DARK_HOVER: Color32 = Color32::from_rgb(0x14, 0x1B, 0x2B); // #141b2b
+pub const DARK_ACTIVE: Color32 = Color32::from_rgb(0x14, 0x1B, 0x2B); // #141b2b
 
 // ── Light theme matching reference design ──
 
@@ -46,7 +46,7 @@ pub const LIGHT_HOVER: Color32 = Color32::from_rgb(0xF3, 0xF2, 0xFB);
 pub const LIGHT_ACTIVE: Color32 = Color32::from_rgb(0xEE, 0xED, 0xFD);
 
 /// Light sidebar selected tint — distinct from general selected surface
-pub const LIGHT_SIDEBAR_ACTIVE: Color32 = Color32::from_rgb(0xEE, 0xED, 0xFD);
+pub const LIGHT_SIDEBAR_ACTIVE: Color32 = Color32::from_rgb(0xE0, 0xF7, 0xFA);
 
 /// Collection of colors for the current theme
 #[derive(Debug, Clone, Copy)]
@@ -99,7 +99,7 @@ impl TuneCraftColors {
             accent_dark: ACCENT_DARK,
             player_bar: DARK_CARD, // matching deep navy
             player_bar_border: DARK_BORDER,
-            slider_track: Color32::from_rgb(0x2A, 0x29, 0x3D),
+            slider_track: DARK_BORDER,
             slider_fill: ACCENT,
             toggle_bg_on: ACCENT,
             toggle_bg_off: DARK_BORDER,

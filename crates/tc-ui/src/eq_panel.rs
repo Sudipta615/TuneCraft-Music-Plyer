@@ -28,7 +28,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
     // Fill the whole panel background
     let panel_rect = ui.available_rect_before_wrap();
-    ui.painter().rect_filled(panel_rect, 8.0, colors.surface);
+    ui.painter().rect_filled(panel_rect, 12.0, colors.surface);
 
     ui.vertical(|ui| {
         ui.add_space(12.0);
@@ -141,9 +141,9 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.allocate_exact_size(Vec2::new(available_w, eq_area_h), Sense::hover());
 
         // Background card for slider area
-        ui.painter().rect_filled(eq_rect, 6.0, colors.card);
+        ui.painter().rect_filled(eq_rect, 12.0, colors.card);
         ui.painter()
-            .rect_stroke(eq_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+            .rect_stroke(eq_rect, 12.0, egui::Stroke::new(1.0, colors.border));
 
         draw_eq_sliders(ui, app, eq_rect, &colors);
 
@@ -152,164 +152,132 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         // ── Secondary controls: Bass Shelf | Treble Shelf | Stereo Width | Balance | Dither + M/S
         // ──
         let secondary_h = 130.0;
-        let sec_available_w = ui.available_width();
-        let (sec_rect, _) =
-            ui.allocate_exact_size(Vec2::new(sec_available_w, secondary_h), Sense::hover());
+        let spacing = 8.0;
+        let total_spacing = spacing * 4.0;
+        let available_w = ui.available_width();
+        let card_w = (available_w - total_spacing) / 5.0;
 
-        ui.painter().rect_filled(sec_rect, 6.0, colors.card);
-        ui.painter()
-            .rect_stroke(sec_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+        let old_bass = app.eq_bass_shelf;
+        let old_treble = app.eq_treble_shelf;
+        let old_width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
+        let old_bal = app.eq_balance;
+        let old_dither = app.eq_dither;
+        let old_midside = app.eq_midside;
 
-        // Render secondary sliders INSIDE the sec_rect using allocate_new_ui
-        {
-            let toggles_w = 130.0;
-            let slider_area_w = sec_rect.width() - toggles_w;
-            let col_w = slider_area_w / 4.0;
+        let mut new_bass = old_bass;
+        let mut new_treble = old_treble;
+        let mut new_width_pct = old_width_pct;
+        let mut new_bal = old_bal;
+        let mut new_dither = old_dither;
+        let mut new_midside = old_midside;
 
-            // Save values before the closure borrows app
-            let old_bass = app.eq_bass_shelf;
-            let old_treble = app.eq_treble_shelf;
-            let old_width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
-            let old_bal = app.eq_balance;
-            let old_dither = app.eq_dither;
-            let old_midside = app.eq_midside;
+        ui.horizontal(|ui| {
+            secondary_slider_horizontal_card(
+                ui,
+                "Bass",
+                "Shelf",
+                &mut new_bass,
+                -12.0,
+                12.0,
+                "dB",
+                "-12dB",
+                "+12dB",
+                card_w,
+                secondary_h,
+                &colors,
+            );
+            ui.add_space(spacing);
+            secondary_slider_horizontal_card(
+                ui,
+                "Treble",
+                "Shelf",
+                &mut new_treble,
+                -12.0,
+                12.0,
+                "dB",
+                "-12dB",
+                "+12dB",
+                card_w,
+                secondary_h,
+                &colors,
+            );
+            ui.add_space(spacing);
+            secondary_slider_horizontal_card(
+                ui,
+                "Stereo Width",
+                "",
+                &mut new_width_pct,
+                0.0,
+                200.0,
+                "%",
+                "0 %",
+                "200 %",
+                card_w,
+                secondary_h,
+                &colors,
+            );
+            ui.add_space(spacing);
+            secondary_slider_horizontal_card(
+                ui,
+                "Balance",
+                "",
+                &mut new_bal,
+                -1.0,
+                1.0,
+                "",
+                "-1.00",
+                "+1.00",
+                card_w,
+                secondary_h,
+                &colors,
+            );
+            ui.add_space(spacing);
+            secondary_toggles_card(
+                ui,
+                card_w,
+                secondary_h,
+                &mut new_dither,
+                &mut new_midside,
+                &colors,
+            );
+        });
 
-            let mut new_bass = old_bass;
-            let mut new_treble = old_treble;
-            let mut new_width_pct = old_width_pct;
-            let mut new_bal = old_bal;
-            let mut new_dither = old_dither;
-            let mut new_midside = old_midside;
-
-            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(sec_rect), |ui| {
-                ui.horizontal(|ui| {
-                    // Bass Shelf
-                    secondary_slider_vertical(
-                        ui,
-                        "Bass",
-                        "Shelf",
-                        &mut new_bass,
-                        -12.0,
-                        12.0,
-                        "dB",
-                        col_w,
-                        secondary_h - 20.0,
-                        &colors,
-                        |_| {},
-                    );
-
-                    // Vertical divider
-                    let (d_rect, _) =
-                        ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-                    ui.painter().rect_filled(d_rect, 0.0, colors.border);
-
-                    // Treble Shelf
-                    secondary_slider_vertical(
-                        ui,
-                        "Treble",
-                        "Shelf",
-                        &mut new_treble,
-                        -12.0,
-                        12.0,
-                        "dB",
-                        col_w,
-                        secondary_h - 20.0,
-                        &colors,
-                        |_| {},
-                    );
-
-                    // Vertical divider
-                    let (d_rect, _) =
-                        ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-                    ui.painter().rect_filled(d_rect, 0.0, colors.border);
-
-                    // Stereo Width
-                    secondary_slider_vertical(
-                        ui,
-                        "Stereo Width",
-                        "",
-                        &mut new_width_pct,
-                        0.0,
-                        200.0,
-                        "%",
-                        col_w,
-                        secondary_h - 20.0,
-                        &colors,
-                        |_| {},
-                    );
-
-                    // Vertical divider
-                    let (d_rect, _) =
-                        ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-                    ui.painter().rect_filled(d_rect, 0.0, colors.border);
-
-                    // Balance
-                    secondary_slider_vertical(
-                        ui,
-                        "Balance",
-                        "",
-                        &mut new_bal,
-                        -1.0,
-                        1.0,
-                        "",
-                        col_w,
-                        secondary_h - 20.0,
-                        &colors,
-                        |_| {},
-                    );
-
-                    // Vertical divider
-                    let (d_rect, _) =
-                        ui.allocate_exact_size(Vec2::new(1.0, secondary_h - 20.0), Sense::hover());
-                    ui.painter().rect_filled(d_rect, 0.0, colors.border);
-
-                    // Toggles column: Dither + Mid/Side EQ
-                    ui.vertical(|ui| {
-                        ui.add_space(16.0);
-                        draw_labeled_toggle(ui, "Dither", &mut new_dither, &colors);
-                        ui.add_space(16.0);
-                        draw_labeled_toggle(ui, "Mid/Side EQ", &mut new_midside, &colors);
-                    });
-                });
+        // Apply changes after the UI closure
+        if (new_bass - old_bass).abs() > 0.001 {
+            app.eq_bass_shelf = new_bass;
+            app.eq_bands[0] = new_bass;
+            app.ctx
+                .eq
+                .set_band_with_params(0, 31.25, new_bass, 1.4, app.eq_enabled);
+        }
+        if (new_treble - old_treble).abs() > 0.001 {
+            app.eq_treble_shelf = new_treble;
+            app.eq_bands[9] = new_treble;
+            app.ctx
+                .eq
+                .set_band_with_params(9, 16000.0, new_treble, 1.4, app.eq_enabled);
+        }
+        if (new_width_pct - old_width_pct).abs() > 0.5 {
+            let new_w = (new_width_pct / 100.0).clamp(0.0, 2.0);
+            app.eq_stereo_width = new_w;
+            app.ctx.eq.set_stereo_width(new_w);
+        }
+        if (new_bal - old_bal).abs() > 0.005 {
+            app.eq_balance = new_bal;
+            app.ctx.eq.set_balance(new_bal);
+        }
+        if new_dither != old_dither {
+            app.eq_dither = new_dither;
+            app.cached_dither_enabled = new_dither;
+            app.ctx.eq.set_dither(new_dither);
+            app.ctx.config.write(|c| {
+                c.engine.dither_enabled = new_dither;
             });
-
-            // Apply changes after the UI closure
-            if (new_bass - old_bass).abs() > 0.001 {
-                app.eq_bass_shelf = new_bass;
-                app.eq_bands[0] = new_bass;
-                app.ctx
-                    .eq
-                    .set_band_with_params(0, 31.25, new_bass, 1.4, app.eq_enabled);
-            }
-            if (new_treble - old_treble).abs() > 0.001 {
-                app.eq_treble_shelf = new_treble;
-                app.eq_bands[9] = new_treble;
-                app.ctx
-                    .eq
-                    .set_band_with_params(9, 16000.0, new_treble, 1.4, app.eq_enabled);
-            }
-            if (new_width_pct - old_width_pct).abs() > 0.5 {
-                let new_w = (new_width_pct / 100.0).clamp(0.0, 2.0);
-                app.eq_stereo_width = new_w;
-                app.ctx.eq.set_stereo_width(new_w);
-            }
-            if (new_bal - old_bal).abs() > 0.005 {
-                app.eq_balance = new_bal;
-                app.ctx.eq.set_balance(new_bal);
-            }
-            if new_dither != old_dither {
-                app.eq_dither = new_dither;
-                app.cached_dither_enabled = new_dither;
-                app.ctx.eq.set_dither(new_dither);
-                app.ctx.config.write(|c| {
-                    c.engine.dither_enabled = new_dither;
-                });
-            }
-            if new_midside != old_midside {
-                app.eq_midside = new_midside;
-                app.cached_midside_enabled = new_midside;
-                app.ctx.eq.set_midside(new_midside);
-            }
+        }
+        if new_midside != old_midside {
+            app.eq_midside = new_midside;
+            app.cached_midside_enabled = new_midside;
+            app.ctx.eq.set_midside(new_midside);
         }
         ui.add_space(10.0);
 
@@ -319,9 +287,9 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         let (preamp_rect, _) =
             ui.allocate_exact_size(Vec2::new(preamp_w, preamp_h), Sense::hover());
 
-        ui.painter().rect_filled(preamp_rect, 6.0, colors.card);
+        ui.painter().rect_filled(preamp_rect, 12.0, colors.card);
         ui.painter()
-            .rect_stroke(preamp_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+            .rect_stroke(preamp_rect, 12.0, egui::Stroke::new(1.0, colors.border));
 
         // Draw preamp content directly using painter (no child UI needed)
         {
@@ -366,13 +334,12 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 egui::Stroke::new(3.0, colors.accent),
             );
             // Knob
+            let outer_r = 8.0;
+            let inner_r = 4.0;
             ui.painter()
-                .circle_filled(Pos2::new(fill_x, slider_y), 7.0, colors.accent);
-            ui.painter().circle_stroke(
-                Pos2::new(fill_x, slider_y),
-                7.0,
-                egui::Stroke::new(1.5, colors.card),
-            );
+                .circle_filled(Pos2::new(fill_x, slider_y), outer_r, colors.accent);
+            ui.painter()
+                .circle_filled(Pos2::new(fill_x, slider_y), inner_r, colors.card);
 
             // Drag area
             let drag_rect = Rect::from_min_size(
@@ -530,17 +497,13 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
             );
         }
 
-        // Knob circle (with border ring matching dark/light theme)
-        let knob_r = 8.0;
-        let ring_color = if colors.dark_mode {
-            Color32::from_rgb(0x2D, 0x34, 0x4C)
-        } else {
-            Color32::from_rgb(0xDF, 0xDF, 0xE5)
-        };
+        // Knob circle (hollow ring style matching reference)
+        let outer_r = 9.0;
+        let inner_r = 4.0;
         ui.painter()
-            .circle_filled(Pos2::new(band_cx, knob_y), knob_r + 3.0, ring_color);
+            .circle_filled(Pos2::new(band_cx, knob_y), outer_r, colors.accent);
         ui.painter()
-            .circle_filled(Pos2::new(band_cx, knob_y), knob_r, colors.accent);
+            .circle_filled(Pos2::new(band_cx, knob_y), inner_r, colors.card);
 
         // Frequency label — scale font on narrow panels
         let freq_font_size = if rect.width() < 400.0 { 8.0 } else { 9.5 };
@@ -602,7 +565,7 @@ fn draw_eq_sliders(ui: &mut Ui, app: &mut TuneCraftApp, rect: Rect, colors: &Tun
 
 /// Vertical slider with title + subtitle above, value label below
 #[allow(clippy::too_many_arguments)]
-fn secondary_slider_vertical(
+fn secondary_slider_horizontal_card(
     ui: &mut Ui,
     title: &str,
     subtitle: &str,
@@ -610,104 +573,151 @@ fn secondary_slider_vertical(
     min: f32,
     max: f32,
     unit: &str,
+    min_label: &str,
+    max_label: &str,
     width: f32,
     height: f32,
     colors: &TuneCraftColors,
-    _on_change: impl Fn(f32),
 ) {
     let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
     let cx = rect.center().x;
 
+    ui.painter().rect_filled(rect, 12.0, colors.card);
+    ui.painter()
+        .rect_stroke(rect, 12.0, egui::Stroke::new(1.0, colors.border));
+
     // Title
     ui.painter().text(
-        Pos2::new(cx, rect.top() + 12.0),
+        Pos2::new(cx, rect.top() + 16.0),
         Align2::CENTER_CENTER,
         title,
-        FontId::proportional(11.0),
+        FontId::proportional(12.0),
         colors.text,
     );
     if !subtitle.is_empty() {
         ui.painter().text(
-            Pos2::new(cx, rect.top() + 24.0),
+            Pos2::new(cx, rect.top() + 32.0),
             Align2::CENTER_CENTER,
             subtitle,
-            FontId::proportional(9.0),
+            FontId::proportional(10.0),
             colors.text_dim,
         );
     }
 
-    // Vertical slider track
-    let track_top = rect.top() + if subtitle.is_empty() { 32.0 } else { 38.0 };
-    let track_bot = rect.bottom() - 22.0;
-    let track_h = track_bot - track_top;
+    // Horizontal slider track
+    let track_left = rect.left() + 16.0;
+    let track_right = rect.right() - 16.0;
+    let track_y = rect.top() + if subtitle.is_empty() { 64.0 } else { 72.0 };
+    let track_w = track_right - track_left;
 
-    if track_h <= 0.0 {
-        return;
-    }
-
-    // Draw track
-    ui.painter().line_segment(
-        [Pos2::new(cx, track_top), Pos2::new(cx, track_bot)],
-        egui::Stroke::new(3.0, colors.slider_track),
-    );
-
-    let norm = ((*value - min) / (max - min)).clamp(0.0, 1.0);
-    let knob_y = track_bot - track_h * norm;
-    let zero_y = track_bot - track_h * ((-min / (max - min)).clamp(0.0, 1.0));
-
-    // Fill from zero
-    if *value >= 0.0 {
-        ui.painter().line_segment(
-            [Pos2::new(cx, knob_y), Pos2::new(cx, zero_y)],
-            egui::Stroke::new(3.0, colors.accent),
+    if track_w > 0.0 {
+        // Draw min / max labels above track ends
+        ui.painter().text(
+            Pos2::new(track_left, track_y - 12.0),
+            Align2::LEFT_CENTER,
+            min_label,
+            FontId::proportional(9.0),
+            colors.text_dim,
         );
-    } else {
-        ui.painter().line_segment(
-            [Pos2::new(cx, zero_y), Pos2::new(cx, knob_y)],
-            egui::Stroke::new(3.0, colors.accent),
+        ui.painter().text(
+            Pos2::new(track_right, track_y - 12.0),
+            Align2::RIGHT_CENTER,
+            max_label,
+            FontId::proportional(9.0),
+            colors.text_dim,
         );
-    }
 
-    // Knob
-    let ring_color = if colors.dark_mode {
-        Color32::from_rgb(0x2D, 0x34, 0x4C)
-    } else {
-        Color32::from_rgb(0xDF, 0xDF, 0xE5)
-    };
-    ui.painter()
-        .circle_filled(Pos2::new(cx, knob_y), 10.0, ring_color);
-    ui.painter()
-        .circle_filled(Pos2::new(cx, knob_y), 7.0, colors.accent);
+        // Draw track
+        ui.painter().line_segment(
+            [
+                Pos2::new(track_left, track_y),
+                Pos2::new(track_right, track_y),
+            ],
+            egui::Stroke::new(3.0, colors.slider_track),
+        );
 
-    // Value label
-    let val_str = if unit == "%" {
-        format!("{:.0} %", *value)
-    } else if unit.is_empty() {
-        format!("{:.2}", *value)
-    } else {
-        format!("{:.1} {}", *value, unit)
-    };
-    ui.painter().text(
-        Pos2::new(cx, rect.bottom() - 10.0),
-        Align2::CENTER_CENTER,
-        &val_str,
-        FontId::proportional(9.5),
-        colors.text_dim,
-    );
+        let norm = ((*value - min) / (max - min)).clamp(0.0, 1.0);
+        let knob_x = track_left + track_w * norm;
+        let zero_norm = (-min / (max - min)).clamp(0.0, 1.0);
+        let zero_x = track_left + track_w * zero_norm;
 
-    // Drag interaction
-    let drag_resp = ui.interact(
-        rect,
-        egui::Id::new(format!("sec_slider_{}_{}", title, subtitle)),
-        Sense::drag(),
-    );
-    if drag_resp.dragged() {
-        if let Some(ptr) = drag_resp.interact_pointer_pos() {
-            let t = (ptr.y - track_top) / track_h;
-            let new_norm = (1.0 - t).clamp(0.0, 1.0);
-            *value = (min + (max - min) * new_norm).clamp(min, max);
+        // Fill from zero
+        if *value >= 0.0 {
+            ui.painter().line_segment(
+                [Pos2::new(zero_x, track_y), Pos2::new(knob_x, track_y)],
+                egui::Stroke::new(3.0, colors.accent),
+            );
+        } else {
+            ui.painter().line_segment(
+                [Pos2::new(knob_x, track_y), Pos2::new(zero_x, track_y)],
+                egui::Stroke::new(3.0, colors.accent),
+            );
+        }
+
+        // Knob (hollow ring style)
+        let outer_r = 9.0;
+        let inner_r = 4.0;
+        ui.painter()
+            .circle_filled(Pos2::new(knob_x, track_y), outer_r, colors.accent);
+        ui.painter()
+            .circle_filled(Pos2::new(knob_x, track_y), inner_r, colors.card);
+
+        // Value label
+        let val_str = if unit == "%" {
+            format!("{:.0} %", *value)
+        } else if unit.is_empty() {
+            format!("{:.2}", *value)
+        } else {
+            format!("{:.1} {}", *value, unit)
+        };
+        ui.painter().text(
+            Pos2::new(cx, rect.bottom() - 20.0),
+            Align2::CENTER_CENTER,
+            &val_str,
+            FontId::proportional(11.0),
+            colors.text,
+        );
+
+        // Drag interaction
+        let drag_resp = ui.interact(
+            Rect::from_min_size(
+                Pos2::new(track_left - 10.0, track_y - 10.0),
+                Vec2::new(track_w + 20.0, 20.0),
+            ),
+            egui::Id::new(format!("sec_slider_horiz_{}_{}", title, subtitle)),
+            Sense::drag(),
+        );
+        if drag_resp.dragged() {
+            if let Some(ptr) = drag_resp.interact_pointer_pos() {
+                let t = (ptr.x - track_left) / track_w;
+                let new_norm = t.clamp(0.0, 1.0);
+                *value = (min + (max - min) * new_norm).clamp(min, max);
+            }
         }
     }
+}
+
+fn secondary_toggles_card(
+    ui: &mut Ui,
+    width: f32,
+    height: f32,
+    dither: &mut bool,
+    midside: &mut bool,
+    colors: &TuneCraftColors,
+) {
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
+    ui.painter().rect_filled(rect, 12.0, colors.card);
+    ui.painter()
+        .rect_stroke(rect, 12.0, egui::Stroke::new(1.0, colors.border));
+
+    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(rect), |ui| {
+        ui.vertical(|ui| {
+            ui.add_space(24.0);
+            draw_labeled_toggle(ui, "Dither", dither, colors);
+            ui.add_space(20.0);
+            draw_labeled_toggle(ui, "Mid/Side EQ", midside, colors);
+        });
+    });
 }
 
 /// Toggle with label to the right

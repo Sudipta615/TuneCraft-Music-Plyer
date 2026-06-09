@@ -238,28 +238,28 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     if styled_toolbar_btn(
                         ui,
                         &format!("{} Sort", egui_phosphor::regular::ARROWS_DOWN_UP),
-                        false,
+                        app.sort_active,
                         &colors,
                     ) {
-                        app.sort_ascending = !app.sort_ascending;
-                        if app.sort_ascending {
-                            app.tracks.sort_by(|a, b| a.title.cmp(&b.title));
+                        if !app.sort_active {
+                            app.sort_active = true;
+                            app.sort_ascending = true;
+                        } else if app.sort_ascending {
+                            app.sort_ascending = false;
                         } else {
-                            app.tracks.sort_by(|a, b| b.title.cmp(&a.title));
+                            app.sort_active = false;
+                            app.sort_ascending = true;
                         }
-                        let new_queue: Vec<i64> = app.tracks.iter().map(|t| t.id).collect();
-                        app.ctx.playback.set_play_queue(new_queue);
-                        app.play_queue = app.ctx.playback.state().play_queue.clone();
                     }
 
                     ui.add_space(4.0);
                     if styled_toolbar_btn(
                         ui,
                         &format!("{} Filter", egui_phosphor::regular::FUNNEL),
-                        false,
+                        app.filter_favorites,
                         &colors,
                     ) {
-                        // placeholder
+                        app.filter_favorites = !app.filter_favorites;
                     }
                 }
 
@@ -307,7 +307,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
         ui.add_space(16.0);
 
-        let filtered_indices: Vec<usize> = if app.search_query.is_empty() {
+        let mut filtered_indices: Vec<usize> = if app.search_query.is_empty() {
             let snapshot = app.ctx.library.snapshot();
             if app.tracks.len() != snapshot.tracks.len()
                 || app
@@ -321,17 +321,21 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             app.tracks
                 .iter()
                 .enumerate()
-                .filter(|(_, track)| match app.nav {
-                    crate::sidebar::NavSection::AllTracks => true,
-                    crate::sidebar::NavSection::Albums => track.album.is_some(),
-                    crate::sidebar::NavSection::Artists => track.artist.is_some(),
-                    crate::sidebar::NavSection::Favorites => {
-                        app.cached_favorite_ids.contains(&track.id)
-                    },
-                    crate::sidebar::NavSection::RecentlyPlayed => track.last_played.is_some(),
-                    crate::sidebar::NavSection::MostPlayed => track.play_count > 0,
-
-                    crate::sidebar::NavSection::Settings => false,
+                .filter(|(_, track)| {
+                    if app.filter_favorites && !app.cached_favorite_ids.contains(&track.id) {
+                        return false;
+                    }
+                    match app.nav {
+                        crate::sidebar::NavSection::AllTracks => true,
+                        crate::sidebar::NavSection::Albums => track.album.is_some(),
+                        crate::sidebar::NavSection::Artists => track.artist.is_some(),
+                        crate::sidebar::NavSection::Favorites => {
+                            app.cached_favorite_ids.contains(&track.id)
+                        },
+                        crate::sidebar::NavSection::RecentlyPlayed => track.last_played.is_some(),
+                        crate::sidebar::NavSection::MostPlayed => track.play_count > 0,
+                        crate::sidebar::NavSection::Settings => false,
+                    }
                 })
                 .map(|(i, _)| i)
                 .collect()
@@ -348,6 +352,9 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 .iter()
                 .enumerate()
                 .filter(|(_, track)| {
+                    if app.filter_favorites && !app.cached_favorite_ids.contains(&track.id) {
+                        return false;
+                    }
                     track.title.to_lowercase().contains(&q)
                         || track
                             .artist
@@ -361,6 +368,14 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 .map(|(i, _)| i)
                 .collect()
         };
+
+        if app.sort_active {
+            if app.sort_ascending {
+                filtered_indices.sort_by(|&a, &b| app.tracks[a].title.cmp(&app.tracks[b].title));
+            } else {
+                filtered_indices.sort_by(|&a, &b| app.tracks[b].title.cmp(&app.tracks[a].title));
+            }
+        }
 
         if app.list_view {
             draw_list_view(app, ui, &filtered_indices, &colors);
@@ -901,18 +916,10 @@ fn draw_list_view(
                     app.selected_track_id = Some(track_id);
                 }
 
-                // Bottom row separator (subtle)
+                // Bottom row separator
                 ui.painter().line_segment(
                     [row_rect.left_bottom(), row_rect.right_bottom()],
-                    egui::Stroke::new(
-                        0.5,
-                        Color32::from_rgba_premultiplied(
-                            colors.border.r(),
-                            colors.border.g(),
-                            colors.border.b(),
-                            80,
-                        ),
-                    ),
+                    egui::Stroke::new(1.0, colors.border),
                 );
             }
         });

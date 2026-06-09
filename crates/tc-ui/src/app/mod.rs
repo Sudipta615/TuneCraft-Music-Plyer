@@ -124,7 +124,9 @@ pub struct TuneCraftApp {
 
     pub(crate) last_synced_playback_version: u64,
 
+    pub sort_active: bool,
     pub sort_ascending: bool,
+    pub filter_favorites: bool,
 
     /// Whether the resampler has been disabled due to excessive rebuild failures
     pub resampler_disabled: bool,
@@ -278,7 +280,9 @@ impl TuneCraftApp {
 
             last_synced_playback_version: playback_version,
 
+            sort_active: false,
             sort_ascending: true,
+            filter_favorites: false,
 
             resampler_disabled: false,
             dsp_warning_shown: false,
@@ -420,7 +424,7 @@ impl eframe::App for TuneCraftApp {
             let window_width = if screen_w < 500.0 {
                 screen_w * 0.95
             } else {
-                (screen_w * 0.75).clamp(400.0, 780.0)
+                screen_w * 0.60
             };
             let window_height = if screen_h < 500.0 {
                 screen_h * 0.85

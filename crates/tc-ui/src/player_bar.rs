@@ -6,7 +6,7 @@ use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Ui, Vec2};
 
 use crate::{app::TuneCraftApp, theme::TuneCraftColors};
 
-pub const PLAYER_BAR_HEIGHT: f32 = 88.0;
+pub const PLAYER_BAR_HEIGHT: f32 = 104.0;
 
 /// Responsive breakpoint: below this width, use compact layout
 const COMPACT_BREAKPOINT: f32 = 600.0;
