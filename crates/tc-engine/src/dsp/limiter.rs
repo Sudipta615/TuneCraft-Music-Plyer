@@ -144,6 +144,11 @@ impl LookaheadLimiter {
             return (left, right);
         }
 
+        if left.is_nan() || right.is_nan() {
+            log::error!("LookaheadLimiter: NaN input detected, clamping to 0.0");
+            return (0.0, 0.0);
+        }
+
         let input_peak = left.abs().max(right.abs());
 
         let desired_gain = if input_peak > self.ceiling_linear {
@@ -232,6 +237,15 @@ impl LookaheadLimiter {
         self.delay_write_pos = 0;
         self.attack_coeff = (-1.0 / (self.attack_secs * self.sample_rate)).exp();
         self.release_coeff = (-1.0 / (self.release_secs * self.sample_rate)).exp();
+    }
+    
+    pub fn set_lookahead(&mut self, ms: f32) {
+        self.lookahead_secs = ms / 1000.0;
+        self.set_sample_rate(self.sample_rate);
+    }
+
+    pub fn set_soft_clip(&mut self, soft_clip: bool) {
+        self.soft_clip = soft_clip;
     }
 }
 

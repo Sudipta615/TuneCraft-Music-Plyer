@@ -11,9 +11,11 @@ fn bench_equalizer(c: &mut Criterion) {
         let mut frames: Vec<(f32, f32)> = vec![(0.5, 0.3); 256];
         b.iter(|| {
             for (l, r) in frames.iter_mut() {
-                (*l, *r) = eq.process(*l, *r);
+                let (out_l, out_r) = black_box(eq.process(black_box(*l), black_box(*r)));
+                *l = out_l;
+                *r = out_r;
             }
-            black_box(&frames);
+            black_box(&mut frames);
         });
     });
 }

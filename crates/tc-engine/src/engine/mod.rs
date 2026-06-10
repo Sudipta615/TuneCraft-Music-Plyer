@@ -116,6 +116,7 @@ pub struct AudioEngine {
     /// `frames / (source_rate * speed)` rather than `frames / source_rate`).
     position_secs: f32,
     duration_secs: f32,
+    source_frames_consumed: u64,
     source_sample_rate: u32,
     output_sample_rate: u32,
     speed: f32,
@@ -194,6 +195,7 @@ impl AudioEngine {
             config,
             position_secs: 0.0,
             duration_secs: 0.0,
+            source_frames_consumed: 0,
             source_sample_rate: DEFAULT_SAMPLE_RATE,
             output_sample_rate,
             speed: 1.0,
@@ -283,12 +285,19 @@ impl AudioEngine {
     }
 
     pub fn load_track(&mut self, path: &std::path::Path) -> Result<DecodeInfo, EngineError> {
-        let decoder = SymphoniaDecoder::open(path)?;
+        let decoder = match self.cached_incoming_decoder.take() {
+            Some(d) if self.next_track_path.as_deref() == Some(path) => {
+                info!("Using cached decoder for load_track");
+                d
+            },
+            _ => SymphoniaDecoder::open(path)?,
+        };
         let info = decoder.info().clone();
 
         self.source_sample_rate = info.sample_rate;
         self.duration_secs = info.duration_secs;
         self.position_secs = 0.0;
+        self.source_frames_consumed = 0;
         self.consecutive_decode_errors = 0;
         self.crossfade_triggered = false;
 
@@ -305,14 +314,13 @@ impl AudioEngine {
 
         self.stream = Some(PlaybackStream::Single { decoder, resampler });
 
-        // SAFETY: We pause the CPAL output stream before resetting the ring
-        // buffer indices, ensuring the consumer thread is draining silence
-        // and not touching read_pos/write_pos concurrently.
         if let Some(ref output) = self.audio_output {
-            output.pause();
-        }
-        unsafe {
-            self.output_buffer.reset();
+            output.reset_buffer();
+        } else {
+            // If no output device is active, we can reset safely without pausing
+            unsafe {
+                self.output_buffer.reset();
+            }
         }
         self.pipeline.reset();
         // Re-apply the current volume after reset, which resets GainProcessor to 1.0.
@@ -322,9 +330,7 @@ impl AudioEngine {
         }
         // Start the mixer in PlayingCurrent state for the new track.
         self.pipeline.mixer_mut().start_playing();
-        if let Some(ref output) = self.audio_output {
-            output.resume();
-        }
+
 
         match self.playback_info.write() {
             Ok(mut pb) => {
@@ -357,14 +363,23 @@ impl AudioEngine {
 
     pub fn tick(&mut self) {
         let now = Instant::now();
+        let state = self.current_state();
+
         if let Some(prev) = self.tick_start {
-            self.total_time += now.duration_since(prev);
+            let elapsed = now.duration_since(prev);
+            self.total_time += elapsed;
+            
+            // Watchdog: detect if the engine thread was starved for too long
+            const TICK_DEADLINE: Duration = Duration::from_millis(15);
+            if elapsed > TICK_DEADLINE && state == PlaybackState::Playing {
+                warn!("Audio dropout: tick delayed by {:.1}ms (deadline 15ms). CPU may be over-utilized.", elapsed.as_secs_f32() * 1000.0);
+                self.write_playback_info(|pb| pb.cpu_overloads += 1);
+            }
         }
         self.tick_start = Some(now);
 
         self.process_commands();
 
-        let state = self.current_state();
         if state == PlaybackState::Playing {
             let dsp_start = Instant::now();
 
@@ -454,10 +469,73 @@ impl AudioEngine {
             },
             tc_config::LoudnessMode::EbuR128 => crate::dsp::loudness::LoudnessMode::EbuR128,
         });
+
+        for (i, band) in config.eq.bands.iter().enumerate() {
+            p.set_eq_band(
+                i,
+                crate::dsp::equalizer::EqBandParams {
+                    frequency: band.frequency,
+                    gain_db: band.gain_db,
+                    q: band.q,
+                    filter_type: match band.filter_type {
+                        tc_config::FilterType::Peaking => crate::dsp::equalizer::EqFilterType::Peaking,
+                        tc_config::FilterType::LowShelf => crate::dsp::equalizer::EqFilterType::LowShelf,
+                        tc_config::FilterType::HighShelf => crate::dsp::equalizer::EqFilterType::HighShelf,
+                        tc_config::FilterType::LowPass => crate::dsp::equalizer::EqFilterType::LowPass,
+                        tc_config::FilterType::HighPass => crate::dsp::equalizer::EqFilterType::HighPass,
+                        tc_config::FilterType::Notch => crate::dsp::equalizer::EqFilterType::Notch,
+                    },
+                    enabled: band.enabled,
+                },
+            );
+        }
+
+        p.set_crossfeed_enabled(config.crossfeed.enabled);
+        p.set_crossfeed_profile(config.crossfeed.profile);
+        p.set_crossfeed_custom_params(
+            config.crossfeed.custom_frequency_hz,
+            config.crossfeed.custom_q,
+            config.crossfeed.custom_delay_ms,
+            config.crossfeed.custom_mix_db,
+        );
+
+        p.set_compressor_enabled(config.multiband_compressor.enabled);
+        p.set_compressor_band_params(
+            0,
+            config.multiband_compressor.low_band.threshold_db,
+            config.multiband_compressor.low_band.ratio,
+            config.multiband_compressor.low_band.attack_ms,
+            config.multiband_compressor.low_band.release_ms,
+            config.multiband_compressor.low_band.makeup_gain_db,
+        );
+        p.set_compressor_band_params(
+            1,
+            config.multiband_compressor.mid_band.threshold_db,
+            config.multiband_compressor.mid_band.ratio,
+            config.multiband_compressor.mid_band.attack_ms,
+            config.multiband_compressor.mid_band.release_ms,
+            config.multiband_compressor.mid_band.makeup_gain_db,
+        );
+        p.set_compressor_band_params(
+            2,
+            config.multiband_compressor.high_band.threshold_db,
+            config.multiband_compressor.high_band.ratio,
+            config.multiband_compressor.high_band.attack_ms,
+            config.multiband_compressor.high_band.release_ms,
+            config.multiband_compressor.high_band.makeup_gain_db,
+        );
+
         p.set_stereo_width(config.stereo_enhancer.width);
         p.set_stereo_enhancer_enabled(config.stereo_enhancer.enabled);
         p.set_dither_enabled(config.dither_enabled);
         p.set_limiter_enabled(config.limiter.enabled);
+        p.set_limiter_params(
+            config.limiter.lookahead_ms,
+            config.limiter.attack_ms,
+            config.limiter.release_ms,
+            config.limiter.ceiling_db,
+            config.limiter.soft_clip,
+        );
         if config.crossfade.enabled != self.config.crossfade.enabled
             || config.crossfade.duration_ms != self.config.crossfade.duration_ms
         {

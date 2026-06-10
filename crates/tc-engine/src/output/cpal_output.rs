@@ -127,12 +127,6 @@ impl CpalOutput {
             .or_else(|| host.default_output_device())
             .ok_or(OutputError::NoDevice)?;
 
-        #[cfg(target_os = "macos")]
-        if backend == AudioBackend::ExclusiveCoreAudioHog {
-            // Attempt to set Hog Mode on the selected device
-            Self::set_coreaudio_hog_mode(&device);
-        }
-
         // Use the device's default config instead of max-sample-rate.
         let default_config = device
             .default_output_config()
@@ -357,7 +351,7 @@ impl CpalOutput {
                 Some(audio_frame) => {
                     for (ch, sample) in frame.iter_mut().enumerate() {
                         *sample = if ch < audio_frame.num_channels as usize {
-                            audio_frame.channels[ch].clamp(-1.0, 1.0)
+                            audio_frame.channels[ch]
                         } else {
                             0.0
                         };
@@ -396,7 +390,7 @@ impl CpalOutput {
                         } else {
                             0.0
                         };
-                        *sample = (val.clamp(-1.0, 1.0) * 32767.0).clamp(-32768.0, 32767.0) as i16;
+                        *sample = (val * 32767.0).clamp(-32768.0, 32767.0) as i16;
                     }
                 },
                 None => {
@@ -433,7 +427,7 @@ impl CpalOutput {
                             0.0
                         };
                         *sample =
-                            (val.clamp(-1.0, 1.0) * 32767.0 + 32768.0).clamp(0.0, 65535.0) as u16;
+                            (val * 32767.0 + 32768.0).clamp(0.0, 65535.0) as u16;
                     }
                 },
                 None => {
@@ -455,6 +449,15 @@ impl CpalOutput {
     /// Resume the output
     pub fn resume(&self) {
         self.paused.store(false, Ordering::SeqCst);
+    }
+
+    /// Reset the output buffer safely by pausing playback first
+    pub fn reset_buffer(&self) {
+        self.pause();
+        unsafe {
+            self.buffer.reset();
+        }
+        self.resume();
     }
 
     /// Get the number of underruns since last check
@@ -484,11 +487,7 @@ impl CpalOutput {
     }
 }
 
-impl Drop for CpalOutput {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+
 
 struct CallbackGuard<'a> {
     flag: &'a AtomicBool,
@@ -507,25 +506,4 @@ impl<'a> Drop for CallbackGuard<'a> {
     }
 }
 
-impl CpalOutput {
-    #[cfg(target_os = "macos")]
-    fn set_coreaudio_hog_mode(device: &Device) {
-        use coreaudio_rs::sys::{
-            kAudioDevicePropertyHogMode, kAudioObjectPropertyElementMaster,
-            kAudioObjectPropertyScopeGlobal, AudioObjectPropertyAddress,
-            AudioObjectSetPropertyData,
-        };
-        use cpal::traits::DeviceTrait;
-        use std::os::unix::prelude::AsRawFd;
 
-        // Since cpal does not expose the raw AudioObjectID cleanly on 0.15 without extensions,
-        // we log that we are attempting Hog Mode. For true Hog Mode in cpal 0.15,
-        // we might need to rely on the device being the default and setting it globally,
-        // or accepting that cpal doesn't support it perfectly yet.
-        log::warn!("CoreAudio Hog Mode requested, but requires coreaudio-sys FFI with exact Device ID. Proceeding with default CoreAudio.");
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    #[allow(dead_code)]
-    fn set_coreaudio_hog_mode(_device: &Device) {}
-}

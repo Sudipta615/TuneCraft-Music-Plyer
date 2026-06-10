@@ -104,8 +104,9 @@ pub struct ConvolutionEngine {
     scratch_left: Vec<f32>,
     scratch_right: Vec<f32>,
 
-    /// Whether an IR has been loaded
     ir_loaded: bool,
+    /// The sample rate at which the IR was loaded
+    ir_loaded_sample_rate: Option<f32>,
     /// Whether the loaded IR's frequency mapping is stale because the
     /// sample rate changed after the IR was loaded. When true, the user
     /// should be warned to reload the IR for correct convolution output.
@@ -174,6 +175,7 @@ impl ConvolutionEngine {
             scratch_right: vec![0.0; ifft_output_len],
 
             ir_loaded: false,
+            ir_loaded_sample_rate: None,
             ir_needs_reload: false,
             dropped_frames: 0,
         }
@@ -214,6 +216,7 @@ impl ConvolutionEngine {
         }
 
         self.ir_loaded = true;
+        self.ir_loaded_sample_rate = Some(self.sample_rate);
         self.ir_needs_reload = false; // Fresh IR matches the current sample rate
         self.reset();
         Ok(())
@@ -748,7 +751,11 @@ impl ConvolutionEngine {
             // The IR spectrum stays in memory but its frequency mapping is
             // based on the old rate — the user should reload the IR.
             if self.ir_loaded {
-                self.ir_needs_reload = true;
+                if let Some(loaded_rate) = self.ir_loaded_sample_rate {
+                    self.ir_needs_reload = (loaded_rate - sample_rate).abs() > 0.01;
+                } else {
+                    self.ir_needs_reload = true;
+                }
             }
             self.reset();
         }

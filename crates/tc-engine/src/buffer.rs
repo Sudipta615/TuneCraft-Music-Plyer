@@ -380,6 +380,23 @@ pub enum EngineCommand {
     SetBalance(f32),
     SetDitherEnabled(bool),
     SetMidsideEq(bool),
+    SetCrossfeedEnabled(bool),
+    SetCrossfeedProfile(tc_config::types::enums::CrossfeedProfile),
+    SetCrossfeedCustomParams {
+        frequency_hz: f32,
+        q: f32,
+        delay_ms: f32,
+        mix_db: f32,
+    },
+    SetCompressorEnabled(bool),
+    SetCompressorBandParams {
+        band: usize, // 0=Low, 1=Mid, 2=High
+        threshold_db: f32,
+        ratio: f32,
+        attack_ms: f32,
+        release_ms: f32,
+        makeup_gain_db: f32,
+    },
     /// Set shuffle on/off (used by MPRIS integration to propagate shuffle state to the engine)
     SetShuffle(bool),
     /// Set loop status: "None", "Track", "Playlist" (MPRIS-style)
@@ -414,6 +431,8 @@ pub struct PlaybackInfo {
     pub track_id: Option<u64>,
     pub sample_rate: u32,
     pub cpu_usage_pct: f32,
+    /// Number of audio dropouts / CPU overloads detected
+    pub cpu_overloads: u32,
     /// Whether the resampler has been disabled due to creation or rebuild failures.
     /// UI should display a warning when true.
     pub resampler_disabled: bool,
@@ -436,25 +455,29 @@ impl Default for PlaybackInfo {
             track_id: None,
             sample_rate: DEFAULT_SAMPLE_RATE,
             cpu_usage_pct: 0.0,
+            cpu_overloads: 0,
             resampler_disabled: false,
             convolution_ir_needs_reload: false,
         }
     }
 }
 
-pub const DENORMAL_OFFSET: f32 = 1e-6;
+pub const DENORMAL_OFFSET: f32 = 1e-15;
 
-#[inline]
+#[inline(always)]
 pub fn flush_denormal(sample: f32) -> f32 {
-    if sample.abs() < DENORMAL_OFFSET {
+    // Branchless bitwise check for true denormals (exponent == 0)
+    let bits = sample.to_bits();
+    if (bits & 0x7F80_0000) == 0 {
         0.0
     } else {
         sample
     }
 }
 
-#[inline]
+#[inline(always)]
 pub fn prevent_denormal(sample: f32) -> f32 {
+    // Add a tiny DC offset to prevent true denormals
     sample + DENORMAL_OFFSET
 }
 
@@ -619,6 +642,7 @@ mod tests {
         assert_eq!(info.state, PlaybackState::Stopped);
         assert_eq!(info.position_secs, 0.0);
         assert!((info.volume - 1.0).abs() < 1e-6);
+        assert_eq!(info.cpu_overloads, 0);
         assert!(!info.resampler_disabled);
         assert!(!info.convolution_ir_needs_reload);
     }
@@ -635,8 +659,10 @@ mod tests {
     #[test]
     fn test_flush_denormal() {
         assert!((flush_denormal(0.0) - 0.0).abs() < 1e-15);
-        assert!((flush_denormal(1e-20) - 0.0).abs() < 1e-15);
-        assert!((flush_denormal(0.5) - 0.5).abs() < 1e-6);
+        // 1e-40 is a true denormal
+        assert!((flush_denormal(1e-40) - 0.0).abs() < 1e-45);
+        assert!((flush_denormal(1e-20) - 1e-20).abs() < 1e-25);
+        assert!((flush_denormal(0.5) - 0.5).abs() < 1e-15);
     }
 
     #[test]

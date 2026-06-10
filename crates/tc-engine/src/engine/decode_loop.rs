@@ -246,14 +246,8 @@ impl AudioEngine {
             }
         }
 
-        let effective_speed = if self.speed.abs() < 0.01 {
-            0.25
-        } else {
-            self.speed
-        };
-        let wall_clock_delta =
-            processed_frames as f32 / (self.source_sample_rate as f32 * effective_speed);
-        self.position_secs += wall_clock_delta;
+        self.source_frames_consumed += processed_frames;
+        self.position_secs = self.source_frames_consumed as f32 / self.source_sample_rate as f32;
 
         match self.playback_info.write() {
             Ok(mut pb) => {
@@ -610,22 +604,21 @@ impl AudioEngine {
             }
         }
 
-        // Update position based on the incoming track's progress.
-        let effective_speed = if self.speed.abs() < 0.01 {
-            0.25
-        } else {
-            self.speed
-        };
+        // Update position based on processed output frames.
+        let time_delta = processed_frames as f32 / self.output_sample_rate as f32;
         let incoming_rate = incoming_decoder.info().sample_rate;
-        let wall_clock_delta = processed_frames as f32 / (incoming_rate as f32 * effective_speed);
 
         // During crossfade, track position advances based on the incoming
         // track since that's what the user will hear after the transition.
         // Only update once crossfade is well underway (> 50%).
         if *crossfade_frames_remaining < crossfade_total_frames / 2 {
-            self.position_secs += wall_clock_delta;
+            self.position_secs += time_delta;
             self.source_sample_rate = incoming_rate;
             self.duration_secs = incoming_decoder.duration_secs();
+            self.source_frames_consumed = (self.position_secs * incoming_rate as f32).round() as u64;
+        } else {
+            self.position_secs += time_delta;
+            self.source_frames_consumed = (self.position_secs * self.source_sample_rate as f32).round() as u64;
         }
 
         match self.playback_info.write() {

@@ -21,21 +21,15 @@ impl AudioEngine {
     pub fn prepare_next_track(&mut self, path: &Path) -> Result<DecodeInfo, EngineError> {
         // If crossfade is disabled or there is no current stream, just
         // remember the path for a regular track transition later.
-        if !self.config.crossfade.enabled {
-            self.next_track_path = Some(path.to_path_buf());
-            self.cached_incoming_decoder = None;
-            // Open decoder just to return info, but we won't cache it for
-            // crossfade — load_track will be called later instead.
-            let decoder = SymphoniaDecoder::open(path)?;
-            return Ok(decoder.info().clone());
-        }
         self.next_track_path = Some(path.to_path_buf());
-        // Open and cache the decoder so begin_crossfade_transition can
-        // use it immediately without re-opening the file.
         let decoder = SymphoniaDecoder::open(path)?;
         let info = decoder.info().clone();
         self.cached_incoming_decoder = Some(decoder);
-        info!("Next track prepared for crossfade: {}", path.display());
+
+        if self.config.crossfade.enabled {
+            info!("Next track prepared for crossfade: {}", path.display());
+        }
+        
         Ok(info)
     }
 
@@ -52,9 +46,11 @@ impl AudioEngine {
         }
 
         // Determine the remaining time in the current track.
-        // M1: Clamp to 0.0 to prevent negative values when position slightly
-        // overshoots duration due to floating-point drift or seek rounding.
-        let remaining_secs = (self.duration_secs - self.position_secs).max(0.0);
+        // Calculate based on exact frame counts to avoid floating point drift
+        let total_frames = (self.duration_secs * self.source_sample_rate as f32).round() as u64;
+        let remaining_frames = total_frames.saturating_sub(self.source_frames_consumed);
+        let remaining_secs = remaining_frames as f32 / self.source_sample_rate as f32;
+        
         let crossfade_duration_secs = self.config.crossfade.duration_ms as f32 / 1000.0;
 
         // Add a small lead time (0.5s) so the incoming decoder has time

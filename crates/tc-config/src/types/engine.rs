@@ -631,11 +631,26 @@ pub struct CrossfeedConfig {
     /// 0.0 to 1.0, blend level
     #[serde(default = "CrossfeedConfig::default_level")]
     pub level: f32,
+    #[serde(default = "CrossfeedConfig::default_custom_freq")]
+    pub custom_freq: f32,
+    #[serde(default = "CrossfeedConfig::default_custom_q")]
+    pub custom_q: f32,
+    #[serde(default = "CrossfeedConfig::default_custom_delay_ms")]
+    pub custom_delay_ms: f32,
 }
 
 impl CrossfeedConfig {
     fn default_level() -> f32 {
         1.0
+    }
+    fn default_custom_freq() -> f32 {
+        700.0
+    }
+    fn default_custom_q() -> f32 {
+        0.707
+    }
+    fn default_custom_delay_ms() -> f32 {
+        0.3
     }
 
     pub fn validate(&mut self) -> Vec<String> {
@@ -659,56 +674,79 @@ impl Default for CrossfeedConfig {
             enabled: false,
             profile: CrossfeedProfile::Bauer,
             level: 1.0,
+            custom_freq: 700.0,
+            custom_q: 0.707,
+            custom_delay_ms: 0.3,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BandCompressorConfig {
+    pub threshold_db: f32,
+    pub ratio: f32,
+    pub attack_ms: f32,
+    pub release_ms: f32,
+    pub makeup_gain_db: f32,
+}
+
+impl Default for BandCompressorConfig {
+    fn default() -> Self {
+        Self {
+            threshold_db: -12.0,
+            ratio: 3.0,
+            attack_ms: 10.0,
+            release_ms: 100.0,
+            makeup_gain_db: 0.0,
         }
     }
 }
 
 /// Multiband Compressor configuration
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MultibandCompressorConfig {
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
+    pub low_band: BandCompressorConfig,
+    #[serde(default)]
+    pub mid_band: BandCompressorConfig,
+    #[serde(default)]
+    pub high_band: BandCompressorConfig,
+}
+
+impl Default for MultibandCompressorConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            low_band: BandCompressorConfig {
+                threshold_db: -10.0,
+                ratio: 4.0,
+                attack_ms: 10.0,
+                release_ms: 100.0,
+                makeup_gain_db: 2.0,
+            },
+            mid_band: BandCompressorConfig {
+                threshold_db: -15.0,
+                ratio: 2.0,
+                attack_ms: 30.0,
+                release_ms: 200.0,
+                makeup_gain_db: 1.0,
+            },
+            high_band: BandCompressorConfig {
+                threshold_db: -12.0,
+                ratio: 3.0,
+                attack_ms: 5.0,
+                release_ms: 50.0,
+                makeup_gain_db: 0.0,
+            },
+        }
+    }
 }
 
 impl MultibandCompressorConfig {
     pub fn validate(&mut self) -> Vec<String> {
         Vec::new()
-    }
-}
-
-/// Time Stretch configuration
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TimeStretchConfig {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default = "TimeStretchConfig::default_pitch_shift")]
-    pub pitch_shift: f32,
-}
-
-impl TimeStretchConfig {
-    fn default_pitch_shift() -> f32 {
-        1.0
-    }
-
-    pub fn validate(&mut self) -> Vec<String> {
-        let mut warnings = Vec::new();
-        if self.pitch_shift.is_nan() || self.pitch_shift.is_infinite() || self.pitch_shift <= 0.0 {
-            warnings.push(format!(
-                "TimeStretch pitch_shift ({:.2}) is invalid, resetting to 1.0",
-                self.pitch_shift
-            ));
-            self.pitch_shift = 1.0;
-        }
-        warnings
-    }
-}
-
-impl Default for TimeStretchConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            pitch_shift: 1.0,
-        }
     }
 }
 
@@ -733,8 +771,7 @@ pub struct EngineConfig {
     pub crossfeed: CrossfeedConfig,
     #[serde(default)]
     pub multiband_compressor: MultibandCompressorConfig,
-    #[serde(default)]
-    pub time_stretch: TimeStretchConfig,
+
     #[serde(default = "EngineConfig::default_gapless_enabled")]
     pub gapless_enabled: bool,
     #[serde(default = "EngineConfig::default_seek_fade_ms")]
@@ -820,7 +857,7 @@ impl EngineConfig {
         warnings.extend(self.stereo_enhancer.validate());
         warnings.extend(self.crossfeed.validate());
         warnings.extend(self.multiband_compressor.validate());
-        warnings.extend(self.time_stretch.validate());
+
 
         if self.seek_fade_ms > 5000 {
             warnings.push(format!(
@@ -854,7 +891,7 @@ impl Default for EngineConfig {
             stereo_enhancer: StereoEnhancerConfig::default(),
             crossfeed: CrossfeedConfig::default(),
             multiband_compressor: MultibandCompressorConfig::default(),
-            time_stretch: TimeStretchConfig::default(),
+
             gapless_enabled: true,
             seek_fade_ms: 10,
             volume_fade_ms: 50,

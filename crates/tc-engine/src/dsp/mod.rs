@@ -14,7 +14,7 @@ pub mod pipeline;
 #[cfg(feature = "resample")]
 pub mod resampler;
 pub mod stereo;
-pub mod time_stretch;
+
 
 pub use biquad::{BiquadCoeffs, BiquadState, FilterType, SmoothedBiquad};
 pub use convolution::ConvolutionEngine;
@@ -33,4 +33,4 @@ pub use stereo::StereoEnhancer;
 
 pub use crossfeed::Crossfeed;
 pub use multiband_compressor::MultibandCompressor;
-pub use time_stretch::TimeStretcher;
+

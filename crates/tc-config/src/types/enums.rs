@@ -125,4 +125,6 @@ pub enum CrossfeedProfile {
     ChuMoy,
     #[serde(alias = "Jmeier")]
     Jmeier,
+    #[serde(alias = "Custom")]
+    Custom,
 }

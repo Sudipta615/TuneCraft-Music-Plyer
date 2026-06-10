@@ -43,20 +43,18 @@ impl AudioEngine {
                 // the audio callback thread is concurrently reading via pop().
                 // This matches the safety pattern already used in load_track().
                 if let Some(ref output) = self.audio_output {
-                    output.pause();
+                    output.reset_buffer();
+                } else {
+                    unsafe {
+                        self.output_buffer.reset();
+                    }
                 }
                 self.position_secs = 0.0;
-                unsafe {
-                    self.output_buffer.reset();
-                }
                 self.pipeline.reset();
                 self.stream = None;
                 self.crossfade_triggered = false;
                 self.next_track_path = None;
                 self.cached_incoming_decoder = None;
-                if let Some(ref output) = self.audio_output {
-                    output.resume();
-                }
                 self.update_playback_state(PlaybackState::Stopped);
                 info!("Playback stopped");
             },
@@ -98,6 +96,7 @@ impl AudioEngine {
                     match decoder.seek(pos_secs) {
                         Ok(()) => {
                             self.position_secs = pos_secs;
+                            self.source_frames_consumed = (pos_secs * self.source_sample_rate as f32).round() as u64;
                             #[cfg(feature = "resample")]
                             if let Some(ref mut r) = resampler {
                                 r.reset();
@@ -107,6 +106,8 @@ impl AudioEngine {
                             self.pipeline.begin_seek_fade_in();
                             // Reset crossfade trigger since position changed.
                             self.crossfade_triggered = false;
+                            self.pending_chunk = None;
+                            self.pending_incoming_chunk = None;
                             info!("Seeked to {:.1}s", pos_secs);
                         },
                         Err(e) => {
@@ -223,6 +224,21 @@ impl AudioEngine {
             EngineCommand::SetMidsideEq(enabled) => {
                 self.pipeline.set_midside_eq(enabled);
             },
+            EngineCommand::SetCrossfeedEnabled(enabled) => {
+                self.pipeline.set_crossfeed_enabled(enabled);
+            },
+            EngineCommand::SetCrossfeedProfile(profile) => {
+                self.pipeline.set_crossfeed_profile(profile);
+            },
+            EngineCommand::SetCrossfeedCustomParams { frequency_hz, q, delay_ms, mix_db } => {
+                self.pipeline.set_crossfeed_custom_params(frequency_hz, q, delay_ms, mix_db);
+            },
+            EngineCommand::SetCompressorEnabled(enabled) => {
+                self.pipeline.set_compressor_enabled(enabled);
+            },
+            EngineCommand::SetCompressorBandParams { band, threshold_db, ratio, attack_ms, release_ms, makeup_gain_db } => {
+                self.pipeline.set_compressor_band_params(band, threshold_db, ratio, attack_ms, release_ms, makeup_gain_db);
+            },
 
             EngineCommand::SetShuffle(_enabled) => {
                 info!("Shuffle state change requested via MPRIS (handled by playback layer)");
@@ -238,13 +254,22 @@ impl AudioEngine {
                     let path_str = uri.trim_start_matches("file://");
                     if let Some(decoded_path_str) = percent_decode(path_str) {
                         let path = std::path::PathBuf::from(decoded_path_str);
+                        
+                        if let Ok(metadata) = std::fs::metadata(&path) {
+                            if !metadata.is_file() {
+                                warn!("OpenUri: path is not a regular file: {}", path.display());
+                                return;
+                            }
+                        } else {
+                            warn!("OpenUri: cannot access path: {}", path.display());
+                            return;
+                        }
+
                         if let Ok(canonical_path) = path.canonicalize() {
                             let home = dirs::home_dir();
                             let audio = dirs::audio_dir();
-                            let temp = Some(std::env::temp_dir());
-                            let cwd = std::env::current_dir().ok();
 
-                            let allowed = [home, audio, temp, cwd]
+                            let allowed = [home, audio]
                                 .into_iter()
                                 .flatten()
                                 .filter_map(|p| p.canonicalize().ok())

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.3] — 2026-06-10
+
+### ✨ Changed
+- **Audio Engine**: Refactored the DSP Pipeline to eliminate linear scans and dynamic dispatch by utilizing a structured static chain.
+
+### 🐛 Fixed
+- **Audio Engine**: Added explicit NaN logging and clamping in `LookaheadLimiter` to prevent audio tearing upon receiving corrupted signal.
+- **Audio Engine**: Optimized denormal sample flushing to utilize branchless bitwise checks.
+- **Audio Engine**: Improved the security of `OpenUri` by ensuring target paths do not resolve to system directories outside of expected user boundaries.
+- **Audio Engine**: Safely encapsulated the `FixedFrameBuffer` stream reset within `CpalOutput` to prevent data races.
+- **Audio Engine**: Ensured comprehensive `set_config` synchronization for DSP parameters.
+
+---
+
 ## [2.1.2] — 2026-06-10
 
 ### 🐛 Fixed
