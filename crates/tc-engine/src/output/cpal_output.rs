@@ -183,7 +183,7 @@ impl CpalOutput {
         let stream_config = StreamConfig {
             channels,
             sample_rate: cpal::SampleRate(actual_sample_rate),
-            buffer_size: buffer_size.clone(),
+            buffer_size,
         };
 
         log::info!(
