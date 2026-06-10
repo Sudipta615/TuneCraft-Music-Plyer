@@ -500,5 +500,6 @@ impl CpalOutput {
     }
 
     #[cfg(not(target_os = "macos"))]
+    #[allow(dead_code)]
     fn set_coreaudio_hog_mode(_device: &Device) {}
 }

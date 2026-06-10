@@ -5,7 +5,6 @@
 use std::{fs::File, path::Path};
 
 use symphonia::core::{
-    audio::Signal,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
     errors::Error as SymphoniaError,
     formats::{FormatOptions, FormatReader, SeekMode, SeekTo},

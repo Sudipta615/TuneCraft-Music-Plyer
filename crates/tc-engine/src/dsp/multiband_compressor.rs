@@ -108,6 +108,7 @@ impl CrossoverFilter {
 
 pub struct MultibandCompressor {
     enabled: bool,
+    #[allow(dead_code)]
     sample_rate: f32,
 
     // Crossovers
