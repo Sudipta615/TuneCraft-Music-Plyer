@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1] — 2026-06-10
+
+### 🚀 Added
+- **Keyboard Shortcuts**: Added support for Toggle Shuffle (`Ctrl+S`), Toggle Repeat (`Ctrl+R`), Global Search (`Ctrl+F`), and Volume Control (`Ctrl+Up/Down`).
+- **Logo Update**: Upgraded the application logo to a high-quality glassmorphism design.
+
+---
+
 ## [2.0.0] — 2026-06-10
 
 ### 🚀 Added
