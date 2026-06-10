@@ -55,8 +55,6 @@ const COL_ART_W: f32 = 44.0; // fixed px for album art thumbnail
 const COL_ART_GAP: f32 = 4.0; // gap after art column
 const COL_TITLE_FRAC: f32 = 0.34;
 const COL_ALBUM_FRAC: f32 = 0.24;
-const COL_DURATION_FRAC: f32 = 0.12;
-// Mood gets the rest: 1.0 - (0.06 + 0.34 + 0.24 + 0.12) = 0.24
 
 /// Responsive breakpoints for the track list
 const BREAKPOINT_NARROW: f32 = 500.0; // hide album columns
@@ -76,7 +74,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
     let (bar_rect, _) = ui.allocate_exact_size(Vec2::new(total_w, bar_h), Sense::hover());
     ui.painter().rect_filled(bar_rect, 0.0, colors.bg);
 
-    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
+    ui.scope_builder(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
         ui.horizontal(|ui| {
             // Search bar — scales width proportionally
             let search_w = if total_w < BREAKPOINT_NARROW {
@@ -125,8 +123,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     } else {
                         14.0
                     }))
-                    .text_color(colors.text)
-                    .frame(false),
+                    .text_color(colors.text),
             );
 
             if app.focus_search {
@@ -481,8 +478,12 @@ fn styled_toolbar_btn(ui: &mut Ui, label: &str, active: bool, colors: &TuneCraft
     };
 
     ui.painter().rect_filled(rect, 8.0, bg);
-    ui.painter()
-        .rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border_color));
+    ui.painter().rect_stroke(
+        rect,
+        8.0,
+        egui::Stroke::new(1.0, border_color),
+        egui::StrokeKind::Inside,
+    );
     ui.painter().text(
         rect.center(),
         Align2::CENTER_CENTER,
@@ -524,8 +525,12 @@ fn styled_icon_btn(ui: &mut Ui, icon: &str, active: bool, colors: &TuneCraftColo
     };
 
     ui.painter().rect_filled(rect, 8.0, bg);
-    ui.painter()
-        .rect_stroke(rect, 8.0, egui::Stroke::new(1.0, border_color));
+    ui.painter().rect_stroke(
+        rect,
+        8.0,
+        egui::Stroke::new(1.0, border_color),
+        egui::StrokeKind::Inside,
+    );
     ui.painter().text(
         rect.center(),
         Align2::CENTER_CENTER,
@@ -579,7 +584,7 @@ fn draw_album_art(
         let uv = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0));
         ui.painter().add(egui::epaint::RectShape::filled(
             rect,
-            egui::Rounding::same(6.0),
+            egui::CornerRadius::same(6),
             colors.card,
         ));
         // Draw the texture as a mesh with rounded clip
@@ -649,7 +654,7 @@ fn compute_col_offsets(width: f32, vis: &ColumnVisibility) -> [f32; 5] {
     } else {
         COL_TITLE_FRAC
     };
-    let dur_frac = rest_frac;
+    let _dur_frac = rest_frac;
     let usable_w = width - art_w - art_gap;
     let col_num_w = usable_w * COL_NUM_FRAC;
     let col_title_w = usable_w * title_frac;
@@ -995,6 +1000,7 @@ fn draw_grid_view(
                             card_rect,
                             8.0,
                             egui::Stroke::new(1.0, colors.border),
+                            egui::StrokeKind::Inside,
                         );
 
                         // Album art on left (real or placeholder)

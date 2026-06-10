@@ -2,7 +2,7 @@
 //!
 //! Provides consistent Visuals for the entire UI, matching the reference design.
 
-use egui::{Color32, Rounding, Stroke, Visuals};
+use egui::{Color32, CornerRadius, Stroke, Visuals};
 
 // ── Primary cyan palette ──
 
@@ -168,11 +168,11 @@ pub fn dark_visuals() -> Visuals {
     v.selection.bg_fill = ACCENT_DARK;
     v.selection.stroke = Stroke::new(1.0, DARK_TEXT);
     v.override_text_color = Some(DARK_TEXT);
-    v.window_rounding = Rounding::same(12.0);
-    v.widgets.noninteractive.rounding = Rounding::same(8.0);
-    v.widgets.inactive.rounding = Rounding::same(8.0);
-    v.widgets.hovered.rounding = Rounding::same(8.0);
-    v.widgets.active.rounding = Rounding::same(8.0);
+    v.window_corner_radius = CornerRadius::same(12);
+    v.widgets.noninteractive.corner_radius = CornerRadius::same(8);
+    v.widgets.inactive.corner_radius = CornerRadius::same(8);
+    v.widgets.hovered.corner_radius = CornerRadius::same(8);
+    v.widgets.active.corner_radius = CornerRadius::same(8);
     v.slider_trailing_fill = true;
     v
 }
@@ -199,11 +199,11 @@ pub fn light_visuals() -> Visuals {
     v.selection.bg_fill = ACCENT_LAVENDER;
     v.selection.stroke = Stroke::new(1.0, LIGHT_TEXT);
     v.override_text_color = Some(LIGHT_TEXT);
-    v.window_rounding = Rounding::same(12.0);
-    v.widgets.noninteractive.rounding = Rounding::same(8.0);
-    v.widgets.inactive.rounding = Rounding::same(8.0);
-    v.widgets.hovered.rounding = Rounding::same(8.0);
-    v.widgets.active.rounding = Rounding::same(8.0);
+    v.window_corner_radius = CornerRadius::same(12);
+    v.widgets.noninteractive.corner_radius = CornerRadius::same(8);
+    v.widgets.inactive.corner_radius = CornerRadius::same(8);
+    v.widgets.hovered.corner_radius = CornerRadius::same(8);
+    v.widgets.active.corner_radius = CornerRadius::same(8);
     v.slider_trailing_fill = true;
     v
 }

@@ -142,8 +142,12 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
         // Background card for slider area
         ui.painter().rect_filled(eq_rect, 12.0, colors.card);
-        ui.painter()
-            .rect_stroke(eq_rect, 12.0, egui::Stroke::new(1.0, colors.border));
+        ui.painter().rect_stroke(
+            eq_rect,
+            12.0,
+            egui::Stroke::new(1.0, colors.border),
+            egui::StrokeKind::Inside,
+        );
 
         draw_eq_sliders(ui, app, eq_rect, &colors);
 
@@ -282,8 +286,12 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.allocate_exact_size(Vec2::new(preamp_w, preamp_h), Sense::hover());
 
         ui.painter().rect_filled(preamp_rect, 12.0, colors.card);
-        ui.painter()
-            .rect_stroke(preamp_rect, 12.0, egui::Stroke::new(1.0, colors.border));
+        ui.painter().rect_stroke(
+            preamp_rect,
+            12.0,
+            egui::Stroke::new(1.0, colors.border),
+            egui::StrokeKind::Inside,
+        );
 
         // Draw preamp content directly using painter (no child UI needed)
         {
@@ -571,8 +579,12 @@ fn secondary_slider_horizontal_card(
     let cx = rect.center().x;
 
     ui.painter().rect_filled(rect, 12.0, colors.card);
-    ui.painter()
-        .rect_stroke(rect, 12.0, egui::Stroke::new(1.0, colors.border));
+    ui.painter().rect_stroke(
+        rect,
+        12.0,
+        egui::Stroke::new(1.0, colors.border),
+        egui::StrokeKind::Inside,
+    );
 
     // Title
     ui.painter().text(
@@ -695,10 +707,14 @@ fn secondary_toggles_card(
 ) {
     let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
     ui.painter().rect_filled(rect, 12.0, colors.card);
-    ui.painter()
-        .rect_stroke(rect, 12.0, egui::Stroke::new(1.0, colors.border));
+    ui.painter().rect_stroke(
+        rect,
+        12.0,
+        egui::Stroke::new(1.0, colors.border),
+        egui::StrokeKind::Inside,
+    );
 
-    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(rect), |ui| {
+    ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
         ui.vertical(|ui| {
             ui.add_space(24.0);
             draw_labeled_toggle(ui, "Dither", dither, colors);

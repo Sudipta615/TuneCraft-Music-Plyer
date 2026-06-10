@@ -341,6 +341,10 @@ impl eframe::App for TuneCraftApp {
     /// 8. Draw EQ panel overlay
     /// 9. Draw toast notifications
     /// 10. Save config if dirty
+    fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        // App uses `update` to draw custom panels instead
+    }
+
     #[allow(deprecated)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.sync_from_playback_service();
@@ -494,7 +498,6 @@ impl eframe::App for TuneCraftApp {
                         ),
                         egui::TextEdit::singleline(&mut self.new_playlist_name)
                             .hint_text("E.g., Workout Mix")
-                            .frame(false)
                             .text_color(colors.text),
                     );
 
@@ -587,7 +590,6 @@ impl eframe::App for TuneCraftApp {
                         ),
                         egui::TextEdit::singleline(&mut self.add_music_folder_path)
                             .hint_text("/home/user/Music")
-                            .frame(false)
                             .text_color(colors.text),
                     );
 

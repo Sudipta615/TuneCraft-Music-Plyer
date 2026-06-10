@@ -1,4 +1,4 @@
-use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Ui, Vec2};
+use egui::{Align2, Color32, FontId, RichText, Sense, Ui, Vec2};
 
 use crate::app::TuneCraftApp;
 
@@ -103,10 +103,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     );
                     ui.add_space(16.0);
 
-                    let mut current_backend = app.ctx.config.read().unwrap().engine.output_backend;
+                    let mut current_backend =
+                        app.ctx.config.read(|c| c.engine.output_backend).unwrap();
                     let prev_backend = current_backend;
 
-                    egui::ComboBox::from_id_source("audio_backend_combo")
+                    egui::ComboBox::from_id_salt("audio_backend_combo")
                         .selected_text(match current_backend {
                             tc_config::types::enums::AudioBackend::Auto => "Auto (Shared)",
                             tc_config::types::enums::AudioBackend::ExclusiveAlsa => {

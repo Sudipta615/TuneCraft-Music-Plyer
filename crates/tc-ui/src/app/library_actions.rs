@@ -201,12 +201,7 @@ impl TuneCraftApp {
                 let mut changed = false;
                 for track in &unanalyzed {
                     let path = PathBuf::from(&track.path);
-                    let lyrics_text: Option<String> = track
-                        .lyrics_synced
-                        .clone()
-                        .or_else(|| track.lyrics_unsynced.clone());
-
-                    if let Ok(analysis) = analyze_file(&path, Some(60.0), lyrics_text.as_deref()) {
+                    if let Ok(analysis) = analyze_file(&path, Some(60.0)) {
                         if track.bpm.is_none() {
                             let _ = db.update_bpm(track.id, analysis.bpm.bpm);
                             changed = true;

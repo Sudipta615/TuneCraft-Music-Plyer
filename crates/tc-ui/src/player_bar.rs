@@ -101,8 +101,12 @@ fn draw_full(
         ui.painter().add(egui::Shape::mesh(mesh));
     } else {
         ui.painter().rect_filled(art_rect, 8.0, colors.card);
-        ui.painter()
-            .rect_stroke(art_rect, 8.0, egui::Stroke::new(1.0, colors.border));
+        ui.painter().rect_stroke(
+            art_rect,
+            8.0,
+            egui::Stroke::new(1.0, colors.border),
+            egui::StrokeKind::Inside,
+        );
         // Music note icon
         ui.painter().text(
             art_rect.center(),
@@ -512,8 +516,12 @@ fn draw_compact(
         ui.painter().add(egui::Shape::mesh(mesh));
     } else {
         ui.painter().rect_filled(art_rect, 4.0, colors.card);
-        ui.painter()
-            .rect_stroke(art_rect, 4.0, egui::Stroke::new(1.0, colors.border));
+        ui.painter().rect_stroke(
+            art_rect,
+            4.0,
+            egui::Stroke::new(1.0, colors.border),
+            egui::StrokeKind::Inside,
+        );
         ui.painter().text(
             art_rect.center(),
             Align2::CENTER_CENTER,

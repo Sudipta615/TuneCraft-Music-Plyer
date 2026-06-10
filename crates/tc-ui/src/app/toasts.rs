@@ -29,7 +29,7 @@ impl TuneCraftApp {
         let now = std::time::Instant::now();
         self.toasts.retain(|(_, expiry, _, _)| *expiry > now);
 
-        let screen = ctx.screen_rect();
+        let screen = ctx.content_rect();
         let mut y_offset = screen.bottom() - 80.0;
 
         for (msg, expiry, level, id) in self.toasts.iter().rev() {

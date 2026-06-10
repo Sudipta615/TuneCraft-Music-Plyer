@@ -5,7 +5,7 @@
 
 mod app;
 mod engine;
-mod enums;
+pub mod enums;
 mod library;
 mod playback;
 mod scrobble;
