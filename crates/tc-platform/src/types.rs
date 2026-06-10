@@ -46,6 +46,9 @@ pub enum MediaKeyAction {
     SetLoopStatus(String),
     /// Open a URI for playback
     OpenUri(String),
+    ToggleShuffle,
+    ToggleRepeat,
+    GlobalSearch,
 }
 
 impl PartialEq for MediaKeyAction {
@@ -77,6 +80,9 @@ impl PartialEq for MediaKeyAction {
             (Self::SetShuffle(a), Self::SetShuffle(b)) => a == b,
             (Self::SetLoopStatus(a), Self::SetLoopStatus(b)) => a == b,
             (Self::OpenUri(a), Self::OpenUri(b)) => a == b,
+            (Self::ToggleShuffle, Self::ToggleShuffle) => true,
+            (Self::ToggleRepeat, Self::ToggleRepeat) => true,
+            (Self::GlobalSearch, Self::GlobalSearch) => true,
             _ => false,
         }
     }

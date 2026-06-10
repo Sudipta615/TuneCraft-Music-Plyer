@@ -132,4 +132,13 @@ impl TuneCraftApp {
             c.playback.repeat = repeat;
         });
     }
+
+    pub fn toggle_repeat(&mut self) {
+        let next = match self.repeat {
+            super::RepeatMode::Off => super::RepeatMode::All,
+            super::RepeatMode::All => super::RepeatMode::One,
+            super::RepeatMode::One => super::RepeatMode::Off,
+        };
+        self.set_repeat(next);
+    }
 }

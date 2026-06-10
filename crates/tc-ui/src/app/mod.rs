@@ -151,6 +151,9 @@ pub struct TuneCraftApp {
 
     /// Whether the sidebar is in collapsed/narrow mode
     pub sidebar_collapsed: bool,
+
+    /// Whether the global search shortcut was pressed to focus the search bar
+    pub focus_search: bool,
 }
 
 impl TuneCraftApp {
@@ -300,6 +303,7 @@ impl TuneCraftApp {
             album_art_cache: std::collections::HashMap::new(),
 
             sidebar_collapsed: false,
+            focus_search: false,
         };
 
         app.trigger_background_analysis();

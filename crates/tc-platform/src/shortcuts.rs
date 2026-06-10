@@ -71,10 +71,11 @@ pub fn default_shortcuts() -> Vec<KeyboardShortcut> {
         KeyboardShortcut::new("Space", MediaKeyAction::PlayPause),
         KeyboardShortcut::new("Right", MediaKeyAction::Next).ctrl(),
         KeyboardShortcut::new("Left", MediaKeyAction::Previous).ctrl(),
-        KeyboardShortcut::new("Up", MediaKeyAction::VolumeUp),
-        KeyboardShortcut::new("Down", MediaKeyAction::VolumeDown),
-        KeyboardShortcut::new("M", MediaKeyAction::Mute).ctrl(),
-        KeyboardShortcut::new("S", MediaKeyAction::Stop).ctrl(),
+        KeyboardShortcut::new("Up", MediaKeyAction::VolumeUp).ctrl(),
+        KeyboardShortcut::new("Down", MediaKeyAction::VolumeDown).ctrl(),
+        KeyboardShortcut::new("S", MediaKeyAction::ToggleShuffle).ctrl(),
+        KeyboardShortcut::new("R", MediaKeyAction::ToggleRepeat).ctrl(),
+        KeyboardShortcut::new("F", MediaKeyAction::GlobalSearch).ctrl(),
     ]
 }
 

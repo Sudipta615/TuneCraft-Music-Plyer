@@ -113,7 +113,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                 16.0
             };
             let text_edit_y = search_rect.top() + (search_h - text_edit_h) / 2.0 - 1.0;
-            ui.put(
+            let search_resp = ui.put(
                 Rect::from_min_size(
                     Pos2::new(text_edit_x, text_edit_y),
                     Vec2::new(text_edit_w, text_edit_h),
@@ -128,6 +128,11 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     .text_color(colors.text)
                     .frame(false),
             );
+
+            if app.focus_search {
+                search_resp.request_focus();
+                app.focus_search = false;
+            }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add_space(if total_w < BREAKPOINT_NARROW {

@@ -156,6 +156,15 @@ impl TuneCraftApp {
                 MediaKeyAction::SetVolume(vol) => {
                     self.set_volume(vol);
                 },
+                MediaKeyAction::ToggleShuffle => {
+                    self.toggle_shuffle();
+                },
+                MediaKeyAction::ToggleRepeat => {
+                    self.toggle_repeat();
+                },
+                MediaKeyAction::GlobalSearch => {
+                    self.focus_search = true;
+                },
                 _ => {},
             }
         }
