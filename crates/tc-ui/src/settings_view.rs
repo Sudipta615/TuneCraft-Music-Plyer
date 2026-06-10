@@ -37,7 +37,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         );
                         ui.horizontal_wrapped(|ui| {
                             let themes = [
-                                (tc_config::Theme::Light, "Light", Color32::from_rgb(0xFF, 0xFF, 0xFF), Color32::from_rgb(0x35, 0xC8, 0xE1)),
+                                (tc_config::Theme::Light, "Light", Color32::from_rgb(0xF4, 0xF5, 0xF7), Color32::from_rgb(0x35, 0xC8, 0xE1)),
                                 (tc_config::Theme::Dark, "Dark", Color32::from_rgb(0x0A, 0x11, 0x1E), Color32::from_rgb(0x35, 0xC8, 0xE1)),
                                 (tc_config::Theme::Ocean, "Ocean", Color32::from_rgb(0x06, 0x11, 0x1E), Color32::from_rgb(0x00, 0xE5, 0xFF)),
                                 (tc_config::Theme::Forest, "Forest", Color32::from_rgb(0x09, 0x15, 0x0E), Color32::from_rgb(0x34, 0xD3, 0x99)),
