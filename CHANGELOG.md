@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.2] — 2026-06-10
+
+### 🐛 Fixed
+- **Audio Engine**: Fixed audio tearing and distortion by restructuring the DSP pipeline to prevent stateful IIR filters from interleaving during crossfades.
+- **Audio Engine**: Bypassed the granular time stretcher to eliminate Hanning window phase modulation artifacts and allocations.
+- **Audio Engine**: Offloaded the resampler FFT rebuild to a background thread to prevent decode thread blocking and silence gaps.
+- **Audio Engine**: Routed seek fade-out frames to the pending output buffer to prevent hard cuts and seek clicks.
+
+---
+
 ## [2.1.1] — 2026-06-10
 
 ### 🚀 Added
