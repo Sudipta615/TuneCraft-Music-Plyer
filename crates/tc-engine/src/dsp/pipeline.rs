@@ -78,7 +78,8 @@ impl DspNode {
 }
 
 pub struct DspPipeline {
-    pub pre_mix_chain: Vec<DspNode>,
+    pub outgoing_pre_mix_chain: Vec<DspNode>,
+    pub incoming_pre_mix_chain: Vec<DspNode>,
     pub post_mix_chain: Vec<DspNode>,
     pub mixer: TrackMixer,
 
@@ -122,18 +123,22 @@ impl DspPipeline {
             );
         }
 
-        let mut loudness = LoudnessNormalizer::new(sample_rate);
-        loudness.set_mode(match config.loudness.mode {
+        let mode = match config.loudness.mode {
             ConfigLoudnessMode::Off => LoudnessMode::Off,
             ConfigLoudnessMode::TrackReplayGain => LoudnessMode::TrackReplayGain,
             ConfigLoudnessMode::AlbumReplayGain => LoudnessMode::AlbumReplayGain,
             ConfigLoudnessMode::EbuR128 => LoudnessMode::EbuR128,
-        });
-        loudness.set_target_lufs(config.loudness.target_lufs);
-        loudness.set_true_peak_guard(
-            config.loudness.true_peak_guard,
-            config.loudness.true_peak_dbtp,
-        );
+        };
+        
+        let mut loudness_out = LoudnessNormalizer::new(sample_rate);
+        loudness_out.set_mode(mode);
+        loudness_out.set_target_lufs(config.loudness.target_lufs);
+        loudness_out.set_true_peak_guard(config.loudness.true_peak_guard, config.loudness.true_peak_dbtp);
+        
+        let mut loudness_in = LoudnessNormalizer::new(sample_rate);
+        loudness_in.set_mode(mode);
+        loudness_in.set_target_lufs(config.loudness.target_lufs);
+        loudness_in.set_true_peak_guard(config.loudness.true_peak_guard, config.loudness.true_peak_dbtp);
 
         let mut limiter = LookaheadLimiter::new_with_params(
             sample_rate,
@@ -183,23 +188,29 @@ impl DspPipeline {
 
         let mixer = TrackMixer::new(sample_rate);
 
-        let preamp = GainProcessor::with_ramp(1.0, PREAMP_RAMP_DURATION_MS, sample_rate);
+        let preamp_out = GainProcessor::with_ramp(1.0, PREAMP_RAMP_DURATION_MS, sample_rate);
+        let preamp_in = GainProcessor::with_ramp(1.0, PREAMP_RAMP_DURATION_MS, sample_rate);
         let volume = GainProcessor::with_ramp(1.0, config.volume_fade_ms as f32, sample_rate);
         let seek_fade = FadeProcessor::new(config.seek_fade_ms as f32, sample_rate);
 
-        let pre_mix_chain = vec![
-            DspNode::Preamp(preamp),
-            DspNode::Loudness(loudness),
-            DspNode::Eq(eq), // We swap this to MidSideEq dynamically if enabled
+        let outgoing_pre_mix_chain = vec![
+            DspNode::Preamp(preamp_out),
+            DspNode::Loudness(loudness_out),
+        ];
+        
+        let incoming_pre_mix_chain = vec![
+            DspNode::Preamp(preamp_in),
+            DspNode::Loudness(loudness_in),
+        ];
+
+        let post_mix_chain = vec![
+            DspNode::Eq(eq),
             DspNode::MultibandCompressor(multiband_compressor),
             DspNode::Convolution(Box::new(convolution)),
             DspNode::Balance(1.0, 1.0),
             DspNode::Crossfeed(crossfeed),
             DspNode::Stereo(stereo_enhancer),
             DspNode::TimeStretch(time_stretch),
-        ];
-
-        let post_mix_chain = vec![
             DspNode::Limiter(limiter),
             DspNode::Volume(volume),
             DspNode::SeekFade(seek_fade),
@@ -207,7 +218,8 @@ impl DspPipeline {
         ];
 
         let mut pipeline = Self {
-            pre_mix_chain,
+            outgoing_pre_mix_chain,
+            incoming_pre_mix_chain,
             post_mix_chain,
             mixer,
             sample_rate,
@@ -225,9 +237,8 @@ impl DspPipeline {
     fn apply_performance_mode(&mut self) {
         if self.performance_mode == PerformanceMode::LowPower {
             for node in self
-                .pre_mix_chain
+                .post_mix_chain
                 .iter_mut()
-                .chain(self.post_mix_chain.iter_mut())
             {
                 match node {
                     DspNode::Stereo(p) => p.set_enabled(false),
@@ -240,23 +251,23 @@ impl DspPipeline {
 
     #[inline]
     pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
-        let (l, r) = self.process_pre_mix(left, right);
+        let (l, r) = self.process_outgoing(left, right);
         self.process_post_mix(l, r)
     }
 
     #[inline]
-    pub fn process_outgoing(&mut self, left: f32, right: f32) -> (f32, f32) {
-        self.process_pre_mix(left, right)
+    pub fn process_outgoing(&mut self, mut l: f32, mut r: f32) -> (f32, f32) {
+        for node in &mut self.outgoing_pre_mix_chain {
+            let (out_l, out_r) = node.process(l, r);
+            l = out_l;
+            r = out_r;
+        }
+        (l, r)
     }
 
     #[inline]
-    pub fn process_incoming(&mut self, left: f32, right: f32) -> (f32, f32) {
-        self.process_pre_mix(left, right)
-    }
-
-    #[inline]
-    fn process_pre_mix(&mut self, mut l: f32, mut r: f32) -> (f32, f32) {
-        for node in &mut self.pre_mix_chain {
+    pub fn process_incoming(&mut self, mut l: f32, mut r: f32) -> (f32, f32) {
+        for node in &mut self.incoming_pre_mix_chain {
             let (out_l, out_r) = node.process(l, r);
             l = out_l;
             r = out_r;
@@ -299,7 +310,7 @@ impl DspPipeline {
 
     pub fn set_speed(&mut self, speed: f32) {
         self.speed = speed.clamp(0.25, 4.0);
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             if let DspNode::TimeStretch(p) = node {
                 p.set_speed(self.speed);
             }
@@ -311,7 +322,7 @@ impl DspPipeline {
     }
 
     pub fn set_eq_band(&mut self, index: usize, params: EqBandParams) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             match node {
                 DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_band(index, params),
                 _ => {},
@@ -320,7 +331,7 @@ impl DspPipeline {
     }
 
     pub fn set_eq_enabled(&mut self, enabled: bool) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             match node {
                 DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_enabled(enabled),
                 _ => {},
@@ -329,7 +340,7 @@ impl DspPipeline {
     }
 
     pub fn set_bass_shelf(&mut self, gain_db: f32) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             match node {
                 DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_bass_shelf(gain_db),
                 _ => {},
@@ -338,7 +349,7 @@ impl DspPipeline {
     }
 
     pub fn set_treble_shelf(&mut self, gain_db: f32) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             match node {
                 DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_treble_shelf(gain_db),
                 _ => {},
@@ -347,7 +358,7 @@ impl DspPipeline {
     }
 
     pub fn is_eq_enabled(&self) -> bool {
-        for node in &self.pre_mix_chain {
+        for node in &self.post_mix_chain {
             match node {
                 DspNode::Eq(p) | DspNode::MidSideEq(p) => return p.is_enabled(),
                 _ => {},
@@ -357,7 +368,7 @@ impl DspPipeline {
     }
 
     pub fn eq_num_bands(&self) -> usize {
-        for node in &self.pre_mix_chain {
+        for node in &self.post_mix_chain {
             match node {
                 DspNode::Eq(p) | DspNode::MidSideEq(p) => return p.num_bands(),
                 _ => {},
@@ -367,7 +378,7 @@ impl DspPipeline {
     }
 
     pub fn set_loudness_metadata(&mut self, meta: &LoudnessMetadata) {
-        for node in &mut self.pre_mix_chain {
+        for node in self.outgoing_pre_mix_chain.iter_mut().chain(self.incoming_pre_mix_chain.iter_mut()) {
             if let DspNode::Loudness(p) = node {
                 p.set_track_metadata(meta);
             }
@@ -375,7 +386,7 @@ impl DspPipeline {
     }
 
     pub fn set_loudness_mode(&mut self, mode: LoudnessMode) {
-        for node in &mut self.pre_mix_chain {
+        for node in self.outgoing_pre_mix_chain.iter_mut().chain(self.incoming_pre_mix_chain.iter_mut()) {
             if let DspNode::Loudness(p) = node {
                 p.set_mode(mode);
             }
@@ -417,7 +428,7 @@ impl DspPipeline {
     }
 
     pub fn loudness_gain_db(&self) -> f32 {
-        for node in &self.pre_mix_chain {
+        for node in &self.outgoing_pre_mix_chain {
             if let DspNode::Loudness(p) = node {
                 return p.current_gain_db();
             }
@@ -428,8 +439,9 @@ impl DspPipeline {
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         self.sample_rate = sample_rate;
         for node in self
-            .pre_mix_chain
+            .outgoing_pre_mix_chain
             .iter_mut()
+            .chain(self.incoming_pre_mix_chain.iter_mut())
             .chain(self.post_mix_chain.iter_mut())
         {
             match node {
@@ -456,8 +468,9 @@ impl DspPipeline {
 
     pub fn reset(&mut self) {
         for node in self
-            .pre_mix_chain
+            .outgoing_pre_mix_chain
             .iter_mut()
+            .chain(self.incoming_pre_mix_chain.iter_mut())
             .chain(self.post_mix_chain.iter_mut())
         {
             node.reset();
@@ -474,7 +487,7 @@ impl DspPipeline {
     }
 
     pub fn set_preamp_db(&mut self, db: f32) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             match node {
                 DspNode::Eq(p) | DspNode::MidSideEq(p) => p.set_preamp_db(db),
                 _ => {},
@@ -487,7 +500,7 @@ impl DspPipeline {
     }
 
     pub fn set_stereo_enhancer_enabled(&mut self, enabled: bool) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             if let DspNode::Stereo(p) = node {
                 p.set_enabled(enabled);
             }
@@ -495,7 +508,7 @@ impl DspPipeline {
     }
 
     pub fn set_convolution_enabled(&mut self, enabled: bool) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             if let DspNode::Convolution(p) = node {
                 p.set_enabled(enabled);
             }
@@ -507,7 +520,7 @@ impl DspPipeline {
         let angle = (self.balance + 1.0) * std::f32::consts::FRAC_PI_4;
         let gain_l = angle.cos();
         let gain_r = angle.sin();
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             if let DspNode::Balance(l, r) = node {
                 *l = gain_l;
                 *r = gain_r;
@@ -525,7 +538,7 @@ impl DspPipeline {
         }
         self.midside_eq_enabled = enabled;
         // Find the EQ and swap its wrapper type
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             let new_node = match node {
                 DspNode::Eq(p) if enabled => Some(DspNode::MidSideEq(p.clone())),
                 DspNode::MidSideEq(p) if !enabled => Some(DspNode::Eq(p.clone())),
@@ -543,7 +556,7 @@ impl DspPipeline {
     }
 
     pub fn set_convolution_wet_mix(&mut self, mix: f32) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             if let DspNode::Convolution(p) = node {
                 p.set_wet_mix(mix);
             }
@@ -551,7 +564,7 @@ impl DspPipeline {
     }
 
     pub fn convolution_ir_needs_reload(&self) -> bool {
-        for node in &self.pre_mix_chain {
+        for node in &self.post_mix_chain {
             if let DspNode::Convolution(p) = node {
                 return p.ir_needs_reload();
             }
@@ -560,7 +573,7 @@ impl DspPipeline {
     }
 
     pub fn set_stereo_width(&mut self, width: f32) {
-        for node in &mut self.pre_mix_chain {
+        for node in &mut self.post_mix_chain {
             if let DspNode::Stereo(p) = node {
                 p.set_enabled((width - 1.0).abs() > 0.001);
                 p.set_width(width);

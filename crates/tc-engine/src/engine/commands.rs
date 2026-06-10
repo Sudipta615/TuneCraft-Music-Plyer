@@ -93,16 +93,7 @@ impl AudioEngine {
 
                     for _ in 0..128 {
                         let (l, r) = self.pipeline.process(0.0, 0.0);
-                        if !self.output_buffer.push(AudioFrame::stereo(l, r)) {
-                            self.dropped_fadeout_frames += 1;
-                        }
-                    }
-                    if self.dropped_fadeout_frames > 0 {
-                        warn!(
-                            "Dropped {} fade-out frames due to full output buffer",
-                            self.dropped_fadeout_frames
-                        );
-                        self.dropped_fadeout_frames = 0;
+                        self.pending_output_frames.push_back((l, r));
                     }
                     match decoder.seek(pos_secs) {
                         Ok(()) => {

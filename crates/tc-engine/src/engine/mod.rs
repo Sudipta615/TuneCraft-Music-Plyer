@@ -160,9 +160,11 @@ pub struct AudioEngine {
     /// `Vec::new()` and `push()` inside decode_transitioning_stream.
     rs_out_buf: Vec<(f32, f32)>,
     rs_in_buf: Vec<(f32, f32)>,
-    /// Scratch buffer for resampler drain output.
     drain_out_buf: Vec<(f32, f32)>,
     drain_in_buf: Vec<(f32, f32)>,
+    /// FIFO buffer to hold fully processed, resampled frames that are waiting
+    /// to be written to the output ring buffer.
+    pending_output_frames: std::collections::VecDeque<(f32, f32)>,
 }
 
 impl AudioEngine {
@@ -218,6 +220,7 @@ impl AudioEngine {
             rs_in_buf: Vec::with_capacity(64),
             drain_out_buf: Vec::with_capacity(128),
             drain_in_buf: Vec::with_capacity(128),
+            pending_output_frames: std::collections::VecDeque::with_capacity(16384),
         })
     }
 

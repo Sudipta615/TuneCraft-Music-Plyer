@@ -33,13 +33,11 @@ impl TimeStretcher {
         }
     }
 
-    pub fn set_enabled(&mut self, enabled: bool) {
-        if self.enabled != enabled {
-            self.enabled = enabled;
-            if !enabled {
-                self.reset();
-            }
-        }
+    pub fn set_enabled(&mut self, _enabled: bool) {
+        // TimeStretcher is currently broken (Hanning phase, allocations).
+        // Force it to remain disabled.
+        self.enabled = false;
+        self.reset();
     }
 
     pub fn set_speed(&mut self, speed: f32) {
@@ -59,61 +57,8 @@ impl TimeStretcher {
     /// one sample out for one sample in, but advances the internal read pointer at `speed`.
     #[inline]
     pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
-        if !self.enabled || (self.speed - 1.0).abs() < 0.001 {
-            return (left, right);
-        }
-
-        self.input_buffer_l.push_back(left);
-        self.input_buffer_r.push_back(right);
-
-        // We need at least window_size samples to do anything meaningful
-        if self.input_buffer_l.len() < self.window_size {
-            return (0.0, 0.0);
-        }
-
-        // Basic linear interpolation for the read pointer
-        let pos_floor = self.read_pos.floor() as usize;
-        let pos_frac = self.read_pos - pos_floor as f32;
-
-        let out_l = if pos_floor + 1 < self.input_buffer_l.len() {
-            let s1 = self.input_buffer_l[pos_floor];
-            let s2 = self.input_buffer_l[pos_floor + 1];
-            s1 + pos_frac * (s2 - s1)
-        } else {
-            self.input_buffer_l[pos_floor]
-        };
-
-        let out_r = if pos_floor + 1 < self.input_buffer_r.len() {
-            let s1 = self.input_buffer_r[pos_floor];
-            let s2 = self.input_buffer_r[pos_floor + 1];
-            s1 + pos_frac * (s2 - s1)
-        } else {
-            self.input_buffer_r[pos_floor]
-        };
-
-        // Advance read pointer by speed
-        self.read_pos += self.speed;
-
-        // When read pointer gets too far, wrap it back (creates repeating grains or skipping)
-        if self.read_pos >= self.window_size as f32 {
-            self.read_pos -= self.window_size as f32;
-
-            // Discard old samples
-            let discard = self.window_size;
-            if self.input_buffer_l.len() > discard {
-                self.input_buffer_l.drain(0..discard);
-                self.input_buffer_r.drain(0..discard);
-            } else {
-                self.input_buffer_l.clear();
-                self.input_buffer_r.clear();
-            }
-        }
-
-        // Apply a basic fade (Hanning window shape approximation) to reduce clicks at grain boundaries
-        let window_phase = (self.read_pos / self.window_size as f32) * std::f32::consts::PI;
-        let window = window_phase.sin();
-
-        (out_l * window, out_r * window)
+        // Bypassed: granular stretcher causes artifacts and allocations.
+        (left, right)
     }
 
     pub fn reset(&mut self) {

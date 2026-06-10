@@ -109,6 +109,15 @@ impl AudioEngine {
         #[cfg(feature = "resample")] resampler: &mut Option<AudioResampler>,
         #[cfg(not(feature = "resample"))] _resampler: &mut Option<()>,
     ) {
+        // Always drain pending output frames before attempting to process new frames.
+        while let Some(&(l, r)) = self.pending_output_frames.front() {
+            if self.output_buffer.push(AudioFrame::stereo(l, r)) {
+                self.pending_output_frames.pop_front();
+            } else {
+                return;
+            }
+        }
+
         let chunk_and_start: Option<(crate::decode::DecodedChunk, usize)> =
             self.pending_chunk.take().or_else(|| {
                 match decoder.decode_next(4096) {
@@ -189,42 +198,48 @@ impl AudioEngine {
             #[cfg(feature = "resample")]
             if let Some(ref mut r) = resampler {
                 if r.is_passthrough() {
-                    if !self.output_buffer.push(AudioFrame::stereo(dsp_l, dsp_r)) {
-                        stalled_at = Some(i);
-                        break 'outer;
-                    }
+                    self.pending_output_frames.push_back((dsp_l, dsp_r));
                 } else {
                     r.feed(dsp_l, dsp_r);
                     while let Some((out_l, out_r)) = r.read() {
-                        if !self.output_buffer.push(AudioFrame::stereo(out_l, out_r)) {
-                            stalled_at = Some(i);
-                            break 'outer;
-                        }
+                        self.pending_output_frames.push_back((out_l, out_r));
                     }
                 }
             } else {
-                if !self.output_buffer.push(AudioFrame::stereo(dsp_l, dsp_r)) {
-                    stalled_at = Some(i);
-                    break 'outer;
-                }
+                self.pending_output_frames.push_back((dsp_l, dsp_r));
             }
 
             #[cfg(not(feature = "resample"))]
-            if !self.output_buffer.push(AudioFrame::stereo(dsp_l, dsp_r)) {
-                stalled_at = Some(i);
-                break 'outer;
-            }
+            self.pending_output_frames.push_back((dsp_l, dsp_r));
 
             processed_frames += 1;
+
+            // Drain newly generated frames to output buffer
+            while let Some(&(l, r)) = self.pending_output_frames.front() {
+                if self.output_buffer.push(AudioFrame::stereo(l, r)) {
+                    self.pending_output_frames.pop_front();
+                } else {
+                    // We successfully processed frame `i`, so next time start at `i + 1`
+                    stalled_at = Some(i + 1);
+                    break 'outer;
+                }
+            }
         }
 
         if let Some(stall_frame) = stalled_at {
-            self.pending_chunk = Some((chunk, stall_frame));
+            if stall_frame < frames {
+                self.pending_chunk = Some((chunk, stall_frame));
+            }
         } else {
             #[cfg(feature = "resample")]
             if let Some(ref mut r) = resampler {
                 while let Some((out_l, out_r)) = r.read() {
-                    if !self.output_buffer.push(AudioFrame::stereo(out_l, out_r)) {
+                    self.pending_output_frames.push_back((out_l, out_r));
+                }
+                while let Some(&(l, r)) = self.pending_output_frames.front() {
+                    if self.output_buffer.push(AudioFrame::stereo(l, r)) {
+                        self.pending_output_frames.pop_front();
+                    } else {
                         break;
                     }
                 }
@@ -274,6 +289,15 @@ impl AudioEngine {
         crossfade_frames_remaining: &mut usize,
         crossfade_total_frames: usize,
     ) {
+        // Always drain pending output frames before attempting to process new frames.
+        while let Some(&(l, r)) = self.pending_output_frames.front() {
+            if self.output_buffer.push(AudioFrame::stereo(l, r)) {
+                self.pending_output_frames.pop_front();
+            } else {
+                return;
+            }
+        }
+
         // Decode chunks from both decoders.
         let out_chunk: Option<crate::decode::DecodedChunk> =
             self.pending_chunk.take().map(|(c, _)| c).or_else(|| {
@@ -458,20 +482,26 @@ impl AudioEngine {
                 // Apply the remaining DSP stages (limiter, volume, dither) to
                 // the mixed output.
                 let (final_l, final_r) = self.pipeline.process_post_mix(mixed_l, mixed_r);
-
-                if !self
-                    .output_buffer
-                    .push(AudioFrame::stereo(final_l, final_r))
-                {
-                    // Buffer full — cache partial chunk positions for both
-                    // streams so we can resume on the next tick without
-                    // dropping audio data.
-                    stalled_at = Some((out_idx, in_idx));
-                    break;
-                }
-
+                self.pending_output_frames.push_back((final_l, final_r));
                 *crossfade_frames_remaining = crossfade_frames_remaining.saturating_sub(1);
                 processed_frames += 1;
+
+                while let Some(&(l, r)) = self.pending_output_frames.front() {
+                    if self.output_buffer.push(AudioFrame::stereo(l, r)) {
+                        self.pending_output_frames.pop_front();
+                    } else {
+                        // Buffer full — cache partial chunk positions for both
+                        // streams so we can resume on the next tick without
+                        // dropping audio data. Note: out_idx and in_idx are already
+                        // incremented past the current frame, so we won't process it twice.
+                        stalled_at = Some((out_idx, in_idx));
+                        break;
+                    }
+                }
+
+                if stalled_at.is_some() {
+                    break;
+                }
             }
 
             // If we stalled during the resampled-frame sub-loop, break outer loop too.
@@ -560,14 +590,23 @@ impl AudioEngine {
                     .mixer_mut()
                     .process(out_rs_l, out_rs_r, in_rs_l, in_rs_r);
                 let (final_l, final_r) = self.pipeline.process_post_mix(mixed_l, mixed_r);
-                if !self
-                    .output_buffer
-                    .push(AudioFrame::stereo(final_l, final_r))
-                {
-                    break;
-                }
+                self.pending_output_frames.push_back((final_l, final_r));
                 *crossfade_frames_remaining = crossfade_frames_remaining.saturating_sub(1);
                 processed_frames += 1;
+
+                let mut output_full = false;
+                while let Some(&(l, r)) = self.pending_output_frames.front() {
+                    if self.output_buffer.push(AudioFrame::stereo(l, r)) {
+                        self.pending_output_frames.pop_front();
+                    } else {
+                        output_full = true;
+                        break;
+                    }
+                }
+                
+                if output_full {
+                    break;
+                }
             }
         }
 

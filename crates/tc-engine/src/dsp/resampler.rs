@@ -112,10 +112,9 @@ pub struct AudioResampler {
     /// is disabled to prevent the infinite retry loop that would
     /// otherwise saturate the CPU with FFT planning at ~44100 attempts/sec.
     rebuild_failures: u32,
-    /// to too many consecutive rebuild failures. When disabled, audio
-    /// passes through without resampling (potentially at wrong speed).
-    /// This flag can be queried by the UI to display a warning.
     disabled: bool,
+    /// Receiver for the background thread that builds the new resampler
+    rebuild_rx: Option<crossbeam::channel::Receiver<Result<ResamplerInner, ResamplerError>>>,
     /// Recent output samples for crossfade during rebuild (reduces glitches)
     crossfade_buffer: [(f32, f32); 64],
     /// Current read position in crossfade_buffer
@@ -163,6 +162,7 @@ impl AudioResampler {
             pending_quality: None,
             rebuild_failures: 0,
             disabled: false,
+            rebuild_rx: None,
             crossfade_buffer: [(0.0, 0.0); 64],
             crossfade_pos: 0,
             crossfade_remaining: 0,
@@ -224,12 +224,23 @@ impl AudioResampler {
     /// Feed a stereo sample into the resampler
     #[inline]
     pub fn feed(&mut self, left: f32, right: f32) {
-        if self.needs_rebuild {
-            // infinite retry loop that saturates the CPU.
-
-            // pass them through to the passthrough path so audio continues
-            // (albeit at wrong speed) without silence gaps.
-
+        if let Some(ref rx) = self.rebuild_rx {
+            match rx.try_recv() {
+                Ok(result) => {
+                    self.rebuild_rx = None;
+                    self.apply_rebuild_result(result);
+                },
+                Err(crossbeam::channel::TryRecvError::Empty) => {
+                    // Still building, continue using the old resampler
+                },
+                Err(crossbeam::channel::TryRecvError::Disconnected) => {
+                    log::error!("Resampler builder thread disconnected unexpectedly.");
+                    self.rebuild_rx = None;
+                    self.needs_rebuild = true;
+                    self.rebuild_failures += 1;
+                }
+            }
+        } else if self.needs_rebuild {
             if self.rebuild_failures >= MAX_REBUILD_FAILURES {
                 self.needs_rebuild = false;
                 self.disabled = true;
@@ -241,7 +252,7 @@ impl AudioResampler {
                 );
                 // Fall through to passthrough write below instead of returning
             } else {
-                self.rebuild();
+                self.trigger_rebuild();
             }
         }
 
@@ -451,15 +462,28 @@ impl AudioResampler {
     /// real audio data to work with instead of fading to silence. The
     /// previous code called `allocate_buffers()` which zeroed output and
     /// reset `output_available` to 0, causing an audible dip.
-    fn rebuild(&mut self) {
+    fn trigger_rebuild(&mut self) {
+        let effective_source_f32 = self.source_rate as f32 / self.speed;
+        let effective_source = (effective_source_f32.round() as usize).max(1);
+        let quality = self.pending_quality.unwrap_or_else(|| self.inner.quality());
+        let output_rate = self.output_rate;
+
+        let (tx, rx) = crossbeam::channel::bounded(1);
+        std::thread::spawn(move || {
+            let result = Self::create_resampler(quality, effective_source, output_rate);
+            let _ = tx.send(result);
+        });
+
+        self.rebuild_rx = Some(rx);
+    }
+
+    fn apply_rebuild_result(&mut self, result: Result<ResamplerInner, ResamplerError>) {
         if self.input_pos > 0 {
             self.process_chunk();
         }
 
         let save_count = self.output_available.min(64);
 
-        // crossfade blending in read() can mix with real audio rather
-        // than silence while the new resampler starts producing output.
         let mut saved_left = [0.0f32; 64];
         let mut saved_right = [0.0f32; 64];
         for i in 0..save_count {
@@ -475,22 +499,11 @@ impl AudioResampler {
         self.crossfade_pos = 0;
         self.crossfade_remaining = save_count;
 
-        // For speed adjustments, we modify the effective source rate.
-        // Use rounded integer conversion with a minimum of 1 to preserve
-        // as much precision as possible while avoiding division by zero.
-        // The previous `(f32) as usize` truncated, losing precision and
-        // potentially causing pitch/timing errors for non-integer ratios.
-        let effective_source_f32 = self.source_rate as f32 / self.speed;
-        let effective_source = (effective_source_f32.round() as usize).max(1);
-        let quality = self.pending_quality.unwrap_or_else(|| self.inner.quality());
-        match Self::create_resampler(quality, effective_source, self.output_rate) {
+        match result {
             Ok(new_inner) => {
                 self.inner = new_inner;
                 self.allocate_buffers();
 
-                // output buffers. This ensures that during the crossfade
-                // period, read() blends real audio (the old output) with
-                // the crossfade buffer instead of fading to silence.
                 if save_count > 0 {
                     for i in 0..save_count {
                         if i < self.output_buffers[0].len() {
@@ -502,24 +515,19 @@ impl AudioResampler {
                     self.output_available = save_count;
                 }
 
-                // Only clear flags on successful rebuild
                 self.pending_quality = None;
                 self.needs_rebuild = false;
-                self.rebuild_failures = 0; // Reset failure counter on success (H8)
+                self.rebuild_failures = 0;
                 self.disabled = false;
             },
             Err(e) => {
-                self.rebuild_failures += 1; // Increment failure counter (H8)
+                self.rebuild_failures += 1;
                 log::error!(
                     "Failed to rebuild resampler ({}/{}), will retry on next feed: {}",
                     self.rebuild_failures,
                     MAX_REBUILD_FAILURES,
                     e
                 );
-                // Keep the existing inner resampler — audio continues but
-                // speed change is not applied until a successful rebuild.
-                // Do NOT clear pending_quality or needs_rebuild so the
-                // rebuild is retried on the next feed() call.
             },
         }
     }

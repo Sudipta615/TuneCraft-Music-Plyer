@@ -93,12 +93,29 @@ impl CpalOutput {
         let mut device = None;
         if backend == AudioBackend::ExclusiveAlsa {
             #[cfg(target_os = "linux")]
-            if let Ok(mut devices) = host.output_devices() {
-                if let Some(hw_dev) =
-                    devices.find(|d| d.name().unwrap_or_default().starts_with("hw:"))
-                {
+            if let Ok(devices) = host.output_devices() {
+                let mut valid_devices: Vec<_> = devices
+                    .filter(|d| {
+                        let name = d.name().unwrap_or_default().to_lowercase();
+                        name != "default"
+                            && !name.starts_with("sysdefault")
+                            && !name.contains("pulse")
+                            && !name.contains("pipewire")
+                            && !name.contains("dmix")
+                    })
+                    .collect();
+
+                valid_devices.sort_by_key(|d| {
+                    if d.name().unwrap_or_default().to_lowercase().contains("analog") {
+                        0
+                    } else {
+                        1
+                    }
+                });
+
+                if let Some(hw_dev) = valid_devices.into_iter().next() {
                     log::info!(
-                        "Audio output: Selected hardware device: {}",
+                        "Audio output: Selected exclusive hardware device: {}",
                         hw_dev.name().unwrap_or_default()
                     );
                     device = Some(hw_dev);
@@ -157,17 +174,26 @@ impl CpalOutput {
         let channels = config.channels();
         let sample_format = config.sample_format();
 
+        let buffer_size = match config.buffer_size() {
+            cpal::SupportedBufferSize::Range { min, max } => {
+                let size = 2048.clamp(*min, *max);
+                cpal::BufferSize::Fixed(size)
+            }
+            cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Default,
+        };
+
         let stream_config = StreamConfig {
             channels,
             sample_rate: cpal::SampleRate(actual_sample_rate),
-            buffer_size: cpal::BufferSize::Default,
+            buffer_size: buffer_size.clone(),
         };
 
         log::info!(
-            "Audio output: {} Hz, {} ch, {:?}, default buffer size",
+            "Audio output: {} Hz, {} ch, {:?}, buffer size: {:?}",
             actual_sample_rate,
             channels,
-            sample_format
+            sample_format,
+            buffer_size
         );
 
         Ok(Self {
