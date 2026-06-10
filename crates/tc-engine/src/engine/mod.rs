@@ -127,8 +127,6 @@ pub struct AudioEngine {
     last_cpu_reset: Instant,
     /// Consecutive decode-error counter for circuit-breaker (robustness).
     consecutive_decode_errors: u32,
-    /// Count of fade-out frames dropped due to a full output buffer during seek.
-    dropped_fadeout_frames: u64,
     /// Cached partial decoded chunk when the output ring-buffer was full.
     /// On the next tick we resume from where we left off rather than
     /// discarding the remaining frames (fixes audio dropout under CPU load).
@@ -205,7 +203,6 @@ impl AudioEngine {
             tick_start: None,
             last_cpu_reset: Instant::now(),
             consecutive_decode_errors: 0,
-            dropped_fadeout_frames: 0,
             pending_chunk: None,
             pending_incoming_chunk: None,
             crossfade_triggered: false,
@@ -251,7 +248,7 @@ impl AudioEngine {
 
         self.running.store(true, Ordering::Release);
         self.pipeline
-            .set_sample_rate(self.output_sample_rate as f32);
+            .update_sample_rate(self.output_sample_rate as f32);
         self.update_playback_state(PlaybackState::Stopped);
         self.stream_recovery_attempts = 0;
         info!(
@@ -331,7 +328,6 @@ impl AudioEngine {
         // Start the mixer in PlayingCurrent state for the new track.
         self.pipeline.mixer_mut().start_playing();
 
-
         match self.playback_info.write() {
             Ok(mut pb) => {
                 pb.duration_secs = info.duration_secs;
@@ -368,7 +364,7 @@ impl AudioEngine {
         if let Some(prev) = self.tick_start {
             let elapsed = now.duration_since(prev);
             self.total_time += elapsed;
-            
+
             // Watchdog: detect if the engine thread was starved for too long
             const TICK_DEADLINE: Duration = Duration::from_millis(15);
             if elapsed > TICK_DEADLINE && state == PlaybackState::Playing {
@@ -478,11 +474,21 @@ impl AudioEngine {
                     gain_db: band.gain_db,
                     q: band.q,
                     filter_type: match band.filter_type {
-                        tc_config::FilterType::Peaking => crate::dsp::equalizer::EqFilterType::Peaking,
-                        tc_config::FilterType::LowShelf => crate::dsp::equalizer::EqFilterType::LowShelf,
-                        tc_config::FilterType::HighShelf => crate::dsp::equalizer::EqFilterType::HighShelf,
-                        tc_config::FilterType::LowPass => crate::dsp::equalizer::EqFilterType::LowPass,
-                        tc_config::FilterType::HighPass => crate::dsp::equalizer::EqFilterType::HighPass,
+                        tc_config::FilterType::Peaking => {
+                            crate::dsp::equalizer::EqFilterType::Peaking
+                        },
+                        tc_config::FilterType::LowShelf => {
+                            crate::dsp::equalizer::EqFilterType::LowShelf
+                        },
+                        tc_config::FilterType::HighShelf => {
+                            crate::dsp::equalizer::EqFilterType::HighShelf
+                        },
+                        tc_config::FilterType::LowPass => {
+                            crate::dsp::equalizer::EqFilterType::LowPass
+                        },
+                        tc_config::FilterType::HighPass => {
+                            crate::dsp::equalizer::EqFilterType::HighPass
+                        },
                         tc_config::FilterType::Notch => crate::dsp::equalizer::EqFilterType::Notch,
                     },
                     enabled: band.enabled,
@@ -493,10 +499,10 @@ impl AudioEngine {
         p.set_crossfeed_enabled(config.crossfeed.enabled);
         p.set_crossfeed_profile(config.crossfeed.profile);
         p.set_crossfeed_custom_params(
-            config.crossfeed.custom_frequency_hz,
+            config.crossfeed.custom_freq,
             config.crossfeed.custom_q,
             config.crossfeed.custom_delay_ms,
-            config.crossfeed.custom_mix_db,
+            0.0, // mix_db is no longer used, passing dummy value
         );
 
         p.set_compressor_enabled(config.multiband_compressor.enabled);

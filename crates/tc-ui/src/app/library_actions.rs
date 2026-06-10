@@ -170,8 +170,6 @@ impl TuneCraftApp {
         }
     }
 
-
-
     pub fn trigger_background_analysis(&self) {
         let db = self.ctx.library.db().clone();
         let library_svc = Arc::clone(&self.ctx.library);

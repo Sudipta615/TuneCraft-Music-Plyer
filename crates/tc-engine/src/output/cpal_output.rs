@@ -106,7 +106,11 @@ impl CpalOutput {
                     .collect();
 
                 valid_devices.sort_by_key(|d| {
-                    if d.name().unwrap_or_default().to_lowercase().contains("analog") {
+                    if d.name()
+                        .unwrap_or_default()
+                        .to_lowercase()
+                        .contains("analog")
+                    {
                         0
                     } else {
                         1
@@ -172,7 +176,7 @@ impl CpalOutput {
             cpal::SupportedBufferSize::Range { min, max } => {
                 let size = 2048.clamp(*min, *max);
                 cpal::BufferSize::Fixed(size)
-            }
+            },
             cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Default,
         };
 
@@ -426,8 +430,7 @@ impl CpalOutput {
                         } else {
                             0.0
                         };
-                        *sample =
-                            (val * 32767.0 + 32768.0).clamp(0.0, 65535.0) as u16;
+                        *sample = (val * 32767.0 + 32768.0).clamp(0.0, 65535.0) as u16;
                     }
                 },
                 None => {
@@ -487,8 +490,6 @@ impl CpalOutput {
     }
 }
 
-
-
 struct CallbackGuard<'a> {
     flag: &'a AtomicBool,
 }
@@ -505,5 +506,3 @@ impl<'a> Drop for CallbackGuard<'a> {
         self.flag.store(false, Ordering::SeqCst);
     }
 }
-
-

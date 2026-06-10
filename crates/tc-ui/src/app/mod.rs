@@ -358,11 +358,7 @@ impl eframe::App for TuneCraftApp {
         self.ctx.platform.update_mpris_position(self.position_secs);
 
         // theme toggles take effect immediately.
-        let config_theme = self
-            .ctx
-            .config
-            .read(|c| c.ui.theme)
-            .unwrap_or(self.theme);
+        let config_theme = self.ctx.config.read(|c| c.ui.theme).unwrap_or(self.theme);
 
         if config_theme != self.theme {
             self.theme = config_theme;
@@ -471,8 +467,7 @@ impl eframe::App for TuneCraftApp {
                         ),
                         egui::TextEdit::singleline(&mut self.new_playlist_name)
                             .hint_text("E.g., Workout Mix")
-                            .text_color(colors.text)
-                            .frame(false),
+                            .text_color(colors.text),
                     );
 
                     ui.add_space(24.0);
@@ -564,8 +559,7 @@ impl eframe::App for TuneCraftApp {
                         ),
                         egui::TextEdit::singleline(&mut self.add_music_folder_path)
                             .hint_text("/home/user/Music")
-                            .text_color(colors.text)
-                            .frame(false),
+                            .text_color(colors.text),
                     );
 
                     ui.add_space(8.0);

@@ -29,7 +29,7 @@ impl AudioEngine {
         if self.config.crossfade.enabled {
             info!("Next track prepared for crossfade: {}", path.display());
         }
-        
+
         Ok(info)
     }
 
@@ -50,7 +50,7 @@ impl AudioEngine {
         let total_frames = (self.duration_secs * self.source_sample_rate as f32).round() as u64;
         let remaining_frames = total_frames.saturating_sub(self.source_frames_consumed);
         let remaining_secs = remaining_frames as f32 / self.source_sample_rate as f32;
-        
+
         let crossfade_duration_secs = self.config.crossfade.duration_ms as f32 / 1000.0;
 
         // Add a small lead time (0.5s) so the incoming decoder has time

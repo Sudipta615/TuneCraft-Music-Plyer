@@ -123,8 +123,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     } else {
                         14.0
                     }))
-                    .text_color(colors.text)
-                    .frame(false),
+                    .text_color(colors.text),
             );
 
             if app.focus_search {
@@ -212,7 +211,9 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         &format!("{} EQ", egui_phosphor::regular::SLIDERS_HORIZONTAL),
                         eq_active,
                         &colors,
-                    ).clicked() {
+                    )
+                    .clicked()
+                    {
                         app.ctx.eq.toggle_panel();
                         app.show_eq_panel = !eq_active;
                     }
@@ -245,23 +246,36 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         &colors,
                     );
                     let popup_id = ui.make_persistent_id("sort_popup");
-                    if sort_resp.clicked() {
-                        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-                    }
-                    egui::popup_below_widget(ui, popup_id, &sort_resp, |ui| {
-                        ui.set_min_width(120.0);
-                        if ui.selectable_label(!app.sort_active, "Default").clicked() {
-                            app.sort_active = false;
-                        }
-                        if ui.selectable_label(app.sort_active && app.sort_ascending, "Ascending").clicked() {
-                            app.sort_active = true;
-                            app.sort_ascending = true;
-                        }
-                        if ui.selectable_label(app.sort_active && !app.sort_ascending, "Descending").clicked() {
-                            app.sort_active = true;
-                            app.sort_ascending = false;
-                        }
-                    });
+
+                    egui::Popup::from_toggle_button_response(&sort_resp)
+                        .id(popup_id)
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                        .show(|ui: &mut egui::Ui| {
+                            ui.set_min_width(120.0);
+                            if ui.selectable_label(!app.sort_active, "Default").clicked() {
+                                app.sort_active = false;
+                            }
+                            if ui
+                                .selectable_label(
+                                    app.sort_active && app.sort_ascending,
+                                    "Ascending",
+                                )
+                                .clicked()
+                            {
+                                app.sort_active = true;
+                                app.sort_ascending = true;
+                            }
+                            if ui
+                                .selectable_label(
+                                    app.sort_active && !app.sort_ascending,
+                                    "Descending",
+                                )
+                                .clicked()
+                            {
+                                app.sort_active = true;
+                                app.sort_ascending = false;
+                            }
+                        });
 
                     ui.add_space(4.0);
                     let filter_resp = styled_toolbar_btn(
@@ -271,25 +285,29 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         &colors,
                     );
                     let filter_popup_id = ui.make_persistent_id("filter_popup");
-                    if filter_resp.clicked() {
-                        ui.memory_mut(|mem| mem.toggle_popup(filter_popup_id));
-                    }
-                    egui::popup_below_widget(ui, filter_popup_id, &filter_resp, |ui| {
-                        ui.set_min_width(120.0);
-                        if ui.selectable_label(app.filter_favorites, "Favorites Only").clicked() {
-                            app.filter_favorites = !app.filter_favorites;
-                            ui.memory_mut(|mem| mem.close_popup());
-                        }
-                        if ui.button("Release Year").clicked() {
-                            ui.memory_mut(|mem| mem.close_popup());
-                        }
-                        if ui.button("Album Type").clicked() {
-                            ui.memory_mut(|mem| mem.close_popup());
-                        }
-                        if ui.button("File Size").clicked() {
-                            ui.memory_mut(|mem| mem.close_popup());
-                        }
-                    });
+
+                    egui::Popup::from_toggle_button_response(&filter_resp)
+                        .id(filter_popup_id)
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                        .show(|ui: &mut egui::Ui| {
+                            ui.set_min_width(120.0);
+                            if ui
+                                .selectable_label(app.filter_favorites, "Favorites Only")
+                                .clicked()
+                            {
+                                app.filter_favorites = !app.filter_favorites;
+                                egui::Popup::close_id(ui.ctx(), filter_popup_id);
+                            }
+                            if ui.button("Release Year").clicked() {
+                                egui::Popup::close_id(ui.ctx(), filter_popup_id);
+                            }
+                            if ui.button("Album Type").clicked() {
+                                egui::Popup::close_id(ui.ctx(), filter_popup_id);
+                            }
+                            if ui.button("File Size").clicked() {
+                                egui::Popup::close_id(ui.ctx(), filter_popup_id);
+                            }
+                        });
                 }
 
                 // Pagination
@@ -411,76 +429,16 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         } else {
             draw_grid_view(app, ui, &filtered_indices, &colors);
         }
-
-        if app.show_lyrics {
-            ui.add_space(8.0);
-            ui.separator();
-            ui.add_space(4.0);
-            ui.label(
-                RichText::new("Lyrics")
-                    .font(FontId::proportional(16.0))
-                    .color(colors.text)
-                    .strong(),
-            );
-            ui.add_space(4.0);
-            if app.lyrics_loading {
-                ui.label(
-                    RichText::new("Loading lyrics...")
-                        .font(FontId::proportional(12.0))
-                        .color(colors.text_dim),
-                );
-            } else if let Some(ref lines) = app.current_lyrics {
-                let has_synced = lines.iter().any(|l| l.timestamp_ms > 0);
-                if has_synced {
-                    let pos_ms = (app.position_secs * 1000.0) as u64;
-                    let current_line_idx =
-                        tc_lyrics::LyricsClient::find_current_line(lines, pos_ms);
-                    egui::ScrollArea::vertical()
-                        .max_height(200.0)
-                        .show(ui, |ui| {
-                            for (i, line) in lines.iter().enumerate() {
-                                let is_current = current_line_idx == Some(i);
-                                let line_color = if is_current {
-                                    colors.accent
-                                } else {
-                                    colors.text_dim
-                                };
-                                let font_size = if is_current { 14.0 } else { 12.0 };
-                                ui.label(
-                                    RichText::new(&line.text)
-                                        .font(FontId::proportional(font_size))
-                                        .color(line_color),
-                                );
-                            }
-                        });
-                } else {
-                    egui::ScrollArea::vertical()
-                        .max_height(200.0)
-                        .show(ui, |ui| {
-                            for line in lines.iter() {
-                                if !line.text.is_empty() {
-                                    ui.label(
-                                        RichText::new(&line.text)
-                                            .font(FontId::proportional(12.0))
-                                            .color(colors.text_dim),
-                                    );
-                                }
-                            }
-                        });
-                }
-            } else {
-                ui.label(
-                    RichText::new("No lyrics available for this track")
-                        .font(FontId::proportional(12.0))
-                        .color(colors.text_dim),
-                );
-            }
-        }
     });
 }
 
 /// Renders a pill-shaped toolbar button matching the reference design
-fn styled_toolbar_btn(ui: &mut Ui, label: &str, active: bool, colors: &TuneCraftColors) -> egui::Response {
+fn styled_toolbar_btn(
+    ui: &mut Ui,
+    label: &str,
+    active: bool,
+    colors: &TuneCraftColors,
+) -> egui::Response {
     let font = FontId::proportional(14.0);
     let galley = ui
         .painter()

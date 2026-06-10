@@ -858,7 +858,6 @@ impl EngineConfig {
         warnings.extend(self.crossfeed.validate());
         warnings.extend(self.multiband_compressor.validate());
 
-
         if self.seek_fade_ms > 5000 {
             warnings.push(format!(
                 "seek_fade_ms ({}) exceeds 5000, clamped",

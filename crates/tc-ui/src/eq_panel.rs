@@ -135,276 +135,278 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.add_space(10.0);
 
         ui.add_enabled_ui(app.eq_enabled, |ui| {
-        // ── 10-band EQ sliders ──
-        let eq_area_h = 220.0;
-        let available_w = ui.available_width();
-        let (eq_rect, _) =
-            ui.allocate_exact_size(Vec2::new(available_w, eq_area_h), Sense::hover());
+            // ── 10-band EQ sliders ──
+            let eq_area_h = 220.0;
+            let available_w = ui.available_width();
+            let (eq_rect, _) =
+                ui.allocate_exact_size(Vec2::new(available_w, eq_area_h), Sense::hover());
 
-        // Background card for slider area
-        ui.painter().rect_filled(eq_rect, 12.0, colors.card);
-        ui.painter().rect_stroke(
-            eq_rect,
-            12.0,
-            egui::Stroke::new(1.0, colors.border),
-            egui::StrokeKind::Inside,
-        );
-
-        draw_eq_sliders(ui, app, eq_rect, &colors);
-
-        ui.add_space(10.0);
-
-        // ── Secondary controls: Bass Shelf | Treble Shelf | Stereo Width | Balance | Dither + M/S
-        // ──
-        let secondary_h = 130.0;
-        let spacing = 8.0;
-        let total_spacing = spacing * 4.0;
-        let available_w = ui.available_width();
-        let card_w = (available_w - total_spacing) / 5.0;
-
-        let old_bass = app.eq_bass_shelf;
-        let old_treble = app.eq_treble_shelf;
-        let old_width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
-        let old_bal = app.eq_balance;
-        let old_dither = app.eq_dither;
-        let old_midside = app.eq_midside;
-
-        let mut new_bass = old_bass;
-        let mut new_treble = old_treble;
-        let mut new_width_pct = old_width_pct;
-        let mut new_bal = old_bal;
-        let mut new_dither = old_dither;
-        let mut new_midside = old_midside;
-
-        ui.horizontal(|ui| {
-            secondary_slider_horizontal_card(
-                ui,
-                "Bass",
-                "Shelf",
-                &mut new_bass,
-                -12.0,
+            // Background card for slider area
+            ui.painter().rect_filled(eq_rect, 12.0, colors.card);
+            ui.painter().rect_stroke(
+                eq_rect,
                 12.0,
-                "dB",
-                "-12dB",
-                "+12dB",
-                card_w,
-                secondary_h,
-                &colors,
+                egui::Stroke::new(1.0, colors.border),
+                egui::StrokeKind::Inside,
             );
-            ui.add_space(spacing);
-            secondary_slider_horizontal_card(
-                ui,
-                "Treble",
-                "Shelf",
-                &mut new_treble,
-                -12.0,
-                12.0,
-                "dB",
-                "-12dB",
-                "+12dB",
-                card_w,
-                secondary_h,
-                &colors,
-            );
-            ui.add_space(spacing);
-            secondary_slider_horizontal_card(
-                ui,
-                "Stereo Width",
-                "",
-                &mut new_width_pct,
-                0.0,
-                200.0,
-                "%",
-                "0 %",
-                "200 %",
-                card_w,
-                secondary_h,
-                &colors,
-            );
-            ui.add_space(spacing);
-            secondary_slider_horizontal_card(
-                ui,
-                "Balance",
-                "",
-                &mut new_bal,
-                -1.0,
-                1.0,
-                "",
-                "-1.00",
-                "+1.00",
-                card_w,
-                secondary_h,
-                &colors,
-            );
-            ui.add_space(spacing);
-            secondary_toggles_card(
-                ui,
-                card_w,
-                secondary_h,
-                &mut new_dither,
-                &mut new_midside,
-                &colors,
-            );
-        });
 
-        // Apply changes after the UI closure
-        if (new_bass - old_bass).abs() > 0.001 {
-            app.eq_bass_shelf = new_bass;
-            app.ctx.eq.set_bass_shelf(new_bass);
-        }
-        if (new_treble - old_treble).abs() > 0.001 {
-            app.eq_treble_shelf = new_treble;
-            app.ctx.eq.set_treble_shelf(new_treble);
-        }
-        if (new_width_pct - old_width_pct).abs() > 0.5 {
-            let new_w = (new_width_pct / 100.0).clamp(0.0, 2.0);
-            app.eq_stereo_width = new_w;
-            app.ctx.eq.set_stereo_width(new_w);
-        }
-        if (new_bal - old_bal).abs() > 0.005 {
-            app.eq_balance = new_bal;
-            app.ctx.eq.set_balance(new_bal);
-        }
-        if new_dither != old_dither {
-            app.eq_dither = new_dither;
-            app.cached_dither_enabled = new_dither;
-            app.ctx.eq.set_dither(new_dither);
-            app.ctx.config.write(|c| {
-                c.engine.dither_enabled = new_dither;
+            draw_eq_sliders(ui, app, eq_rect, &colors);
+
+            ui.add_space(10.0);
+
+            // ── Secondary controls: Bass Shelf | Treble Shelf | Stereo Width | Balance | Dither + M/S
+            // ──
+            let secondary_h = 130.0;
+            let spacing = 8.0;
+            let total_spacing = spacing * 4.0;
+            let available_w = ui.available_width();
+            let card_w = (available_w - total_spacing) / 5.0;
+
+            let old_bass = app.eq_bass_shelf;
+            let old_treble = app.eq_treble_shelf;
+            let old_width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
+            let old_bal = app.eq_balance;
+            let old_dither = app.eq_dither;
+            let old_midside = app.eq_midside;
+
+            let mut new_bass = old_bass;
+            let mut new_treble = old_treble;
+            let mut new_width_pct = old_width_pct;
+            let mut new_bal = old_bal;
+            let mut new_dither = old_dither;
+            let mut new_midside = old_midside;
+
+            ui.horizontal(|ui| {
+                secondary_slider_horizontal_card(
+                    ui,
+                    "Bass",
+                    "Shelf",
+                    &mut new_bass,
+                    -12.0,
+                    12.0,
+                    "dB",
+                    "-12dB",
+                    "+12dB",
+                    card_w,
+                    secondary_h,
+                    &colors,
+                );
+                ui.add_space(spacing);
+                secondary_slider_horizontal_card(
+                    ui,
+                    "Treble",
+                    "Shelf",
+                    &mut new_treble,
+                    -12.0,
+                    12.0,
+                    "dB",
+                    "-12dB",
+                    "+12dB",
+                    card_w,
+                    secondary_h,
+                    &colors,
+                );
+                ui.add_space(spacing);
+                secondary_slider_horizontal_card(
+                    ui,
+                    "Stereo Width",
+                    "",
+                    &mut new_width_pct,
+                    0.0,
+                    200.0,
+                    "%",
+                    "0 %",
+                    "200 %",
+                    card_w,
+                    secondary_h,
+                    &colors,
+                );
+                ui.add_space(spacing);
+                secondary_slider_horizontal_card(
+                    ui,
+                    "Balance",
+                    "",
+                    &mut new_bal,
+                    -1.0,
+                    1.0,
+                    "",
+                    "-1.00",
+                    "+1.00",
+                    card_w,
+                    secondary_h,
+                    &colors,
+                );
+                ui.add_space(spacing);
+                secondary_toggles_card(
+                    ui,
+                    card_w,
+                    secondary_h,
+                    &mut new_dither,
+                    &mut new_midside,
+                    &colors,
+                );
             });
-        }
-        if new_midside != old_midside {
-            app.eq_midside = new_midside;
-            app.cached_midside_enabled = new_midside;
-            app.ctx.eq.set_midside(new_midside);
-        }
-        ui.add_space(10.0);
 
-        // ── Preamp row ──
-        let preamp_h = 44.0;
-        let preamp_w = ui.available_width();
-        let (preamp_rect, _) =
-            ui.allocate_exact_size(Vec2::new(preamp_w, preamp_h), Sense::hover());
+            // Apply changes after the UI closure
+            if (new_bass - old_bass).abs() > 0.001 {
+                app.eq_bass_shelf = new_bass;
+                app.ctx.eq.set_bass_shelf(new_bass);
+            }
+            if (new_treble - old_treble).abs() > 0.001 {
+                app.eq_treble_shelf = new_treble;
+                app.ctx.eq.set_treble_shelf(new_treble);
+            }
+            if (new_width_pct - old_width_pct).abs() > 0.5 {
+                let new_w = (new_width_pct / 100.0).clamp(0.0, 2.0);
+                app.eq_stereo_width = new_w;
+                app.ctx.eq.set_stereo_width(new_w);
+            }
+            if (new_bal - old_bal).abs() > 0.005 {
+                app.eq_balance = new_bal;
+                app.ctx.eq.set_balance(new_bal);
+            }
+            if new_dither != old_dither {
+                app.eq_dither = new_dither;
+                app.cached_dither_enabled = new_dither;
+                app.ctx.eq.set_dither(new_dither);
+                app.ctx.config.write(|c| {
+                    c.engine.dither_enabled = new_dither;
+                });
+            }
+            if new_midside != old_midside {
+                app.eq_midside = new_midside;
+                app.cached_midside_enabled = new_midside;
+                app.ctx.eq.set_midside(new_midside);
+            }
+            ui.add_space(10.0);
 
-        ui.painter().rect_filled(preamp_rect, 12.0, colors.card);
-        ui.painter().rect_stroke(
-            preamp_rect,
-            12.0,
-            egui::Stroke::new(1.0, colors.border),
-            egui::StrokeKind::Inside,
-        );
+            // ── Preamp row ──
+            let preamp_h = 44.0;
+            let preamp_w = ui.available_width();
+            let (preamp_rect, _) =
+                ui.allocate_exact_size(Vec2::new(preamp_w, preamp_h), Sense::hover());
 
-        // Draw preamp content directly using painter (no child UI needed)
-        {
-            ui.painter().text(
-                Pos2::new(preamp_rect.left() + 12.0, preamp_rect.center().y - 6.0),
-                Align2::LEFT_CENTER,
-                "Preamp",
-                FontId::proportional(11.0),
-                colors.text_dim,
+            ui.painter().rect_filled(preamp_rect, 12.0, colors.card);
+            ui.painter().rect_stroke(
+                preamp_rect,
+                12.0,
+                egui::Stroke::new(1.0, colors.border),
+                egui::StrokeKind::Inside,
             );
-            ui.painter().text(
-                Pos2::new(preamp_rect.left() + 12.0, preamp_rect.center().y + 8.0),
-                Align2::LEFT_CENTER,
-                "-12dB",
-                FontId::proportional(9.0),
-                colors.text_dim,
-            );
 
-            // Slider
-            let slider_x_start = preamp_rect.left() + 76.0;
-            let slider_x_end = preamp_rect.right() - 120.0;
-            let slider_y = preamp_rect.center().y;
-            let slider_w = slider_x_end - slider_x_start;
+            // Draw preamp content directly using painter (no child UI needed)
+            {
+                ui.painter().text(
+                    Pos2::new(preamp_rect.left() + 12.0, preamp_rect.center().y - 6.0),
+                    Align2::LEFT_CENTER,
+                    "Preamp",
+                    FontId::proportional(11.0),
+                    colors.text_dim,
+                );
+                ui.painter().text(
+                    Pos2::new(preamp_rect.left() + 12.0, preamp_rect.center().y + 8.0),
+                    Align2::LEFT_CENTER,
+                    "-12dB",
+                    FontId::proportional(9.0),
+                    colors.text_dim,
+                );
 
-            let norm = ((app.eq_preamp + 12.0) / 24.0).clamp(0.0, 1.0);
-            let fill_x = slider_x_start + slider_w * norm;
+                // Slider
+                let slider_x_start = preamp_rect.left() + 76.0;
+                let slider_x_end = preamp_rect.right() - 120.0;
+                let slider_y = preamp_rect.center().y;
+                let slider_w = slider_x_end - slider_x_start;
 
-            // Track
-            ui.painter().line_segment(
-                [
-                    Pos2::new(slider_x_start, slider_y),
-                    Pos2::new(slider_x_end, slider_y),
-                ],
-                egui::Stroke::new(3.0, colors.slider_track),
-            );
-            // Fill
-            ui.painter().line_segment(
-                [
-                    Pos2::new(slider_x_start, slider_y),
-                    Pos2::new(fill_x, slider_y),
-                ],
-                egui::Stroke::new(3.0, colors.accent),
-            );
-            // Knob
-            let outer_r = 8.0;
-            let inner_r = 4.0;
-            ui.painter()
-                .circle_filled(Pos2::new(fill_x, slider_y), outer_r, colors.accent);
-            ui.painter()
-                .circle_filled(Pos2::new(fill_x, slider_y), inner_r, colors.card);
+                let norm = ((app.eq_preamp + 12.0) / 24.0).clamp(0.0, 1.0);
+                let fill_x = slider_x_start + slider_w * norm;
 
-            // Drag area
-            let drag_rect = Rect::from_min_size(
-                Pos2::new(slider_x_start - 8.0, preamp_rect.top()),
-                Vec2::new(slider_w + 16.0, preamp_h),
-            );
-            let drag_resp = ui.interact(drag_rect, egui::Id::new("preamp_slider"), Sense::drag());
-            if drag_resp.dragged() {
-                if let Some(ptr) = drag_resp.interact_pointer_pos() {
-                    let t = ((ptr.x - slider_x_start) / slider_w).clamp(0.0, 1.0);
-                    let new_preamp = t * 24.0 - 12.0;
-                    app.eq_preamp = new_preamp;
-                    app.ctx.eq.set_preamp(new_preamp);
+                // Track
+                ui.painter().line_segment(
+                    [
+                        Pos2::new(slider_x_start, slider_y),
+                        Pos2::new(slider_x_end, slider_y),
+                    ],
+                    egui::Stroke::new(3.0, colors.slider_track),
+                );
+                // Fill
+                ui.painter().line_segment(
+                    [
+                        Pos2::new(slider_x_start, slider_y),
+                        Pos2::new(fill_x, slider_y),
+                    ],
+                    egui::Stroke::new(3.0, colors.accent),
+                );
+                // Knob
+                let outer_r = 8.0;
+                let inner_r = 4.0;
+                ui.painter()
+                    .circle_filled(Pos2::new(fill_x, slider_y), outer_r, colors.accent);
+                ui.painter()
+                    .circle_filled(Pos2::new(fill_x, slider_y), inner_r, colors.card);
+
+                // Drag area
+                let drag_rect = Rect::from_min_size(
+                    Pos2::new(slider_x_start - 8.0, preamp_rect.top()),
+                    Vec2::new(slider_w + 16.0, preamp_h),
+                );
+                let drag_resp =
+                    ui.interact(drag_rect, egui::Id::new("preamp_slider"), Sense::drag());
+                if drag_resp.dragged() {
+                    if let Some(ptr) = drag_resp.interact_pointer_pos() {
+                        let t = ((ptr.x - slider_x_start) / slider_w).clamp(0.0, 1.0);
+                        let new_preamp = t * 24.0 - 12.0;
+                        app.eq_preamp = new_preamp;
+                        app.ctx.eq.set_preamp(new_preamp);
+                    }
+                }
+
+                // Current value label below knob
+                ui.painter().text(
+                    Pos2::new(fill_x, slider_y + 12.0),
+                    Align2::CENTER_CENTER,
+                    format!("{:.1} dB", app.eq_preamp),
+                    FontId::proportional(9.0),
+                    colors.text_dim,
+                );
+
+                // "+12dB" on right
+                ui.painter().text(
+                    Pos2::new(slider_x_end + 8.0, preamp_rect.center().y),
+                    Align2::LEFT_CENTER,
+                    "+12dB",
+                    FontId::proportional(9.0),
+                    colors.text_dim,
+                );
+
+                // Reset button (right side)
+                let reset_x = preamp_rect.right() - 70.0;
+                let reset_rect = Rect::from_min_size(
+                    Pos2::new(reset_x, preamp_rect.top() + 8.0),
+                    Vec2::new(50.0, 28.0),
+                );
+                let reset_resp =
+                    ui.interact(reset_rect, egui::Id::new("eq_reset_btn"), Sense::click());
+                ui.painter().text(
+                    reset_rect.center(),
+                    Align2::CENTER_CENTER,
+                    "Reset",
+                    FontId::proportional(12.0),
+                    colors.accent,
+                );
+                // Refresh icon
+                ui.painter().text(
+                    Pos2::new(reset_rect.right() + 14.0, reset_rect.center().y),
+                    Align2::CENTER_CENTER,
+                    "\u{21BA}",
+                    FontId::proportional(14.0),
+                    colors.accent,
+                );
+                if reset_resp.clicked() {
+                    reset_eq(app);
                 }
             }
 
-            // Current value label below knob
-            ui.painter().text(
-                Pos2::new(fill_x, slider_y + 12.0),
-                Align2::CENTER_CENTER,
-                format!("{:.1} dB", app.eq_preamp),
-                FontId::proportional(9.0),
-                colors.text_dim,
-            );
-
-            // "+12dB" on right
-            ui.painter().text(
-                Pos2::new(slider_x_end + 8.0, preamp_rect.center().y),
-                Align2::LEFT_CENTER,
-                "+12dB",
-                FontId::proportional(9.0),
-                colors.text_dim,
-            );
-
-            // Reset button (right side)
-            let reset_x = preamp_rect.right() - 70.0;
-            let reset_rect = Rect::from_min_size(
-                Pos2::new(reset_x, preamp_rect.top() + 8.0),
-                Vec2::new(50.0, 28.0),
-            );
-            let reset_resp = ui.interact(reset_rect, egui::Id::new("eq_reset_btn"), Sense::click());
-            ui.painter().text(
-                reset_rect.center(),
-                Align2::CENTER_CENTER,
-                "Reset",
-                FontId::proportional(12.0),
-                colors.accent,
-            );
-            // Refresh icon
-            ui.painter().text(
-                Pos2::new(reset_rect.right() + 14.0, reset_rect.center().y),
-                Align2::CENTER_CENTER,
-                "\u{21BA}",
-                FontId::proportional(14.0),
-                colors.accent,
-            );
-            if reset_resp.clicked() {
-                reset_eq(app);
-            }
-        }
-
-        ui.add_space(8.0);
+            ui.add_space(8.0);
         });
     });
 }

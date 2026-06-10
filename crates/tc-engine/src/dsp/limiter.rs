@@ -238,7 +238,7 @@ impl LookaheadLimiter {
         self.attack_coeff = (-1.0 / (self.attack_secs * self.sample_rate)).exp();
         self.release_coeff = (-1.0 / (self.release_secs * self.sample_rate)).exp();
     }
-    
+
     pub fn set_lookahead(&mut self, ms: f32) {
         self.lookahead_secs = ms / 1000.0;
         self.set_sample_rate(self.sample_rate);

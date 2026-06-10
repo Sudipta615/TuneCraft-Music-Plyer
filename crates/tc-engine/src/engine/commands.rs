@@ -4,7 +4,7 @@ use crossbeam::channel::TryRecvError;
 use log::{error, info, warn};
 
 use super::{helpers::percent_decode, AudioEngine, PlaybackStream};
-use crate::buffer::{AudioFrame, EngineCommand, PlaybackState};
+use crate::buffer::{EngineCommand, PlaybackState};
 
 impl AudioEngine {
     pub(super) fn process_commands(&mut self) {
@@ -87,7 +87,7 @@ impl AudioEngine {
                     ref mut resampler,
                 }) = self.stream
                 {
-                    self.pipeline.begin_seek_fade_out();
+                    self.pipeline.begin_seek_fadeout();
 
                     for _ in 0..128 {
                         let (l, r) = self.pipeline.process(0.0, 0.0);
@@ -96,14 +96,15 @@ impl AudioEngine {
                     match decoder.seek(pos_secs) {
                         Ok(()) => {
                             self.position_secs = pos_secs;
-                            self.source_frames_consumed = (pos_secs * self.source_sample_rate as f32).round() as u64;
+                            self.source_frames_consumed =
+                                (pos_secs * self.source_sample_rate as f32).round() as u64;
                             #[cfg(feature = "resample")]
                             if let Some(ref mut r) = resampler {
                                 r.reset();
                             }
                             #[cfg(not(feature = "resample"))]
                             let _ = resampler;
-                            self.pipeline.begin_seek_fade_in();
+                            self.pipeline.begin_seek_fadein();
                             // Reset crossfade trigger since position changed.
                             self.crossfade_triggered = false;
                             self.pending_chunk = None;
@@ -111,7 +112,7 @@ impl AudioEngine {
                             info!("Seeked to {:.1}s", pos_secs);
                         },
                         Err(e) => {
-                            self.pipeline.begin_seek_fade_in();
+                            self.pipeline.begin_seek_fadein();
                             warn!("Seek failed: {}", e);
                         },
                     }
@@ -230,14 +231,34 @@ impl AudioEngine {
             EngineCommand::SetCrossfeedProfile(profile) => {
                 self.pipeline.set_crossfeed_profile(profile);
             },
-            EngineCommand::SetCrossfeedCustomParams { frequency_hz, q, delay_ms, mix_db } => {
-                self.pipeline.set_crossfeed_custom_params(frequency_hz, q, delay_ms, mix_db);
+            EngineCommand::SetCrossfeedCustomParams {
+                frequency_hz,
+                q,
+                delay_ms,
+                mix_db,
+            } => {
+                self.pipeline
+                    .set_crossfeed_custom_params(frequency_hz, q, delay_ms, mix_db);
             },
             EngineCommand::SetCompressorEnabled(enabled) => {
                 self.pipeline.set_compressor_enabled(enabled);
             },
-            EngineCommand::SetCompressorBandParams { band, threshold_db, ratio, attack_ms, release_ms, makeup_gain_db } => {
-                self.pipeline.set_compressor_band_params(band, threshold_db, ratio, attack_ms, release_ms, makeup_gain_db);
+            EngineCommand::SetCompressorBandParams {
+                band,
+                threshold_db,
+                ratio,
+                attack_ms,
+                release_ms,
+                makeup_gain_db,
+            } => {
+                self.pipeline.set_compressor_band_params(
+                    band,
+                    threshold_db,
+                    ratio,
+                    attack_ms,
+                    release_ms,
+                    makeup_gain_db,
+                );
             },
 
             EngineCommand::SetShuffle(_enabled) => {
@@ -254,7 +275,7 @@ impl AudioEngine {
                     let path_str = uri.trim_start_matches("file://");
                     if let Some(decoded_path_str) = percent_decode(path_str) {
                         let path = std::path::PathBuf::from(decoded_path_str);
-                        
+
                         if let Ok(metadata) = std::fs::metadata(&path) {
                             if !metadata.is_file() {
                                 warn!("OpenUri: path is not a regular file: {}", path.display());

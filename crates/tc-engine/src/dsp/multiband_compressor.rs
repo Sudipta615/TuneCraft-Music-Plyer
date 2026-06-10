@@ -168,7 +168,15 @@ impl MultibandCompressor {
         self.enabled = enabled;
     }
 
-    pub fn set_band_params(&mut self, band: usize, threshold_db: f32, ratio: f32, attack_ms: f32, release_ms: f32, makeup_gain_db: f32) {
+    pub fn set_band_params(
+        &mut self,
+        band: usize,
+        threshold_db: f32,
+        ratio: f32,
+        attack_ms: f32,
+        release_ms: f32,
+        makeup_gain_db: f32,
+    ) {
         let (comp_l, comp_r) = match band {
             0 => (&mut self.comp_low_l, &mut self.comp_low_r),
             1 => (&mut self.comp_mid_l, &mut self.comp_mid_r),
@@ -176,9 +184,23 @@ impl MultibandCompressor {
             _ => return,
         };
 
-        let comp_new_l = BandCompressor::new(self.sample_rate, threshold_db, ratio, attack_ms, release_ms, makeup_gain_db);
-        let comp_new_r = BandCompressor::new(self.sample_rate, threshold_db, ratio, attack_ms, release_ms, makeup_gain_db);
-        
+        let comp_new_l = BandCompressor::new(
+            self.sample_rate,
+            threshold_db,
+            ratio,
+            attack_ms,
+            release_ms,
+            makeup_gain_db,
+        );
+        let comp_new_r = BandCompressor::new(
+            self.sample_rate,
+            threshold_db,
+            ratio,
+            attack_ms,
+            release_ms,
+            makeup_gain_db,
+        );
+
         *comp_l = comp_new_l;
         *comp_r = comp_new_r;
     }

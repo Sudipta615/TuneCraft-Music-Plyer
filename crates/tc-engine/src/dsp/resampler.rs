@@ -238,7 +238,7 @@ impl AudioResampler {
                     self.rebuild_rx = None;
                     self.needs_rebuild = true;
                     self.rebuild_failures += 1;
-                }
+                },
             }
         } else if self.needs_rebuild {
             if self.rebuild_failures >= MAX_REBUILD_FAILURES {

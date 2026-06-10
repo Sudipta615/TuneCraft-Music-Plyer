@@ -22,9 +22,9 @@ pub struct DspPipeline {
     pub out_loudness: LoudnessNormalizer,
     pub in_preamp: GainProcessor,
     pub in_loudness: LoudnessNormalizer,
-    
+
     pub mixer: TrackMixer,
-    
+
     // Post-mix chain
     pub eq: ParametricEq,
     pub multiband_compressor: MultibandCompressor,
@@ -84,16 +84,22 @@ impl DspPipeline {
             ConfigLoudnessMode::AlbumReplayGain => LoudnessMode::AlbumReplayGain,
             ConfigLoudnessMode::EbuR128 => LoudnessMode::EbuR128,
         };
-        
+
         let mut loudness_out = LoudnessNormalizer::new(sample_rate);
         loudness_out.set_mode(mode);
         loudness_out.set_target_lufs(config.loudness.target_lufs);
-        loudness_out.set_true_peak_guard(config.loudness.true_peak_guard, config.loudness.true_peak_dbtp);
-        
+        loudness_out.set_true_peak_guard(
+            config.loudness.true_peak_guard,
+            config.loudness.true_peak_dbtp,
+        );
+
         let mut loudness_in = LoudnessNormalizer::new(sample_rate);
         loudness_in.set_mode(mode);
         loudness_in.set_target_lufs(config.loudness.target_lufs);
-        loudness_in.set_true_peak_guard(config.loudness.true_peak_guard, config.loudness.true_peak_dbtp);
+        loudness_in.set_true_peak_guard(
+            config.loudness.true_peak_guard,
+            config.loudness.true_peak_dbtp,
+        );
 
         let mut limiter = LookaheadLimiter::new_with_params(
             sample_rate,
@@ -111,7 +117,11 @@ impl DspPipeline {
 
         let mut crossfeed = Crossfeed::new(sample_rate);
         crossfeed.set_enabled(config.crossfeed.enabled);
-        crossfeed.set_custom_params(config.crossfeed.custom_frequency_hz, config.crossfeed.custom_q, config.crossfeed.custom_delay_ms, config.crossfeed.custom_mix_db);
+        crossfeed.set_custom_params(
+            config.crossfeed.custom_freq,
+            config.crossfeed.custom_q,
+            config.crossfeed.custom_delay_ms,
+        );
         crossfeed.set_profile(config.crossfeed.profile);
 
         let mut multiband_compressor = MultibandCompressor::new(sample_rate);
@@ -140,7 +150,6 @@ impl DspPipeline {
             config.multiband_compressor.high_band.release_ms,
             config.multiband_compressor.high_band.makeup_gain_db,
         );
-
 
         let dither = if config.dither_enabled {
             Dither::new(DitherType::Triangular, 24)
@@ -215,7 +224,7 @@ impl DspPipeline {
     pub fn mixer_mut(&mut self) -> &mut TrackMixer {
         &mut self.mixer
     }
-    
+
     pub fn mixer(&self) -> &TrackMixer {
         &self.mixer
     }
@@ -258,7 +267,7 @@ impl DspPipeline {
     }
 
     pub fn set_volume(&mut self, volume: f32) {
-        self.volume.set_target_gain(volume);
+        self.volume.set_gain(volume);
     }
 
     pub fn set_balance(&mut self, balance: f32) {
@@ -282,23 +291,25 @@ impl DspPipeline {
     }
 
     pub fn begin_seek_fadeout(&mut self) {
-        self.seek_fade.begin_fadeout();
+        self.seek_fade.fade_out();
     }
 
     pub fn begin_seek_fadein(&mut self) {
-        self.seek_fade.begin_fadein();
+        self.seek_fade.fade_in();
     }
 
     pub fn is_seek_fadeout_complete(&self) -> bool {
-        self.seek_fade.is_fadeout_complete()
+        self.seek_fade.is_faded_out()
     }
 
     pub fn apply_loudness_metadata_outgoing(&mut self, metadata: Option<LoudnessMetadata>) {
-        self.out_loudness.apply_metadata(metadata);
+        self.out_loudness
+            .set_track_metadata(&metadata.unwrap_or_default());
     }
 
     pub fn apply_loudness_metadata_incoming(&mut self, metadata: Option<LoudnessMetadata>) {
-        self.in_loudness.apply_metadata(metadata);
+        self.in_loudness
+            .set_track_metadata(&metadata.unwrap_or_default());
     }
 
     pub fn update_sample_rate(&mut self, sample_rate: f32) {
@@ -313,9 +324,12 @@ impl DspPipeline {
         self.convolution.set_sample_rate(sample_rate);
         self.crossfeed.set_sample_rate(sample_rate);
         self.limiter.set_sample_rate(sample_rate);
-        self.out_preamp.set_sample_rate(sample_rate);
-        self.in_preamp.set_sample_rate(sample_rate);
-        self.volume.set_sample_rate(sample_rate);
+        self.out_preamp
+            .set_slew_rate(1.0 / (PREAMP_RAMP_DURATION_MS * 0.001 * sample_rate));
+        self.in_preamp
+            .set_slew_rate(1.0 / (PREAMP_RAMP_DURATION_MS * 0.001 * sample_rate));
+        self.volume
+            .set_slew_rate(1.0 / (self.volume_fade_ms * 0.001 * sample_rate));
         self.seek_fade.set_sample_rate(sample_rate);
         let crossfade_ms = self.mixer.duration_ms(self.sample_rate.max(1.0));
         self.mixer.set_duration_ms(crossfade_ms, sample_rate);
@@ -347,12 +361,24 @@ impl DspPipeline {
     }
 
     pub fn set_bass_shelf(&mut self, gain_db: f32) {
-        self.eq.set_band(0, EqBandParams { gain_db, ..self.eq.band(0) });
+        self.eq.set_band(
+            0,
+            EqBandParams {
+                gain_db,
+                ..self.eq.band_params(0).copied().unwrap_or_default()
+            },
+        );
     }
 
     pub fn set_treble_shelf(&mut self, gain_db: f32) {
         let last = self.eq.num_bands() - 1;
-        self.eq.set_band(last, EqBandParams { gain_db, ..self.eq.band(last) });
+        self.eq.set_band(
+            last,
+            EqBandParams {
+                gain_db,
+                ..self.eq.band_params(last).copied().unwrap_or_default()
+            },
+        );
     }
 
     pub fn set_eq_enabled(&mut self, enabled: bool) {
@@ -384,7 +410,8 @@ impl DspPipeline {
     }
 
     pub fn set_stereo_width(&mut self, width: f32) {
-        self.stereo_enhancer.set_enabled((width - 1.0).abs() > 0.001);
+        self.stereo_enhancer
+            .set_enabled((width - 1.0).abs() > 0.001);
         self.stereo_enhancer.set_width(width);
     }
 
@@ -396,7 +423,14 @@ impl DspPipeline {
         self.dither.set_enabled(enabled);
     }
 
-    pub fn set_limiter_params(&mut self, lookahead_ms: f32, attack_ms: f32, release_ms: f32, ceiling_db: f32, soft_clip: bool) {
+    pub fn set_limiter_params(
+        &mut self,
+        lookahead_ms: f32,
+        attack_ms: f32,
+        release_ms: f32,
+        ceiling_db: f32,
+        soft_clip: bool,
+    ) {
         self.limiter.set_lookahead(lookahead_ms);
         self.limiter.set_attack(attack_ms);
         self.limiter.set_release(release_ms);
@@ -412,16 +446,37 @@ impl DspPipeline {
         self.crossfeed.set_profile(profile);
     }
 
-    pub fn set_crossfeed_custom_params(&mut self, frequency_hz: f32, q: f32, delay_ms: f32, mix_db: f32) {
-        self.crossfeed.set_custom_params(frequency_hz, q, delay_ms, mix_db);
+    pub fn set_crossfeed_custom_params(
+        &mut self,
+        frequency_hz: f32,
+        q: f32,
+        delay_ms: f32,
+        _mix_db: f32,
+    ) {
+        self.crossfeed.set_custom_params(frequency_hz, q, delay_ms);
     }
 
     pub fn set_compressor_enabled(&mut self, enabled: bool) {
         self.multiband_compressor.set_enabled(enabled);
     }
 
-    pub fn set_compressor_band_params(&mut self, band: usize, threshold_db: f32, ratio: f32, attack_ms: f32, release_ms: f32, makeup_gain_db: f32) {
-        self.multiband_compressor.set_band_params(band, threshold_db, ratio, attack_ms, release_ms, makeup_gain_db);
+    pub fn set_compressor_band_params(
+        &mut self,
+        band: usize,
+        threshold_db: f32,
+        ratio: f32,
+        attack_ms: f32,
+        release_ms: f32,
+        makeup_gain_db: f32,
+    ) {
+        self.multiband_compressor.set_band_params(
+            band,
+            threshold_db,
+            ratio,
+            attack_ms,
+            release_ms,
+            makeup_gain_db,
+        );
     }
 
     pub fn set_loudness_mode(&mut self, mode: LoudnessMode) {

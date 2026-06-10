@@ -244,32 +244,32 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             );
 
             let popup_id = ui.make_persistent_id("remove_playlist_popup");
-            if remove_btn_resp.clicked() {
-                ui.memory_mut(|mem| mem.toggle_popup(popup_id));
-            }
 
-            egui::popup_below_widget(ui, popup_id, &remove_btn_resp, |ui| {
-                ui.set_min_width(160.0);
-                if playlists_snapshot.is_empty() {
-                    ui.label(egui::RichText::new("No playlists").color(colors.text_dim));
-                } else {
-                    for (pid, pname) in &playlists_snapshot {
-                        ui.horizontal(|ui| {
-                            if ui.button(egui_phosphor::regular::TRASH).clicked() {
-                                if let Err(e) = app.ctx.library.db().delete_playlist(*pid) {
-                                    log::warn!("Failed to delete playlist: {}", e);
+            egui::Popup::from_toggle_button_response(&remove_btn_resp)
+                .id(popup_id)
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                .show(|ui: &mut egui::Ui| {
+                    ui.set_min_width(160.0);
+                    if playlists_snapshot.is_empty() {
+                        ui.label(egui::RichText::new("No playlists").color(colors.text_dim));
+                    } else {
+                        for (pid, pname) in &playlists_snapshot {
+                            ui.horizontal(|ui| {
+                                if ui.button(egui_phosphor::regular::TRASH).clicked() {
+                                    if let Err(e) = app.ctx.library.db().delete_playlist(*pid) {
+                                        log::warn!("Failed to delete playlist: {}", e);
+                                    }
+                                    app.playlists_loaded = false;
+                                    if app.selected_playlist_id == Some(*pid) {
+                                        app.selected_playlist_id = None;
+                                    }
+                                    egui::Popup::close_id(ui.ctx(), popup_id);
                                 }
-                                app.playlists_loaded = false;
-                                if app.selected_playlist_id == Some(*pid) {
-                                    app.selected_playlist_id = None;
-                                }
-                                ui.memory_mut(|mem| mem.close_popup());
-                            }
-                            ui.label(pname);
-                        });
+                                ui.label(pname);
+                            });
+                        }
                     }
-                }
-            });
+                });
         });
 
         ui.add_space(16.0);

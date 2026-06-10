@@ -13,14 +13,14 @@ pub struct Crossfeed {
     custom_q: f32,
     custom_delay_ms: f32,
     sample_rate: f32,
-    
+
     /// Biquad coefficients for the crossfeed low-pass filter
     coeffs: BiquadCoeffs,
     /// State for the Left-to-Right crossfeed filter
     state_lr: BiquadState,
     /// State for the Right-to-Left crossfeed filter
     state_rl: BiquadState,
-    
+
     /// Delay ring buffer for Left-to-Right
     delay_lr: Vec<f32>,
     /// Delay ring buffer for Right-to-Left
@@ -70,7 +70,7 @@ impl Crossfeed {
     pub fn set_level(&mut self, level: f32) {
         self.level = level.clamp(0.0, 1.0);
     }
-    
+
     pub fn set_custom_params(&mut self, freq: f32, q: f32, delay_ms: f32) {
         self.custom_freq = freq;
         self.custom_q = q;
@@ -95,15 +95,15 @@ impl Crossfeed {
             CrossfeedProfile::Jmeier => (600.0, 0.6, 0.35),
             CrossfeedProfile::Custom => (self.custom_freq, self.custom_q, self.custom_delay_ms),
         };
-        
+
         self.coeffs = BiquadCoeffs::lowpass(self.sample_rate, freq, q);
-        
+
         // Calculate delay in samples
         self.delay_len = ((delay_ms / 1000.0) * self.sample_rate) as usize;
         if self.delay_len == 0 {
             self.delay_len = 1; // Minimum 1 sample to avoid 0-capacity ring buffer logic
         }
-        
+
         if self.delay_lr.len() != self.delay_len {
             self.delay_lr = vec![0.0; self.delay_len];
             self.delay_rl = vec![0.0; self.delay_len];
@@ -124,10 +124,10 @@ impl Crossfeed {
         // Process delay line
         let cross_to_right = self.delay_lr[self.delay_pos];
         let cross_to_left = self.delay_rl[self.delay_pos];
-        
+
         self.delay_lr[self.delay_pos] = filtered_to_right;
         self.delay_rl[self.delay_pos] = filtered_to_left;
-        
+
         self.delay_pos += 1;
         if self.delay_pos >= self.delay_len {
             self.delay_pos = 0;

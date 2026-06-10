@@ -248,7 +248,6 @@ fn draw_full(
         colors.text,
     );
 
-
     // ── Center section: Controls + progress ──
     let center_x = bar_rect.left() + left_w;
     let center_w = right_x - center_x;

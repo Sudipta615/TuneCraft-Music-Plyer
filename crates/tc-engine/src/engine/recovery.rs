@@ -77,7 +77,7 @@ impl AudioEngine {
                 "Sample rate changed during recovery: {} Hz -> {} Hz",
                 old_rate, actual_rate
             );
-            self.pipeline.set_sample_rate(actual_rate as f32);
+            self.pipeline.update_sample_rate(actual_rate as f32);
 
             // Rebuild resampler(s) if we have an active stream.
             // v0.21.0: When in Transitioning state, we now rebuild BOTH

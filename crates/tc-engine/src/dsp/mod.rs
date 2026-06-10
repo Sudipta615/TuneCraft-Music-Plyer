@@ -15,7 +15,6 @@ pub mod pipeline;
 pub mod resampler;
 pub mod stereo;
 
-
 pub use biquad::{BiquadCoeffs, BiquadState, FilterType, SmoothedBiquad};
 pub use convolution::ConvolutionEngine;
 pub use crossfade::{CrossfadeConfig, CrossfadeCurve, MixerState, TrackMixer};
@@ -33,4 +32,3 @@ pub use stereo::StereoEnhancer;
 
 pub use crossfeed::Crossfeed;
 pub use multiband_compressor::MultibandCompressor;
-

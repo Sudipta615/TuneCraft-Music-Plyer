@@ -597,7 +597,7 @@ impl AudioEngine {
                         break;
                     }
                 }
-                
+
                 if output_full {
                     break;
                 }
@@ -615,10 +615,12 @@ impl AudioEngine {
             self.position_secs += time_delta;
             self.source_sample_rate = incoming_rate;
             self.duration_secs = incoming_decoder.duration_secs();
-            self.source_frames_consumed = (self.position_secs * incoming_rate as f32).round() as u64;
+            self.source_frames_consumed =
+                (self.position_secs * incoming_rate as f32).round() as u64;
         } else {
             self.position_secs += time_delta;
-            self.source_frames_consumed = (self.position_secs * self.source_sample_rate as f32).round() as u64;
+            self.source_frames_consumed =
+                (self.position_secs * self.source_sample_rate as f32).round() as u64;
         }
 
         match self.playback_info.write() {

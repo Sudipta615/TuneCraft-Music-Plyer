@@ -21,10 +21,10 @@ pub const ACCENT_INDIGO: Color32 = Color32::from_rgb(0x1A, 0x64, 0x70);
 
 // ── Dark theme: updated matching custom design ──
 
-pub const DARK_BG: Color32 = Color32::from_rgba_unmultiplied(0x0A, 0x11, 0x1E, 220); // #0a111e
-pub const DARK_SIDEBAR: Color32 = Color32::from_rgba_unmultiplied(0x0F, 0x15, 0x23, 220); // #0f1523
-pub const DARK_SURFACE: Color32 = Color32::from_rgba_unmultiplied(0x0A, 0x11, 0x1E, 220); // #0a111e
-pub const DARK_CARD: Color32 = Color32::from_rgba_unmultiplied(0x0F, 0x15, 0x23, 220); // #0f1523
+pub const DARK_BG: Color32 = Color32::from_rgba_premultiplied(8, 14, 25, 220); // #0a111e
+pub const DARK_SIDEBAR: Color32 = Color32::from_rgba_premultiplied(12, 18, 30, 220); // #0f1523
+pub const DARK_SURFACE: Color32 = Color32::from_rgba_premultiplied(8, 14, 25, 220); // #0a111e
+pub const DARK_CARD: Color32 = Color32::from_rgba_premultiplied(12, 18, 30, 220); // #0f1523
 pub const DARK_TEXT: Color32 = Color32::from_rgb(0xE6, 0xE7, 0xE7); // #e6e7e7
 pub const DARK_TEXT_DIM: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8); // #babfc8
 pub const DARK_TEXT_MUTED: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8); // #babfc8
@@ -34,10 +34,10 @@ pub const DARK_ACTIVE: Color32 = Color32::from_rgb(0x14, 0x1B, 0x2B); // #141b2b
 
 // ── Light theme matching reference design ──
 
-pub const LIGHT_BG: Color32 = Color32::from_rgba_unmultiplied(0xF4, 0xF5, 0xF7, 235); // Soft cool gray background
-pub const LIGHT_SIDEBAR: Color32 = Color32::from_rgba_unmultiplied(0xFC, 0xFC, 0xFD, 235); // Near white sidebar
-pub const LIGHT_SURFACE: Color32 = Color32::from_rgba_unmultiplied(0xF4, 0xF5, 0xF7, 235); // Soft surface
-pub const LIGHT_CARD: Color32 = Color32::from_rgba_unmultiplied(0xFF, 0xFF, 0xFF, 235); // Pure white cards for contrast
+pub const LIGHT_BG: Color32 = Color32::from_rgba_premultiplied(224, 225, 227, 235); // Soft cool gray background
+pub const LIGHT_SIDEBAR: Color32 = Color32::from_rgba_premultiplied(232, 232, 233, 235); // Near white sidebar
+pub const LIGHT_SURFACE: Color32 = Color32::from_rgba_premultiplied(224, 225, 227, 235); // Soft surface
+pub const LIGHT_CARD: Color32 = Color32::from_rgba_premultiplied(235, 235, 235, 235); // Pure white cards for contrast
 pub const LIGHT_TEXT: Color32 = Color32::from_rgb(0x11, 0x18, 0x27); // Dark gray, not pure black
 pub const LIGHT_TEXT_DIM: Color32 = Color32::from_rgb(0x6B, 0x72, 0x80);
 pub const LIGHT_TEXT_MUTED: Color32 = Color32::from_rgb(0x9C, 0xA3, 0xAF);
@@ -89,22 +89,28 @@ impl TuneCraftColors {
         accent_dark: Color32,
     ) -> Self {
         let alpha = 220; // Glassmorphism opacity
-        let bg = Color32::from_rgba_unmultiplied(bg_opaque.r(), bg_opaque.g(), bg_opaque.b(), alpha);
-        let card = Color32::from_rgba_unmultiplied(card_opaque.r(), card_opaque.g(), card_opaque.b(), alpha);
-        
+        let bg =
+            Color32::from_rgba_unmultiplied(bg_opaque.r(), bg_opaque.g(), bg_opaque.b(), alpha);
+        let card = Color32::from_rgba_unmultiplied(
+            card_opaque.r(),
+            card_opaque.g(),
+            card_opaque.b(),
+            alpha,
+        );
+
         let hover = Color32::from_rgba_unmultiplied(
             bg_opaque.r().saturating_add(10),
             bg_opaque.g().saturating_add(10),
             bg_opaque.b().saturating_add(15),
-            alpha
+            alpha,
         );
         let border = Color32::from_rgba_unmultiplied(
             bg_opaque.r().saturating_add(20),
             bg_opaque.g().saturating_add(20),
             bg_opaque.b().saturating_add(25),
-            alpha
+            alpha,
         );
-        
+
         Self {
             bg,
             sidebar: card,
@@ -199,6 +205,78 @@ impl TuneCraftColors {
             dark_mode: false,
         }
     }
+    pub fn ocean() -> Self {
+        Self::custom_dark(
+            Color32::from_rgb(0x06, 0x11, 0x1E),
+            Color32::from_rgb(0x0A, 0x16, 0x24),
+            Color32::from_rgb(0x00, 0xE5, 0xFF),
+            Color32::from_rgb(0x33, 0xEA, 0xFF),
+            Color32::from_rgb(0x00, 0xB3, 0xCC),
+        )
+    }
+    pub fn forest() -> Self {
+        Self::custom_dark(
+            Color32::from_rgb(0x09, 0x15, 0x0E),
+            Color32::from_rgb(0x0D, 0x1A, 0x12),
+            Color32::from_rgb(0x34, 0xD3, 0x99),
+            Color32::from_rgb(0x6E, 0xE7, 0xB7),
+            Color32::from_rgb(0x05, 0x96, 0x69),
+        )
+    }
+    pub fn sunset() -> Self {
+        Self::custom_dark(
+            Color32::from_rgb(0x19, 0x0B, 0x08),
+            Color32::from_rgb(0x1F, 0x0F, 0x0B),
+            Color32::from_rgb(0xFB, 0x92, 0x3C),
+            Color32::from_rgb(0xFD, 0xBA, 0x74),
+            Color32::from_rgb(0xEA, 0x58, 0x0C),
+        )
+    }
+    pub fn berry() -> Self {
+        Self::custom_dark(
+            Color32::from_rgb(0x15, 0x08, 0x1B),
+            Color32::from_rgb(0x1A, 0x0B, 0x21),
+            Color32::from_rgb(0xE8, 0x43, 0x93),
+            Color32::from_rgb(0xF4, 0x72, 0xB6),
+            Color32::from_rgb(0xBE, 0x18, 0x5D),
+        )
+    }
+    pub fn midnight() -> Self {
+        Self::custom_dark(
+            Color32::from_rgb(0x00, 0x00, 0x00),
+            Color32::from_rgb(0x0A, 0x0A, 0x0A),
+            Color32::from_rgb(0x3B, 0x82, 0xF6),
+            Color32::from_rgb(0x60, 0xA5, 0xFA),
+            Color32::from_rgb(0x25, 0x63, 0xEB),
+        )
+    }
+    pub fn rose() -> Self {
+        Self::custom_dark(
+            Color32::from_rgb(0x17, 0x09, 0x0A),
+            Color32::from_rgb(0x1D, 0x0C, 0x0D),
+            Color32::from_rgb(0xF4, 0x3F, 0x5E),
+            Color32::from_rgb(0xFB, 0x71, 0x85),
+            Color32::from_rgb(0xE1, 0x1D, 0x48),
+        )
+    }
+    pub fn coffee() -> Self {
+        Self::custom_dark(
+            Color32::from_rgb(0x14, 0x10, 0x0C),
+            Color32::from_rgb(0x1A, 0x15, 0x10),
+            Color32::from_rgb(0xD9, 0x77, 0x06),
+            Color32::from_rgb(0xFB, 0xBF, 0x24),
+            Color32::from_rgb(0xB4, 0x53, 0x09),
+        )
+    }
+    pub fn mint() -> Self {
+        Self::custom_dark(
+            Color32::from_rgb(0x07, 0x15, 0x16),
+            Color32::from_rgb(0x0A, 0x1A, 0x1B),
+            Color32::from_rgb(0x10, 0xB9, 0x81),
+            Color32::from_rgb(0x34, 0xD3, 0x99),
+            Color32::from_rgb(0x05, 0x96, 0x69),
+        )
+    }
 }
 
 /// Build the egui Visuals for a dark theme matching the reference design
@@ -259,6 +337,37 @@ pub fn light_visuals() -> Visuals {
     v.widgets.inactive.corner_radius = CornerRadius::same(8);
     v.widgets.hovered.corner_radius = CornerRadius::same(8);
     v.widgets.active.corner_radius = CornerRadius::same(8);
+    v.slider_trailing_fill = true;
+    v
+}
+
+/// Build the egui Visuals for a custom dark theme matching the given colors
+pub fn custom_dark_visuals(colors: &TuneCraftColors) -> Visuals {
+    let mut v = Visuals::dark();
+    v.extreme_bg_color = colors.bg;
+    v.panel_fill = colors.bg;
+    v.window_fill = colors.bg;
+    v.faint_bg_color = colors.card;
+    v.widgets.noninteractive.bg_fill = colors.bg;
+    v.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, colors.text_dim);
+    v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, colors.border);
+    v.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, colors.text);
+    v.widgets.inactive.bg_fill = colors.card;
+    v.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, colors.border);
+    v.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, colors.text);
+    v.widgets.hovered.bg_fill = colors.hover;
+    v.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, colors.accent_light);
+    v.widgets.active.fg_stroke = egui::Stroke::new(1.0, colors.text);
+    v.widgets.active.bg_fill = colors.accent_dark;
+    v.widgets.active.bg_stroke = egui::Stroke::new(1.0, colors.accent);
+    v.selection.bg_fill = colors.accent_dark;
+    v.selection.stroke = egui::Stroke::new(1.0, colors.text);
+    v.override_text_color = Some(colors.text);
+    v.window_corner_radius = egui::CornerRadius::same(12);
+    v.widgets.noninteractive.corner_radius = egui::CornerRadius::same(8);
+    v.widgets.inactive.corner_radius = egui::CornerRadius::same(8);
+    v.widgets.hovered.corner_radius = egui::CornerRadius::same(8);
+    v.widgets.active.corner_radius = egui::CornerRadius::same(8);
     v.slider_trailing_fill = true;
     v
 }
