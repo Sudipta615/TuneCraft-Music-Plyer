@@ -170,14 +170,7 @@ impl TuneCraftApp {
         }
     }
 
-    /// Poll lyrics results from the async fetch task.
-    pub fn poll_lyrics(&mut self) {
-        if self.ctx.lyrics.poll_results() {
-            let state = self.ctx.lyrics.state();
-            self.current_lyrics = state.current_lyrics.clone();
-            self.lyrics_loading = state.loading;
-        }
-    }
+
 
     pub fn trigger_background_analysis(&self) {
         let db = self.ctx.library.db().clone();

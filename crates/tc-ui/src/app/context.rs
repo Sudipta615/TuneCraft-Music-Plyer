@@ -30,7 +30,6 @@ pub struct AppContext {
     pub library: Arc<LibraryService>,
     pub eq: Arc<EqService>,
     pub scrobble: Arc<ScrobbleService>,
-    pub lyrics: Arc<LyricsService>,
     pub config: Arc<ConfigService>,
     pub platform: Arc<PlatformService>,
 
@@ -122,12 +121,6 @@ impl AppContext {
         // to allow the user to disable play-count tracking entirely if they wish.
         let scrobble_enabled = config.read().map(|c| c.scrobble.enabled).unwrap_or(true); // default: enabled (local-only, no privacy concern)
         let scrobble = Arc::new(ScrobbleService::new(Arc::clone(&db), scrobble_enabled));
-
-        let lyrics_client = Arc::new(tc_lyrics::LyricsClient::new());
-        let lyrics = Arc::new(LyricsService::new(
-            lyrics_client,
-            Arc::clone(&tokio_runtime),
-        ));
 
         let library_config = config
             .read()
@@ -290,7 +283,6 @@ impl AppContext {
             library: library_service,
             eq,
             scrobble,
-            lyrics,
             config: config_service,
             platform,
             tokio_runtime,

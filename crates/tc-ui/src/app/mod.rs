@@ -110,10 +110,6 @@ pub struct TuneCraftApp {
     pub cached_dither_enabled: bool,
     pub cached_midside_enabled: bool,
 
-    pub show_lyrics: bool,
-    pub current_lyrics: Option<Vec<tc_lyrics::SyncedLyricLine>>,
-    pub lyrics_loading: bool,
-
     pub scrobble_enabled: bool,
     pub last_scrobbled_track_id: Option<i64>,
     pub play_started_at: Option<std::time::Instant>,
@@ -270,10 +266,6 @@ impl TuneCraftApp {
             cached_dither_enabled: eq_dither,
             cached_midside_enabled: false,
 
-            show_lyrics: false,
-            current_lyrics: None,
-            lyrics_loading: false,
-
             scrobble_enabled,
             last_scrobbled_track_id: None,
             play_started_at: None,
@@ -356,8 +348,6 @@ impl eframe::App for TuneCraftApp {
 
         self.poll_scrobble_events();
 
-        self.poll_lyrics();
-
         self.update_scan_state();
 
         self.check_dsp_warnings();
@@ -402,9 +392,8 @@ impl eframe::App for TuneCraftApp {
             240.0
         };
         egui::SidePanel::left("sidebar")
-            .min_width(if self.sidebar_collapsed { 60.0 } else { 180.0 })
-            .max_width(if self.sidebar_collapsed { 60.0 } else { 260.0 })
-            .default_width(sidebar_w)
+            .resizable(false)
+            .exact_width(sidebar_w)
             .show(ctx, |ui| {
                 crate::sidebar::draw(self, ui);
             });

@@ -7,7 +7,6 @@ members = [
     "crates/tc-config",
     "crates/tc-analysis",
     "crates/tc-platform",
-    "crates/tc-lyrics",
     "crates/tc-ui",
     "crates/tunecraft",
 ]
@@ -18,13 +17,12 @@ default-members = [
     "crates/tc-config",
     "crates/tc-analysis",
     "crates/tc-platform",
-    "crates/tc-lyrics",
     "crates/tc-ui",
     "crates/tunecraft",
 ]
 
 [workspace.package]
-version = "2.1.4"
+version = "2.2.0"
 edition = "2021"
 rust-version = "1.82"
 license = "MIT"
@@ -113,7 +111,6 @@ tc-library = { path = "crates/tc-library" }
 tc-config = { path = "crates/tc-config" }
 tc-analysis = { path = "crates/tc-analysis" }
 tc-platform = { path = "crates/tc-platform" }
-tc-lyrics = { path = "crates/tc-lyrics" }
 tc-ui = { path = "crates/tc-ui" }
 
 # v0.10.0: Release build profile tuning for production binaries.

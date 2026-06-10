@@ -264,14 +264,32 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     });
 
                     ui.add_space(4.0);
-                    if styled_toolbar_btn(
+                    let filter_resp = styled_toolbar_btn(
                         ui,
                         &format!("{} Filter", egui_phosphor::regular::FUNNEL),
                         app.filter_favorites,
                         &colors,
-                    ).clicked() {
-                        app.filter_favorites = !app.filter_favorites;
+                    );
+                    let filter_popup_id = ui.make_persistent_id("filter_popup");
+                    if filter_resp.clicked() {
+                        ui.memory_mut(|mem| mem.toggle_popup(filter_popup_id));
                     }
+                    egui::popup_below_widget(ui, filter_popup_id, &filter_resp, |ui| {
+                        ui.set_min_width(120.0);
+                        if ui.selectable_label(app.filter_favorites, "Favorites Only").clicked() {
+                            app.filter_favorites = !app.filter_favorites;
+                            ui.memory_mut(|mem| mem.close_popup());
+                        }
+                        if ui.button("Release Year").clicked() {
+                            ui.memory_mut(|mem| mem.close_popup());
+                        }
+                        if ui.button("Album Type").clicked() {
+                            ui.memory_mut(|mem| mem.close_popup());
+                        }
+                        if ui.button("File Size").clicked() {
+                            ui.memory_mut(|mem| mem.close_popup());
+                        }
+                    });
                 }
 
                 // Pagination

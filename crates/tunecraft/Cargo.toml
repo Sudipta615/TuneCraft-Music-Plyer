@@ -20,7 +20,6 @@ tc-library = { workspace = true }
 tc-config = { workspace = true }
 tc-analysis = { workspace = true }
 tc-platform = { workspace = true }
-tc-lyrics = { workspace = true }
 tc-ui = { workspace = true, optional = true }
 
 log = { workspace = true }

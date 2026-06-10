@@ -24,14 +24,12 @@
 //! - **LibraryService** — track queries, scan management, playlist CRUD
 //! - **EqService** — equalizer state and DSP pipeline parameters
 //! - **ScrobbleService** — Local offline scrobbling (play journal)
-//! - **LyricsService** — lyrics search and caching
 //! - **ConfigService** — configuration persistence and dirty tracking
 //! - **PlatformService** — MPRIS status, media keys, OS integration
 
 pub mod config;
 pub mod eq;
 pub mod library;
-pub mod lyrics;
 pub mod platform;
 pub mod playback;
 pub mod scrobble;
@@ -39,7 +37,6 @@ pub mod scrobble;
 pub use config::ConfigService;
 pub use eq::EqService;
 pub use library::LibraryService;
-pub use lyrics::LyricsService;
 pub use platform::PlatformService;
 pub use playback::PlaybackService;
 pub use scrobble::ScrobbleService;

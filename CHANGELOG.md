@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] — 2026-06-10
+
+### ✨ Changed
+- **UI**: Fixed the sidebar width to be non-adjustable, relying solely on the minimize/maximize button.
+- **UI**: Converted the track list filter button to a dropdown menu with "Release Year", "Album Type", and "File Size" options.
+
+### 🚀 Added
+- **UI**: Added a "Remove playlist" button in the sidebar that opens a popup to delete user-created playlists.
+
+### 🗑️ Removed
+- Completely removed the `tc-lyrics` module and all related code from the workspace.
+
+---
+
 ## [2.1.4] — 2026-06-10
 
 ### 🐛 Fixed

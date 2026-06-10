@@ -17,7 +17,6 @@ tc-library = { workspace = true }
 tc-config = { workspace = true }
 tc-analysis = { workspace = true }
 tc-platform = { workspace = true }
-tc-lyrics = { workspace = true }
 crossbeam = { workspace = true }
 arc-swap = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync", "macros"] }
