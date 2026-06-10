@@ -327,12 +327,11 @@ impl eframe::App for TuneCraftApp {
     /// 2. Poll media key events
     /// 3. Check scrobble thresholds
     /// 4. Poll scrobble events for user feedback
-    /// 5. Poll lyrics results
-    /// 6. Update scan state
-    /// 7. Draw sidebar, main content area, and player bar
-    /// 8. Draw EQ panel overlay
-    /// 9. Draw toast notifications
-    /// 10. Save config if dirty
+    /// 5. Update scan state
+    /// 6. Draw sidebar, main content area, and player bar
+    /// 7. Draw EQ panel overlay
+    /// 8. Draw toast notifications
+    /// 9. Save config if dirty
     fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // App uses `update` to draw custom panels instead
     }
