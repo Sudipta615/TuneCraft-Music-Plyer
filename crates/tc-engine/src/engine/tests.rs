@@ -78,14 +78,13 @@ fn test_engine_not_running_initially() {
 fn test_engine_pipeline_accessors() {
     let mut engine = AudioEngine::new_default().unwrap();
     // Pipeline should be accessible.
-    let _ = engine.pipeline().volume();
-    let _ = engine.pipeline().speed();
+    let _ = engine.pipeline().volume.current_gain();
     // Pipeline mut should work.
     engine.pipeline_mut().set_volume(0.5);
     for _ in 0..50000 {
         engine.pipeline_mut().process(0.0, 0.0);
     }
-    assert!((engine.pipeline().volume() - 0.5).abs() < 0.01);
+    assert!((engine.pipeline().volume.current_gain() - 0.5).abs() < 0.01);
 }
 
 // ── Command dispatch tests ────────────────────────────────────────────────
