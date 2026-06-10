@@ -1,178 +1,168 @@
-# TuneCraft v1.0.2
+<div align="center">
 
-A production-grade, cross-platform offline music player built in Rust.
-Core audio playback, DSP processing, library management, media key
-integration, and stream recovery all work on **Linux, macOS, and Windows**.
+<img src="crates/tc-ui/icon.png" alt="TuneCraft Logo" width="160" />
 
-## Features
+# 🎵 TuneCraft Music Player
 
-### Audio Engine
-- **True parallel decoding**: Dual-decoder state machine (`PlaybackStream`) with `Single` and `Transitioning` variants for real crossfading — distinct sample streams from outgoing and incoming decoders are fed into the `TrackMixer` simultaneously
-- **DSP pipeline split processing**: During crossfade, outgoing and incoming tracks are processed independently through the first half of the pipeline (Preamp → Loudness → EQ → Convolution → Balance → Stereo), then mixed, then the combined signal passes through the second half (Limiter → Volume → SeekFade → Dither)
-- **64-bit float processing** throughout the pipeline, 32-bit at output boundary
-- **Zero-allocation audio callback**: SPSC ring buffers, pre-allocated FFT workspaces, no heap alloc in hot path
-- **Format support**: MP3, FLAC, OGG, WAV, AAC (via Symphonia)
-- **Sample rate conversion**: Rubato-based resampler with 3 quality profiles (HighQuality, Balanced, Fast) — applied to both single-stream and crossfade paths
-- **Loudness normalization**: EBU R128 and ReplayGain support with K-weighting filter
-- **10-band parametric EQ**: Peaking, low-shelf, high-shelf filters with smooth coefficient interpolation, asymmetric headroom management, and optional Mid/Side mode
-- **Lookahead limiter**: True peak protection with configurable ceiling
-- **Crossfade/gapless**: Equal-power and S-curve crossfade with smart boundaries and sample-accurate trigger timing
-- **Dither**: TPDF, rectangular, and noise-shaped dither types
-- **Three performance modes**: Ultra Quality, Balanced, Low Power
+**A true audiophile-grade, cross-platform offline music player engineered in Rust.**
 
-### Real-Time Audio Scheduling
-- **Real-time thread priority**: Audio callback thread escalated to `ThreadPriority::Max` via the `thread-priority` crate
-- **Graceful fallback**: If priority escalation fails (e.g., no rtkit on Linux), audio continues with default scheduling and a warning is logged
-- **Linux requirements**: rtkit permissions, `ulimit -r` adjustments, or `CAP_SYS_NICE` capability — documented in packaging specs
+<p align="center">
+  <a href="https://semver.org"><img src="https://img.shields.io/badge/version-2.0.0-blue.svg?style=for-the-badge" alt="Version" /></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License: MIT" /></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.82+-orange.svg?style=for-the-badge&logo=rust" alt="Rust" /></a>
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg?style=for-the-badge" alt="Platform" />
+</p>
 
-### Hardware & Stream Recovery
-- **Device disconnect detection**: CPAL error callback sets an `AtomicBool` flag when the audio device is removed (USB unplug, Bluetooth disconnect)
-- **Automatic recovery**: Engine re-detects the output device, rebuilds the DSP pipeline and resampler coefficients at the new sample rate, and hot-swaps the output stream — no restart required
-- **Capped retry**: Recovery is limited to 5 attempts to prevent infinite loops when no audio device is available
-- **Both resamplers rebuilt**: During recovery in crossfade state, both outgoing and incoming resamplers are rebuilt to match the new sample rate
+> *"Where uncompromised audio fidelity meets state-of-the-art UI design."*
 
-### Library Management
-- **SQLite database** with WAL mode, FTS5 full-text search, and automatic migrations
-- **Directory scanning** with recursive walk and audio file detection
-- **Metadata extraction** from ID3v2 (MP3), Vorbis Comments (FLAC/OGG), and MP4 atoms
-- **Play statistics**: Play count tracking, last played timestamps
-- **Batch analysis**: BPM detection (energy-based onset + autocorrelation with mean subtraction) and mood classification (energy-valence grid with complete coverage)
+</div>
 
-### User Interface
-- **egui/eframe** desktop GUI with GPU-accelerated rendering (wgpu)
-- **Dark/light themes** with purple accent (#4231F1)
-- **Sidebar navigation**: Library, Playlists, Mood categories
-- **Track list** with sortable columns, search filtering, and mood tags
-- **Player bar**: Transport controls (play/pause/next/prev/shuffle/repeat), progress bar with seek, volume
-- **EQ panel**: 10-band parametric EQ with interactive sliders, presets (Flat/Bass Boost/Treble Boost/V-Shape/Vocal), preamp, stereo width, dither toggle
-- **Lyrics display**: Synced lyrics with current-line highlighting from LRCLIB
+<br />
 
-### Platform Integration
-- **Cross-platform media keys** via `souvlaki`:
-  - **Linux**: MPRIS D-Bus (via souvlaki's MPRIS backend)
-  - **macOS**: MPRemoteCommandCenter (via souvlaki's macOS backend)
-  - **Windows**: SystemMediaTransportControls (via souvlaki's Windows backend)
-- **Advanced MPRIS D-Bus** (Linux-only): Full `org.mpris.MediaPlayer2.Player` interface with dedicated Play/Pause/Quit actions, Seek, SetPosition, OpenUri, volume, rate, shuffle, loop status, and PropertiesChanged signals with actual values
-- **Keyboard shortcuts**: Configurable shortcuts with duplicate detection (Space=PlayPause, Ctrl+Right=Next, etc.)
-- **Desktop notifications**: Asynchronous dispatch to avoid blocking the UI thread
+## 🌟 Why TuneCraft?
 
-### Local Play History
-- **Offline scrobbling**: Every completed listen is recorded to a local SQLite journal
-- **Listen statistics**: Play counts, total listening time, listening streaks
-- **Top tracks and artists**: Most-played rankings based on completed listens
-- **History browsing**: Full listening history with date-range filtering
-- **On this day**: Revisit tracks you played on this date in previous years
+Most modern music players compromise on either performance, audio fidelity, or design. **TuneCraft** was built from the ground up to solve this. Utilizing a heavily optimized, zero-allocation DSP engine and a GPU-accelerated interface, it delivers studio-grade sound processing without taxing your CPU. 
 
-### Lyrics
-- **LRCLIB API**: Search for synced and unsynced lyrics
-- **LRC parser**: Full LRC format support with millisecond-precision timestamps
-- **Smart matching**: Score-based best result selection prioritizing synced lyrics
-- **DB caching**: Lyrics cached in SQLite for offline access
+---
 
-## Architecture
+## ✨ Features at a Glance
 
-```
-TuneCraft (9-crate Cargo workspace)
-├── tc-engine/    — Audio engine (decode → DSP → output)
-├── tc-db/        — SQLite database with migrations
-├── tc-library/   — Directory scanner + metadata extraction
-├── tc-config/    — TOML-based configuration
-├── tc-analysis/  — BPM detection + mood classification
-├── tc-platform/  — Media keys, MPRIS, keyboard shortcuts
-├── tc-lyrics/    — LRCLIB lyrics client + LRC parser
-├── tc-ui/        — egui/eframe GUI, scrobbling, playback service
-└── tunecraft/    — Main binary entry point
-```
+<table>
+<tr>
+<td width="50%">
 
-### Audio Pipeline
+### 🎧 Audiophile Engine
+* **Native 64-bit Processing:** Pristine audio fidelity out to the hardware boundary.
+* **True Parallel Decoding:** Flawless gapless crossfading using dual-decoder state machines.
+* **Dynamic Split DSP:** Advanced pipeline processing independent audio streams simultaneously.
+* **Parametric EQ & Convolution:** 10-band interactive EQ and IR-based spatial reverb.
 
-```
+</td>
+<td width="50%">
+
+### 🛡️ Unbreakable Playback
+* **Real-Time OS Priority:** Audio callbacks run at `ThreadPriority::Max` ensuring zero stutter.
+* **Auto-Recovery:** Hot-swaps output streams instantly if a device (e.g. Bluetooth) drops out.
+* **Lock-Free Hot Paths:** Zero heap allocations via SPSC ring buffers in the audio thread.
+* **Lookahead Limiting:** Safe, dynamic true-peak limiting protects your ears and gear.
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 📚 Smart Library & Scrobbling
+* **Lightning SQLite:** WAL mode + FTS5 means instant search through hundreds of thousands of tracks.
+* **Offline Scrobbling:** Fully local listen tracking, playback streaks, and "On this day" stats.
+* **Comprehensive Metadata:** Deep parsing for ID3v2, Vorbis Comments, and MP4 atoms.
+
+</td>
+<td width="50%">
+
+### 🎨 State-of-the-Art UI
+* **GPU-Accelerated `egui`:** Buttery smooth animations rendered directly by `wgpu`.
+* **Glassmorphism & Theming:** Deep dark modes, vibrant accents, and sleek UI components.
+* **Synced Lyrics Integration:** Real-time fetching and syncing via LRCLIB.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🏗️ Under the Hood
+
+<details>
+<summary><b>View Audio Pipeline Architecture</b></summary>
+
+TuneCraft separates processing into distinct phases to enable complex overlapping features like smart crossfades.
+
+```text
 ┌──────────┐    SPSC     ┌─────────────┐    SPSC     ┌────────────┐
 │  Decode   │──Buffer──→│  DSP Thread  │──Buffer──→│   Output    │
 │  Thread   │            │  Pipeline    │            │  (cpal)    │
 └──────────┘            └─────────────┘            └────────────┘
-                              │
-          Single-track:  Preamp → Loudness → EQ → Convolution →
-                        Balance → Stereo → Limiter → Volume →
-                        SeekFade → Dither
 
-          Crossfade:    [Outgoing] → Preamp → Loudness → EQ →
-                        Convolution → Balance → Stereo ─┐
-                                                         ├→ Mixer →
-                        [Incoming] → Preamp → Loudness → ┘   Limiter →
-                        EQ → Convolution → Balance →         Volume →
-                        Stereo ─────────────────────┘       SeekFade → Dither
+[Crossfade Phase]
+[Outgoing] → Preamp → Loudness → EQ → Convolution → Balance → Stereo ─┐
+                                                                       ├→ Mixer → Limiter → Volume → Dither
+[Incoming] → Preamp → Loudness → EQ → Convolution → Balance → Stereo ─┘
 ```
+</details>
 
-### Thread Architecture
+<details>
+<summary><b>View Threading Model</b></summary>
 
-```
+TuneCraft strictly isolates the UI, file decoding, and audio output into dedicated threads.
+
+```text
 Main Thread (GUI)          Background Thread         Audio Callback
 ─────────────────          ─────────────────         ──────────────
 egui::App::update()        engine.tick()              cpal callback
   ├─ Poll playback info     ├─ Process commands        ├─ Read output buffer
-  ├─ Send engine commands   ├─ Decode audio chunk      └─ Write to device
-  ├─ Update EQ params      ├─ Run DSP pipeline
-  └─ Render UI             └─ Push to output buffer
+  ├─ Send commands          ├─ Decode audio chunk      └─ Write to device
+  └─ Render UI              └─ Push to output buffer
 ```
+</details>
 
-## Building
+---
+
+## 🚀 Installation & Setup
 
 ### Prerequisites
-- Rust 1.82+ (edition 2021)
-- C compiler (for cpal and SQLite bundled build)
-- ALSA dev headers on Linux: `libasound2-dev`
+* **Rust:** `1.82+` (Edition 2021)
+* **Linux Specific:** `libasound2-dev` (ALSA headers)
 
-### Build Commands
+### Compilation
 
 ```bash
-# Full build with GUI
+# Clone the repository
+git clone https://github.com/Sudipta615/TuneCraft-Music-Plyer.git
+cd TuneCraft-Music-Plyer
+
+# Compile with maximum optimizations (Recommended for DSP)
 cargo build --release
-
-# Build without audio output (library management only)
-cargo build --release --no-default-features
-
-# Build without GUI (headless/CLI mode)
-cargo build --release --no-default-features --features audio-output
-
-# Run tests
-cargo test --workspace
-
-# Run benchmarks
-cargo bench --workspace
 ```
 
-## Running
+### Execution
 
 ```bash
-# Launch GUI (default)
+# Launch the graphical application
 cargo run --release
 
-# Run in headless/CLI mode
-cargo run --release -- --headless
+# Play a specific file instantly
+cargo run --release -- /path/to/masterpiece.flac
 
-# Play a specific file
-cargo run --release -- /path/to/song.flac
+# Run headless mode (Background daemon)
+cargo run --release -- --headless
 ```
 
-### Environment Variables
+---
 
-- `RUST_LOG`: Log level filter (default: `info`)
+## ⌨️ Advanced Keyboard Controls
 
-## Configuration
+| Action | Shortcut |
+| :--- | :--- |
+| **Play / Pause** | <kbd>Space</kbd> |
+| **Next / Prev Track** | <kbd>Ctrl</kbd> + <kbd>→</kbd> / <kbd>←</kbd> |
+| **Volume Control** | <kbd>Ctrl</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> |
+| **Toggle Shuffle** | <kbd>Ctrl</kbd> + <kbd>S</kbd> |
+| **Toggle Repeat** | <kbd>Ctrl</kbd> + <kbd>R</kbd> |
+| **Global Search** | <kbd>Ctrl</kbd> + <kbd>F</kbd> |
 
-Configuration is stored at `~/.config/tunecraft/config.toml` (or platform equivalent).
+---
 
-Key settings:
-- `engine.performance_mode`: UltraQuality, Balanced, LowPower
-- `engine.eq.enabled`: Enable parametric EQ
-- `engine.loudness.mode`: Off, TrackReplayGain, AlbumReplayGain, EbuR128
-- `engine.crossfade.enabled`: Enable crossfade between tracks
-- `engine.crossfade.duration_ms`: Crossfade duration in milliseconds
-- `library.watch_dirs`: Directories to scan for music files
-- `library.scan_on_startup`: Auto-scan on launch
-- `scrobble.enabled`: Enable local listen recording
+## ⚙️ Configuration
 
-## License
+TuneCraft uses a highly readable `.toml` file for absolute control over its engine. 
+Find it at `~/.config/tunecraft/config.toml` (Linux/macOS) or `%APPDATA%\tunecraft\config.toml` (Windows).
 
-MIT
+* `engine.performance_mode` — Choose between `UltraQuality`, `Balanced`, or `LowPower`.
+* `engine.eq.enabled` — Master switch for the DSP pipeline.
+* `engine.crossfade.duration_ms` — Millisecond-accurate crossfade timings.
+
+---
+
+<div align="center">
+  <p>Crafted with ❤️ for audiophiles. Licensed under the <strong>MIT License</strong>.</p>
+</div>

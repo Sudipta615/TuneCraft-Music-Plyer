@@ -664,7 +664,7 @@ impl Default for CrossfeedConfig {
 }
 
 /// Multiband Compressor configuration
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct MultibandCompressorConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -673,12 +673,6 @@ pub struct MultibandCompressorConfig {
 impl MultibandCompressorConfig {
     pub fn validate(&mut self) -> Vec<String> {
         Vec::new()
-    }
-}
-
-impl Default for MultibandCompressorConfig {
-    fn default() -> Self {
-        Self { enabled: false }
     }
 }
 

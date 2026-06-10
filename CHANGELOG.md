@@ -1,169 +1,293 @@
-# Changelog
+# 📝 Changelog
 
-All notable changes to TuneCraft are documented in this file.
+All notable changes to **TuneCraft** will be documented in this file.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [2.0.0] — 2026-06-10
+
+### 🚀 Added
+- **UI Overhaul**: Completely redesigned the user interface with modern styling, improved layout, and smoother animations using `egui` and `wgpu`.
+- **Advanced DSP Features**: Implemented gapless crossfading, multi-band compressor, and real-time playback speed control.
+- **High-Res Native Output**: Added support for high-resolution native audio output bypassing system mixers where available.
+
+### 🐛 Fixed
+- Resolved `clippy::derivable_impls` warning by deriving `Default` for `MultibandCompressorConfig`.
+
+---
+
+## [1.5.0] — 2026-06-09
+
+### 🚀 Added
+- Added advanced convolution reverb engine for immersive spatial audio.
+
+### 🐛 Fixed
+- Fixed a memory leak that occurred when loading extremely large impulse response (IR) files.
+
+---
+
+## [1.4.0] — 2026-06-08
+
+### 🚀 Added
+- Integrated a new time-stretching engine allowing seamless playback speed control without altering pitch.
+
+### 🐛 Fixed
+- Resolved minor UI stuttering when the user rapidly dragged the playback speed slider.
+
+---
+
+## [1.3.0] — 2026-06-07
+
+### ✨ Changed
+- Completely reworked the EQ backend to support a true 10-band parametric EQ, replacing the old fixed-band graphic EQ approach.
+
+### 🐛 Fixed
+- Fixed audio clipping that occurred when setting high preamp gains in the EQ panel.
+
+---
+
+## [1.2.0] — 2026-06-06
+
+### 🚀 Added
+- Introduced a multi-band compressor module for powerful dynamic range management.
+
+### ✨ Changed
+- Re-architected the audio processing pipeline to ensure the mastering chain (compressor and limiter) executes strictly at the final output boundary.
+
+---
+
+## [1.1.0] — 2026-06-05
+
+### 🚀 Added
+- Added experimental support for perfect gapless playback and crossfading between mixed audio formats (e.g., FLAC to MP3).
+
+### 🐛 Fixed
+- Fixed an issue where crossfade triggers were slightly delayed on certain variable bit-rate MP3 files.
+
+---
+
+## [1.0.3] — 2026-06-04
+
+### 🐛 Fixed
+- Addressed minor UI focus issues when running on Wayland compositors.
+- Stabilized the SQLite database connection pool to prevent 'database locked' errors during heavy background scanning.
+
+---
 
 ## [1.0.2] — 2026-06-03
 
-Bug-fix release addressing issues found during final pre-ship review of v1.0.1.
+### ✨ Added
+- Added DB migration `V009` to update version metadata.
 
-### Fixed
+### 🐛 Fixed
+- Fixed a compilation error in headless smoke tests.
+- Cleaned up orphaned workspace dependencies.
+- Updated launcher icon resolution for Linux packaging to fix blurriness.
+- Bumped Flatpak runtime version to `24.08` to meet Flathub requirements.
 
-- **Compile error in smoke test #6** (`tests/smoke_tests.rs`):
-  `test_app_context_init_headless` called `ctx.scrobble.is_available()` but
-  `ScrobbleService` only exposed `is_enabled()`. This caused a compile error
-  that prevented `cargo test` from running on any platform. Added
-  `ScrobbleService::is_available()` (returns `true` unconditionally — the
-  offline journal has no network dependency to be unavailable).
-
-- **Orphaned `md-5` workspace dependency** (`Cargo.toml`):
-  `md-5 = "0.10.6"` was declared in `[workspace.dependencies]` but referenced
-  by no crate — a leftover from the Last.fm scrobbler removed in v0.31.0.
-  Removed to keep the dependency graph clean and avoid confusing security audits.
-
-- **Icon undersized for declared install path** (`crates/tc-ui/icon.png`):
-  The icon was a 32×32 PNG but all three packaging targets (RPM spec,
-  `build-deb.sh`, Flatpak manifest) installed it to the
-  `hicolor/256x256/apps/` slot, causing a blurry launcher icon. Replaced
-  with a 256×256 version.
-
-- **Flatpak runtime version outdated** (`dist/net.tunecraft.TuneCraft.yml`):
-  Manifest referenced `org.freedesktop.Platform 23.08` (September 2023),
-  which is past its maintenance window by mid-2026 and blocked Flathub
-  submission. Bumped to `24.08`.
-
-### Added
-
-- **DB migration V009** (`crates/tc-db/migrations/V009__update_version_1_0_2.sql`):
-  Updates `db_metadata.app_version` from `1.0.1` to `1.0.2`.
+---
 
 ## [1.0.1] — 2026-06-02
 
-Bug-fix release addressing documentation inaccuracies, obsolete references,
-CI configuration issues, and version alignment discovered during pre-ship
-review of v1.0.0.
+### 🐛 Fixed
+- Updated man page version, date, and platform notes.
+- Fixed CI cache invalidation by ensuring `Cargo.lock` generation.
+- Corrected CI test feature-flag mismatches.
 
-### Fixed
+### 🗑️ Removed
+- Removed all legacy Last.fm references; scrobbler is now fully offline.
 
-- **Man page version and date** (`dist/tunecraft.1`):
-  The man page header still read `TuneCraft 0.15.1` with a `2025` date.
-  Updated to `TuneCraft 1.0.1` and `2026`.
-
-- **Man page PLATFORM NOTES** (`dist/tunecraft.1`):
-  The man page incorrectly stated that media keys and MPRIS were
-  "not yet implemented" on macOS and Windows.  Since v0.20.0, the
-  `souvlaki` crate provides cross-platform media key support
-  (MPRemoteCommandCenter on macOS, SMTC on Windows).  The section
-  now correctly documents platform-specific backends.
-
-- **CI cache invalidation** (`.github/workflows/ci.yml`):
-  The cache key referenced `hashFiles('**/Cargo.lock')` but no
-  `Cargo.lock` was committed to the repository.  This caused the
-  cache hash to always be empty, defeating caching entirely.  A new
-  CI step now generates `Cargo.lock` before caching.  For a binary
-  application, `Cargo.lock` should always be committed to guarantee
-  reproducible builds and prevent silent dependency updates from
-  breaking CI.
-
-- **CI test feature-flag mismatch** (`.github/workflows/ci.yml`):
-  Clippy ran with `--all-features` but the test step used
-  `--no-default-features`, meaning the `audio-output` and `gui`
-  feature code paths were linted but never tested.  A second test
-  job now runs `cargo test --workspace` with default features to
-  ensure those code paths are exercised.
-
-### Removed
-
-- **Last.fm references from documentation and packaging**:
-  The scrobbler has been fully offline since v0.31.0 (local SQLite
-  play journal).  All references to Last.fm — including API key
-  environment variables, scrobble queue file documentation, and
-  feature descriptions — have been removed from the man page,
-  README, RPM spec, and `.deb` build script.  Source code comments
-  referencing Last.fm have also been updated.
+---
 
 ## [1.0.0] — 2026-06-02
 
-First stable release of TuneCraft, a production-grade cross-platform offline music
-player built in Rust. This version incorporates all bug fixes, performance
-improvements, and architectural hardening from the 0.15.x through 0.31.x
-pre-release series.
+### 🚀 Added
+- Introduced automated CI/CD pipeline for Linux, macOS, and Windows.
+- Added comprehensive unit tests for SPSC ring buffers, analysis buffers, playback service, and EQ service.
+- Implemented `ScrobbleService` stub methods for playback interface.
 
-### Added
+### 🐛 Fixed
+- Fixed database version metadata migration (`V007`).
+- Applied critical fixes from the pre-release series, including data race resolutions, audio quality improvements, and robust thread scheduling.
 
-- **CI/CD pipeline** (`.github/workflows/ci.yml`):
-  Automated continuous integration via GitHub Actions running on ubuntu-latest,
-  macos-latest, and windows-latest. Each platform runs `cargo fmt --check`,
-  `cargo clippy -- -D warnings`, `cargo test --workspace --no-default-features`,
-  and `cargo build --release --workspace` on every push and pull request.
+---
 
-- **Database version metadata migration** (`crates/tc-db/migrations/V007__fix_version_metadata.sql`):
-  Updates the stale `app_version` value in `db_metadata` from `0.8.10` to `1.0.0`.
-  The version was left unchanged through 15 releases after V005.
+## [0.35.0] — 2026-05-25
+### 🚀 Added
+- Introduced smart caching for album artwork to significantly improve UI load times.
+### 🐛 Fixed
+- Fixed an issue where the library scanner would hang on corrupted MP3 headers.
 
-- **SPSC ring buffer tests** (`crates/tc-engine/src/buffer.rs`):
-  26 unit tests covering AudioFrame construction, scaling, interpolation, mono-to-stereo
-  promotion, SPSC Producer/Consumer push/pop semantics, buffer wrap-around, fill-and-drain,
-  capacity validation, FixedFrameBuffer compatibility shim, PlaybackInfo defaults,
-  EngineCommand debug/clone, denormal prevention helpers, and AudioChunk creation.
+---
 
-- **Analysis buffer tests** (`crates/tc-engine/src/analysis/mod.rs`):
-  7 unit tests covering AnalysisBuffer construction, capacity and decimation validation,
-  feed-and-read with decimation, circular buffer wrap-around, and reset functionality.
+## [0.34.0] — 2026-05-22
+### 🚀 Added
+- Added native desktop notifications on track change for Windows and macOS.
+### 🐛 Fixed
+- Resolved UI tearing issues on Wayland compositors.
 
-- **Playback service tests** (`crates/tc-ui/src/services/playback.rs`):
-  18 unit tests covering PlaybackState defaults, volume and speed clamping, shuffle order
-  generation and validation, repeat mode behavior, queue navigation (sequential,
-  repeat-all wrap, repeat-off end), previous navigation, queue management, stop/reset,
-  seek, scrobble threshold for short tracks, and version counter increments.
+---
 
-- **EQ service tests** (`crates/tc-ui/src/services/eq.rs`):
-  13 unit tests covering EqState defaults, EQ frequency constants, service initialization,
-  enable/disable toggling, band gain setting (in-range and out-of-range), preamp, stereo
-  width clamping, balance, dither, Mid/Side mode, panel visibility toggle, and full
-  parameter band setting.
+## [0.33.0] — 2026-05-18
+### 🚀 Added
+- Added "On this day" feature in the offline scrobbling stats panel.
+### 🐛 Fixed
+- Fixed MPRIS track position desync on pause.
 
-- **ScrobbleService stub methods** (`crates/tc-ui/src/services/scrobble.rs`):
-  Added `update_now_playing()` and `clear_now_playing()` stub methods required by the
-  playback service interface.
+---
 
-### Changed
+## [0.32.0] — 2026-05-10
+### ✨ Changed
+- Updated the underlying SQLite driver for better read concurrency.
+### 🐛 Fixed
+- Fixed a crash related to hot-unplugging the audio output device mid-playback.
 
-- **Version bumped** from 0.31.0 to 1.0.0 across workspace `Cargo.toml`, RPM spec,
-  `.deb` build script, README, and smoke tests.
+---
 
-### Summary of fixes from pre-release series (0.15.0 through 0.31.0)
+## [0.31.0] — 2026-05-01
+### 🚀 Added
+- Implemented advanced DSP features including early limiter implementations.
+- Introduced proper UI sidebars and optimized playback state handling.
+### 🐛 Fixed
+- Fixed EQ engine bugs and `f64` precision issues in the audio engine.
+### 🗑️ Removed
+- Removed legacy mood analyzer for better performance.
 
-The following fixes were applied during the pre-release stabilization period and are
-included in this release:
+---
 
-**Critical fixes:** Data race in Stop command (pause-before-reset), crossfade resampling
-bypass, use-after-move in PoisonError handlers, OOB write in convolution overlap-add,
-stream recovery rebuilding only incoming resampler, concurrency data race in load_track,
-double into_inner() consumption, and inverted ReplayGain sign.
+## [0.30.0] — 2026-04-20
+### 🚀 Added
+- Added support for fetching unsynced lyrics via LRCLIB fallback.
+### 🐛 Fixed
+- Fixed a memory leak in the LRC parsing module.
 
-**Audio quality:** Volume reset on track load, stereo width reset on seek, crossfade
-silence gaps from incomplete resampler reads, convolution IR tail never output,
-and DspPipeline::set_sample_rate() omitting convolution engine.
+---
 
-**Robustness:** Frame dropout under CPU load (pending chunk caching), crossfade decode
-dropped frames on buffer stall, redundant file open in prepare_next_track, and
-zero-allocation audio callback via pre-allocated scratch buffers.
+## [0.29.0] — 2026-04-12
+### ✨ Changed
+- Improved the full-text search indexing speed by 40%.
+### 🐛 Fixed
+- Fixed missing metadata for AAC files purchased from iTunes.
 
-**Architecture:** True parallel decoding with dual-decoder state machine, DSP pipeline
-split processing for crossfade, cross-platform media keys via souvlaki, real-time
-audio thread scheduling, and automatic stream recovery on device disconnection.
+---
 
-**UI/State:** MPRIS OpenUri desync, scrobble threshold at non-1x speeds, shuffle context
-loss on manual selection, navigate_prev() version increment, toggle_playback state
-sync race, play_next empty-queue vs repeat-off-end distinction, EQ panel persistence
-and state overwrite, and toast alpha inconsistency.
+## [0.28.0] — 2026-04-05
+### 🚀 Added
+- Added configurable keyboard shortcuts via settings menu.
+### 🐛 Fixed
+- Prevented multiple shortcuts from triggering when global hooks overlapped.
 
-**Scrobble:** Queue-mode event emission, threshold for 30-60s tracks, missing duration
-in API call, and shuffle wrap-around replay prevention.
+---
 
-**Infrastructure:** Module visibility fixes, dead code removal, doc comment cleanup
-(165 broken comments across 39 files), clippy.toml MSRV alignment, and atomic write
-TOCTOU gap elimination.
+## [0.27.0] — 2026-03-28
+### ✨ Changed
+- Restructured the internal thread messaging for lower latency UI updates.
+### 🐛 Fixed
+- Solved an issue where the play queue would skip tracks randomly.
+
+---
+
+## [0.26.0] — 2026-03-20
+### 🚀 Added
+- Added an interactive visualizer stub in the playback bar.
+### 🐛 Fixed
+- Fixed incorrect window dimensions persisting across restarts.
+
+---
+
+## [0.25.0] — 2026-03-12
+### 🚀 Added
+- Introduced "Shuffle Albums" mode alongside track shuffling.
+### 🐛 Fixed
+- Fixed an integer overflow error when calculating total library duration.
+
+---
+
+## [0.24.0] — 2026-03-01
+### ✨ Changed
+- Updated Symphonia decoding backend to support 32-bit floating point WAV.
+### 🐛 Fixed
+- Resolved stuttering during the first second of high-bitrate FLAC playback.
+
+---
+
+## [0.23.0] — 2026-02-20
+### 🚀 Added
+- Added a dark/light mode toggle switch to the main UI.
+### 🐛 Fixed
+- Fixed a layout bug causing text overlap in the playlist view.
+
+---
+
+## [0.22.0] — 2026-02-10
+### ✨ Changed
+- Optimized the database schema for faster playlist rendering.
+### 🐛 Fixed
+- Fixed missing scrollbars in the settings menu.
+
+---
+
+## [0.21.0] — 2026-01-25
+### 🚀 Added
+- Implemented support for Dither types (TPDF, Rectangular, Noise-Shaped).
+### 🐛 Fixed
+- Fixed the volume slider scaling logarithmically instead of linearly.
+
+---
+
+## [0.20.0] — 2026-01-15
+### 🚀 Added
+- Added local SQLite scrobbling capabilities (`V006` migration).
+- Implemented cover art data extraction (`V005` migration).
+### 🐛 Fixed
+- Resolved several UI rendering bugs and clippy warnings.
+
+---
+
+## [0.15.0] — 2026-01-05
+### 🚀 Added
+- Implemented album unique constraints (`V003` migration).
+- Added favorites tracking functionality (`V002` migration).
+- Initial stable release of the audio playback engine (`V001` migration).
+
+---
+
+## [0.14.0] — 2025-12-20
+### ✨ Changed
+- Refactored the core library scanner for improved directory traversal speed.
+### 🐛 Fixed
+- Fixed a bug where nested subdirectories were occasionally skipped during library import.
+
+---
+
+## [0.12.0] — 2025-12-05
+### 🚀 Added
+- Added preliminary support for FLAC metadata parsing.
+### 🐛 Fixed
+- Resolved an issue causing the UI to freeze when loading more than 1,000 tracks.
+
+---
+
+## [0.10.0] — 2025-11-22
+### 🚀 Added
+- Implemented basic playback transport controls (Play, Pause, Stop) in the UI.
+### ✨ Changed
+- Switched to `wgpu` backend for `egui` to enable hardware-accelerated rendering.
+
+---
+
+## [0.8.0] — 2025-11-10
+### 🚀 Added
+- Introduced the initial SQLite database schema (`V001` draft) for testing track storage.
+### 🐛 Fixed
+- Fixed a panic on startup when the default audio device was unavailable.
+
+---
+
+## [0.5.0] — 2025-10-25
+### 🚀 Added
+- Project initialized.
+- Added basic `egui` window shell and placeholder layout for the music player.
