@@ -661,6 +661,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(Vec2::new(1200.0, 800.0))
             .with_min_inner_size(Vec2::new(800.0, 600.0))
+            .with_transparent(true)
             .with_icon(
                 eframe::icon_data::from_png_bytes(include_bytes!("../../icon.png"))
                     .unwrap_or_default(),

@@ -21,10 +21,10 @@ pub const ACCENT_INDIGO: Color32 = Color32::from_rgb(0x1A, 0x64, 0x70);
 
 // ── Dark theme: updated matching custom design ──
 
-pub const DARK_BG: Color32 = Color32::from_rgb(0x0A, 0x11, 0x1E); // #0a111e
-pub const DARK_SIDEBAR: Color32 = Color32::from_rgb(0x0F, 0x15, 0x23); // #0f1523
-pub const DARK_SURFACE: Color32 = Color32::from_rgb(0x0A, 0x11, 0x1E); // #0a111e
-pub const DARK_CARD: Color32 = Color32::from_rgb(0x0F, 0x15, 0x23); // #0f1523
+pub const DARK_BG: Color32 = Color32::from_rgba_unmultiplied(0x0A, 0x11, 0x1E, 220); // #0a111e
+pub const DARK_SIDEBAR: Color32 = Color32::from_rgba_unmultiplied(0x0F, 0x15, 0x23, 220); // #0f1523
+pub const DARK_SURFACE: Color32 = Color32::from_rgba_unmultiplied(0x0A, 0x11, 0x1E, 220); // #0a111e
+pub const DARK_CARD: Color32 = Color32::from_rgba_unmultiplied(0x0F, 0x15, 0x23, 220); // #0f1523
 pub const DARK_TEXT: Color32 = Color32::from_rgb(0xE6, 0xE7, 0xE7); // #e6e7e7
 pub const DARK_TEXT_DIM: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8); // #babfc8
 pub const DARK_TEXT_MUTED: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8); // #babfc8
@@ -34,10 +34,10 @@ pub const DARK_ACTIVE: Color32 = Color32::from_rgb(0x14, 0x1B, 0x2B); // #141b2b
 
 // ── Light theme matching reference design ──
 
-pub const LIGHT_BG: Color32 = Color32::from_rgb(0xF4, 0xF5, 0xF7); // Soft cool gray background
-pub const LIGHT_SIDEBAR: Color32 = Color32::from_rgb(0xFC, 0xFC, 0xFD); // Near white sidebar
-pub const LIGHT_SURFACE: Color32 = Color32::from_rgb(0xF4, 0xF5, 0xF7); // Soft surface
-pub const LIGHT_CARD: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF); // Pure white cards for contrast
+pub const LIGHT_BG: Color32 = Color32::from_rgba_unmultiplied(0xF4, 0xF5, 0xF7, 235); // Soft cool gray background
+pub const LIGHT_SIDEBAR: Color32 = Color32::from_rgba_unmultiplied(0xFC, 0xFC, 0xFD, 235); // Near white sidebar
+pub const LIGHT_SURFACE: Color32 = Color32::from_rgba_unmultiplied(0xF4, 0xF5, 0xF7, 235); // Soft surface
+pub const LIGHT_CARD: Color32 = Color32::from_rgba_unmultiplied(0xFF, 0xFF, 0xFF, 235); // Pure white cards for contrast
 pub const LIGHT_TEXT: Color32 = Color32::from_rgb(0x11, 0x18, 0x27); // Dark gray, not pure black
 pub const LIGHT_TEXT_DIM: Color32 = Color32::from_rgb(0x6B, 0x72, 0x80);
 pub const LIGHT_TEXT_MUTED: Color32 = Color32::from_rgb(0x9C, 0xA3, 0xAF);
@@ -81,6 +81,61 @@ pub struct TuneCraftColors {
 }
 
 impl TuneCraftColors {
+    fn custom_dark(
+        bg_opaque: Color32,
+        card_opaque: Color32,
+        accent: Color32,
+        accent_light: Color32,
+        accent_dark: Color32,
+    ) -> Self {
+        let alpha = 220; // Glassmorphism opacity
+        let bg = Color32::from_rgba_unmultiplied(bg_opaque.r(), bg_opaque.g(), bg_opaque.b(), alpha);
+        let card = Color32::from_rgba_unmultiplied(card_opaque.r(), card_opaque.g(), card_opaque.b(), alpha);
+        
+        let hover = Color32::from_rgba_unmultiplied(
+            bg_opaque.r().saturating_add(10),
+            bg_opaque.g().saturating_add(10),
+            bg_opaque.b().saturating_add(15),
+            alpha
+        );
+        let border = Color32::from_rgba_unmultiplied(
+            bg_opaque.r().saturating_add(20),
+            bg_opaque.g().saturating_add(20),
+            bg_opaque.b().saturating_add(25),
+            alpha
+        );
+        
+        Self {
+            bg,
+            sidebar: card,
+            surface: bg,
+            card,
+            text: DARK_TEXT,
+            text_dim: DARK_TEXT_DIM,
+            text_muted: DARK_TEXT_MUTED,
+            border,
+            hover,
+            active_bg: hover,
+            sidebar_active_bg: hover,
+            accent,
+            accent_light,
+            accent_dark,
+            player_bar: card,
+            player_bar_border: border,
+            slider_track: border,
+            slider_fill: accent,
+            toggle_bg_on: accent,
+            toggle_bg_off: border,
+            table_header_bg: bg,
+            table_row_even: bg,
+            table_row_odd: bg,
+            table_row_hover: hover,
+            search_bg: card,
+            search_border: border,
+            dark_mode: true,
+        }
+    }
+
     pub fn dark() -> Self {
         Self {
             bg: DARK_BG,
@@ -97,7 +152,7 @@ impl TuneCraftColors {
             accent: ACCENT,
             accent_light: ACCENT_LIGHT,
             accent_dark: ACCENT_DARK,
-            player_bar: DARK_CARD, // matching deep navy
+            player_bar: DARK_CARD,
             player_bar_border: DARK_BORDER,
             slider_track: DARK_BORDER,
             slider_fill: ACCENT,
