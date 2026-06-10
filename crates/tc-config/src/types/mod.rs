@@ -25,7 +25,8 @@ pub use engine::{
     LoudnessConfig, StereoEnhancerConfig,
 };
 pub use enums::{
-    CrossfadeCurve, FilterType, LoudnessMode, PerformanceMode, RepeatMode, ResamplerQuality, Theme,
+    AudioBackend, CrossfadeCurve, CrossfeedProfile, FilterType, LoudnessMode, PerformanceMode,
+    RepeatMode, ResamplerQuality, Theme,
 };
 // Library types
 pub use library::LibraryConfig;

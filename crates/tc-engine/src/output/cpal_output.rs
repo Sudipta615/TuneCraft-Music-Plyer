@@ -15,7 +15,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device, SampleFormat, Stream, StreamConfig,
 };
-use tc_config::types::enums::AudioBackend;
+use tc_config::AudioBackend;
 use thiserror::Error;
 
 use crate::buffer::FixedFrameBuffer;

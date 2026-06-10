@@ -20,9 +20,7 @@ use std::{
 
 // Re-export engine-internal analysis types
 pub use spectrum::SpectrumAnalyzer;
-pub use tc_analysis::{
-    BpmDetector, MoodClassifier, TrackAnalysis, WaveformGenerator as FileWaveformGenerator,
-};
+pub use tc_analysis::{BpmDetector, TrackAnalysis, WaveformGenerator as FileWaveformGenerator};
 pub use waveform::WaveformGenerator;
 
 /// Error type for analysis construction failures.

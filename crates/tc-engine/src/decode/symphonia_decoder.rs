@@ -5,7 +5,7 @@
 use std::{fs::File, path::Path};
 
 use symphonia::core::{
-    audio::{AudioBufferRef, Signal},
+    audio::Signal,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
     errors::Error as SymphoniaError,
     formats::{FormatOptions, FormatReader, SeekMode, SeekTo},
@@ -184,13 +184,16 @@ impl SymphoniaDecoder {
 
             match self.decoder.decode(&packet) {
                 Ok(decoded) => {
+                    let decoded_spec = *decoded.spec();
+                    let decoded_frames = decoded.frames();
+
                     if self.conversion_buffer.is_none()
                         || self.conversion_buffer.as_ref().unwrap().capacity() < decoded.capacity()
                     {
                         self.conversion_buffer =
                             Some(symphonia::core::audio::SampleBuffer::<f32>::new(
                                 decoded.capacity() as u64,
-                                *decoded.spec(),
+                                decoded_spec,
                             ));
                     }
                     let conv_buf = self.conversion_buffer.as_mut().unwrap();
@@ -199,7 +202,9 @@ impl SymphoniaDecoder {
                     let frames = Self::extract_from_sample_buffer(
                         conv_buf,
                         &mut self.sample_buffer,
+                        decoded_spec.channels.count(),
                         self.info.channels,
+                        decoded_frames,
                     );
                     frames_decoded += frames;
                 },
@@ -224,11 +229,11 @@ impl SymphoniaDecoder {
     fn extract_from_sample_buffer(
         conv_buf: &symphonia::core::audio::SampleBuffer<f32>,
         output: &mut Vec<f32>,
+        src_channels: usize,
         target_channels: usize,
+        frames: usize,
     ) -> usize {
         let samples = conv_buf.samples();
-        let src_channels = conv_buf.spec().channels.count();
-        let frames = conv_buf.frames();
 
         for frame in 0..frames {
             let frame_offset = frame * src_channels;
