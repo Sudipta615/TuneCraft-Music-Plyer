@@ -7,7 +7,7 @@
 **A true audiophile-grade, cross-platform offline music player engineered in Rust.**
 
 <p align="center">
-  <a href="https://semver.org"><img src="https://img.shields.io/badge/version-2.1.1-blue.svg?style=for-the-badge" alt="Version" /></a>
+  <a href="https://semver.org"><img src="https://img.shields.io/badge/version-2.2.0-blue.svg?style=for-the-badge" alt="Version" /></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License: MIT" /></a>
   <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-1.82+-orange.svg?style=for-the-badge&logo=rust" alt="Rust" /></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg?style=for-the-badge" alt="Platform" />
