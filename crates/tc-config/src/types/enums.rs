@@ -97,6 +97,22 @@ pub enum Theme {
     #[serde(alias = "System")]
     #[default]
     System,
+    #[serde(alias = "Ocean")]
+    Ocean,
+    #[serde(alias = "Forest")]
+    Forest,
+    #[serde(alias = "Sunset")]
+    Sunset,
+    #[serde(alias = "Berry")]
+    Berry,
+    #[serde(alias = "Midnight")]
+    Midnight,
+    #[serde(alias = "Rose")]
+    Rose,
+    #[serde(alias = "Coffee")]
+    Coffee,
+    #[serde(alias = "Mint")]
+    Mint,
 }
 
 /// Audio backend selection for output

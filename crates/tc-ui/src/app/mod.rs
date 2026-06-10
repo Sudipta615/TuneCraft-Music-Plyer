@@ -60,7 +60,7 @@ use crate::{sidebar::NavSection, theme::TuneCraftColors};
 pub struct TuneCraftApp {
     pub ctx: Arc<AppContext>,
 
-    pub dark_mode: bool,
+    pub theme: tc_config::Theme,
     pub colors_cache: Option<TuneCraftColors>,
 
     pub nav: NavSection,
@@ -198,16 +198,12 @@ impl TuneCraftApp {
         let status_message = lib_snapshot.status_message.clone();
         drop(lib_snapshot);
 
-        let dark_mode = ctx
+        let theme = ctx
             .config
-            .read(|c| match c.ui.theme {
-                tc_config::Theme::Dark => true,
-                tc_config::Theme::Light => false,
-                tc_config::Theme::System => true,
-            })
-            .unwrap_or(true);
+            .read(|c| c.ui.theme)
+            .unwrap_or(tc_config::Theme::Dark);
 
-        let theme_needs_detection = matches!(ctx.config.theme(), tc_config::Theme::System);
+        let theme_needs_detection = matches!(theme, tc_config::Theme::System);
 
         let initial_queue: Vec<i64> = ctx.library.get_all_track_ids();
         ctx.playback.set_play_queue(initial_queue.clone());
@@ -215,7 +211,7 @@ impl TuneCraftApp {
         let app = Self {
             ctx: Arc::new(ctx),
 
-            dark_mode,
+            theme,
             colors_cache: None,
 
             nav: NavSection::AllTracks,
@@ -303,10 +299,18 @@ impl TuneCraftApp {
     }
 
     pub fn colors(&self) -> TuneCraftColors {
-        if self.dark_mode {
-            TuneCraftColors::dark()
-        } else {
-            TuneCraftColors::light()
+        match self.theme {
+            tc_config::Theme::Light => TuneCraftColors::light(),
+            tc_config::Theme::Dark => TuneCraftColors::dark(),
+            tc_config::Theme::System => TuneCraftColors::dark(), // fallback
+            tc_config::Theme::Ocean => TuneCraftColors::ocean(),
+            tc_config::Theme::Forest => TuneCraftColors::forest(),
+            tc_config::Theme::Sunset => TuneCraftColors::sunset(),
+            tc_config::Theme::Berry => TuneCraftColors::berry(),
+            tc_config::Theme::Midnight => TuneCraftColors::midnight(),
+            tc_config::Theme::Rose => TuneCraftColors::rose(),
+            tc_config::Theme::Coffee => TuneCraftColors::coffee(),
+            tc_config::Theme::Mint => TuneCraftColors::mint(),
         }
     }
 
@@ -353,32 +357,26 @@ impl eframe::App for TuneCraftApp {
 
         self.ctx.platform.update_mpris_position(self.position_secs);
 
-        // theme toggles take effect immediately.  When `dark_mode` changes we
-        // current palette and would otherwise serve stale values.
-        let config_dark_mode = self
+        // theme toggles take effect immediately.
+        let config_theme = self
             .ctx
             .config
-            .read(|c| {
-                match c.ui.theme {
-                    tc_config::Theme::Dark => true,
-                    tc_config::Theme::Light => false,
-                    tc_config::Theme::System => self.dark_mode, // keep existing detection
-                }
-            })
-            .unwrap_or(self.dark_mode);
+            .read(|c| c.ui.theme)
+            .unwrap_or(self.theme);
 
-        if config_dark_mode != self.dark_mode {
-            self.dark_mode = config_dark_mode;
+        if config_theme != self.theme {
+            self.theme = config_theme;
             self.colors_cache = None; // force re-render with new palette
             self.badge_cache.clear(); // badges use theme colours; invalidate
         }
 
         if self.colors_cache.is_none() {
-            self.colors_cache = Some(self.colors());
-            let visuals = if self.dark_mode {
-                crate::theme::dark_visuals()
-            } else {
-                crate::theme::light_visuals()
+            let colors = self.colors();
+            self.colors_cache = Some(colors);
+            let visuals = match self.theme {
+                tc_config::Theme::Light => crate::theme::light_visuals(),
+                tc_config::Theme::Dark | tc_config::Theme::System => crate::theme::dark_visuals(),
+                _ => crate::theme::custom_dark_visuals(&colors),
             };
             ctx.set_visuals(visuals);
         }

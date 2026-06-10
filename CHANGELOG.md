@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] — 2026-06-10
+
+### 🚀 Added
+- **UI**: Added 8 new custom color themes (Ocean, Forest, Sunset, Berry, Midnight, Rose, Coffee, Mint).
+- **UI**: Redesigned the theme selection in the Settings tab to use interactive color circles.
+
+---
+
 ## [2.2.0] — 2026-06-10
 
 ### ✨ Changed
