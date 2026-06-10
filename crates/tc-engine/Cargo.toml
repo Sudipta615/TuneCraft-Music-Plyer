@@ -22,12 +22,6 @@ all-codecs = ["codec-mp3", "codec-flac", "codec-ogg", "codec-wav", "codec-aac", 
 
 [dependencies]
 cpal = { workspace = true, optional = true }
-
-[target.'cfg(windows)'.dependencies]
-cpal = { workspace = true, optional = true, features = ["asio"] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-coreaudio-rs = "0.11"
 rubato = { workspace = true, optional = true }
 symphonia = { workspace = true }
 crossbeam = { workspace = true }
@@ -40,6 +34,12 @@ tc-config = { workspace = true }
 tc-analysis = { workspace = true }
 thread-priority = { workspace = true, optional = true }
 dirs = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+cpal = { workspace = true, optional = true, features = ["asio"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+coreaudio-rs = "0.11"
 
 [dev-dependencies]
 criterion = "0.5.1"
