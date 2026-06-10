@@ -78,9 +78,9 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.horizontal(|ui| {
             // Search bar — scales width proportionally
             let search_w = if total_w < BREAKPOINT_NARROW {
-                (total_w * 0.55).min(200.0)
+                (total_w * 0.70).min(300.0)
             } else {
-                (total_w * 0.38).min(400.0)
+                (total_w * 0.50).min(600.0)
             };
 
             // Center horizontally in the top bar
@@ -123,7 +123,8 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     } else {
                         14.0
                     }))
-                    .text_color(colors.text),
+                    .text_color(colors.text)
+                    .frame(false),
             );
 
             if app.focus_search {
@@ -211,7 +212,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         &format!("{} EQ", egui_phosphor::regular::SLIDERS_HORIZONTAL),
                         eq_active,
                         &colors,
-                    ) {
+                    ).clicked() {
                         app.ctx.eq.toggle_panel();
                         app.show_eq_panel = !eq_active;
                     }
@@ -237,22 +238,30 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                 // Sort & Filter — hide on narrow
                 if !is_narrow {
                     ui.add_space(4.0);
-                    if styled_toolbar_btn(
+                    let sort_resp = styled_toolbar_btn(
                         ui,
                         &format!("{} Sort", egui_phosphor::regular::ARROWS_DOWN_UP),
                         app.sort_active,
                         &colors,
-                    ) {
-                        if !app.sort_active {
+                    );
+                    let popup_id = ui.make_persistent_id("sort_popup");
+                    if sort_resp.clicked() {
+                        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
+                    }
+                    egui::popup_below_widget(ui, popup_id, &sort_resp, |ui| {
+                        ui.set_min_width(120.0);
+                        if ui.selectable_label(!app.sort_active, "Default").clicked() {
+                            app.sort_active = false;
+                        }
+                        if ui.selectable_label(app.sort_active && app.sort_ascending, "Ascending").clicked() {
                             app.sort_active = true;
                             app.sort_ascending = true;
-                        } else if app.sort_ascending {
-                            app.sort_ascending = false;
-                        } else {
-                            app.sort_active = false;
-                            app.sort_ascending = true;
                         }
-                    }
+                        if ui.selectable_label(app.sort_active && !app.sort_ascending, "Descending").clicked() {
+                            app.sort_active = true;
+                            app.sort_ascending = false;
+                        }
+                    });
 
                     ui.add_space(4.0);
                     if styled_toolbar_btn(
@@ -260,7 +269,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         &format!("{} Filter", egui_phosphor::regular::FUNNEL),
                         app.filter_favorites,
                         &colors,
-                    ) {
+                    ).clicked() {
                         app.filter_favorites = !app.filter_favorites;
                     }
                 }
@@ -453,7 +462,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 }
 
 /// Renders a pill-shaped toolbar button matching the reference design
-fn styled_toolbar_btn(ui: &mut Ui, label: &str, active: bool, colors: &TuneCraftColors) -> bool {
+fn styled_toolbar_btn(ui: &mut Ui, label: &str, active: bool, colors: &TuneCraftColors) -> egui::Response {
     let font = FontId::proportional(14.0);
     let galley = ui
         .painter()
@@ -492,7 +501,7 @@ fn styled_toolbar_btn(ui: &mut Ui, label: &str, active: bool, colors: &TuneCraft
         text_color,
     );
 
-    resp.clicked()
+    resp
 }
 
 /// Icon-only square toggle button for grid/list view

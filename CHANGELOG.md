@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.4] — 2026-06-10
+
+### 🐛 Fixed
+- **UI**: Increased the width and removed borders of the search bar, 'Add Music Folder', and 'Create Playlist' input fields.
+- **UI**: Disabled interaction with the EQ panel when the EQ toggle is off.
+- **UI**: Centered the EQ panel and scaled it responsively to 60% of the screen size.
+- **UI**: Converted the Sort button to a dropdown menu.
+- **UI**: Reorganized the Settings tab with a grid layout and separator.
+- **UI**: Removed the microphone icon below the volume bar.
+- **UI**: Adjusted the progress bar position in the player bar.
+
+---
+
 ## [2.1.3] — 2026-06-10
 
 ### ✨ Changed

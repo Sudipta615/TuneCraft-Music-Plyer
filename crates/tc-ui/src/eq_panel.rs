@@ -134,6 +134,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
         ui.add_space(10.0);
 
+        ui.add_enabled_ui(app.eq_enabled, |ui| {
         // ── 10-band EQ sliders ──
         let eq_area_h = 220.0;
         let available_w = ui.available_width();
@@ -404,6 +405,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         }
 
         ui.add_space(8.0);
+        });
     });
 }
 

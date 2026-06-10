@@ -428,29 +428,16 @@ impl eframe::App for TuneCraftApp {
             let screen_rect = ctx.screen_rect();
             let screen_w = screen_rect.width();
             let screen_h = screen_rect.height();
-            // Responsive: scale EQ panel to viewport
-            let window_width = if screen_w < 500.0 {
-                screen_w * 0.95
-            } else {
-                screen_w * 0.60
-            };
-            let window_height = if screen_h < 500.0 {
-                screen_h * 0.85
-            } else {
-                420.0_f32.min(screen_h * 0.6)
-            };
-            let window_x = screen_rect.left() + (screen_rect.width() - window_width) / 2.0;
-            let window_y = screen_rect.top() + (screen_rect.height() - window_height) / 2.0;
+            let window_width = screen_w * 0.60;
+            let window_height = screen_h * 0.60;
 
             let mut open = self.show_eq_panel;
             egui::Window::new("EQ")
                 .open(&mut open)
                 .collapsible(false)
-                .resizable(true)
-                .default_pos(egui::Pos2::new(window_x, window_y))
-                .default_size(egui::Vec2::new(window_width, window_height))
-                .min_width(480.0)
-                .min_height(360.0)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .fixed_size(egui::Vec2::new(window_width, window_height))
                 .title_bar(false)
                 .show(ctx, |ui| {
                     crate::eq_panel::draw(self, ui);
@@ -487,7 +474,7 @@ impl eframe::App for TuneCraftApp {
 
                     let text_edit_h = 40.0;
                     let (rect, _) = ui.allocate_exact_size(
-                        egui::Vec2::new(320.0, text_edit_h),
+                        egui::Vec2::new(480.0, text_edit_h),
                         egui::Sense::hover(),
                     );
                     ui.painter().rect_filled(rect, 8.0, colors.search_bg);
@@ -498,7 +485,8 @@ impl eframe::App for TuneCraftApp {
                         ),
                         egui::TextEdit::singleline(&mut self.new_playlist_name)
                             .hint_text("E.g., Workout Mix")
-                            .text_color(colors.text),
+                            .text_color(colors.text)
+                            .frame(false),
                     );
 
                     ui.add_space(24.0);
@@ -526,7 +514,7 @@ impl eframe::App for TuneCraftApp {
                         ui.add_space(8.0);
 
                         // Create button
-                        let create_w = 232.0;
+                        let create_w = 392.0;
                         let (create_rect, create_resp) = ui.allocate_exact_size(
                             egui::Vec2::new(create_w, 40.0),
                             egui::Sense::click(),
@@ -579,7 +567,7 @@ impl eframe::App for TuneCraftApp {
 
                     let text_edit_h = 40.0;
                     let (rect, _) = ui.allocate_exact_size(
-                        egui::Vec2::new(360.0, text_edit_h),
+                        egui::Vec2::new(480.0, text_edit_h),
                         egui::Sense::hover(),
                     );
                     ui.painter().rect_filled(rect, 8.0, colors.search_bg);
@@ -590,7 +578,8 @@ impl eframe::App for TuneCraftApp {
                         ),
                         egui::TextEdit::singleline(&mut self.add_music_folder_path)
                             .hint_text("/home/user/Music")
-                            .text_color(colors.text),
+                            .text_color(colors.text)
+                            .frame(false),
                     );
 
                     ui.add_space(8.0);
@@ -625,7 +614,7 @@ impl eframe::App for TuneCraftApp {
                         ui.add_space(8.0);
 
                         // Add Folder button
-                        let create_w = 272.0; // 360 - 80 - 8 = 272
+                        let create_w = 392.0; // 480 - 80 - 8 = 392
                         let (create_rect, create_resp) = ui.allocate_exact_size(
                             egui::Vec2::new(create_w, 40.0),
                             egui::Sense::click(),

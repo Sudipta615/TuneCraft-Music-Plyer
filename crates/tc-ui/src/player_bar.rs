@@ -248,28 +248,6 @@ fn draw_full(
         colors.text,
     );
 
-    // Lyrics toggle
-    let lyrics_color = if app.show_lyrics {
-        colors.accent
-    } else {
-        colors.text_dim
-    };
-    let lyrics_rect = Rect::from_center_size(
-        Pos2::new(vol_slider_x + vol_slider_w / 2.0, cy + 14.0),
-        Vec2::new(24.0, 20.0),
-    );
-    let lyrics_resp = ui.interact(lyrics_rect, egui::Id::new("lyrics_toggle"), Sense::click());
-    ui.painter().text(
-        lyrics_rect.center(),
-        Align2::CENTER_CENTER,
-        egui_phosphor::regular::MICROPHONE_STAGE,
-        FontId::proportional(14.0),
-        lyrics_color,
-    );
-    if lyrics_resp.clicked() {
-        app.show_lyrics = !app.show_lyrics;
-        app.ctx.lyrics.toggle_panel();
-    }
 
     // ── Center section: Controls + progress ──
     let center_x = bar_rect.left() + left_w;
@@ -409,7 +387,7 @@ fn draw_full(
     }
 
     // ── Progress bar ──
-    let prog_y = cy + 16.0;
+    let prog_y = cy + 26.0;
     let prog_margin = 14.0;
     let time_label_w = 32.0;
 
