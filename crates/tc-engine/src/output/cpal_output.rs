@@ -91,32 +91,6 @@ impl CpalOutput {
 
         let mut device = None;
 
-        // On Linux, the 'default' ALSA device is sometimes hardcoded to the laptop speakers
-        // via dmix, bypassing PulseAudio/PipeWire and breaking Bluetooth routing.
-        // We explicitly search for modern audio servers first when using the Auto backend.
-        if backend == AudioBackend::Auto {
-            #[cfg(target_os = "linux")]
-            if let Ok(devices) = host.output_devices() {
-                let mut fallback = None;
-                for d in devices {
-                    let name = d.name().unwrap_or_default().to_lowercase();
-                    if name.contains("pulse") {
-                        device = Some(d);
-                        break;
-                    } else if name.contains("pipewire") && device.is_none() {
-                        device = Some(d);
-                    } else if name.contains("bluealsa") && device.is_none() {
-                        device = Some(d);
-                    } else if name == "default" {
-                        fallback = Some(d);
-                    }
-                }
-                if device.is_none() {
-                    device = fallback;
-                }
-            }
-        }
-
         // If ALSA was requested, try to find a hardware device rather than 'default'
         if backend == AudioBackend::ExclusiveAlsa {
             #[cfg(target_os = "linux")]
@@ -216,7 +190,12 @@ impl CpalOutput {
         let channels = config.channels();
         let sample_format = config.sample_format();
 
-        let buffer_size = cpal::BufferSize::Default;
+        let buffer_size = match config.buffer_size() {
+            cpal::SupportedBufferSize::Range { min, max } => {
+                cpal::BufferSize::Fixed(2048.clamp(*min, *max))
+            }
+            cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Default,
+        };
 
         let stream_config = StreamConfig {
             channels,

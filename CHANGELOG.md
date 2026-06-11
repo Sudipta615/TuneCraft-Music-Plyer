@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.14] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Routing**: Fully reverted the experimental audio device selection and buffer size overrides introduced in v2.4.11-v2.4.13, restoring the exact state from v2.4.9. The engine correctly uses a 2048 fixed buffer for standard sinks but falls back to OS defaults for dynamic Bluetooth sinks, ensuring both stable playback and seamless earphone routing.
+
+---
+
 ## [2.4.13] — 2026-06-11
 
 ### 🐛 Fixed
