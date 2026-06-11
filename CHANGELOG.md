@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.6] — 2026-06-11
+
+### ✨ Changed
+- **DSP Engine**: Retuned the Bass and Treble knobs in the Equalizer for a more punchy and crisp sound:
+  - **Bass**: Shifted from a broad 100Hz shelf to a tighter 80Hz shelf with a slight resonant bump (Q=1.0) to deliver more sub-bass punch without muddying the lower mid-range.
+  - **Treble**: Shifted from 10kHz to 12kHz to add high-end "air" and crispness while avoiding harsh vocal sibilance.
+
+---
+
 ## [2.4.5] — 2026-06-11
 
 ### 🐛 Fixed

@@ -213,9 +213,9 @@ impl ParametricEq {
             .collect();
 
         let mut bass_band = EqBand::new();
-        bass_band.params = EqBandParams::lowshelf(100.0, 0.0, 0.7);
+        bass_band.params = EqBandParams::lowshelf(80.0, 0.0, 1.0);
         let mut treble_band = EqBand::new();
-        treble_band.params = EqBandParams::highshelf(10000.0, 0.0, 0.7);
+        treble_band.params = EqBandParams::highshelf(12000.0, 0.0, 0.707);
 
         Self {
             bands,
@@ -239,9 +239,9 @@ impl ParametricEq {
     pub fn new(num_bands: usize, sample_rate: f32) -> Self {
         let bands = (0..num_bands).map(|_| EqBand::new()).collect();
         let mut bass_band = EqBand::new();
-        bass_band.params = EqBandParams::lowshelf(100.0, 0.0, 0.7);
+        bass_band.params = EqBandParams::lowshelf(80.0, 0.0, 1.0);
         let mut treble_band = EqBand::new();
-        treble_band.params = EqBandParams::highshelf(10000.0, 0.0, 0.7);
+        treble_band.params = EqBandParams::highshelf(12000.0, 0.0, 0.707);
 
         Self {
             bands,
