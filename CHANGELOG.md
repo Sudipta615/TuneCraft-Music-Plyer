@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.0] — 2026-06-11
+
+### 🚀 Added
+- **Playback**: Implemented "Autoplay next song" feature. The player now automatically advances to the next track when the current one finishes naturally, respecting the queue and repeat modes.
+
+### ✨ Changed
+- **DSP Engine**: Retuned the default EQ parameters to match popular audiophile tuning profiles:
+  - **Bass**: Center frequency updated to 90Hz with Q=0.80 for a tighter low-end profile.
+  - **Treble**: Center frequency updated to 10000Hz with Q=0.60 for a broader, smoother high-end extension.
+
+### 🐛 Fixed
+- **Audio Engine**: Fixed severe clipping distortion occurring at high volumes with heavy bass and preamp boosts. The lookahead limiter now correctly utilizes a smooth continuous soft-knee saturation curve rather than a discontinuous volume drop.
+
+---
+
 ## [2.4.14] — 2026-06-11
 
 ### 🐛 Fixed

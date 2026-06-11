@@ -241,7 +241,7 @@ impl PlaybackService {
     }
 
     #[cfg(feature = "audio-output")]
-    pub fn sync_from_engine(&self) {
+    pub fn sync_from_engine(&self) -> bool {
         let info = self.engine.playback_info();
         let mut state = recover_from_poison_write(self.state.write());
 
@@ -254,15 +254,21 @@ impl PlaybackService {
         state.convolution_ir_needs_reload = info.convolution_ir_needs_reload;
         state.engine_error = info.engine_error;
 
+        let mut track_ended = false;
+
         if (info.state == EnginePlaybackState::Stopped || state.engine_error.is_some())
             && state.is_playing
         {
             state.is_playing = false;
+            if state.engine_error.is_none() {
+                track_ended = true;
+            }
         }
+        track_ended
     }
 
     #[cfg(not(feature = "audio-output"))]
-    pub fn sync_from_engine(&self) {}
+    pub fn sync_from_engine(&self) -> bool { false }
 
     pub fn play_track(&self, track: &Track, is_favorited: bool) {
         let _path = std::path::PathBuf::from(&track.path);

@@ -345,7 +345,10 @@ impl eframe::App for TuneCraftApp {
 
     #[allow(deprecated)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.sync_from_playback_service();
+        let track_ended = self.sync_from_playback_service();
+        if track_ended {
+            self.play_next();
+        }
         self.sync_from_eq_service();
 
         self.poll_media_keys();

@@ -9,8 +9,8 @@ impl TuneCraftApp {
     /// every frame. Only clones play_queue and shuffle_order when the version
     /// has changed since the last sync. Position/progress updates are read
     /// directly from the engine's PlaybackInfo arc.
-    pub fn sync_from_playback_service(&mut self) {
-        self.ctx.playback.sync_from_engine();
+    pub fn sync_from_playback_service(&mut self) -> bool {
+        let track_ended = self.ctx.playback.sync_from_engine();
         let state = self.ctx.playback.state();
         self.current_track_id = state.current_track_id;
         self.is_playing = state.is_playing;
@@ -34,6 +34,8 @@ impl TuneCraftApp {
             self.shuffle_position = state.shuffle_position;
             self.last_synced_playback_version = state.version;
         }
+
+        track_ended
     }
 
     /// Sync UI EQ state mirrors from EqService.
@@ -119,14 +121,6 @@ impl TuneCraftApp {
     /// and show a toast notification to the user when issues are detected.
     /// Only shows the toast once per warning to avoid spamming.
     pub fn check_dsp_warnings(&mut self) {
-        #[cfg(feature = "audio-output")]
-        {
-            self.ctx.playback.sync_from_engine();
-            // sync_from_engine doesn't return a value, we read from state
-
-            // The resampler_disabled flag is updated every 2s in the engine tick
-        }
-
         // This is done via sync_from_playback_service which reads engine state
         if self.resampler_disabled && !self.dsp_warning_shown {
             self.push_toast(

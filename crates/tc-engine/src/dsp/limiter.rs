@@ -197,14 +197,23 @@ impl LookaheadLimiter {
         frame.channels[1] = r;
     }
 
-    /// Soft clip using tanh saturation
+    /// Soft clip using a smooth knee
     #[inline]
     fn soft_clip_sample(&self, sample: f32) -> f32 {
-        if sample.abs() <= self.ceiling_linear {
+        let abs_sample = sample.abs();
+        let limit = self.ceiling_linear;
+        let threshold = limit * 0.8;
+        
+        if abs_sample <= threshold {
             return sample;
         }
-        let normalized = sample / self.ceiling_linear;
-        normalized.tanh() * self.ceiling_linear
+        
+        // Smooth knee from threshold asymptotically approaching limit
+        let over = abs_sample - threshold;
+        let range = limit - threshold;
+        let saturated = threshold + range * (1.0 - (-over / range).exp());
+        
+        sample.signum() * saturated
     }
 
     /// Get the current gain reduction in dB (always <= 0)
