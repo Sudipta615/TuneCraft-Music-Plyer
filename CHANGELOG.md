@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.13] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Routing**: Fixed a persistent bug on Linux where audio would route to the laptop speakers instead of Bluetooth earphones despite the previous buffer size fixes. The ALSA `default` output device on some Linux configurations is hardcoded to the laptop speakers via `dmix`. The engine now intelligently searches the ALSA device list for modern audio servers (`pulse`, `pipewire`, or `bluealsa`) and prioritizes them over the static `default` device, ensuring seamless Bluetooth handoff.
+
+---
+
 ## [2.4.12] — 2026-06-11
 
 ### 🐛 Fixed

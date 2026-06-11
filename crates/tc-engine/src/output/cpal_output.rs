@@ -89,8 +89,35 @@ impl CpalOutput {
             _ => cpal::default_host(),
         };
 
-        // If ALSA was requested, try to find a hardware device rather than 'default'
         let mut device = None;
+
+        // On Linux, the 'default' ALSA device is sometimes hardcoded to the laptop speakers
+        // via dmix, bypassing PulseAudio/PipeWire and breaking Bluetooth routing.
+        // We explicitly search for modern audio servers first when using the Auto backend.
+        if backend == AudioBackend::Auto {
+            #[cfg(target_os = "linux")]
+            if let Ok(devices) = host.output_devices() {
+                let mut fallback = None;
+                for d in devices {
+                    let name = d.name().unwrap_or_default().to_lowercase();
+                    if name.contains("pulse") {
+                        device = Some(d);
+                        break;
+                    } else if name.contains("pipewire") && device.is_none() {
+                        device = Some(d);
+                    } else if name.contains("bluealsa") && device.is_none() {
+                        device = Some(d);
+                    } else if name == "default" {
+                        fallback = Some(d);
+                    }
+                }
+                if device.is_none() {
+                    device = fallback;
+                }
+            }
+        }
+
+        // If ALSA was requested, try to find a hardware device rather than 'default'
         if backend == AudioBackend::ExclusiveAlsa {
             #[cfg(target_os = "linux")]
             if let Ok(devices) = host.output_devices() {
@@ -156,8 +183,7 @@ impl CpalOutput {
                     .iter()
                     .find(|c| c.sample_format() == SampleFormat::F32)
                     .map(|c| {
-                        let rate =
-                            target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
+                        let rate = target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
                         c.with_sample_rate(cpal::SampleRate(rate))
                     })
             })
@@ -180,8 +206,7 @@ impl CpalOutput {
                             || c.sample_format() == SampleFormat::U16
                     })
                     .map(|c| {
-                        let rate =
-                            target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
+                        let rate = target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
                         c.with_sample_rate(cpal::SampleRate(rate))
                     })
             })
