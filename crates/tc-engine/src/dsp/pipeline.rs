@@ -361,24 +361,11 @@ impl DspPipeline {
     }
 
     pub fn set_bass_shelf(&mut self, gain_db: f32) {
-        self.eq.set_band(
-            0,
-            EqBandParams {
-                gain_db,
-                ..self.eq.band_params(0).copied().unwrap_or_default()
-            },
-        );
+        self.eq.set_bass_shelf(gain_db);
     }
 
     pub fn set_treble_shelf(&mut self, gain_db: f32) {
-        let last = self.eq.num_bands() - 1;
-        self.eq.set_band(
-            last,
-            EqBandParams {
-                gain_db,
-                ..self.eq.band_params(last).copied().unwrap_or_default()
-            },
-        );
+        self.eq.set_treble_shelf(gain_db);
     }
 
     pub fn set_eq_enabled(&mut self, enabled: bool) {

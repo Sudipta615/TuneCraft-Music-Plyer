@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.7] — 2026-06-11
+
+### 🐛 Fixed
+- **DSP Engine**: Fixed a bug where the Bass and Treble knobs were incorrectly mapped to the first (31Hz) and last (16kHz) bands of the 10-band Graphic EQ instead of their own dedicated Tone Control filters. The knobs will now correctly apply the tuned 80Hz and 12kHz shelf filters independently of the 10-band sliders.
+
+---
+
 ## [2.4.6] — 2026-06-11
 
 ### ✨ Changed
