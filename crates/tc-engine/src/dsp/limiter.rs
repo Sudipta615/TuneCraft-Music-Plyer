@@ -203,16 +203,16 @@ impl LookaheadLimiter {
         let abs_sample = sample.abs();
         let limit = self.ceiling_linear;
         let threshold = limit * 0.8;
-        
+
         if abs_sample <= threshold {
             return sample;
         }
-        
+
         // Smooth knee from threshold asymptotically approaching limit
         let over = abs_sample - threshold;
         let range = limit - threshold;
         let saturated = threshold + range * (1.0 - (-over / range).exp());
-        
+
         sample.signum() * saturated
     }
 

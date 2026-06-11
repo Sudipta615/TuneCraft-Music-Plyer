@@ -157,7 +157,8 @@ impl CpalOutput {
                     .iter()
                     .find(|c| c.sample_format() == SampleFormat::F32)
                     .map(|c| {
-                        let rate = target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
+                        let rate =
+                            target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
                         c.with_sample_rate(cpal::SampleRate(rate))
                     })
             })
@@ -180,7 +181,8 @@ impl CpalOutput {
                             || c.sample_format() == SampleFormat::U16
                     })
                     .map(|c| {
-                        let rate = target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
+                        let rate =
+                            target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
                         c.with_sample_rate(cpal::SampleRate(rate))
                     })
             })
@@ -193,7 +195,7 @@ impl CpalOutput {
         let buffer_size = match config.buffer_size() {
             cpal::SupportedBufferSize::Range { min, max } => {
                 cpal::BufferSize::Fixed(2048.clamp(*min, *max))
-            }
+            },
             cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Default,
         };
 

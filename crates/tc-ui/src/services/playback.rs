@@ -268,7 +268,9 @@ impl PlaybackService {
     }
 
     #[cfg(not(feature = "audio-output"))]
-    pub fn sync_from_engine(&self) -> bool { false }
+    pub fn sync_from_engine(&self) -> bool {
+        false
+    }
 
     pub fn play_track(&self, track: &Track, is_favorited: bool) {
         let _path = std::path::PathBuf::from(&track.path);
