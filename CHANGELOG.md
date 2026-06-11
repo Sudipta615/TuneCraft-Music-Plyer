@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.8] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Output**: Fixed a total loss of audio playback and massive ALSA plugin errors (`pcm_dmix`, `pcm_dsnoop`) caused by relying on ALSA's default buffer size. The engine now explicitly requests a stable 2048-frame buffer (clamped to device limits) to guarantee stable playback across all Linux audio drivers.
+
+---
+
 ## [2.4.7] — 2026-06-11
 
 ### 🐛 Fixed
