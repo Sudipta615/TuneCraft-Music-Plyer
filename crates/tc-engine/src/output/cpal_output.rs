@@ -195,7 +195,7 @@ impl CpalOutput {
             cpal::SupportedBufferSize::Range { min, max } => {
                 cpal::BufferSize::Fixed(2048.clamp(*min, *max))
             }
-            cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Default,
+            cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Fixed(2048),
         };
 
         let stream_config = StreamConfig {

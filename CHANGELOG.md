@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.11] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Output**: Fixed a bug where ALSA's `dmix` plugin was crashing and disabling audio completely. The ALSA plugin reports an `Unknown` buffer size range, which previously caused the engine to fall back to the problematic OS `Default` buffer size. The engine now rigidly forces a 2048-frame buffer when the supported range is unknown.
+
+---
+
 ## [2.4.10] — 2026-06-11
 
 ### 🐛 Fixed
