@@ -217,7 +217,7 @@ impl SymphoniaDecoder {
         }
 
         Ok(DecodedChunk {
-            samples: std::mem::take(&mut self.sample_buffer),
+            samples: self.sample_buffer.clone(),
             channels: self.info.channels,
             sample_rate: self.info.sample_rate,
             frame_count: frames_decoded,

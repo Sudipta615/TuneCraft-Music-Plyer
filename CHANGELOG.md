@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.3] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Engine**: Fixed audio playback stuttering by switching to dynamic OS-managed buffer sizing (`cpal::BufferSize::Default`) instead of forcing a fixed 2048-frame buffer.
+- **Audio Engine**: Resolved multiple vector reallocations per audio chunk in `SymphoniaDecoder` that caused audio thread stalls.
+
+---
+
 ## [2.4.2] — 2026-06-11
 
 ### 🐛 Fixed
