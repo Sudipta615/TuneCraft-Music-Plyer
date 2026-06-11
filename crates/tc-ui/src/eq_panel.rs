@@ -760,25 +760,18 @@ fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
     match preset {
         "Flat" => {
             app.eq_bands = [0.0; 10];
-            app.eq_preamp = 0.0;
-            app.eq_bass_shelf = 0.0;
-            app.eq_treble_shelf = 0.0;
         },
         "Bass Boost" => {
             app.eq_bands = [8.0, 6.0, 4.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-            app.eq_preamp = -2.0;
         },
         "Treble Boost" => {
             app.eq_bands = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 4.0, 6.0, 8.0];
-            app.eq_preamp = -2.0;
         },
         "V-Shape" => {
             app.eq_bands = [6.0, 4.0, 2.0, 0.0, -1.0, -1.0, 0.0, 2.0, 4.0, 6.0];
-            app.eq_preamp = -2.0;
         },
         "Vocal" => {
             app.eq_bands = [-2.0, -1.0, 0.0, 2.0, 4.0, 4.0, 3.0, 1.0, 0.0, -1.0];
-            app.eq_preamp = -1.0;
         },
         _ => {},
     }
@@ -829,8 +822,6 @@ fn reset_eq(app: &mut TuneCraftApp) {
     app.eq_dither = true;
     app.eq_midside = false;
     app.eq_preset = "Custom".to_string();
-    app.ctx.eq.set_enabled(false);
-    app.eq_enabled = false;
     app.ctx.eq.set_preamp(0.0);
     app.ctx.eq.set_stereo_width(1.0);
     app.ctx.eq.set_balance(0.0);
@@ -851,8 +842,9 @@ fn reset_eq(app: &mut TuneCraftApp) {
         eq_state.preset = "Custom".to_string();
     }
     // Persist reset state to config
+    let eq_enabled = app.eq_enabled;
     app.ctx.config.write(|c| {
-        c.engine.eq.enabled = false;
+        c.engine.eq.enabled = eq_enabled;
         c.engine.eq.preamp_db = 0.0;
         for band in c.engine.eq.bands.iter_mut() {
             band.gain_db = 0.0;

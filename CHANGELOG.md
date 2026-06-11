@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.10] — 2026-06-11
+
+### 🐛 Fixed
+- **UI EQ Panel**: Fixed an issue where changing graphic EQ presets (like "Bass Boost" or "V-Shape") incorrectly reset the separate Preamp, Bass, and Treble controls. Graphic EQ presets now strictly only modify the 10-band sliders.
+- **UI EQ Panel**: Fixed the "Reset" button so that it correctly resets all sliders and knobs to their default values without turning off the EQ completely.
+
+---
+
 ## [2.4.9] — 2026-06-11
 
 ### 🐛 Fixed
