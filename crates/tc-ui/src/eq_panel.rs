@@ -29,6 +29,15 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     // Fill the whole panel background
     let panel_rect = ui.available_rect_before_wrap();
     ui.painter().rect_filled(panel_rect, 12.0, colors.surface);
+    // Glass themes: add a frosted border around the panel
+    if colors.wallpaper.is_some() {
+        ui.painter().rect_stroke(
+            panel_rect,
+            12.0,
+            egui::Stroke::new(1.0, colors.glass_border),
+            egui::StrokeKind::Inside,
+        );
+    }
 
     ui.vertical(|ui| {
         ui.add_space(12.0);
@@ -37,12 +46,12 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.add_space(14.0);
 
-            // Back arrow / close — must update EqService so sync_from_eq_service() stays in sync
+            // Close button (X icon)
             let arrow_resp = ui.add(
                 egui::Button::new(
-                    RichText::new("\u{2190}")
+                    RichText::new(egui_phosphor::regular::X)
                         .font(FontId::proportional(16.0))
-                        .color(colors.text),
+                        .color(colors.text_dim),
                 )
                 .frame(false),
             );
@@ -103,11 +112,14 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add_space(14.0);
 
-                // Three-dot menu placeholder
-                ui.label(
-                    RichText::new("\u{22EE}")
-                        .font(FontId::proportional(16.0))
-                        .color(colors.text_dim),
+                // Three-dot menu button (phosphor icon)
+                ui.add(
+                    egui::Button::new(
+                        RichText::new(egui_phosphor::regular::DOTS_THREE_VERTICAL)
+                            .font(FontId::proportional(16.0))
+                            .color(colors.text_dim),
+                    )
+                    .frame(false),
                 );
 
                 ui.add_space(8.0);
@@ -405,8 +417,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     reset_eq(app);
                 }
             }
-
-            ui.add_space(8.0);
         });
     });
 }

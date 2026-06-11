@@ -384,26 +384,47 @@ impl eframe::App for TuneCraftApp {
         } else {
             240.0
         };
+
+        // Paint the wallpaper gradient for chromatic/glass themes.
+        // We paint it once on a background layer that covers the full screen
+        // before any panels are drawn.
+        let colors = self.colors();
+        if let Some(stops) = colors.wallpaper {
+            let full_rect = ctx.screen_rect();
+            // Use a background panel with no frame to paint behind everything
+            egui::Area::new(egui::Id::new("wallpaper_bg"))
+                .fixed_pos(full_rect.min)
+                .order(egui::Order::Background)
+                .show(ctx, |ui| {
+                    let painter = ui.painter();
+                    crate::theme::paint_wallpaper(painter, full_rect, &stops);
+                });
+        }
+
         egui::SidePanel::left("sidebar")
             .resizable(false)
             .exact_width(sidebar_w)
+            .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
                 crate::sidebar::draw(self, ui);
             });
 
         egui::TopBottomPanel::bottom("player_bar")
             .exact_height(crate::player_bar::PLAYER_BAR_HEIGHT)
+            .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
                 crate::player_bar::draw(self, ui);
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if self.nav == crate::sidebar::NavSection::Settings {
-                crate::settings_view::draw(self, ui);
-            } else {
-                crate::track_list::draw(self, ui);
-            }
-        });
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE)
+            .show(ctx, |ui| {
+                if self.nav == crate::sidebar::NavSection::Settings {
+                    crate::settings_view::draw(self, ui);
+                } else {
+                    crate::track_list::draw(self, ui);
+                }
+            });
 
         // EQ panel as a floating window overlay — responsive sizing
         if self.show_eq_panel {
@@ -419,8 +440,10 @@ impl eframe::App for TuneCraftApp {
                 .collapsible(false)
                 .resizable(false)
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .fixed_size(egui::Vec2::new(window_width, window_height))
+                .min_size(egui::Vec2::new(window_width, 0.0))
+                .max_size(egui::Vec2::new(window_width, window_height))
                 .title_bar(false)
+                .frame(egui::Frame::NONE)
                 .show(ctx, |ui| {
                     crate::eq_panel::draw(self, ui);
                 });
@@ -460,13 +483,15 @@ impl eframe::App for TuneCraftApp {
                         egui::Sense::hover(),
                     );
                     ui.painter().rect_filled(rect, 8.0, colors.search_bg);
+                    let h_margin = 12.0;
                     ui.put(
                         egui::Rect::from_min_size(
-                            egui::Pos2::new(rect.left() + 12.0, rect.top() + 12.0),
-                            egui::Vec2::new(rect.width() - 24.0, rect.height() - 24.0),
+                            egui::Pos2::new(rect.left() + h_margin, rect.top()),
+                            egui::Vec2::new(rect.width() - h_margin * 2.0, rect.height()),
                         ),
                         egui::TextEdit::singleline(&mut self.new_playlist_name)
                             .hint_text("E.g., Workout Mix")
+                            .frame(egui::Frame::NONE)
                             .text_color(colors.text),
                     );
 
@@ -552,13 +577,15 @@ impl eframe::App for TuneCraftApp {
                         egui::Sense::hover(),
                     );
                     ui.painter().rect_filled(rect, 8.0, colors.search_bg);
+                    let h_margin = 12.0;
                     ui.put(
                         egui::Rect::from_min_size(
-                            egui::Pos2::new(rect.left() + 12.0, rect.top() + 12.0),
-                            egui::Vec2::new(rect.width() - 24.0, rect.height() - 24.0),
+                            egui::Pos2::new(rect.left() + h_margin, rect.top()),
+                            egui::Vec2::new(rect.width() - h_margin * 2.0, rect.height()),
                         ),
                         egui::TextEdit::singleline(&mut self.add_music_folder_path)
                             .hint_text("/home/user/Music")
+                            .frame(egui::Frame::NONE)
                             .text_color(colors.text),
                     );
 

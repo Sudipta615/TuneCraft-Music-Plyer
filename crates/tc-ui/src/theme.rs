@@ -1,51 +1,47 @@
-//! TuneCraft theming — dark/light modes with cyan accent
+//! TuneCraft theming — dark/light/custom themes with proper chromatic palettes
+//! and glassmorphism surface system.
 //!
-//! Provides consistent Visuals for the entire UI, matching the reference design.
+//! Each custom theme has its own fully saturated chromatic base rather than
+//! just accent-swapped near-black. Glassmorphism is achieved by painting a
+//! vivid gradient wallpaper behind all panels, then using semi-transparent
+//! surface fills so the wallpaper bleeds through.
 
 use egui::{Color32, CornerRadius, Stroke, Visuals};
 
-// ── Primary cyan palette ──
+// ── Primary cyan palette (Light / Dark defaults) ──
 
-/// Primary accent color (button color)
-pub const ACCENT: Color32 = Color32::from_rgb(0x35, 0xC8, 0xE1); // #35c8e1
-/// Variant — slightly darker, for pressed states
+pub const ACCENT: Color32 = Color32::from_rgb(0x35, 0xC8, 0xE1);
 pub const ACCENT_DARK: Color32 = Color32::from_rgb(0x2A, 0xA0, 0xB4);
-/// Deep accent — even darker variant
 pub const ACCENT_DEEP: Color32 = Color32::from_rgb(0x20, 0x78, 0x87);
-/// Light tint — for hover states
 pub const ACCENT_LIGHT: Color32 = Color32::from_rgb(0x5E, 0xD3, 0xE7);
-/// Very light tint — for backgrounds / selections
 pub const ACCENT_LAVENDER: Color32 = Color32::from_rgb(0xE0, 0xF7, 0xFA);
-/// Dark accent
 pub const ACCENT_INDIGO: Color32 = Color32::from_rgb(0x1A, 0x64, 0x70);
 
-// ── Dark theme: updated matching custom design ──
+// ── Dark theme base colors ──
 
-pub const DARK_BG: Color32 = Color32::from_rgba_premultiplied(8, 14, 25, 220); // #0a111e
-pub const DARK_SIDEBAR: Color32 = Color32::from_rgba_premultiplied(12, 18, 30, 220); // #0f1523
-pub const DARK_SURFACE: Color32 = Color32::from_rgba_premultiplied(8, 14, 25, 220); // #0a111e
-pub const DARK_CARD: Color32 = Color32::from_rgba_premultiplied(12, 18, 30, 220); // #0f1523
-pub const DARK_TEXT: Color32 = Color32::from_rgb(0xE6, 0xE7, 0xE7); // #e6e7e7
-pub const DARK_TEXT_DIM: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8); // #babfc8
-pub const DARK_TEXT_MUTED: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8); // #babfc8
+pub const DARK_BG: Color32 = Color32::from_rgba_premultiplied(8, 14, 25, 240);
+pub const DARK_SIDEBAR: Color32 = Color32::from_rgba_premultiplied(12, 18, 30, 240);
+pub const DARK_SURFACE: Color32 = Color32::from_rgba_premultiplied(8, 14, 25, 240);
+pub const DARK_CARD: Color32 = Color32::from_rgba_premultiplied(12, 18, 30, 240);
+pub const DARK_TEXT: Color32 = Color32::from_rgb(0xE6, 0xE7, 0xE7);
+pub const DARK_TEXT_DIM: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8);
+pub const DARK_TEXT_MUTED: Color32 = Color32::from_rgb(0xBA, 0xBF, 0xC8);
 pub const DARK_BORDER: Color32 = Color32::from_rgb(0x1C, 0x23, 0x33);
-pub const DARK_HOVER: Color32 = Color32::from_rgb(0x14, 0x1B, 0x2B); // #141b2b
-pub const DARK_ACTIVE: Color32 = Color32::from_rgb(0x14, 0x1B, 0x2B); // #141b2b
+pub const DARK_HOVER: Color32 = Color32::from_rgb(0x14, 0x1B, 0x2B);
+pub const DARK_ACTIVE: Color32 = Color32::from_rgb(0x14, 0x1B, 0x2B);
 
-// ── Light theme matching reference design ──
+// ── Light theme base colors ──
 
-pub const LIGHT_BG: Color32 = Color32::from_rgba_premultiplied(224, 225, 227, 235); // Soft cool gray background
-pub const LIGHT_SIDEBAR: Color32 = Color32::from_rgba_premultiplied(232, 232, 233, 235); // Near white sidebar
-pub const LIGHT_SURFACE: Color32 = Color32::from_rgba_premultiplied(224, 225, 227, 235); // Soft surface
-pub const LIGHT_CARD: Color32 = Color32::from_rgba_premultiplied(235, 235, 235, 235); // Pure white cards for contrast
-pub const LIGHT_TEXT: Color32 = Color32::from_rgb(0x11, 0x18, 0x27); // Dark gray, not pure black
+pub const LIGHT_BG: Color32 = Color32::from_rgba_premultiplied(224, 225, 227, 245);
+pub const LIGHT_SIDEBAR: Color32 = Color32::from_rgba_premultiplied(232, 232, 233, 245);
+pub const LIGHT_SURFACE: Color32 = Color32::from_rgba_premultiplied(224, 225, 227, 245);
+pub const LIGHT_CARD: Color32 = Color32::from_rgba_premultiplied(235, 235, 235, 245);
+pub const LIGHT_TEXT: Color32 = Color32::from_rgb(0x11, 0x18, 0x27);
 pub const LIGHT_TEXT_DIM: Color32 = Color32::from_rgb(0x6B, 0x72, 0x80);
 pub const LIGHT_TEXT_MUTED: Color32 = Color32::from_rgb(0x9C, 0xA3, 0xAF);
 pub const LIGHT_BORDER: Color32 = Color32::from_rgb(0xE5, 0xE7, 0xEB);
-pub const LIGHT_HOVER: Color32 = Color32::from_rgb(0xF9, 0xFA, 0xFB); // Very subtle hover
-pub const LIGHT_ACTIVE: Color32 = Color32::from_rgb(0xEE, 0xF2, 0xFF); // Soft indigo/blue active state
-
-/// Light sidebar selected tint — distinct from general selected surface
+pub const LIGHT_HOVER: Color32 = Color32::from_rgb(0xF9, 0xFA, 0xFB);
+pub const LIGHT_ACTIVE: Color32 = Color32::from_rgb(0xEE, 0xF2, 0xFF);
 pub const LIGHT_SIDEBAR_ACTIVE: Color32 = Color32::from_rgb(0xE0, 0xF2, 0xFE);
 
 /// Collection of colors for the current theme
@@ -78,69 +74,102 @@ pub struct TuneCraftColors {
     pub search_bg: Color32,
     pub search_border: Color32,
     pub dark_mode: bool,
+    /// Gradient stops for the glassmorphism wallpaper (painted behind all panels).
+    /// Each entry is (normalised_y 0..1, color).  None = no gradient (light/dark).
+    pub wallpaper: Option<[(f32, Color32); 3]>,
+    /// Glass border color drawn on top of glass surfaces
+    pub glass_border: Color32,
 }
 
 impl TuneCraftColors {
-    fn custom_dark(
-        bg_opaque: Color32,
-        card_opaque: Color32,
-        accent: Color32,
-        accent_light: Color32,
-        accent_dark: Color32,
-    ) -> Self {
-        let alpha = 220; // Glassmorphism opacity
-        let bg =
-            Color32::from_rgba_unmultiplied(bg_opaque.r(), bg_opaque.g(), bg_opaque.b(), alpha);
-        let card = Color32::from_rgba_unmultiplied(
-            card_opaque.r(),
-            card_opaque.g(),
-            card_opaque.b(),
-            alpha,
-        );
+    // ── Glass helpers ─────────────────────────────────────────────────────────
 
-        let hover = Color32::from_rgba_unmultiplied(
-            bg_opaque.r().saturating_add(10),
-            bg_opaque.g().saturating_add(10),
-            bg_opaque.b().saturating_add(15),
-            alpha,
-        );
-        let border = Color32::from_rgba_unmultiplied(
-            bg_opaque.r().saturating_add(20),
-            bg_opaque.g().saturating_add(20),
-            bg_opaque.b().saturating_add(25),
-            alpha,
-        );
+    /// Mix `base` toward white by `t` (0 = base, 1 = white).
+    fn lighten(base: Color32, t: f32) -> Color32 {
+        let lerp = |a: u8, b: u8, t: f32| -> u8 { (a as f32 + (b as f32 - a as f32) * t) as u8 };
+        Color32::from_rgb(
+            lerp(base.r(), 255, t),
+            lerp(base.g(), 255, t),
+            lerp(base.b(), 255, t),
+        )
+    }
+
+    /// Mix `base` toward black by `t`.
+    fn darken(base: Color32, t: f32) -> Color32 {
+        let lerp = |a: u8, t: f32| -> u8 { (a as f32 * (1.0 - t)) as u8 };
+        Color32::from_rgb(lerp(base.r(), t), lerp(base.g(), t), lerp(base.b(), t))
+    }
+
+    /// Return `color` with `alpha` (0-255).
+    fn with_alpha(c: Color32, a: u8) -> Color32 {
+        Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), a)
+    }
+
+    // ── Core constructor for every chromatic theme ────────────────────────────
+
+    /// Build a fully chromatic glassmorphism theme.
+    ///
+    /// `hue_dark`  — the deep/saturated base hue for bg surfaces  
+    /// `hue_mid`   — a lighter mid-tone of the same hue  
+    /// `hue_light` — the lightest/most-washed variant  
+    /// `accent`    — the primary interactive color  
+    fn chromatic(
+        hue_dark: Color32,  // deep bg
+        hue_mid: Color32,   // card / sidebar
+        _hue_light: Color32, // surface highlight
+        accent: Color32,
+    ) -> Self {
+        let accent_light = Self::lighten(accent, 0.25);
+        let accent_dark = Self::darken(accent, 0.30);
+
+        // Glassmorphism surface opacity: transparent enough to show the
+        // wallpaper gradient, opaque enough to be readable.
+        let glass_bg = Self::with_alpha(hue_dark, 170);
+        let glass_card = Self::with_alpha(hue_mid, 155);
+        let glass_sidebar = Self::with_alpha(hue_mid, 175);
+        let glass_hover = Self::with_alpha(Self::lighten(hue_dark, 0.12), 160);
+        let glass_border = Self::with_alpha(Self::lighten(hue_mid, 0.30), 90);
+        let glass_player = Self::with_alpha(hue_dark, 195);
+
+        // Wallpaper: three-stop gradient in the theme's hue family
+        let wp_top = Self::darken(accent, 0.65);
+        let wp_mid = hue_dark;
+        let wp_bot = Self::darken(hue_mid, 0.20);
 
         Self {
-            bg,
-            sidebar: card,
-            surface: bg,
-            card,
-            text: DARK_TEXT,
-            text_dim: DARK_TEXT_DIM,
-            text_muted: DARK_TEXT_MUTED,
-            border,
-            hover,
-            active_bg: hover,
-            sidebar_active_bg: hover,
+            bg: glass_bg,
+            sidebar: glass_sidebar,
+            surface: glass_bg,
+            card: glass_card,
+            text: Color32::from_rgb(0xF0, 0xF2, 0xF4),
+            text_dim: Color32::from_rgba_unmultiplied(0xD0, 0xD5, 0xDF, 210),
+            text_muted: Color32::from_rgba_unmultiplied(0xA0, 0xA8, 0xB8, 180),
+            border: glass_border,
+            hover: glass_hover,
+            active_bg: glass_hover,
+            sidebar_active_bg: Self::with_alpha(Self::lighten(hue_mid, 0.18), 140),
             accent,
             accent_light,
             accent_dark,
-            player_bar: card,
-            player_bar_border: border,
-            slider_track: border,
+            player_bar: glass_player,
+            player_bar_border: glass_border,
+            slider_track: glass_border,
             slider_fill: accent,
             toggle_bg_on: accent,
-            toggle_bg_off: border,
-            table_header_bg: bg,
-            table_row_even: bg,
-            table_row_odd: bg,
-            table_row_hover: hover,
-            search_bg: card,
-            search_border: border,
+            toggle_bg_off: glass_border,
+            table_header_bg: glass_bg,
+            table_row_even: glass_bg,
+            table_row_odd: Self::with_alpha(hue_dark, 130),
+            table_row_hover: glass_hover,
+            search_bg: glass_card,
+            search_border: glass_border,
             dark_mode: true,
+            wallpaper: Some([(0.0, wp_top), (0.50, wp_mid), (1.0, wp_bot)]),
+            glass_border,
         }
     }
+
+    // ── Public theme constructors ─────────────────────────────────────────────
 
     pub fn dark() -> Self {
         Self {
@@ -171,6 +200,8 @@ impl TuneCraftColors {
             search_bg: DARK_CARD,
             search_border: DARK_BORDER,
             dark_mode: true,
+            wallpaper: None,
+            glass_border: DARK_BORDER,
         }
     }
 
@@ -190,7 +221,7 @@ impl TuneCraftColors {
             accent: ACCENT,
             accent_light: ACCENT_LIGHT,
             accent_dark: ACCENT_DARK,
-            player_bar: LIGHT_BG, // white
+            player_bar: LIGHT_BG,
             player_bar_border: LIGHT_BORDER,
             slider_track: LIGHT_BORDER,
             slider_fill: ACCENT,
@@ -200,90 +231,190 @@ impl TuneCraftColors {
             table_row_even: LIGHT_BG,
             table_row_odd: LIGHT_BG,
             table_row_hover: LIGHT_HOVER,
-            search_bg: LIGHT_CARD, // light gray
+            search_bg: LIGHT_CARD,
             search_border: LIGHT_BORDER,
             dark_mode: false,
+            wallpaper: None,
+            glass_border: LIGHT_BORDER,
         }
     }
+
+    // ── Chromatic themes — each has a fully distinct hue base ─────────────────
+
+    /// Deep ocean blues with electric cyan accent
     pub fn ocean() -> Self {
-        Self::custom_dark(
-            Color32::from_rgb(0x06, 0x11, 0x1E),
-            Color32::from_rgb(0x0A, 0x16, 0x24),
-            Color32::from_rgb(0x00, 0xE5, 0xFF),
-            Color32::from_rgb(0x33, 0xEA, 0xFF),
-            Color32::from_rgb(0x00, 0xB3, 0xCC),
+        Self::chromatic(
+            Color32::from_rgb(0x03, 0x10, 0x2E), // deep navy
+            Color32::from_rgb(0x07, 0x1A, 0x40), // mid navy
+            Color32::from_rgb(0x0D, 0x26, 0x52), // lighter navy
+            Color32::from_rgb(0x00, 0xE5, 0xFF), // electric cyan
         )
     }
+
+    /// Rich forest greens with emerald accent
     pub fn forest() -> Self {
-        Self::custom_dark(
-            Color32::from_rgb(0x09, 0x15, 0x0E),
-            Color32::from_rgb(0x0D, 0x1A, 0x12),
-            Color32::from_rgb(0x34, 0xD3, 0x99),
-            Color32::from_rgb(0x6E, 0xE7, 0xB7),
-            Color32::from_rgb(0x05, 0x96, 0x69),
+        Self::chromatic(
+            Color32::from_rgb(0x04, 0x15, 0x0B), // deep forest
+            Color32::from_rgb(0x07, 0x20, 0x10), // mid forest
+            Color32::from_rgb(0x0C, 0x2E, 0x18), // lighter forest
+            Color32::from_rgb(0x34, 0xD3, 0x99), // emerald green
         )
     }
+
+    /// Warm amber and deep burnt-orange sunset
     pub fn sunset() -> Self {
-        Self::custom_dark(
-            Color32::from_rgb(0x19, 0x0B, 0x08),
-            Color32::from_rgb(0x1F, 0x0F, 0x0B),
-            Color32::from_rgb(0xFB, 0x92, 0x3C),
-            Color32::from_rgb(0xFD, 0xBA, 0x74),
-            Color32::from_rgb(0xEA, 0x58, 0x0C),
+        Self::chromatic(
+            Color32::from_rgb(0x20, 0x08, 0x02), // deep burnt
+            Color32::from_rgb(0x30, 0x0F, 0x03), // mid warm brown
+            Color32::from_rgb(0x42, 0x18, 0x05), // lighter warm
+            Color32::from_rgb(0xFB, 0x92, 0x3C), // warm orange
         )
     }
+
+    /// Deep berry purples with vivid magenta accent
     pub fn berry() -> Self {
-        Self::custom_dark(
-            Color32::from_rgb(0x15, 0x08, 0x1B),
-            Color32::from_rgb(0x1A, 0x0B, 0x21),
-            Color32::from_rgb(0xE8, 0x43, 0x93),
-            Color32::from_rgb(0xF4, 0x72, 0xB6),
-            Color32::from_rgb(0xBE, 0x18, 0x5D),
+        Self::chromatic(
+            Color32::from_rgb(0x18, 0x04, 0x22), // deep plum
+            Color32::from_rgb(0x24, 0x07, 0x32), // mid plum
+            Color32::from_rgb(0x32, 0x0B, 0x44), // lighter plum
+            Color32::from_rgb(0xE8, 0x43, 0x93), // hot pink
         )
     }
+
+    /// Pure black with sapphire blue accent
     pub fn midnight() -> Self {
-        Self::custom_dark(
-            Color32::from_rgb(0x00, 0x00, 0x00),
-            Color32::from_rgb(0x0A, 0x0A, 0x0A),
-            Color32::from_rgb(0x3B, 0x82, 0xF6),
-            Color32::from_rgb(0x60, 0xA5, 0xFA),
-            Color32::from_rgb(0x25, 0x63, 0xEB),
+        Self::chromatic(
+            Color32::from_rgb(0x02, 0x02, 0x0E), // near black blue
+            Color32::from_rgb(0x05, 0x05, 0x18), // deep blue-black
+            Color32::from_rgb(0x08, 0x08, 0x24), // dark blue
+            Color32::from_rgb(0x60, 0xA5, 0xFA), // bright blue
         )
     }
+
+    /// Deep crimson reds with rose accent
     pub fn rose() -> Self {
-        Self::custom_dark(
-            Color32::from_rgb(0x17, 0x09, 0x0A),
-            Color32::from_rgb(0x1D, 0x0C, 0x0D),
-            Color32::from_rgb(0xF4, 0x3F, 0x5E),
-            Color32::from_rgb(0xFB, 0x71, 0x85),
-            Color32::from_rgb(0xE1, 0x1D, 0x48),
+        Self::chromatic(
+            Color32::from_rgb(0x1E, 0x04, 0x08), // deep crimson
+            Color32::from_rgb(0x2C, 0x06, 0x0C), // mid crimson
+            Color32::from_rgb(0x3C, 0x09, 0x12), // lighter crimson
+            Color32::from_rgb(0xF4, 0x3F, 0x5E), // rose red
         )
     }
+
+    /// Warm espresso browns with amber accent
     pub fn coffee() -> Self {
-        Self::custom_dark(
-            Color32::from_rgb(0x14, 0x10, 0x0C),
-            Color32::from_rgb(0x1A, 0x15, 0x10),
-            Color32::from_rgb(0xD9, 0x77, 0x06),
-            Color32::from_rgb(0xFB, 0xBF, 0x24),
-            Color32::from_rgb(0xB4, 0x53, 0x09),
+        Self::chromatic(
+            Color32::from_rgb(0x18, 0x0E, 0x05), // espresso
+            Color32::from_rgb(0x24, 0x16, 0x08), // dark caramel
+            Color32::from_rgb(0x32, 0x20, 0x0C), // caramel
+            Color32::from_rgb(0xFB, 0xBF, 0x24), // golden amber
         )
     }
+
+    /// Deep teal with bright mint accent
     pub fn mint() -> Self {
-        Self::custom_dark(
-            Color32::from_rgb(0x07, 0x15, 0x16),
-            Color32::from_rgb(0x0A, 0x1A, 0x1B),
-            Color32::from_rgb(0x10, 0xB9, 0x81),
-            Color32::from_rgb(0x34, 0xD3, 0x99),
-            Color32::from_rgb(0x05, 0x96, 0x69),
+        Self::chromatic(
+            Color32::from_rgb(0x03, 0x16, 0x18), // deep teal
+            Color32::from_rgb(0x05, 0x21, 0x23), // mid teal
+            Color32::from_rgb(0x08, 0x2E, 0x30), // lighter teal
+            Color32::from_rgb(0x10, 0xB9, 0x81), // mint green
         )
     }
 }
 
-/// Build the egui Visuals for a dark theme matching the reference design
+// ── Wallpaper painting ────────────────────────────────────────────────────────
+
+/// Paint the glassmorphism background gradient for chromatic themes.
+/// Call this at the very start of the CentralPanel painter before any widgets.
+/// Uses multi-pass rect painting to approximate a vertical gradient.
+pub fn paint_wallpaper(painter: &egui::Painter, rect: egui::Rect, stops: &[(f32, Color32); 3]) {
+    let h = rect.height();
+
+    // Simulate gradient with many thin horizontal strips (fast enough per-frame)
+    let strip_count = 80u32;
+    for i in 0..strip_count {
+        let t0 = i as f32 / strip_count as f32;
+        let t1 = (i + 1) as f32 / strip_count as f32;
+        let color = sample_gradient(stops, (t0 + t1) * 0.5);
+        let strip_rect = egui::Rect::from_min_max(
+            egui::Pos2::new(rect.left(), rect.top() + t0 * h),
+            egui::Pos2::new(rect.right(), rect.top() + t1 * h),
+        );
+        painter.rect_filled(strip_rect, 0.0, color);
+    }
+}
+
+/// Paint the wallpaper for the sidebar (same gradient, same vertical range but
+/// clipped to the sidebar column so the gradient is seamless across the seam).
+pub fn paint_sidebar_wallpaper(
+    painter: &egui::Painter,
+    sidebar_rect: egui::Rect,
+    full_screen_rect: egui::Rect,
+    stops: &[(f32, Color32); 3],
+) {
+    let total_h = full_screen_rect.height();
+    let strip_count = 80u32;
+    for i in 0..strip_count {
+        let t0 = i as f32 / strip_count as f32;
+        let t1 = (i + 1) as f32 / strip_count as f32;
+        let color = sample_gradient(stops, (t0 + t1) * 0.5);
+        // y coordinates are relative to the full screen so gradients line up
+        let y0 = full_screen_rect.top() + t0 * total_h;
+        let y1 = full_screen_rect.top() + t1 * total_h;
+        // clip to the sidebar rect
+        let strip_y0 = y0.max(sidebar_rect.top());
+        let strip_y1 = y1.min(sidebar_rect.bottom());
+        if strip_y1 <= strip_y0 {
+            continue;
+        }
+        let strip_rect = egui::Rect::from_min_max(
+            egui::Pos2::new(sidebar_rect.left(), strip_y0),
+            egui::Pos2::new(sidebar_rect.right(), strip_y1),
+        );
+        painter.rect_filled(strip_rect, 0.0, color);
+    }
+}
+
+fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
+    let lerp = |a: u8, b: u8, t: f32| -> u8 { (a as f32 + (b as f32 - a as f32) * t) as u8 };
+    Color32::from_rgba_unmultiplied(
+        lerp(a.r(), b.r(), t),
+        lerp(a.g(), b.g(), t),
+        lerp(a.b(), b.b(), t),
+        lerp(a.a(), b.a(), t),
+    )
+}
+
+fn sample_gradient(stops: &[(f32, Color32); 3], t: f32) -> Color32 {
+    let t = t.clamp(0.0, 1.0);
+    if t <= stops[0].0 {
+        return stops[0].1;
+    }
+    if t >= stops[2].0 {
+        return stops[2].1;
+    }
+    // Find which segment we're in
+    for i in 0..stops.len() - 1 {
+        let (t0, c0) = stops[i];
+        let (t1, c1) = stops[i + 1];
+        if t >= t0 && t <= t1 {
+            let local_t = if (t1 - t0).abs() < 0.0001 {
+                0.0
+            } else {
+                (t - t0) / (t1 - t0)
+            };
+            return lerp_color(c0, c1, local_t);
+        }
+    }
+    stops[2].1
+}
+
+// ── egui Visuals builders ─────────────────────────────────────────────────────
+
 pub fn dark_visuals() -> Visuals {
     let mut v = Visuals::dark();
     v.extreme_bg_color = DARK_BG;
-    v.panel_fill = DARK_BG;
+    v.panel_fill = Color32::TRANSPARENT; // panels are transparent; wallpaper shows through
     v.window_fill = DARK_BG;
     v.faint_bg_color = DARK_CARD;
     v.widgets.noninteractive.bg_fill = DARK_BG;
@@ -310,7 +441,6 @@ pub fn dark_visuals() -> Visuals {
     v
 }
 
-/// Build the egui Visuals for a light theme matching the reference design
 pub fn light_visuals() -> Visuals {
     let mut v = Visuals::light();
     v.extreme_bg_color = LIGHT_BG;
@@ -341,14 +471,14 @@ pub fn light_visuals() -> Visuals {
     v
 }
 
-/// Build the egui Visuals for a custom dark theme matching the given colors
 pub fn custom_dark_visuals(colors: &TuneCraftColors) -> Visuals {
     let mut v = Visuals::dark();
     v.extreme_bg_color = colors.bg;
-    v.panel_fill = colors.bg;
+    // Make egui panels transparent so our wallpaper shows through
+    v.panel_fill = Color32::TRANSPARENT;
     v.window_fill = colors.bg;
     v.faint_bg_color = colors.card;
-    v.widgets.noninteractive.bg_fill = colors.bg;
+    v.widgets.noninteractive.bg_fill = Color32::TRANSPARENT;
     v.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, colors.text_dim);
     v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, colors.border);
     v.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, colors.text);

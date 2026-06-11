@@ -72,7 +72,19 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
     };
 
     let (bar_rect, _) = ui.allocate_exact_size(Vec2::new(total_w, bar_h), Sense::hover());
-    ui.painter().rect_filled(bar_rect, 0.0, colors.bg);
+    // For chromatic glass themes the wallpaper shows through; paint a semi-
+    // transparent surface instead of a solid fill.
+    let topbar_bg = if colors.wallpaper.is_some() {
+        colors.bg // already semi-transparent in chromatic themes
+    } else {
+        colors.bg
+    };
+    ui.painter().rect_filled(bar_rect, 0.0, topbar_bg);
+    // Subtle bottom separator
+    ui.painter().line_segment(
+        [bar_rect.left_bottom(), bar_rect.right_bottom()],
+        egui::Stroke::new(1.0, colors.border),
+    );
 
     ui.scope_builder(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
         ui.horizontal(|ui| {
@@ -102,19 +114,15 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.painter()
                 .rect_filled(search_rect, search_h / 2.0, colors.search_bg);
 
-            // Search TextEdit
-            let text_edit_x = search_rect.left() + 16.0;
-            let text_edit_w = search_rect.width() - 32.0;
-            let text_edit_h = if total_w < BREAKPOINT_NARROW {
-                14.0
-            } else {
-                16.0
-            };
-            let text_edit_y = search_rect.top() + (search_h - text_edit_h) / 2.0 - 1.0;
+            // Search TextEdit — fill the entire search pill with a small horizontal margin only
+            let text_edit_margin = 16.0;
             let search_resp = ui.put(
                 Rect::from_min_size(
-                    Pos2::new(text_edit_x, text_edit_y),
-                    Vec2::new(text_edit_w, text_edit_h),
+                    Pos2::new(search_rect.left() + text_edit_margin, search_rect.top()),
+                    Vec2::new(
+                        search_rect.width() - text_edit_margin * 2.0,
+                        search_rect.height(),
+                    ),
                 ),
                 egui::TextEdit::singleline(&mut app.search_query)
                     .hint_text("Search songs, artists, albums...")
@@ -123,6 +131,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
                     } else {
                         14.0
                     }))
+                    .frame(egui::Frame::NONE)
                     .text_color(colors.text),
             );
 
@@ -157,6 +166,10 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         let is_narrow = content_w < BREAKPOINT_NARROW;
         let is_medium = content_w < BREAKPOINT_MEDIUM;
 
+        // Clip the entire title+toolbar row to the available content width so
+        // buttons cannot bleed past the panel border.
+        let row_clip = ui.available_rect_before_wrap();
+        ui.set_clip_rect(row_clip);
         ui.horizontal(|ui| {
             ui.add_space(if is_narrow { 12.0 } else { 24.0 });
             ui.vertical(|ui| {
