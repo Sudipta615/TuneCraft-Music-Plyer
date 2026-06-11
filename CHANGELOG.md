@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.1] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Engine**: Fixed audio stream not recovering when switching to Auto backend if a Bluetooth device is connected. Tunecraft now correctly tracks ALSA's internal device count.
+- **Audio Engine**: Fixed spurious "Audio dropout" warnings by relaxing the thread watchdog to respect 50ms OS timer resolutions.
+- **Audio Engine**: Fixed `sample rate out of range` panics in CPAL by safely clamping fallback configurations within hardware format bounds.
+
+---
+
 ## [2.4.0] — 2026-06-11
 
 ### 🚀 Added
