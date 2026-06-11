@@ -420,6 +420,7 @@ impl eframe::App for TuneCraftApp {
             let window_height = screen_h * 0.60;
 
             let mut open = self.show_eq_panel;
+            let colors = self.colors();
             egui::Window::new("EQ")
                 .open(&mut open)
                 .collapsible(false)
@@ -428,7 +429,13 @@ impl eframe::App for TuneCraftApp {
                 .min_size(egui::Vec2::new(window_width, 0.0))
                 .max_size(egui::Vec2::new(window_width, window_height))
                 .title_bar(false)
-                .frame(egui::Frame::NONE)
+                .frame(
+                    egui::Frame::window(ctx.style().as_ref())
+                        .fill(colors.surface)
+                        .stroke(egui::Stroke::new(1.0, colors.border))
+                        .inner_margin(16.0)
+                        .rounding(16.0),
+                )
                 .show(ctx, |ui| {
                     crate::eq_panel::draw(self, ui);
                 });

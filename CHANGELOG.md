@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.2] — 2026-06-11
+
+### 🐛 Fixed
+- **UI**: Fixed the EQ panel missing border and padding, preventing it from blending with the background.
+
+---
+
 ## [2.4.1] — 2026-06-11
 
 ### 🐛 Fixed

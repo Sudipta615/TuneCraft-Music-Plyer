@@ -26,13 +26,7 @@ const EQ_PRESETS: [&str; 6] = [
 pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     let colors = app.colors();
 
-    // Fill the whole panel background
-    let panel_rect = ui.available_rect_before_wrap();
-    ui.painter().rect_filled(panel_rect, 12.0, colors.surface);
-
     ui.vertical(|ui| {
-        ui.add_space(12.0);
-
         // ── Header row: ← EQ   [Enable toggle]  [Custom ▾]  [⋮] ──
         ui.horizontal(|ui| {
             ui.add_space(14.0);
