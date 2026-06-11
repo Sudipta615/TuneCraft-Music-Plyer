@@ -45,8 +45,8 @@ impl AudioEngine {
             output.stop();
         }
 
-        // Brief pause to allow the OS to settle after device change.
-        std::thread::sleep(Duration::from_millis(100));
+        // Brief pause to allow the OS/PulseAudio to settle the new default sink.
+        std::thread::sleep(Duration::from_millis(1500));
 
         // Re-detect the output device and sample rate.
         let new_output_sample_rate =

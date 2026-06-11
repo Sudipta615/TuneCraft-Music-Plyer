@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.4] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Engine**: Fixed an issue where connecting Bluetooth earphones caused playback to remain on laptop speakers. Increased the stream recovery delay to allow PulseAudio/PipeWire enough time to transition the default sink before recreating the audio stream.
+
+---
+
 ## [2.4.3] — 2026-06-11
 
 ### 🐛 Fixed
