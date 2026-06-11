@@ -5,9 +5,8 @@
 //! `mod.rs` (load_track). All three sites now share the same logic for
 //! creating a resampler with the correct quality, speed, and error handling.
 
-use std::{sync::Arc, time::{Duration, Instant}};
+use std::{sync::Arc, time::Duration};
 
-use cpal::traits::{DeviceTrait, HostTrait};
 use log::{error, info, warn};
 
 #[cfg(feature = "resample")]
@@ -161,7 +160,6 @@ impl AudioEngine {
                     underruns
                 );
             }
-
         }
     }
 }

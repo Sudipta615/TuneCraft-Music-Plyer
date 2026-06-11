@@ -95,8 +95,6 @@ impl TuneCraftColors {
         Color32::from_rgb(lerp(base.r(), t), lerp(base.g(), t), lerp(base.b(), t))
     }
 
-
-
     // ── Core constructor for every chromatic theme ────────────────────────────
 
     /// Build a fully chromatic glassmorphism theme.

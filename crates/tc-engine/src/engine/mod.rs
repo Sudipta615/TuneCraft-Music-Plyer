@@ -45,7 +45,6 @@ use log::{error, info, warn};
 // Re-export public types from submodules so the public API is unchanged.
 pub use stream::EngineError;
 use tc_config::EngineConfig;
-use cpal::traits::HostTrait;
 
 #[cfg(feature = "resample")]
 use crate::dsp::resampler::AudioResampler;
@@ -258,38 +257,50 @@ impl AudioEngine {
         );
         let running = Arc::clone(&self.running);
         let cmd_tx = self.cmd_tx.clone();
-        
+
         // Spawn background device monitor thread to avoid blocking the audio tick thread
         // This polls CPAL device enumeration which can take 50-100ms on Linux (ALSA)
-        std::thread::Builder::new()
+        if let Err(e) = std::thread::Builder::new()
             .name("tc-device-monitor".into())
             .spawn(move || {
-                use cpal::traits::{HostTrait, DeviceTrait};
+                use cpal::traits::{DeviceTrait, HostTrait};
                 let host = cpal::default_host();
                 let mut last_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
-                let mut last_name = host.default_output_device().and_then(|d| d.name().ok()).unwrap_or_default();
-                
+                let mut last_name = host
+                    .default_output_device()
+                    .and_then(|d| d.name().ok())
+                    .unwrap_or_default();
+
                 while running.load(Ordering::Acquire) {
                     std::thread::sleep(Duration::from_secs(2));
                     if !running.load(Ordering::Acquire) {
                         break;
                     }
-                    
+
                     let current_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
-                    let current_name = host.default_output_device().and_then(|d| d.name().ok()).unwrap_or_default();
-                    
+                    let current_name = host
+                        .default_output_device()
+                        .and_then(|d| d.name().ok())
+                        .unwrap_or_default();
+
                     let mut changed = false;
                     if current_count != last_count {
-                        info!("Device monitor: output device count changed ({} -> {})", last_count, current_count);
+                        info!(
+                            "Device monitor: output device count changed ({} -> {})",
+                            last_count, current_count
+                        );
                         last_count = current_count;
                         changed = true;
                     }
                     if current_name != last_name {
-                        info!("Device monitor: default device name changed ('{}' -> '{}')", last_name, current_name);
+                        info!(
+                            "Device monitor: default device name changed ('{}' -> '{}')",
+                            last_name, current_name
+                        );
                         last_name = current_name.clone();
                         changed = true;
                     }
-                    
+
                     if changed {
                         info!("Device monitor: triggering stream recovery");
                         let _ = cmd_tx.send(EngineCommand::AutoRecoverStream);
@@ -297,7 +308,10 @@ impl AudioEngine {
                         std::thread::sleep(Duration::from_secs(3));
                     }
                 }
-            }).unwrap_or_else(|e| warn!("Failed to spawn device monitor thread: {}", e));
+            })
+        {
+            warn!("Failed to spawn device monitor thread: {}", e);
+        }
 
         Ok(())
     }
@@ -598,11 +612,11 @@ impl AudioEngine {
         if config.performance_mode != self.config.performance_mode {
             self.pipeline = DspPipeline::from_config(&config, self.output_sample_rate as f32);
         }
-        
+
         let backend_changed = config.output_backend != self.config.output_backend;
-        
+
         self.config = config;
-        
+
         if backend_changed {
             info!("Output backend changed, triggering stream recovery to apply new backend.");
             if let Err(e) = self.recover_output_stream() {
