@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.5] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Engine**: Eliminated periodic audio stuttering (every 2 seconds) by moving the ALSA device enumeration out of the real-time audio tick thread and into a dedicated background monitor thread.
+
+---
+
 ## [2.4.4] — 2026-06-11
 
 ### 🐛 Fixed

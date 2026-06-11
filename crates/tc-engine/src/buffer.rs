@@ -411,6 +411,9 @@ pub enum EngineCommand {
     /// The engine will attempt to re-detect the output device, rebuild
     /// the resampler, and hot-swap the output stream.
     RecoverStream,
+    /// Automatically triggered stream recovery from the background monitor thread.
+    /// Ignored if the engine backend is not set to Auto.
+    AutoRecoverStream,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

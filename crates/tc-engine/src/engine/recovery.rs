@@ -162,44 +162,6 @@ impl AudioEngine {
                 );
             }
 
-            // Periodically check if the default output device has changed.
-            if self.last_device_check.elapsed() > Duration::from_secs(2) {
-                self.last_device_check = Instant::now();
-                
-                let host = cpal::default_host();
-                let current_device_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
-                let mut device_changed = false;
-
-                // Check if the total number of devices changed (handles Linux ALSA where default name never changes)
-                if current_device_count != self.last_device_count {
-                    info!("Number of audio output devices changed ({} -> {}).", self.last_device_count, current_device_count);
-                    self.last_device_count = current_device_count;
-                    device_changed = true;
-                }
-
-                if let Some(device) = host.default_output_device() {
-                    if let Ok(name) = device.name() {
-                        // Check if the current device matches the default device.
-                        if name != output.device_name() {
-                            info!("Default audio device name changed from '{}' to '{}'.", output.device_name(), name);
-                            device_changed = true;
-                        }
-                    }
-                }
-
-                if device_changed && self.config.output_backend == tc_config::AudioBackend::Auto {
-                    info!("Triggering stream recovery due to device change.");
-                    match self.recover_output_stream() {
-                        Ok(()) => info!("Stream recovered and switched to new default device"),
-                        Err(e) => {
-                            let err_msg = format!("Stream recovery failed after device change: {}", e);
-                            error!("{}", err_msg);
-                            // Update playback info with error but don't panic
-                            let _ = self.playback_info.write().map(|mut pb| pb.engine_error = Some(err_msg));
-                        }
-                    }
-                }
-            }
         }
     }
 }

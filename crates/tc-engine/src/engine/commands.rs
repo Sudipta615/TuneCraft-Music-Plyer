@@ -343,6 +343,14 @@ impl AudioEngine {
                 Ok(()) => info!("Stream recovered via command"),
                 Err(e) => error!("Stream recovery failed: {}", e),
             },
+            EngineCommand::AutoRecoverStream => {
+                if self.config.output_backend == tc_config::AudioBackend::Auto {
+                    match self.recover_output_stream() {
+                        Ok(()) => info!("Stream recovered via auto-detection"),
+                        Err(e) => error!("Auto stream recovery failed: {}", e),
+                    }
+                }
+            },
         }
     }
 }

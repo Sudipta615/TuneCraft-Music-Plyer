@@ -126,8 +126,6 @@ pub struct AudioEngine {
     total_time: Duration,
     tick_start: Option<Instant>,
     last_cpu_reset: Instant,
-    last_device_check: Instant,
-    last_device_count: usize,
     /// Consecutive decode-error counter for circuit-breaker (robustness).
     consecutive_decode_errors: u32,
     /// Cached partial decoded chunk when the output ring-buffer was full.
@@ -205,8 +203,6 @@ impl AudioEngine {
             total_time: Duration::ZERO,
             tick_start: None,
             last_cpu_reset: Instant::now(),
-            last_device_check: Instant::now(),
-            last_device_count: cpal::default_host().output_devices().map(|d| d.count()).unwrap_or(0),
             consecutive_decode_errors: 0,
             pending_chunk: None,
             pending_incoming_chunk: None,
@@ -260,6 +256,49 @@ impl AudioEngine {
             "Audio engine started (output rate: {} Hz)",
             self.output_sample_rate
         );
+        let running = Arc::clone(&self.running);
+        let cmd_tx = self.cmd_tx.clone();
+        
+        // Spawn background device monitor thread to avoid blocking the audio tick thread
+        // This polls CPAL device enumeration which can take 50-100ms on Linux (ALSA)
+        std::thread::Builder::new()
+            .name("tc-device-monitor".into())
+            .spawn(move || {
+                use cpal::traits::{HostTrait, DeviceTrait};
+                let host = cpal::default_host();
+                let mut last_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
+                let mut last_name = host.default_output_device().and_then(|d| d.name().ok()).unwrap_or_default();
+                
+                while running.load(Ordering::Acquire) {
+                    std::thread::sleep(Duration::from_secs(2));
+                    if !running.load(Ordering::Acquire) {
+                        break;
+                    }
+                    
+                    let current_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
+                    let current_name = host.default_output_device().and_then(|d| d.name().ok()).unwrap_or_default();
+                    
+                    let mut changed = false;
+                    if current_count != last_count {
+                        info!("Device monitor: output device count changed ({} -> {})", last_count, current_count);
+                        last_count = current_count;
+                        changed = true;
+                    }
+                    if current_name != last_name {
+                        info!("Device monitor: default device name changed ('{}' -> '{}')", last_name, current_name);
+                        last_name = current_name.clone();
+                        changed = true;
+                    }
+                    
+                    if changed {
+                        info!("Device monitor: triggering stream recovery");
+                        let _ = cmd_tx.send(EngineCommand::AutoRecoverStream);
+                        // Sleep a bit longer after recovery to avoid spamming
+                        std::thread::sleep(Duration::from_secs(3));
+                    }
+                }
+            }).unwrap_or_else(|e| warn!("Failed to spawn device monitor thread: {}", e));
+
         Ok(())
     }
 
