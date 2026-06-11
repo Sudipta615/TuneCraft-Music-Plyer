@@ -120,6 +120,8 @@ pub struct PlaybackState {
     /// mapping due to a sample rate change and needs to be reloaded.
     /// UI should display a warning when true.
     pub convolution_ir_needs_reload: bool,
+    /// The most recent fatal error from the audio engine, if any.
+    pub engine_error: Option<String>,
 }
 
 impl Default for PlaybackState {
@@ -143,6 +145,7 @@ impl Default for PlaybackState {
             version: 0,
             resampler_disabled: false,
             convolution_ir_needs_reload: false,
+            engine_error: None,
         }
     }
 }
@@ -249,8 +252,11 @@ impl PlaybackService {
 
         state.resampler_disabled = info.resampler_disabled;
         state.convolution_ir_needs_reload = info.convolution_ir_needs_reload;
+        state.engine_error = info.engine_error;
 
-        if info.state == EnginePlaybackState::Stopped && state.is_playing {
+        if (info.state == EnginePlaybackState::Stopped || state.engine_error.is_some())
+            && state.is_playing
+        {
             state.is_playing = false;
         }
     }

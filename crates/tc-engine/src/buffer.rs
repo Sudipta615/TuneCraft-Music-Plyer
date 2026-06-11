@@ -442,6 +442,8 @@ pub struct PlaybackInfo {
     /// please reload") when this is true. Cleared when a new IR is loaded
     /// or the engine is reset.
     pub convolution_ir_needs_reload: bool,
+    /// Latest fatal engine error that requires UI intervention or playback halt.
+    pub engine_error: Option<String>,
 }
 
 impl Default for PlaybackInfo {
@@ -458,6 +460,7 @@ impl Default for PlaybackInfo {
             cpu_overloads: 0,
             resampler_disabled: false,
             convolution_ir_needs_reload: false,
+            engine_error: None,
         }
     }
 }

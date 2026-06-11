@@ -10,13 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.4.0] — 2026-06-11
 
 ### 🚀 Added
-- **UI**: Implemented a complete glassmorphism UI system with semi-transparent surfaces and gradient wallpapers for chromatic themes.
-- **UI**: Added `paint_wallpaper` and `paint_sidebar_wallpaper` for rendering dynamic background gradients.
 - **UI**: Introduced `chromatic` theme constructor for fully saturated color palettes.
 
 ### ✨ Changed
-- **UI**: Completely rewrote `src/theme.rs` to support true glassmorphism and chromatic bases.
-- **UI**: Modified panels (`SidePanel`, `TopBottomPanel`, `CentralPanel`) to use frameless backgrounds, allowing wallpapers to bleed through.
+- **UI**: Completely rewrote `src/theme.rs` to support clean, solid chromatic bases.
 - **UI**: Refined Settings theme swatch previews to use true mid-hues.
 - **UI**: Adjusted EQ window to dynamically fit content height.
 - **UI**: Refined Playlists and Add Music Folder dialog inputs with frameless, full-height rects.

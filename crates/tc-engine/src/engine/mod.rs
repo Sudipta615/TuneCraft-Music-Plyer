@@ -45,6 +45,7 @@ use log::{error, info, warn};
 // Re-export public types from submodules so the public API is unchanged.
 pub use stream::EngineError;
 use tc_config::EngineConfig;
+use cpal::traits::HostTrait;
 
 #[cfg(feature = "resample")]
 use crate::dsp::resampler::AudioResampler;
@@ -125,6 +126,8 @@ pub struct AudioEngine {
     total_time: Duration,
     tick_start: Option<Instant>,
     last_cpu_reset: Instant,
+    last_device_check: Instant,
+    last_device_count: usize,
     /// Consecutive decode-error counter for circuit-breaker (robustness).
     consecutive_decode_errors: u32,
     /// Cached partial decoded chunk when the output ring-buffer was full.
@@ -202,6 +205,8 @@ impl AudioEngine {
             total_time: Duration::ZERO,
             tick_start: None,
             last_cpu_reset: Instant::now(),
+            last_device_check: Instant::now(),
+            last_device_count: cpal::default_host().output_devices().map(|d| d.count()).unwrap_or(0),
             consecutive_decode_errors: 0,
             pending_chunk: None,
             pending_incoming_chunk: None,
@@ -366,9 +371,11 @@ impl AudioEngine {
             self.total_time += elapsed;
 
             // Watchdog: detect if the engine thread was starved for too long
-            const TICK_DEADLINE: Duration = Duration::from_millis(15);
+            // The buffer holds ~185ms of audio, so a 50ms deadline is safe and
+            // avoids spurious warnings caused by OS scheduler timer granularity.
+            const TICK_DEADLINE: Duration = Duration::from_millis(50);
             if elapsed > TICK_DEADLINE && state == PlaybackState::Playing {
-                warn!("Audio dropout: tick delayed by {:.1}ms (deadline 15ms). CPU may be over-utilized.", elapsed.as_secs_f32() * 1000.0);
+                warn!("Audio dropout: tick delayed by {:.1}ms (deadline 50ms). CPU may be over-utilized.", elapsed.as_secs_f32() * 1000.0);
                 self.write_playback_info(|pb| pb.cpu_overloads += 1);
             }
         }
@@ -552,7 +559,17 @@ impl AudioEngine {
         if config.performance_mode != self.config.performance_mode {
             self.pipeline = DspPipeline::from_config(&config, self.output_sample_rate as f32);
         }
+        
+        let backend_changed = config.output_backend != self.config.output_backend;
+        
         self.config = config;
+        
+        if backend_changed {
+            info!("Output backend changed, triggering stream recovery to apply new backend.");
+            if let Err(e) = self.recover_output_stream() {
+                error!("Failed to recover stream after backend change: {}", e);
+            }
+        }
     }
 
     pub fn is_running(&self) -> bool {

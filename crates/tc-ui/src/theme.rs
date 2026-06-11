@@ -74,11 +74,6 @@ pub struct TuneCraftColors {
     pub search_bg: Color32,
     pub search_border: Color32,
     pub dark_mode: bool,
-    /// Gradient stops for the glassmorphism wallpaper (painted behind all panels).
-    /// Each entry is (normalised_y 0..1, color).  None = no gradient (light/dark).
-    pub wallpaper: Option<[(f32, Color32); 3]>,
-    /// Glass border color drawn on top of glass surfaces
-    pub glass_border: Color32,
 }
 
 impl TuneCraftColors {
@@ -100,10 +95,7 @@ impl TuneCraftColors {
         Color32::from_rgb(lerp(base.r(), t), lerp(base.g(), t), lerp(base.b(), t))
     }
 
-    /// Return `color` with `alpha` (0-255).
-    fn with_alpha(c: Color32, a: u8) -> Color32 {
-        Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), a)
-    }
+
 
     // ── Core constructor for every chromatic theme ────────────────────────────
 
@@ -114,58 +106,49 @@ impl TuneCraftColors {
     /// `hue_light` — the lightest/most-washed variant  
     /// `accent`    — the primary interactive color  
     fn chromatic(
-        hue_dark: Color32,  // deep bg
-        hue_mid: Color32,   // card / sidebar
+        hue_dark: Color32,   // deep bg
+        hue_mid: Color32,    // card / sidebar
         _hue_light: Color32, // surface highlight
         accent: Color32,
     ) -> Self {
         let accent_light = Self::lighten(accent, 0.25);
         let accent_dark = Self::darken(accent, 0.30);
 
-        // Glassmorphism surface opacity: transparent enough to show the
-        // wallpaper gradient, opaque enough to be readable.
-        let glass_bg = Self::with_alpha(hue_dark, 170);
-        let glass_card = Self::with_alpha(hue_mid, 155);
-        let glass_sidebar = Self::with_alpha(hue_mid, 175);
-        let glass_hover = Self::with_alpha(Self::lighten(hue_dark, 0.12), 160);
-        let glass_border = Self::with_alpha(Self::lighten(hue_mid, 0.30), 90);
-        let glass_player = Self::with_alpha(hue_dark, 195);
-
-        // Wallpaper: three-stop gradient in the theme's hue family
-        let wp_top = Self::darken(accent, 0.65);
-        let wp_mid = hue_dark;
-        let wp_bot = Self::darken(hue_mid, 0.20);
+        let bg = hue_dark;
+        let card = hue_mid;
+        let sidebar = hue_mid;
+        let hover = Self::lighten(hue_dark, 0.12);
+        let border = Self::lighten(hue_mid, 0.30);
+        let player = hue_dark;
 
         Self {
-            bg: glass_bg,
-            sidebar: glass_sidebar,
-            surface: glass_bg,
-            card: glass_card,
+            bg,
+            sidebar,
+            surface: bg,
+            card,
             text: Color32::from_rgb(0xF0, 0xF2, 0xF4),
             text_dim: Color32::from_rgba_unmultiplied(0xD0, 0xD5, 0xDF, 210),
             text_muted: Color32::from_rgba_unmultiplied(0xA0, 0xA8, 0xB8, 180),
-            border: glass_border,
-            hover: glass_hover,
-            active_bg: glass_hover,
-            sidebar_active_bg: Self::with_alpha(Self::lighten(hue_mid, 0.18), 140),
+            border,
+            hover,
+            active_bg: hover,
+            sidebar_active_bg: Self::lighten(hue_mid, 0.18),
             accent,
             accent_light,
             accent_dark,
-            player_bar: glass_player,
-            player_bar_border: glass_border,
-            slider_track: glass_border,
+            player_bar: player,
+            player_bar_border: border,
+            slider_track: border,
             slider_fill: accent,
             toggle_bg_on: accent,
-            toggle_bg_off: glass_border,
-            table_header_bg: glass_bg,
-            table_row_even: glass_bg,
-            table_row_odd: Self::with_alpha(hue_dark, 130),
-            table_row_hover: glass_hover,
-            search_bg: glass_card,
-            search_border: glass_border,
+            toggle_bg_off: border,
+            table_header_bg: bg,
+            table_row_even: bg,
+            table_row_odd: Self::darken(hue_dark, 0.10),
+            table_row_hover: hover,
+            search_bg: card,
+            search_border: border,
             dark_mode: true,
-            wallpaper: Some([(0.0, wp_top), (0.50, wp_mid), (1.0, wp_bot)]),
-            glass_border,
         }
     }
 
@@ -200,8 +183,6 @@ impl TuneCraftColors {
             search_bg: DARK_CARD,
             search_border: DARK_BORDER,
             dark_mode: true,
-            wallpaper: None,
-            glass_border: DARK_BORDER,
         }
     }
 
@@ -234,8 +215,6 @@ impl TuneCraftColors {
             search_bg: LIGHT_CARD,
             search_border: LIGHT_BORDER,
             dark_mode: false,
-            wallpaper: None,
-            glass_border: LIGHT_BORDER,
         }
     }
 
@@ -322,99 +301,12 @@ impl TuneCraftColors {
     }
 }
 
-// ── Wallpaper painting ────────────────────────────────────────────────────────
-
-/// Paint the glassmorphism background gradient for chromatic themes.
-/// Call this at the very start of the CentralPanel painter before any widgets.
-/// Uses multi-pass rect painting to approximate a vertical gradient.
-pub fn paint_wallpaper(painter: &egui::Painter, rect: egui::Rect, stops: &[(f32, Color32); 3]) {
-    let h = rect.height();
-
-    // Simulate gradient with many thin horizontal strips (fast enough per-frame)
-    let strip_count = 80u32;
-    for i in 0..strip_count {
-        let t0 = i as f32 / strip_count as f32;
-        let t1 = (i + 1) as f32 / strip_count as f32;
-        let color = sample_gradient(stops, (t0 + t1) * 0.5);
-        let strip_rect = egui::Rect::from_min_max(
-            egui::Pos2::new(rect.left(), rect.top() + t0 * h),
-            egui::Pos2::new(rect.right(), rect.top() + t1 * h),
-        );
-        painter.rect_filled(strip_rect, 0.0, color);
-    }
-}
-
-/// Paint the wallpaper for the sidebar (same gradient, same vertical range but
-/// clipped to the sidebar column so the gradient is seamless across the seam).
-pub fn paint_sidebar_wallpaper(
-    painter: &egui::Painter,
-    sidebar_rect: egui::Rect,
-    full_screen_rect: egui::Rect,
-    stops: &[(f32, Color32); 3],
-) {
-    let total_h = full_screen_rect.height();
-    let strip_count = 80u32;
-    for i in 0..strip_count {
-        let t0 = i as f32 / strip_count as f32;
-        let t1 = (i + 1) as f32 / strip_count as f32;
-        let color = sample_gradient(stops, (t0 + t1) * 0.5);
-        // y coordinates are relative to the full screen so gradients line up
-        let y0 = full_screen_rect.top() + t0 * total_h;
-        let y1 = full_screen_rect.top() + t1 * total_h;
-        // clip to the sidebar rect
-        let strip_y0 = y0.max(sidebar_rect.top());
-        let strip_y1 = y1.min(sidebar_rect.bottom());
-        if strip_y1 <= strip_y0 {
-            continue;
-        }
-        let strip_rect = egui::Rect::from_min_max(
-            egui::Pos2::new(sidebar_rect.left(), strip_y0),
-            egui::Pos2::new(sidebar_rect.right(), strip_y1),
-        );
-        painter.rect_filled(strip_rect, 0.0, color);
-    }
-}
-
-fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
-    let lerp = |a: u8, b: u8, t: f32| -> u8 { (a as f32 + (b as f32 - a as f32) * t) as u8 };
-    Color32::from_rgba_unmultiplied(
-        lerp(a.r(), b.r(), t),
-        lerp(a.g(), b.g(), t),
-        lerp(a.b(), b.b(), t),
-        lerp(a.a(), b.a(), t),
-    )
-}
-
-fn sample_gradient(stops: &[(f32, Color32); 3], t: f32) -> Color32 {
-    let t = t.clamp(0.0, 1.0);
-    if t <= stops[0].0 {
-        return stops[0].1;
-    }
-    if t >= stops[2].0 {
-        return stops[2].1;
-    }
-    // Find which segment we're in
-    for i in 0..stops.len() - 1 {
-        let (t0, c0) = stops[i];
-        let (t1, c1) = stops[i + 1];
-        if t >= t0 && t <= t1 {
-            let local_t = if (t1 - t0).abs() < 0.0001 {
-                0.0
-            } else {
-                (t - t0) / (t1 - t0)
-            };
-            return lerp_color(c0, c1, local_t);
-        }
-    }
-    stops[2].1
-}
-
 // ── egui Visuals builders ─────────────────────────────────────────────────────
 
 pub fn dark_visuals() -> Visuals {
     let mut v = Visuals::dark();
     v.extreme_bg_color = DARK_BG;
-    v.panel_fill = Color32::TRANSPARENT; // panels are transparent; wallpaper shows through
+    v.panel_fill = DARK_BG;
     v.window_fill = DARK_BG;
     v.faint_bg_color = DARK_CARD;
     v.widgets.noninteractive.bg_fill = DARK_BG;
@@ -474,8 +366,7 @@ pub fn light_visuals() -> Visuals {
 pub fn custom_dark_visuals(colors: &TuneCraftColors) -> Visuals {
     let mut v = Visuals::dark();
     v.extreme_bg_color = colors.bg;
-    // Make egui panels transparent so our wallpaper shows through
-    v.panel_fill = Color32::TRANSPARENT;
+    v.panel_fill = colors.bg;
     v.window_fill = colors.bg;
     v.faint_bg_color = colors.card;
     v.widgets.noninteractive.bg_fill = Color32::TRANSPARENT;

@@ -74,11 +74,7 @@ pub fn draw_topbar(app: &mut TuneCraftApp, ui: &mut Ui) {
     let (bar_rect, _) = ui.allocate_exact_size(Vec2::new(total_w, bar_h), Sense::hover());
     // For chromatic glass themes the wallpaper shows through; paint a semi-
     // transparent surface instead of a solid fill.
-    let topbar_bg = if colors.wallpaper.is_some() {
-        colors.bg // already semi-transparent in chromatic themes
-    } else {
-        colors.bg
-    };
+    let topbar_bg = colors.bg;
     ui.painter().rect_filled(bar_rect, 0.0, topbar_bg);
     // Subtle bottom separator
     ui.painter().line_segment(

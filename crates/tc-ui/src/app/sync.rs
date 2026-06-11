@@ -138,5 +138,19 @@ impl TuneCraftApp {
         } else if !self.resampler_disabled {
             self.dsp_warning_shown = false;
         }
+
+        let engine_error = {
+            let state = self.ctx.playback.state();
+            state.engine_error.clone()
+        };
+
+        if let Some(err) = engine_error {
+            if self.last_engine_error.as_ref() != Some(&err) {
+                self.push_toast(format!("Playback Error: {}", err), ToastLevel::Error);
+                self.last_engine_error = Some(err);
+            }
+        } else {
+            self.last_engine_error = None;
+        }
     }
 }

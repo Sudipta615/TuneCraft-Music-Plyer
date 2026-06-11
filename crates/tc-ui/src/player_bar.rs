@@ -51,12 +51,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
     let bar_rect = ui.available_rect_before_wrap();
     ui.painter().rect_filled(bar_rect, 0.0, colors.player_bar);
-    // For glass themes use the glass_border for a frosted separator; else normal border
-    let top_border_color = if colors.wallpaper.is_some() {
-        colors.glass_border
-    } else {
-        colors.player_bar_border
-    };
+    let top_border_color = colors.player_bar_border;
     ui.painter().line_segment(
         [bar_rect.left_top(), bar_rect.right_top()],
         egui::Stroke::new(1.0, top_border_color),

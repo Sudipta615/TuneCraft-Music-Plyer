@@ -128,6 +128,8 @@ pub struct TuneCraftApp {
     pub resampler_disabled: bool,
     /// Whether a DSP warning toast has already been shown (to avoid spam)
     pub dsp_warning_shown: bool,
+    /// Last engine error that was displayed to the user
+    pub last_engine_error: Option<String>,
 
     pub status_message: String,
     pub is_scanning: bool,
@@ -277,6 +279,7 @@ impl TuneCraftApp {
 
             resampler_disabled: false,
             dsp_warning_shown: false,
+            last_engine_error: None,
 
             status_message: status_message.clone(),
             is_scanning,
@@ -385,22 +388,6 @@ impl eframe::App for TuneCraftApp {
             240.0
         };
 
-        // Paint the wallpaper gradient for chromatic/glass themes.
-        // We paint it once on a background layer that covers the full screen
-        // before any panels are drawn.
-        let colors = self.colors();
-        if let Some(stops) = colors.wallpaper {
-            let full_rect = ctx.screen_rect();
-            // Use a background panel with no frame to paint behind everything
-            egui::Area::new(egui::Id::new("wallpaper_bg"))
-                .fixed_pos(full_rect.min)
-                .order(egui::Order::Background)
-                .show(ctx, |ui| {
-                    let painter = ui.painter();
-                    crate::theme::paint_wallpaper(painter, full_rect, &stops);
-                });
-        }
-
         egui::SidePanel::left("sidebar")
             .resizable(false)
             .exact_width(sidebar_w)
@@ -416,15 +403,13 @@ impl eframe::App for TuneCraftApp {
                 crate::player_bar::draw(self, ui);
             });
 
-        egui::CentralPanel::default()
-            .frame(egui::Frame::NONE)
-            .show(ctx, |ui| {
-                if self.nav == crate::sidebar::NavSection::Settings {
-                    crate::settings_view::draw(self, ui);
-                } else {
-                    crate::track_list::draw(self, ui);
-                }
-            });
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if self.nav == crate::sidebar::NavSection::Settings {
+                crate::settings_view::draw(self, ui);
+            } else {
+                crate::track_list::draw(self, ui);
+            }
+        });
 
         // EQ panel as a floating window overlay — responsive sizing
         if self.show_eq_panel {
@@ -675,8 +660,6 @@ impl eframe::App for TuneCraftApp {
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let app_context = AppContext::init()?;
     let app = TuneCraftApp::new(app_context);
-
-    // silently drops the receiver and breaks scrobble UI feedback (blocker #1).
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

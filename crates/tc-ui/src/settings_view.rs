@@ -187,8 +187,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                                 .font(FontId::proportional(16.0))
                                 .color(colors.text),
                         );
-                        let mut current_backend =
-                            app.ctx.config.read(|c| c.engine.output_backend).unwrap();
+                        let mut current_backend = app
+                            .ctx
+                            .config
+                            .read(|c| c.engine.output_backend)
+                            .unwrap_or(tc_config::types::enums::AudioBackend::Auto);
                         let prev_backend = current_backend;
 
                         egui::ComboBox::from_id_salt("audio_backend_combo")

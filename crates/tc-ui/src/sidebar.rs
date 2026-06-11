@@ -61,32 +61,12 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
     // Sidebar background — either solid or glass over the wallpaper
     let sidebar_rect = ui.available_rect_before_wrap();
-    let screen_rect = ui.ctx().content_rect();
-
-    if let Some(stops) = colors.wallpaper {
-        // Wallpaper slice is already painted by the Area in mod.rs;
-        // paint the glass frosted overlay on top
-        ui.painter().rect_filled(sidebar_rect, 0.0, colors.sidebar);
-        // Subtle glass border on the right edge
-        ui.painter().line_segment(
-            [sidebar_rect.right_top(), sidebar_rect.right_bottom()],
-            egui::Stroke::new(1.0, colors.glass_border),
-        );
-        // Top noise/frost line
-        ui.painter().line_segment(
-            [sidebar_rect.left_top(), sidebar_rect.right_top()],
-            egui::Stroke::new(1.0, colors.glass_border),
-        );
-        let _ = stops;
-        let _ = screen_rect;
-    } else {
-        ui.painter().rect_filled(sidebar_rect, 0.0, colors.sidebar);
-        // Right border separator line
-        ui.painter().line_segment(
-            [sidebar_rect.right_top(), sidebar_rect.right_bottom()],
-            egui::Stroke::new(1.0, colors.border),
-        );
-    }
+    ui.painter().rect_filled(sidebar_rect, 0.0, colors.sidebar);
+    // Right border separator line
+    ui.painter().line_segment(
+        [sidebar_rect.right_top(), sidebar_rect.right_bottom()],
+        egui::Stroke::new(1.0, colors.border),
+    );
 
     ui.add_space(16.0);
 

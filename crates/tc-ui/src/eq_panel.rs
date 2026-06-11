@@ -29,15 +29,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     // Fill the whole panel background
     let panel_rect = ui.available_rect_before_wrap();
     ui.painter().rect_filled(panel_rect, 12.0, colors.surface);
-    // Glass themes: add a frosted border around the panel
-    if colors.wallpaper.is_some() {
-        ui.painter().rect_stroke(
-            panel_rect,
-            12.0,
-            egui::Stroke::new(1.0, colors.glass_border),
-            egui::StrokeKind::Inside,
-        );
-    }
 
     ui.vertical(|ui| {
         ui.add_space(12.0);
@@ -189,6 +180,8 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             let mut new_midside = old_midside;
 
             ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = spacing;
+
                 secondary_slider_horizontal_card(
                     ui,
                     "Bass",
@@ -203,7 +196,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     secondary_h,
                     &colors,
                 );
-                ui.add_space(spacing);
                 secondary_slider_horizontal_card(
                     ui,
                     "Treble",
@@ -218,7 +210,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     secondary_h,
                     &colors,
                 );
-                ui.add_space(spacing);
                 secondary_slider_horizontal_card(
                     ui,
                     "Stereo Width",
@@ -233,7 +224,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     secondary_h,
                     &colors,
                 );
-                ui.add_space(spacing);
                 secondary_slider_horizontal_card(
                     ui,
                     "Balance",
@@ -248,7 +238,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                     secondary_h,
                     &colors,
                 );
-                ui.add_space(spacing);
                 secondary_toggles_card(
                     ui,
                     card_w,

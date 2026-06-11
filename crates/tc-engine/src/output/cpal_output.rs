@@ -155,7 +155,21 @@ impl CpalOutput {
                 supported_configs
                     .iter()
                     .find(|c| c.sample_format() == SampleFormat::F32)
-                    .map(|c| c.with_sample_rate(cpal::SampleRate(c.min_sample_rate().0)))
+                    .map(|c| {
+                        let rate = target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
+                        c.with_sample_rate(cpal::SampleRate(rate))
+                    })
+            })
+            .or_else(|| {
+                supported_configs
+                    .iter()
+                    .find(|c| {
+                        (c.sample_format() == SampleFormat::I16
+                            || c.sample_format() == SampleFormat::U16)
+                            && c.min_sample_rate().0 <= target_sample_rate
+                            && c.max_sample_rate().0 >= target_sample_rate
+                    })
+                    .map(|c| c.with_sample_rate(cpal::SampleRate(target_sample_rate)))
             })
             .or_else(|| {
                 supported_configs
@@ -164,7 +178,10 @@ impl CpalOutput {
                         c.sample_format() == SampleFormat::I16
                             || c.sample_format() == SampleFormat::U16
                     })
-                    .map(|c| c.with_sample_rate(cpal::SampleRate(target_sample_rate)))
+                    .map(|c| {
+                        let rate = target_sample_rate.clamp(c.min_sample_rate().0, c.max_sample_rate().0);
+                        c.with_sample_rate(cpal::SampleRate(rate))
+                    })
             })
             .ok_or(OutputError::UnsupportedFormat)?;
 
