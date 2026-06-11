@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.12] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Routing**: Fixed a bug where audio would drop completely or fail to route to Bluetooth earphones. The previous attempt to force a strict `2048` frame buffer size was rejected by PulseAudio's Bluetooth sink, causing the stream build to fail. The audio engine now relies on the OS's `Default` dynamic buffer size again, allowing seamless earphone handoff. (Note: Harmless ALSA `dmix` warnings may appear in the terminal during background device scanning, but they do not affect playback).
+
+---
+
 ## [2.4.11] — 2026-06-11
 
 ### 🐛 Fixed

@@ -191,12 +191,7 @@ impl CpalOutput {
         let channels = config.channels();
         let sample_format = config.sample_format();
 
-        let buffer_size = match config.buffer_size() {
-            cpal::SupportedBufferSize::Range { min, max } => {
-                cpal::BufferSize::Fixed(2048.clamp(*min, *max))
-            }
-            cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Fixed(2048),
-        };
+        let buffer_size = cpal::BufferSize::Default;
 
         let stream_config = StreamConfig {
             channels,
