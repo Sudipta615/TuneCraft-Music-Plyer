@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.4.9] — 2026-06-11
+
+### 🐛 Fixed
+- **Audio Routing**: Fixed a bug where connecting Bluetooth earphones or external audio devices while music was playing failed to automatically route audio to the new device. The background device monitor was caching the ALSA host state upon startup, preventing it from detecting newly connected devices. The host is now cleanly recreated during each polling cycle.
+
+---
+
 ## [2.4.8] — 2026-06-11
 
 ### 🐛 Fixed

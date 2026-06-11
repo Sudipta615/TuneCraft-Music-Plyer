@@ -264,48 +264,50 @@ impl AudioEngine {
             .name("tc-device-monitor".into())
             .spawn(move || {
                 use cpal::traits::{DeviceTrait, HostTrait};
-                let host = cpal::default_host();
-                let mut last_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
-                let mut last_name = host
-                    .default_output_device()
-                    .and_then(|d| d.name().ok())
-                    .unwrap_or_default();
-
+                let mut last_count = 0;
+                let mut last_name = String::new();
+                let mut first_run = true;
+                
                 while running.load(Ordering::Acquire) {
                     std::thread::sleep(Duration::from_secs(2));
                     if !running.load(Ordering::Acquire) {
                         break;
                     }
-
+                    
+                    // Recreate host inside loop to ensure device list isn't cached
+                    let host = cpal::default_host();
                     let current_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
-                    let current_name = host
-                        .default_output_device()
-                        .and_then(|d| d.name().ok())
-                        .unwrap_or_default();
+                    let current_name = host.default_output_device().and_then(|d| d.name().ok()).unwrap_or_default();
+                    
+                    if first_run {
+                        last_count = current_count;
+                        last_name = current_name.clone();
+                        first_run = false;
+                        continue;
+                    }
 
                     let mut changed = false;
                     if current_count != last_count {
-                        info!(
-                            "Device monitor: output device count changed ({} -> {})",
-                            last_count, current_count
-                        );
+                        info!("Device monitor: output device count changed ({} -> {})", last_count, current_count);
                         last_count = current_count;
                         changed = true;
                     }
                     if current_name != last_name {
-                        info!(
-                            "Device monitor: default device name changed ('{}' -> '{}')",
-                            last_name, current_name
-                        );
+                        info!("Device monitor: default device name changed ('{}' -> '{}')", last_name, current_name);
                         last_name = current_name.clone();
                         changed = true;
                     }
-
+                    
                     if changed {
                         info!("Device monitor: triggering stream recovery");
                         let _ = cmd_tx.send(EngineCommand::AutoRecoverStream);
-                        // Sleep a bit longer after recovery to avoid spamming
-                        std::thread::sleep(Duration::from_secs(3));
+                        // Sleep a bit longer after recovery to allow OS to settle
+                        std::thread::sleep(Duration::from_secs(4));
+                        
+                        // Update cached values after recovery so we don't infinitely loop
+                        let host = cpal::default_host();
+                        last_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
+                        last_name = host.default_output_device().and_then(|d| d.name().ok()).unwrap_or_default();
                     }
                 }
             })
