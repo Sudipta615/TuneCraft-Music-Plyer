@@ -153,93 +153,90 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
             // ── Secondary controls: Bass Shelf | Treble Shelf | Stereo Width | Balance | Dither + M/S
             // ──
-            let secondary_h = 130.0;
+            let secondary_h = 110.0;
             let spacing = 8.0;
-            let total_spacing = spacing * 4.0;
+            let total_spacing = spacing * 1.0;
             let available_w = ui.available_width();
-            let card_w = (available_w - total_spacing) / 5.0;
+            let card_w = (available_w - total_spacing) / 2.0;
 
             let old_bass = app.eq_bass_shelf;
             let old_treble = app.eq_treble_shelf;
             let old_width_pct = (app.eq_stereo_width * 100.0).clamp(0.0, 200.0);
             let old_bal = app.eq_balance;
-            let old_dither = app.eq_dither;
-            let old_midside = app.eq_midside;
 
             let mut new_bass = old_bass;
             let mut new_treble = old_treble;
             let mut new_width_pct = old_width_pct;
             let mut new_bal = old_bal;
-            let mut new_dither = old_dither;
-            let mut new_midside = old_midside;
 
-            ui.horizontal(|ui| {
+            ui.vertical(|ui| {
                 ui.spacing_mut().item_spacing.x = spacing;
 
-                secondary_slider_horizontal_card(
-                    ui,
-                    "Bass",
-                    "Shelf",
-                    &mut new_bass,
-                    -12.0,
-                    12.0,
-                    "dB",
-                    "-12dB",
-                    "+12dB",
-                    card_w,
-                    secondary_h,
-                    &colors,
-                );
-                secondary_slider_horizontal_card(
-                    ui,
-                    "Treble",
-                    "Shelf",
-                    &mut new_treble,
-                    -12.0,
-                    12.0,
-                    "dB",
-                    "-12dB",
-                    "+12dB",
-                    card_w,
-                    secondary_h,
-                    &colors,
-                );
-                secondary_slider_horizontal_card(
-                    ui,
-                    "Stereo Width",
-                    "",
-                    &mut new_width_pct,
-                    0.0,
-                    200.0,
-                    "%",
-                    "0 %",
-                    "200 %",
-                    card_w,
-                    secondary_h,
-                    &colors,
-                );
-                secondary_slider_horizontal_card(
-                    ui,
-                    "Balance",
-                    "",
-                    &mut new_bal,
-                    -1.0,
-                    1.0,
-                    "",
-                    "-1.00",
-                    "+1.00",
-                    card_w,
-                    secondary_h,
-                    &colors,
-                );
-                secondary_toggles_card(
-                    ui,
-                    card_w,
-                    secondary_h,
-                    &mut new_dither,
-                    &mut new_midside,
-                    &colors,
-                );
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = spacing;
+
+                    secondary_slider_horizontal_card(
+                        ui,
+                        "Bass",
+                        "Shelf",
+                        &mut new_bass,
+                        -12.0,
+                        12.0,
+                        "dB",
+                        "-12dB",
+                        "+12dB",
+                        card_w,
+                        secondary_h,
+                        &colors,
+                    );
+                    secondary_slider_horizontal_card(
+                        ui,
+                        "Treble",
+                        "Shelf",
+                        &mut new_treble,
+                        -12.0,
+                        12.0,
+                        "dB",
+                        "-12dB",
+                        "+12dB",
+                        card_w,
+                        secondary_h,
+                        &colors,
+                    );
+                });
+                ui.add_space(spacing);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = spacing;
+
+                    secondary_slider_horizontal_card(
+                        ui,
+                        "Stereo Width",
+                        "",
+                        &mut new_width_pct,
+                        0.0,
+                        200.0,
+                        "%",
+                        "0 %",
+                        "200 %",
+                        card_w,
+                        secondary_h,
+                        &colors,
+                    );
+                    secondary_slider_horizontal_card(
+                        ui,
+                        "Balance",
+                        "",
+                        &mut new_bal,
+                        -1.0,
+                        1.0,
+                        "",
+                        "-1.00",
+                        "+1.00",
+                        card_w,
+                        secondary_h,
+                        &colors,
+                    );
+                });
             });
 
             // Apply changes after the UI closure
@@ -259,19 +256,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             if (new_bal - old_bal).abs() > 0.005 {
                 app.eq_balance = new_bal;
                 app.ctx.eq.set_balance(new_bal);
-            }
-            if new_dither != old_dither {
-                app.eq_dither = new_dither;
-                app.cached_dither_enabled = new_dither;
-                app.ctx.eq.set_dither(new_dither);
-                app.ctx.config.write(|c| {
-                    c.engine.dither_enabled = new_dither;
-                });
-            }
-            if new_midside != old_midside {
-                app.eq_midside = new_midside;
-                app.cached_midside_enabled = new_midside;
-                app.ctx.eq.set_midside(new_midside);
             }
             ui.add_space(10.0);
 
@@ -694,67 +678,7 @@ fn secondary_slider_horizontal_card(
     }
 }
 
-fn secondary_toggles_card(
-    ui: &mut Ui,
-    width: f32,
-    height: f32,
-    dither: &mut bool,
-    midside: &mut bool,
-    colors: &TuneCraftColors,
-) {
-    let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), Sense::hover());
-    ui.painter().rect_filled(rect, 12.0, colors.card);
-    ui.painter().rect_stroke(
-        rect,
-        12.0,
-        egui::Stroke::new(1.0, colors.border),
-        egui::StrokeKind::Inside,
-    );
 
-    ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
-        ui.vertical(|ui| {
-            ui.add_space(24.0);
-            draw_labeled_toggle(ui, "Dither", dither, colors);
-            ui.add_space(20.0);
-            draw_labeled_toggle(ui, "Mid/Side EQ", midside, colors);
-        });
-    });
-}
-
-/// Toggle with label to the right
-fn draw_labeled_toggle(ui: &mut Ui, label: &str, enabled: &mut bool, colors: &TuneCraftColors) {
-    ui.horizontal(|ui| {
-        ui.add_space(10.0);
-        ui.label(
-            RichText::new(label)
-                .font(FontId::proportional(12.0))
-                .color(colors.text),
-        );
-
-        // Right-align toggle
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.add_space(10.0);
-            let (toggle_rect, toggle_resp) =
-                ui.allocate_exact_size(Vec2::new(42.0, 22.0), Sense::click());
-            let bg = if *enabled {
-                colors.accent
-            } else {
-                colors.toggle_bg_off
-            };
-            ui.painter().rect_filled(toggle_rect, 11.0, bg);
-            let kx = if *enabled {
-                toggle_rect.right() - 11.0
-            } else {
-                toggle_rect.left() + 11.0
-            };
-            ui.painter()
-                .circle_filled(Pos2::new(kx, toggle_rect.center().y), 8.0, Color32::WHITE);
-            if toggle_resp.clicked() {
-                *enabled = !*enabled;
-            }
-        });
-    });
-}
 
 fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
     match preset {

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.0] — 2026-06-12
+
+### 🚀 Added
+- **UI**: Introduced a modern file and folder picker utilizing native OS dialogs (`rfd`), replacing the legacy manual path text entry for adding music.
+- **UI**: Added a new "Folders" tab in the sidebar allowing users to browse their music library by directory structure, view folder contents, and play tracks directly from specific folders.
+
+---
+
 ## [2.5.0] — 2026-06-11
 
 ### 🚀 Added

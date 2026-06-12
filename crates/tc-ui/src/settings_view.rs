@@ -159,26 +159,62 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                                 .font(FontId::proportional(16.0))
                                 .color(colors.text),
                         );
-                        let add_btn_w = 160.0;
-                        let add_btn_h = 40.0;
-                        let (add_rect, add_resp) =
-                            ui.allocate_exact_size(Vec2::new(add_btn_w, add_btn_h), Sense::click());
-                        let add_bg = if add_resp.hovered() {
-                            colors.accent_dark
-                        } else {
-                            colors.accent
-                        };
-                        ui.painter().rect_filled(add_rect, 8.0, add_bg);
-                        ui.painter().text(
-                            add_rect.center(),
-                            Align2::CENTER_CENTER,
-                            "+ Add Music Folder",
-                            FontId::proportional(14.0),
-                            Color32::WHITE,
-                        );
-                        if add_resp.clicked() {
-                            app.show_add_music_dialog = true;
-                        }
+                        ui.horizontal(|ui| {
+                            // "Add Music" button — native file picker
+                            let btn_w = 150.0;
+                            let btn_h = 40.0;
+                            let (add_files_rect, add_files_resp) =
+                                ui.allocate_exact_size(Vec2::new(btn_w, btn_h), Sense::click());
+                            let files_bg = if add_files_resp.hovered() {
+                                colors.accent_dark
+                            } else {
+                                colors.accent
+                            };
+                            ui.painter().rect_filled(add_files_rect, 8.0, files_bg);
+                            ui.painter().text(
+                                add_files_rect.center(),
+                                Align2::CENTER_CENTER,
+                                format!("{} Add Music", egui_phosphor::regular::MUSIC_NOTES),
+                                FontId::proportional(14.0),
+                                Color32::WHITE,
+                            );
+                            if add_files_resp.clicked() {
+                                let files = rfd::FileDialog::new()
+                                    .set_title("Select Music Files")
+                                    .add_filter("Audio Files", &["mp3", "flac", "ogg", "wav", "aac", "m4a", "opus", "wma", "aiff", "ape"])
+                                    .pick_files();
+                                if let Some(paths) = files {
+                                    app.add_music_files(paths);
+                                }
+                            }
+
+                            ui.add_space(12.0);
+
+                            // "Add Folders" button — native folder picker
+                            let (add_folders_rect, add_folders_resp) =
+                                ui.allocate_exact_size(Vec2::new(btn_w, btn_h), Sense::click());
+                            let folders_bg = if add_folders_resp.hovered() {
+                                colors.accent_dark
+                            } else {
+                                colors.accent
+                            };
+                            ui.painter().rect_filled(add_folders_rect, 8.0, folders_bg);
+                            ui.painter().text(
+                                add_folders_rect.center(),
+                                Align2::CENTER_CENTER,
+                                format!("{} Add Folders", egui_phosphor::regular::FOLDER),
+                                FontId::proportional(14.0),
+                                Color32::WHITE,
+                            );
+                            if add_folders_resp.clicked() {
+                                let folder = rfd::FileDialog::new()
+                                    .set_title("Select Music Folders")
+                                    .pick_folder();
+                                if let Some(path) = folder {
+                                    app.add_music_folders(vec![path]);
+                                }
+                            }
+                        });
                         ui.end_row();
 
                         // Audio Output Backend

@@ -31,6 +31,7 @@
 
 pub mod app;
 pub mod eq_panel;
+pub mod folders_view;
 pub mod player_bar;
 pub mod services;
 pub mod settings_view;

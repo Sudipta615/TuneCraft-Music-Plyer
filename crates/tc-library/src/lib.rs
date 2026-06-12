@@ -434,6 +434,91 @@ impl LibraryManager {
     pub fn set_config(&mut self, config: LibraryConfig) {
         self.config = config;
     }
+
+    /// Scan a list of individual audio files and insert them into the database.
+    ///
+    /// Unlike `scan()`, this does not walk directories or clean up missing
+    /// tracks. It is intended for "Add Music" (individual file selection).
+    /// Returns the number of files successfully added.
+    pub fn scan_files(&self, paths: &[std::path::PathBuf]) -> usize {
+        use std::time::UNIX_EPOCH;
+
+        let mut added = 0usize;
+        let mut new_tracks: Vec<Track> = Vec::new();
+        let mut pending_cover_art: Vec<Option<CoverArtData>> = Vec::new();
+
+        for path in paths {
+            if !path.is_file() || !Self::is_audio_file(path) {
+                warn!("Skipping non-audio file: {}", path.display());
+                continue;
+            }
+
+            let file_metadata = match std::fs::metadata(path) {
+                Ok(m) => m,
+                Err(e) => {
+                    warn!("Failed to read metadata for {}: {}", path.display(), e);
+                    continue;
+                },
+            };
+            let file_size = file_metadata.len() as i64;
+            let file_modified = file_metadata
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+
+            match self.extract_track_info_with_cover(path, file_size, file_modified) {
+                Ok((track, cover)) => {
+                    new_tracks.push(track);
+                    pending_cover_art.push(cover);
+                },
+                Err(e) => {
+                    warn!("Failed to extract info for {}: {}", path.display(), e);
+                },
+            }
+        }
+
+        if !new_tracks.is_empty() {
+            match self.db.insert_tracks_batch(&new_tracks) {
+                Ok(ids) => {
+                    added = ids.len();
+                    // Store cover art for successfully inserted tracks
+                    for (idx, track_id) in ids {
+                        if let Some(Some(art)) = pending_cover_art.get(idx) {
+                            let album_id = self.db.get_track(track_id).ok().flatten().and_then(|t| {
+                                let album = t.album.as_deref()?;
+                                self.db
+                                    .get_album_id(album, t.album_artist.as_deref())
+                                    .ok()
+                                    .flatten()
+                            });
+                            let _ = self.db.insert_cover_art(
+                                album_id,
+                                Some(track_id),
+                                None,
+                                Some(&art.data),
+                                Some(&art.data_hash),
+                                art.width,
+                                art.height,
+                                &art.mime_type,
+                            );
+                        }
+                    }
+                },
+                Err(e) => {
+                    warn!("Batch insert failed: {}", e);
+                },
+            }
+
+            // Refresh albums/artists
+            if let Err(e) = self.db.refresh_albums_and_artists() {
+                warn!("Failed to refresh albums/artists: {}", e);
+            }
+        }
+
+        added
+    }
 }
 
 #[cfg(test)]

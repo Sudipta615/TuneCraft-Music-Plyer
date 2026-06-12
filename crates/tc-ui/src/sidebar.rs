@@ -11,6 +11,7 @@ pub enum NavSection {
     AllTracks,
     Albums,
     Artists,
+    Folders,
     Favorites,
     RecentlyPlayed,
     MostPlayed,
@@ -23,6 +24,7 @@ impl NavSection {
             Self::AllTracks => "All Tracks",
             Self::Albums => "Albums",
             Self::Artists => "Artists",
+            Self::Folders => "Folders",
             Self::Favorites => "Favorites",
             Self::RecentlyPlayed => "Recently Played",
             Self::MostPlayed => "Most Played",
@@ -35,6 +37,7 @@ impl NavSection {
             Self::AllTracks => egui_phosphor::regular::MUSIC_NOTES,
             Self::Albums => egui_phosphor::regular::SQUARES_FOUR,
             Self::Artists => egui_phosphor::regular::USERS,
+            Self::Folders => egui_phosphor::regular::FOLDER,
             Self::Favorites => egui_phosphor::regular::STAR,
             Self::RecentlyPlayed => egui_phosphor::regular::CLOCK_COUNTER_CLOCKWISE,
             Self::MostPlayed => egui_phosphor::regular::CHART_BAR,
@@ -130,6 +133,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
     nav_item(ui, app, NavSection::AllTracks);
     nav_item(ui, app, NavSection::Albums);
     nav_item(ui, app, NavSection::Artists);
+    nav_item(ui, app, NavSection::Folders);
 
     ui.add_space(16.0);
 
@@ -220,11 +224,10 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             if ui
                 .add(
                     egui::Button::new(
-                        egui::RichText::new("+ New playlist")
+                        egui::RichText::new("Create")
                             .font(egui::FontId::proportional(12.0))
-                            .color(colors.text_dim),
+                            .color(colors.text),
                     )
-                    .frame(false),
                 )
                 .clicked()
             {
@@ -235,11 +238,10 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
             let remove_btn_resp = ui.add(
                 egui::Button::new(
-                    egui::RichText::new("- Remove playlist")
+                    egui::RichText::new("Remove")
                         .font(egui::FontId::proportional(12.0))
-                        .color(colors.text_dim),
+                        .color(colors.text),
                 )
-                .frame(false),
             );
 
             let popup_id = ui.make_persistent_id("remove_playlist_popup");
@@ -444,6 +446,11 @@ fn nav_item(ui: &mut Ui, app: &mut TuneCraftApp, nav: NavSection) {
             NavSection::Favorites => {
                 app.refresh_favorite_ids();
                 app.refresh_tracks();
+            },
+            NavSection::Folders => {
+                // Reset to folder list view
+                app.folder_view_path = None;
+                app.folder_tracks.clear();
             },
             _ => app.refresh_tracks(),
         }

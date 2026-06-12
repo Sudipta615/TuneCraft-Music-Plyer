@@ -138,10 +138,17 @@ pub struct TuneCraftApp {
 
     pub(crate) close_requested: bool,
 
-    /// Whether the "add music folder" dialog is open
+    /// Whether the "add music folder" dialog is open (legacy — now unused,
+    /// kept for one release cycle to avoid config migration issues)
     pub show_add_music_dialog: bool,
-    /// Pending folder path text when user types it manually
+    /// Pending folder path text when user types it manually (legacy)
     pub add_music_folder_path: String,
+
+    /// Currently opened folder path in the Folders view.
+    /// `None` = show folder list, `Some(path)` = show tracks in that folder.
+    pub folder_view_path: Option<std::path::PathBuf>,
+    /// Cached tracks for the currently opened folder.
+    pub folder_tracks: Vec<Track>,
 
     /// In-memory cache of decoded cover art textures keyed by track_id.
     /// Populated lazily on first access per track.
@@ -291,6 +298,9 @@ impl TuneCraftApp {
             show_add_music_dialog: false,
             add_music_folder_path: String::new(),
 
+            folder_view_path: None,
+            folder_tracks: Vec::new(),
+
             album_art_cache: std::collections::HashMap::new(),
 
             sidebar_collapsed: false,
@@ -407,10 +417,16 @@ impl eframe::App for TuneCraftApp {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if self.nav == crate::sidebar::NavSection::Settings {
-                crate::settings_view::draw(self, ui);
-            } else {
-                crate::track_list::draw(self, ui);
+            match self.nav {
+                crate::sidebar::NavSection::Settings => {
+                    crate::settings_view::draw(self, ui);
+                },
+                crate::sidebar::NavSection::Folders => {
+                    crate::folders_view::draw(self, ui);
+                },
+                _ => {
+                    crate::track_list::draw(self, ui);
+                },
             }
         });
 
@@ -419,18 +435,18 @@ impl eframe::App for TuneCraftApp {
             let screen_rect = ctx.screen_rect();
             let screen_w = screen_rect.width();
             let screen_h = screen_rect.height();
-            let window_width = screen_w * 0.60;
-            let window_height = screen_h * 0.60;
+            let window_width = screen_w * 0.50;
+            let window_height = screen_h * 0.75;
 
             let mut open = self.show_eq_panel;
             let colors = self.colors();
             egui::Window::new("EQ")
                 .open(&mut open)
                 .collapsible(false)
-                .resizable(false)
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .min_size(egui::Vec2::new(window_width, 0.0))
-                .max_size(egui::Vec2::new(window_width, window_height))
+                .resizable(true)
+                .default_pos(screen_rect.center() - egui::Vec2::new(window_width / 2.0, window_height / 2.0))
+                .default_size(egui::Vec2::new(window_width, window_height))
+                .min_size(egui::Vec2::new(400.0, 300.0))
                 .title_bar(false)
                 .frame(
                     egui::Frame::window(ctx.style().as_ref())
@@ -534,108 +550,6 @@ impl eframe::App for TuneCraftApp {
                                 self.new_playlist_name.clear();
                             }
                             self.show_create_playlist_dialog = false;
-                        }
-                    });
-                });
-        }
-
-        if self.show_add_music_dialog {
-            let colors = self.colors();
-            egui::Window::new("Add Music Folder")
-                .collapsible(false)
-                .resizable(false)
-                .title_bar(false)
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .frame(
-                    egui::Frame::window(ctx.style().as_ref())
-                        .inner_margin(24.0)
-                        .rounding(16.0),
-                )
-                .show(ctx, |ui| {
-                    ui.label(
-                        egui::RichText::new("Add Music Folder")
-                            .font(egui::FontId::proportional(20.0))
-                            .strong()
-                            .color(colors.text),
-                    );
-                    ui.add_space(16.0);
-
-                    ui.label(
-                        egui::RichText::new("Enter the path to a folder containing music files")
-                            .color(colors.text_dim),
-                    );
-                    ui.add_space(8.0);
-
-                    let text_edit_h = 40.0;
-                    let (rect, _) = ui.allocate_exact_size(
-                        egui::Vec2::new(480.0, text_edit_h),
-                        egui::Sense::hover(),
-                    );
-                    ui.painter().rect_filled(rect, 8.0, colors.search_bg);
-                    let h_margin = 12.0;
-                    ui.put(
-                        egui::Rect::from_min_size(
-                            egui::Pos2::new(rect.left() + h_margin, rect.top()),
-                            egui::Vec2::new(rect.width() - h_margin * 2.0, rect.height()),
-                        ),
-                        egui::TextEdit::singleline(&mut self.add_music_folder_path)
-                            .hint_text("/home/user/Music")
-                            .frame(egui::Frame::NONE)
-                            .text_color(colors.text),
-                    );
-
-                    ui.add_space(8.0);
-                    ui.label(
-                        egui::RichText::new("Supported formats: MP3, FLAC, OGG, WAV, AAC, M4A")
-                            .font(egui::FontId::proportional(11.0))
-                            .color(colors.text_dim),
-                    );
-
-                    ui.add_space(24.0);
-
-                    ui.horizontal(|ui| {
-                        // Cancel button
-                        let cancel_w = 80.0;
-                        let (cancel_rect, cancel_resp) = ui.allocate_exact_size(
-                            egui::Vec2::new(cancel_w, 40.0),
-                            egui::Sense::click(),
-                        );
-                        ui.painter().rect_filled(cancel_rect, 8.0, colors.hover);
-                        ui.painter().text(
-                            cancel_rect.center(),
-                            egui::Align2::CENTER_CENTER,
-                            "Cancel",
-                            egui::FontId::proportional(14.0),
-                            colors.text,
-                        );
-                        if cancel_resp.clicked() {
-                            self.show_add_music_dialog = false;
-                            self.add_music_folder_path.clear();
-                        }
-
-                        ui.add_space(8.0);
-
-                        // Add Folder button
-                        let create_w = 392.0; // 480 - 80 - 8 = 392
-                        let (create_rect, create_resp) = ui.allocate_exact_size(
-                            egui::Vec2::new(create_w, 40.0),
-                            egui::Sense::click(),
-                        );
-                        ui.painter().rect_filled(create_rect, 8.0, colors.accent);
-                        ui.painter().text(
-                            create_rect.center(),
-                            egui::Align2::CENTER_CENTER,
-                            "Add Folder",
-                            egui::FontId::proportional(14.0),
-                            egui::Color32::WHITE,
-                        );
-                        if create_resp.clicked() {
-                            let path = self.add_music_folder_path.trim().to_string();
-                            if !path.is_empty() {
-                                self.add_music_folder(&path);
-                            }
-                            self.show_add_music_dialog = false;
-                            self.add_music_folder_path.clear();
                         }
                     });
                 });

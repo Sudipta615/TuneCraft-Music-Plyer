@@ -410,4 +410,14 @@ impl LibraryService {
     pub fn get_cover_art_by_track_id(&self, track_id: i64) -> Option<(Vec<u8>, String)> {
         self.db.get_cover_art_by_track_id(track_id).unwrap_or(None)
     }
+
+    /// Get all tracks whose file path is inside the given folder (recursive).
+    pub fn get_tracks_by_folder(&self, folder_path: &str) -> Vec<Track> {
+        self.db.get_tracks_by_folder(folder_path).unwrap_or_default()
+    }
+
+    /// Count tracks in a folder (recursive). For sidebar badge display.
+    pub fn count_tracks_in_folder(&self, folder_path: &str) -> i64 {
+        self.db.count_tracks_in_folder(folder_path).unwrap_or(0)
+    }
 }

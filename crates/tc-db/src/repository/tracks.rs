@@ -732,6 +732,52 @@ impl Database {
         tx.commit().map_err(DbError::Sqlite)?;
         Ok(updated)
     }
+
+    /// Get all tracks whose file path is inside the given folder (recursive).
+    ///
+    /// Matches tracks where `path` starts with `folder_path` followed by a
+    /// path separator. This finds all tracks at any depth within the folder.
+    pub fn get_tracks_by_folder(&self, folder_path: &str) -> Result<Vec<Track>, DbError> {
+        // Normalize: ensure the prefix ends with '/' for correct LIKE matching.
+        let prefix = if folder_path.ends_with('/') {
+            folder_path.to_string()
+        } else {
+            format!("{}/", folder_path)
+        };
+        let pattern = format!("{}%", prefix);
+        let sql = format!(
+            "SELECT {} FROM tracks WHERE path LIKE ?1 ORDER BY path, title",
+            TRACK_COLUMNS
+        );
+        let lock = self.read_lock()?;
+        let mut stmt = lock.prepare_cached(&sql)?;
+        let tracks = stmt
+            .query_map(params![pattern], row_to_track)?
+            .filter_map(log_and_filter)
+            .collect();
+        Ok(tracks)
+    }
+
+    /// Count tracks whose file path is inside the given folder (recursive).
+    ///
+    /// Lightweight query for sidebar badge display — avoids materializing
+    /// full Track structs.
+    pub fn count_tracks_in_folder(&self, folder_path: &str) -> Result<i64, DbError> {
+        let prefix = if folder_path.ends_with('/') {
+            folder_path.to_string()
+        } else {
+            format!("{}/", folder_path)
+        };
+        let pattern = format!("{}%", prefix);
+        let count: i64 = self
+            .read_lock()?
+            .query_row(
+                "SELECT COUNT(*) FROM tracks WHERE path LIKE ?1",
+                params![pattern],
+                |row| row.get(0),
+            )?;
+        Ok(count)
+    }
 }
 
 #[cfg(test)]

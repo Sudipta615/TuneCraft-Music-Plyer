@@ -129,6 +129,108 @@ impl TuneCraftApp {
         );
     }
 
+    /// Add individual music files to the library via native file picker.
+    ///
+    /// Unlike `add_music_folder`, this does NOT add the parent directory to
+    /// `watch_dirs`. Each selected file is scanned and inserted directly.
+    pub fn add_music_files(&mut self, paths: Vec<std::path::PathBuf>) {
+        if paths.is_empty() {
+            return;
+        }
+
+        let count = paths.len();
+        let db = self.ctx.library.db().clone();
+        let lib_config = self
+            .ctx
+            .config
+            .read(|c| c.library.clone())
+            .unwrap_or_default();
+        let scan_manager = Arc::new(tc_library::LibraryManager::new(db, lib_config));
+        let library_svc = Arc::clone(&self.ctx.library);
+
+        std::thread::Builder::new()
+            .name("tunecraft-add-files-scan".into())
+            .spawn(move || {
+                log::info!("Adding {} individual music file(s)...", count);
+                let added = scan_manager.scan_files(&paths);
+                log::info!("Add-files complete: {} of {} added", added, count);
+                library_svc.refresh_tracks();
+                library_svc.refresh_favorite_ids();
+                library_svc.mark_db_dirty();
+            })
+            .ok();
+
+        let label = if count == 1 {
+            "Adding 1 file…".to_string()
+        } else {
+            format!("Adding {} files…", count)
+        };
+        self.push_toast(label, ToastLevel::Success);
+    }
+
+    /// Add multiple music folders to the library via native folder picker.
+    ///
+    /// Each folder is added to `watch_dirs` in config and scanned in a
+    /// background thread.
+    pub fn add_music_folders(&mut self, folders: Vec<std::path::PathBuf>) {
+        if folders.is_empty() {
+            return;
+        }
+
+        // Persist all folders to config
+        let folders_clone = folders.clone();
+        self.ctx.config.write(|c| {
+            for folder in &folders_clone {
+                if !c.library.watch_dirs.contains(folder) {
+                    c.library.watch_dirs.push(folder.clone());
+                }
+            }
+        });
+
+        let new_lib_config = self
+            .ctx
+            .config
+            .read(|c| c.library.clone())
+            .unwrap_or_default();
+
+        let db = self.ctx.library.db().clone();
+        let scan_manager = Arc::new(tc_library::LibraryManager::new(db, new_lib_config));
+        let library_svc = Arc::clone(&self.ctx.library);
+        let count = folders.len();
+
+        std::thread::Builder::new()
+            .name("tunecraft-add-folders-scan".into())
+            .spawn(move || {
+                log::info!("Starting scan for {} folder(s)...", count);
+                match scan_manager.scan(|_progress| {}) {
+                    Ok(result) => {
+                        log::info!(
+                            "Add-folders scan complete: {} added, {} updated",
+                            result.files_added,
+                            result.files_updated
+                        );
+                    },
+                    Err(e) => {
+                        log::warn!("Add-folders scan failed: {}", e);
+                    },
+                }
+                library_svc.refresh_tracks();
+                library_svc.refresh_favorite_ids();
+                library_svc.mark_db_dirty();
+            })
+            .ok();
+
+        let label = if count == 1 {
+            format!(
+                "Scanning '{}'…",
+                folders[0].file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+            )
+        } else {
+            format!("Scanning {} folders…", count)
+        };
+        self.push_toast(label, ToastLevel::Success);
+    }
+
     /// Poll media key actions from the platform service.
     pub fn poll_media_keys(&mut self) {
         while let Some(action) = self.ctx.platform.try_recv_action() {

@@ -385,6 +385,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         crate::sidebar::NavSection::AllTracks => true,
                         crate::sidebar::NavSection::Albums => track.album.is_some(),
                         crate::sidebar::NavSection::Artists => track.artist.is_some(),
+                        crate::sidebar::NavSection::Folders => false, // handled by folders_view
                         crate::sidebar::NavSection::Favorites => {
                             app.cached_favorite_ids.contains(&track.id)
                         },
