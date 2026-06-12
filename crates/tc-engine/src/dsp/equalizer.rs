@@ -231,7 +231,7 @@ impl ParametricEq {
             preamp_linear: 1.0,
             post_gain_db: 0.0,
             post_gain_linear: 1.0,
-            headroom_db: 1.0,
+            headroom_db: -1.0,
             headroom_scale: 1.0,
             headroom_scale_target: 1.0,
             headroom_attack_rate: 0.01, // Fast attack: ~7ms to 95% at 44.1kHz
@@ -259,7 +259,7 @@ impl ParametricEq {
             preamp_linear: 1.0,
             post_gain_db: 0.0,
             post_gain_linear: 1.0,
-            headroom_db: 1.0,
+            headroom_db: -1.0,
             headroom_scale: 1.0,
             headroom_scale_target: 1.0,
             headroom_attack_rate: 0.01,

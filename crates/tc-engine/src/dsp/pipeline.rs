@@ -267,7 +267,7 @@ impl DspPipeline {
     }
 
     pub fn set_volume(&mut self, volume: f32) {
-        self.volume.set_gain(volume);
+        self.volume.set_gain(volume.clamp(0.0, 1.0));
     }
 
     pub fn set_balance(&mut self, balance: f32) {

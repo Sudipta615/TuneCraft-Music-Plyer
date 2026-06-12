@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.4] — 2026-06-13
+
+### 🐛 Fixed
+- **Audio Engine**: Corrected `ParametricEq` internal headroom default from `1.0` to `-1.0` dBFS so the soft-limiter properly engages before clipping occurs.
+- **Audio Engine**: Clamped master volume scalar to `1.0` in the DSP pipeline to ensure downstream gain adjustments cannot bypass the brickwall limiter ceiling.
+
 ## [2.6.3] — 2026-06-13
 
 ### 🚀 Changed
