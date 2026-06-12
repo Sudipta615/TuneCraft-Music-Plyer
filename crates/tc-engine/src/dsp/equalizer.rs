@@ -319,18 +319,23 @@ impl ParametricEq {
         // At 0.0005, 95% return takes ~6000 samples (~136ms at 44.1kHz).
         let headroom_linear = 10.0_f32.powf(self.headroom_db / 20.0);
         let peak = l.abs().max(r.abs());
-        if peak > headroom_linear {
-            self.headroom_scale_target = headroom_linear / peak;
+        
+        let target_scale = if peak > headroom_linear {
+            headroom_linear / peak
+        } else {
+            1.0
+        };
+
+        if target_scale < self.headroom_scale {
             // Fast attack: reduce gain quickly to prevent clipping
             self.headroom_scale +=
-                self.headroom_attack_rate * (self.headroom_scale_target - self.headroom_scale);
+                self.headroom_attack_rate * (target_scale - self.headroom_scale);
         } else {
-            // Gradually return to unity when signal is below threshold
-            self.headroom_scale_target = 1.0;
-            // Slow release: avoid pumping artifacts
+            // Slow release: avoid pumping artifacts and waveform distortion
             self.headroom_scale +=
-                self.headroom_release_rate * (self.headroom_scale_target - self.headroom_scale);
+                self.headroom_release_rate * (target_scale - self.headroom_scale);
         }
+        self.headroom_scale_target = target_scale;
 
         // floating-point accumulation can never permanently exceed unity.
         self.headroom_scale = self.headroom_scale.min(1.0);

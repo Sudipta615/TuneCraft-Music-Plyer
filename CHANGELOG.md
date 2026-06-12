@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.1] — 2026-06-12
+
+### 🐛 Fixed
+- **Audio Engine**: Fixed severe amplitude modulation (AM) distortion caused by the parametric EQ's internal soft limiter. The limiter now correctly tracks the gain envelope based on whether the gain reduction is increasing or recovering, resolving crackling and distortion when boosting bass.
+
+---
+
 ## [2.6.0] — 2026-06-12
 
 ### 🚀 Added
