@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.2] — 2026-06-12
+
+### 🐛 Fixed
+- **Audio Engine**: Added an instantaneous peak catch to the `LookaheadLimiter`. This mathematically guarantees the output never exceeds the ceiling and prevents transient distortion when extreme, stacked EQ gains (+36dB) bypass the smoothed lookahead window.
+
+---
+
 ## [2.6.1] — 2026-06-12
 
 ### 🐛 Fixed

@@ -182,6 +182,18 @@ impl LookaheadLimiter {
         let mut out_l = delayed_left * self.current_gain;
         let mut out_r = delayed_right * self.current_gain;
 
+        // Instantaneous peak catch: if the smoothed gain didn't drop fast enough
+        // during the lookahead window, instantly force it down to guarantee
+        // brick-wall compliance.
+        let out_peak = out_l.abs().max(out_r.abs());
+        if out_peak > self.ceiling_linear {
+            let instant_gain = self.ceiling_linear / out_peak;
+            out_l *= instant_gain;
+            out_r *= instant_gain;
+            // Force the smoothed gain to catch up instantly to prevent repeated hard clips
+            self.current_gain *= instant_gain;
+        }
+
         if self.soft_clip {
             out_l = self.soft_clip_sample(out_l);
             out_r = self.soft_clip_sample(out_r);

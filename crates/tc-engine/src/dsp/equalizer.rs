@@ -177,6 +177,10 @@ pub struct ParametricEq {
     /// Slew rate for headroom scale release — when signal falls below threshold,
     /// the scale returns to unity slowly to avoid pumping artifacts.
     headroom_release_rate: f32,
+    /// Current peak envelope of the signal
+    peak_envelope: f32,
+    /// Release rate for the peak envelope (slower than audio frequencies)
+    envelope_release_rate: f32,
 }
 
 impl ParametricEq {
@@ -232,6 +236,8 @@ impl ParametricEq {
             headroom_scale_target: 1.0,
             headroom_attack_rate: 0.01, // Fast attack: ~7ms to 95% at 44.1kHz
             headroom_release_rate: 0.0005, // Slow release: ~136ms to 95% at 44.1kHz
+            peak_envelope: 0.0,
+            envelope_release_rate: 0.0001, // Very slow envelope release
         }
     }
 
@@ -258,6 +264,8 @@ impl ParametricEq {
             headroom_scale_target: 1.0,
             headroom_attack_rate: 0.01,
             headroom_release_rate: 0.0005,
+            peak_envelope: 0.0,
+            envelope_release_rate: 0.0001,
         }
     }
 
@@ -320,8 +328,15 @@ impl ParametricEq {
         let headroom_linear = 10.0_f32.powf(self.headroom_db / 20.0);
         let peak = l.abs().max(r.abs());
         
-        let target_scale = if peak > headroom_linear {
-            headroom_linear / peak
+        // Envelope follower
+        if peak > self.peak_envelope {
+            self.peak_envelope = peak; // Instant attack for envelope
+        } else {
+            self.peak_envelope += self.envelope_release_rate * (peak - self.peak_envelope);
+        }
+
+        let target_scale = if self.peak_envelope > headroom_linear {
+            headroom_linear / self.peak_envelope
         } else {
             1.0
         };
@@ -417,6 +432,7 @@ impl ParametricEq {
         self.treble_band.reset();
         self.headroom_scale = 1.0;
         self.headroom_scale_target = 1.0;
+        self.peak_envelope = 0.0;
         // Note: attack/release rates are persistent settings, not reset
     }
 }
