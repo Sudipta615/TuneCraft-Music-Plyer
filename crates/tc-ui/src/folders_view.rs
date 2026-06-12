@@ -173,7 +173,7 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
         .auto_shrink([false, false])
         .show(ui, |ui| {
             for (i, dir) in watch_dirs.iter().enumerate() {
-                let card_w = ui.available_width() - pad_x * 2.0;
+
                 let (card_rect, card_resp) = ui.allocate_exact_size(
                     Vec2::new(ui.available_width(), card_h),
                     Sense::click(),
