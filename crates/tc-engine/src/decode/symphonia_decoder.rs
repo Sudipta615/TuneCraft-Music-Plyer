@@ -186,16 +186,18 @@ impl SymphoniaDecoder {
                     let decoded_spec = *decoded.spec();
                     let decoded_frames = decoded.frames();
 
-                    if self.conversion_buffer.is_none()
-                        || self.conversion_buffer.as_ref().unwrap().capacity() < decoded.capacity()
-                    {
+                    if self.conversion_buffer.as_ref().map_or(true, |buf| buf.capacity() < decoded.capacity()) {
                         self.conversion_buffer =
                             Some(symphonia::core::audio::SampleBuffer::<f32>::new(
                                 decoded.capacity() as u64,
                                 decoded_spec,
                             ));
                     }
-                    let conv_buf = self.conversion_buffer.as_mut().unwrap();
+                    let conv_buf = if let Some(buf) = self.conversion_buffer.as_mut() {
+                        buf
+                    } else {
+                        return Err(DecodeError::Decode("Conversion buffer failed to initialize".to_string()));
+                    };
                     conv_buf.copy_interleaved_ref(decoded);
 
                     let frames = Self::extract_from_sample_buffer(

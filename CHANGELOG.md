@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.3] — 2026-06-13
+
+### 🚀 Changed
+- **Dependencies**: Bumped `rfd` from `v0.15.4` to `v0.17.2` for improved native file dialog stability.
+
+### 🐛 Fixed
+- **Audio Engine**: Eradicated a residual `.unwrap()` call from the Symphonia decode loop (`[tc-engine/src/decode/symphonia_decoder.rs]`), replacing it with explicit pattern-matching. This makes the `tc-engine` production logic 100% panic-free under all edge cases.
+
 ## [2.6.2] — 2026-06-12
 
 ### 🐛 Fixed
