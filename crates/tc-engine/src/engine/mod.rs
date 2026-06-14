@@ -40,6 +40,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use arc_swap::ArcSwap;
 use crossbeam::channel::{self, Receiver, Sender};
 use log::{error, info, warn};
 // Re-export public types from submodules so the public API is unchanged.
@@ -103,9 +104,10 @@ pub struct AudioEngine {
     output_buffer: Arc<FixedFrameBuffer>,
     cmd_tx: Sender<EngineCommand>,
     cmd_rx: Receiver<EngineCommand>,
-    /// Playback info stored in an RwLock.  All accesses use explicit
-    /// error handling instead of silently recovering from poisoning.
-    playback_info: Arc<std::sync::RwLock<PlaybackInfo>>,
+    /// Playback info stored in an ArcSwap for wait-free concurrent reads.
+    /// Writers use rcu() for atomic snapshot replacement; readers use load().
+    /// This makes the decode hot path lock-free — no OS scheduler involvement.
+    playback_info: Arc<ArcSwap<PlaybackInfo>>,
     running: Arc<AtomicBool>,
     audio_output: Option<CpalOutput>,
     pipeline: DspPipeline,
@@ -185,7 +187,7 @@ impl AudioEngine {
             output_buffer,
             cmd_tx,
             cmd_rx,
-            playback_info: Arc::new(std::sync::RwLock::new(info)),
+            playback_info: Arc::new(ArcSwap::new(Arc::new(info))),
             running: Arc::new(AtomicBool::new(false)),
             audio_output: None,
             pipeline,
@@ -258,15 +260,37 @@ impl AudioEngine {
         let running = Arc::clone(&self.running);
         let cmd_tx = self.cmd_tx.clone();
 
-        // Spawn background device monitor thread to avoid blocking the audio tick thread
-        // This polls CPAL device enumeration which can take 50-100ms on Linux (ALSA)
+        // Spawn background device monitor thread to avoid blocking the audio tick thread.
+        // This polls CPAL device enumeration which can take 50-100ms on Linux (ALSA).
+        //
+        // On Linux with PipeWire/PulseAudio, the ALSA device is always named "default"
+        // regardless of which sink is active underneath. When the user connects TWS
+        // Bluetooth headphones and PipeWire switches its default sink, the CPAL/ALSA name
+        // doesn't change — but the sample rate negotiated with the new sink does (e.g.
+        // speakers at 48000 Hz → TWS at 44100 Hz). We therefore also track the default
+        // output sample rate as a third change signal to detect Bluetooth sink switches.
         if let Err(e) = std::thread::Builder::new()
             .name("tc-device-monitor".into())
             .spawn(move || {
                 use cpal::traits::{DeviceTrait, HostTrait};
-                let mut last_count = 0;
+                let mut last_count = 0usize;
                 let mut last_name = String::new();
+                let mut last_sample_rate = 0u32;
                 let mut first_run = true;
+
+                // Helper: snapshot the current default-device state without allocating.
+                let snapshot = || -> (usize, String, u32) {
+                    let host = cpal::default_host();
+                    let count = host.output_devices().map(|d| d.count()).unwrap_or(0);
+                    let dev = host.default_output_device();
+                    let name = dev.as_ref().and_then(|d| d.name().ok()).unwrap_or_default();
+                    let rate = dev
+                        .as_ref()
+                        .and_then(|d| d.default_output_config().ok())
+                        .map(|c| c.sample_rate().0)
+                        .unwrap_or(0);
+                    (count, name, rate)
+                };
 
                 while running.load(Ordering::Acquire) {
                     std::thread::sleep(Duration::from_secs(2));
@@ -274,22 +298,18 @@ impl AudioEngine {
                         break;
                     }
 
-                    // Recreate host inside loop to ensure device list isn't cached
-                    let host = cpal::default_host();
-                    let current_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
-                    let current_name = host
-                        .default_output_device()
-                        .and_then(|d| d.name().ok())
-                        .unwrap_or_default();
+                    let (current_count, current_name, current_rate) = snapshot();
 
                     if first_run {
                         last_count = current_count;
-                        last_name = current_name.clone();
+                        last_name = current_name;
+                        last_sample_rate = current_rate;
                         first_run = false;
                         continue;
                     }
 
                     let mut changed = false;
+
                     if current_count != last_count {
                         info!(
                             "Device monitor: output device count changed ({} -> {})",
@@ -303,23 +323,34 @@ impl AudioEngine {
                             "Device monitor: default device name changed ('{}' -> '{}')",
                             last_name, current_name
                         );
-                        last_name = current_name.clone();
+                        last_name = current_name;
+                        changed = true;
+                    }
+                    // Key fix: on PipeWire/PulseAudio the ALSA name stays "default" even
+                    // when the active sink changes to Bluetooth TWS. The sample rate is the
+                    // reliable discriminator — TWS headsets negotiate a different rate than
+                    // built-in speakers or wired headphones.
+                    if current_rate != last_sample_rate && current_rate != 0 {
+                        info!(
+                            "Device monitor: default output sample rate changed ({} Hz -> {} Hz) \
+                             — likely Bluetooth sink switch (PipeWire/PulseAudio)",
+                            last_sample_rate, current_rate
+                        );
+                        last_sample_rate = current_rate;
                         changed = true;
                     }
 
                     if changed {
                         info!("Device monitor: triggering stream recovery");
                         let _ = cmd_tx.send(EngineCommand::AutoRecoverStream);
-                        // Sleep a bit longer after recovery to allow OS to settle
+                        // Sleep a bit longer after recovery to allow OS and BT stack to settle
                         std::thread::sleep(Duration::from_secs(4));
 
-                        // Update cached values after recovery so we don't infinitely loop
-                        let host = cpal::default_host();
-                        last_count = host.output_devices().map(|d| d.count()).unwrap_or(0);
-                        last_name = host
-                            .default_output_device()
-                            .and_then(|d| d.name().ok())
-                            .unwrap_or_default();
+                        // Re-snapshot after the settle period so we don't loop immediately
+                        let (c, n, r) = snapshot();
+                        last_count = c;
+                        last_name = n;
+                        last_sample_rate = r;
                     }
                 }
             })
@@ -394,33 +425,25 @@ impl AudioEngine {
         self.pipeline.reset();
         // Re-apply the current volume after reset, which resets GainProcessor to 1.0.
         // Without this, each new track plays at full volume until the next SetVolume command.
-        if let Ok(pb) = self.playback_info.read() {
-            self.pipeline.set_volume(pb.volume);
-        }
+        let current_volume = self.playback_info.load().volume;
+        self.pipeline.set_volume(current_volume);
         // Start the mixer in PlayingCurrent state for the new track.
         self.pipeline.mixer_mut().start_playing();
 
-        match self.playback_info.write() {
-            Ok(mut pb) => {
-                pb.duration_secs = info.duration_secs;
-                pb.sample_rate = info.sample_rate;
-                pb.track_id = self.current_track_id;
-                pb.speed = self.speed;
-            },
-            Err(e) => {
-                error!(
-                    "PlaybackInfo RwLock poisoned during load_track; restarting engine state: {}",
-                    e
-                );
-                *e.into_inner() = PlaybackInfo {
-                    duration_secs: info.duration_secs,
-                    sample_rate: info.sample_rate,
-                    track_id: self.current_track_id,
-                    speed: self.speed,
-                    ..Default::default()
-                };
-            },
-        }
+        let track_id = self.current_track_id;
+        let speed = self.speed;
+        self.playback_info.rcu(|old| {
+            Arc::new(PlaybackInfo {
+                duration_secs: info.duration_secs,
+                sample_rate: info.sample_rate,
+                track_id,
+                speed,
+                // Preserve fields that survive a track load
+                volume: old.volume,
+                state: old.state,
+                ..Default::default()
+            })
+        });
 
         info!(
             "Loaded track: {} Hz, {} ch, {:.1}s",
@@ -482,23 +505,14 @@ impl AudioEngine {
             let resampler_disabled = self.is_resampler_disabled();
             let convolution_ir_needs_reload = self.pipeline.convolution_ir_needs_reload();
 
-            match self.playback_info.write() {
-                Ok(mut pb) => {
-                    pb.cpu_usage_pct = cpu_pct;
-                    pb.resampler_disabled = resampler_disabled;
-                    pb.convolution_ir_needs_reload = convolution_ir_needs_reload;
-                },
-                Err(e) => {
-                    error!(
-                        "PlaybackInfo RwLock poisoned during CPU update; resetting: {}",
-                        e
-                    );
-                    let mut pb = e.into_inner();
-                    pb.cpu_usage_pct = cpu_pct;
-                    pb.resampler_disabled = resampler_disabled;
-                    pb.convolution_ir_needs_reload = convolution_ir_needs_reload;
-                },
-            }
+            self.playback_info.rcu(|old| {
+                Arc::new(PlaybackInfo {
+                    cpu_usage_pct: cpu_pct,
+                    resampler_disabled,
+                    convolution_ir_needs_reload,
+                    ..old.as_ref().clone()
+                })
+            });
             self.dsp_time = Duration::ZERO;
             self.total_time = Duration::ZERO;
             self.last_cpu_reset = now;
@@ -506,16 +520,10 @@ impl AudioEngine {
     }
 
     pub fn playback_info(&self) -> PlaybackInfo {
-        match self.playback_info.read() {
-            Ok(pb) => pb.clone(),
-            Err(e) => {
-                error!("PlaybackInfo RwLock poisoned in read");
-                e.into_inner().clone()
-            },
-        }
+        self.playback_info.load().as_ref().clone()
     }
 
-    pub fn playback_info_arc(&self) -> Arc<std::sync::RwLock<PlaybackInfo>> {
+    pub fn playback_info_arc(&self) -> Arc<ArcSwap<PlaybackInfo>> {
         Arc::clone(&self.playback_info)
     }
 

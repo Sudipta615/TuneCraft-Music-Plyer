@@ -13,25 +13,23 @@ use std::sync::{
     Arc,
 };
 
+use arc_swap::ArcSwap;
 #[allow(unused_imports)]
 use log::{error, info, warn};
+use parking_lot::RwLock;
 use tc_config::RepeatMode;
 use tc_db::Track;
 #[allow(unused_imports)]
 use tc_engine::buffer::{EngineCommand, PlaybackInfo, PlaybackState as EnginePlaybackState};
 use tokio::runtime::Runtime;
 
-use super::{
-    config::{recover_from_poison, recover_from_poison_write},
-    platform::PlatformService,
-    scrobble::ScrobbleService,
-};
+use super::{platform::PlatformService, scrobble::ScrobbleService};
 
 /// Handle to the audio engine that avoids Mutex contention.
 ///
 /// The engine already provides:
 /// - `send_command()` via a crossbeam channel (lock-free)
-/// - `playback_info_arc()` via `Arc<RwLock<PlaybackInfo>>` (concurrent reads)
+/// - `playback_info_arc()` via `Arc<ArcSwap<PlaybackInfo>>` (wait-free reads)
 ///
 /// By storing these handles separately, the UI can send commands and read
 /// playback state without ever locking the engine itself. The tick thread
@@ -39,8 +37,8 @@ use super::{
 pub struct EngineHandle {
     /// Channel sender for engine commands (lock-free, non-blocking)
     cmd_tx: crossbeam::channel::Sender<EngineCommand>,
-    /// Shared playback info for concurrent reads
-    playback_info: Arc<std::sync::RwLock<PlaybackInfo>>,
+    /// Shared playback info — wait-free reads via ArcSwap
+    playback_info: Arc<ArcSwap<PlaybackInfo>>,
     /// Whether the engine is running (tick thread active)
     running: Arc<AtomicBool>,
 }
@@ -49,7 +47,7 @@ impl EngineHandle {
     /// Create an EngineHandle by extracting the channel and info arc from a running engine.
     pub fn new(
         cmd_tx: crossbeam::channel::Sender<EngineCommand>,
-        playback_info: Arc<std::sync::RwLock<PlaybackInfo>>,
+        playback_info: Arc<ArcSwap<PlaybackInfo>>,
         running: Arc<AtomicBool>,
     ) -> Self {
         Self {
@@ -66,16 +64,13 @@ impl EngineHandle {
         }
     }
 
-    /// Read current playback info (non-blocking read lock, never contends with tick).
+    /// Read current playback info — wait-free via ArcSwap snapshot.
     pub fn playback_info(&self) -> PlaybackInfo {
-        self.playback_info
-            .read()
-            .map(|info| info.clone())
-            .unwrap_or_default()
+        self.playback_info.load().as_ref().clone()
     }
 
     /// Get the playback info arc (for services that need to poll).
-    pub fn playback_info_arc(&self) -> Arc<std::sync::RwLock<PlaybackInfo>> {
+    pub fn playback_info_arc(&self) -> Arc<ArcSwap<PlaybackInfo>> {
         Arc::clone(&self.playback_info)
     }
 
@@ -164,8 +159,8 @@ pub struct PlaybackService {
     #[cfg(feature = "audio-output")]
     engine: EngineHandle,
     #[cfg(feature = "audio-output")]
-    engine_mutex: Arc<std::sync::Mutex<tc_engine::AudioEngine>>,
-    state: std::sync::RwLock<PlaybackState>,
+    engine_mutex: Arc<parking_lot::Mutex<tc_engine::AudioEngine>>,
+    state: RwLock<PlaybackState>,
     platform: Arc<PlatformService>,
     scrobble: Arc<ScrobbleService>,
     _tokio_runtime: Arc<Runtime>,
@@ -176,7 +171,7 @@ impl PlaybackService {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         engine: EngineHandle,
-        engine_mutex: Arc<std::sync::Mutex<tc_engine::AudioEngine>>,
+        engine_mutex: Arc<parking_lot::Mutex<tc_engine::AudioEngine>>,
         platform: Arc<PlatformService>,
         scrobble: Arc<ScrobbleService>,
         tokio_runtime: Arc<Runtime>,
@@ -199,7 +194,7 @@ impl PlaybackService {
         Self {
             engine,
             engine_mutex,
-            state: std::sync::RwLock::new(state),
+            state: RwLock::new(state),
             platform,
             scrobble,
             _tokio_runtime: tokio_runtime,
@@ -225,25 +220,25 @@ impl PlaybackService {
         };
 
         Self {
-            state: std::sync::RwLock::new(state),
+            state: RwLock::new(state),
             platform,
             scrobble,
             _tokio_runtime: tokio_runtime,
         }
     }
 
-    pub fn state(&self) -> std::sync::RwLockReadGuard<'_, PlaybackState> {
-        recover_from_poison(self.state.read())
+    pub fn state(&self) -> parking_lot::RwLockReadGuard<'_, PlaybackState> {
+        self.state.read()
     }
 
-    pub fn state_mut(&self) -> std::sync::RwLockWriteGuard<'_, PlaybackState> {
-        recover_from_poison_write(self.state.write())
+    pub fn state_mut(&self) -> parking_lot::RwLockWriteGuard<'_, PlaybackState> {
+        self.state.write()
     }
 
     #[cfg(feature = "audio-output")]
     pub fn sync_from_engine(&self) -> bool {
         let info = self.engine.playback_info();
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
 
         state.position_secs = info.position_secs;
         state.duration_secs = info.duration_secs;
@@ -277,29 +272,25 @@ impl PlaybackService {
 
         #[cfg(feature = "audio-output")]
         {
-            if let Ok(mut eng) = self.engine_mutex.lock() {
-                match eng.load_track(&_path) {
-                    Ok(info) => {
-                        info!(
-                            "Track loaded: {} Hz, {} ch, {:.1}s",
-                            info.sample_rate, info.channels, info.duration_secs
-                        );
-                        eng.set_track_id(track.id as u64);
-                    },
-                    Err(e) => {
-                        error!("Failed to load track: {}", e);
-                        return;
-                    },
-                }
-            } else {
-                error!("Engine mutex poisoned — cannot load track");
-                return;
+            let mut eng = self.engine_mutex.lock();
+            match eng.load_track(&_path) {
+                Ok(info) => {
+                    info!(
+                        "Track loaded: {} Hz, {} ch, {:.1}s",
+                        info.sample_rate, info.channels, info.duration_secs
+                    );
+                    eng.set_track_id(track.id as u64);
+                },
+                Err(e) => {
+                    error!("Failed to load track: {}", e);
+                    return;
+                },
             }
 
             self.engine.send_command(EngineCommand::Play);
         }
 
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.current_track_id = Some(track.id);
         state.is_playing = true;
         state.position_secs = 0.0;
@@ -342,7 +333,7 @@ impl PlaybackService {
     }
 
     pub fn toggle_playback(&self) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
 
         if state.is_playing {
             #[cfg(feature = "audio-output")]
@@ -382,7 +373,7 @@ impl PlaybackService {
         #[cfg(feature = "audio-output")]
         self.engine.send_command(EngineCommand::Stop);
 
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.is_playing = false;
         state.position_secs = 0.0;
         state.accumulated_play_secs = 0.0;
@@ -398,7 +389,7 @@ impl PlaybackService {
         #[cfg(feature = "audio-output")]
         self.engine.send_command(EngineCommand::Seek(pos_secs));
 
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.position_secs = pos_secs;
 
         // Reset scrobble timing so it is based on actual playback time,
@@ -409,7 +400,7 @@ impl PlaybackService {
     }
 
     pub fn reset_play_started_at(&self) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.play_started_at = Some(std::time::Instant::now());
         state.accumulated_play_secs = 0.0;
         state.version += 1;
@@ -425,7 +416,7 @@ impl PlaybackService {
         self.engine
             .send_command(EngineCommand::SetVolume(clamped * clamped));
 
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.volume = clamped;
         drop(state);
 
@@ -437,14 +428,14 @@ impl PlaybackService {
         #[cfg(feature = "audio-output")]
         self.engine.send_command(EngineCommand::SetSpeed(clamped));
 
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.speed = clamped;
         state.version += 1;
         info!("Playback speed set to {:.2}x", clamped);
     }
 
     pub fn set_shuffle(&self, shuffle: bool) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.shuffle = shuffle;
         state.version += 1;
         if shuffle && state.shuffle_order.is_empty() {
@@ -456,7 +447,7 @@ impl PlaybackService {
     }
 
     pub fn set_repeat(&self, repeat: RepeatMode) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.repeat = repeat;
         state.version += 1;
     }
@@ -470,7 +461,7 @@ impl PlaybackService {
     /// state in between. The fix acquires a single write lock and performs the
     /// regeneration check and queue advance atomically under that one lock.
     pub fn navigate_next(&self) -> Option<i64> {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
 
         if state.play_queue.is_empty() {
             return None;
@@ -546,7 +537,7 @@ impl PlaybackService {
     }
 
     pub fn navigate_prev(&self) -> Option<i64> {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
 
         if state.play_queue.is_empty() {
             return None;
@@ -572,7 +563,7 @@ impl PlaybackService {
     }
 
     pub fn compute_next_index(&self) -> Option<usize> {
-        let state = recover_from_poison(self.state.read());
+        let state = self.state.read();
 
         if state.play_queue.is_empty() {
             return None;
@@ -602,7 +593,7 @@ impl PlaybackService {
     }
 
     pub fn compute_prev_index(&self) -> Option<usize> {
-        let state = recover_from_poison(self.state.read());
+        let state = self.state.read();
 
         if state.play_queue.is_empty() {
             return None;
@@ -623,7 +614,7 @@ impl PlaybackService {
     }
 
     pub fn regenerate_shuffle_order(&self) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         let n = state.play_queue.len();
         if n == 0 {
             state.shuffle_order = Vec::new();
@@ -648,7 +639,7 @@ impl PlaybackService {
     }
 
     pub fn check_scrobble_threshold(&self, last_scrobbled_id: &mut Option<i64>) -> ScrobbleCheck {
-        let state = recover_from_poison(self.state.read());
+        let state = self.state.read();
 
         let track_id = match state.current_track_id {
             Some(id) => id,
@@ -702,7 +693,7 @@ impl PlaybackService {
     }
 
     pub fn set_play_queue(&self, queue: Vec<i64>) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.play_queue = queue;
         state.shuffle_order.clear();
         state.shuffle_position = 0;
@@ -710,19 +701,19 @@ impl PlaybackService {
     }
 
     pub fn set_queue_index(&self, index: Option<usize>) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.play_queue_index = index;
         state.version += 1;
     }
 
     pub fn advance_shuffle(&self) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.shuffle_position += 1;
         state.version += 1;
     }
 
     pub fn set_favorited(&self, favorited: bool) {
-        let mut state = recover_from_poison_write(self.state.write());
+        let mut state = self.state.write();
         state.is_favorited = favorited;
         state.version += 1;
     }

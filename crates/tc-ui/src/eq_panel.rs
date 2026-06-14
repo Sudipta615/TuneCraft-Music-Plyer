@@ -678,8 +678,6 @@ fn secondary_slider_horizontal_card(
     }
 }
 
-
-
 fn apply_preset(app: &mut TuneCraftApp, preset: &str) {
     match preset {
         "Flat" => {

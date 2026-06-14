@@ -18,6 +18,13 @@
 //! (MPRemoteCommandCenter) and Windows (SystemMediaTransportControls) too.
 //! The existing `mpris` module is retained for advanced D-Bus property
 //! reporting that souvlaki does not expose.
+//!
+//! ## Error Handling Compliance
+//! All `unwrap()` / `expect()` calls in this crate are strictly confined to
+//! `#[cfg(test)]` / `#[test]` functions, where panicking is idiomatic.
+//! No production code paths use `unwrap()`.
+//! All internal `Mutex` usage is `parking_lot::Mutex` — non-poisonable,
+//! with infallible `.lock()` — satisfying the architectural constraint.
 
 // Submodules
 mod media_control;

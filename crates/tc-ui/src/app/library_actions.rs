@@ -223,7 +223,10 @@ impl TuneCraftApp {
         let label = if count == 1 {
             format!(
                 "Scanning '{}'…",
-                folders[0].file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+                folders[0]
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default()
             )
         } else {
             format!("Scanning {} folders…", count)

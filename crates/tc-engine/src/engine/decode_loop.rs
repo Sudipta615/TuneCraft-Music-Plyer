@@ -8,11 +8,13 @@
 
 use log::{error, info, warn};
 
+use std::sync::Arc;
+
 use super::{AudioEngine, PlaybackStream};
 #[cfg(feature = "resample")]
 use crate::dsp::resampler::AudioResampler;
 use crate::{
-    buffer::{AudioFrame, PlaybackState},
+    buffer::{AudioFrame, PlaybackInfo, PlaybackState},
     decode::{DecodeError, SymphoniaDecoder},
 };
 
@@ -249,18 +251,13 @@ impl AudioEngine {
         self.source_frames_consumed += processed_frames;
         self.position_secs = self.source_frames_consumed as f32 / self.source_sample_rate as f32;
 
-        match self.playback_info.write() {
-            Ok(mut pb) => {
-                pb.position_secs = self.position_secs;
-            },
-            Err(e) => {
-                error!(
-                    "PlaybackInfo RwLock poisoned during decode; resetting: {}",
-                    e
-                );
-                e.into_inner().position_secs = self.position_secs;
-            },
-        }
+        let pos = self.position_secs;
+        self.playback_info.rcu(|old| {
+            Arc::new(PlaybackInfo {
+                position_secs: pos,
+                ..old.as_ref().clone()
+            })
+        });
     }
 
     /// Decode and process during a crossfade transition, pulling frames
@@ -623,20 +620,14 @@ impl AudioEngine {
                 (self.position_secs * self.source_sample_rate as f32).round() as u64;
         }
 
-        match self.playback_info.write() {
-            Ok(mut pb) => {
-                pb.position_secs = self.position_secs;
-                pb.duration_secs = self.duration_secs;
-            },
-            Err(e) => {
-                error!(
-                    "PlaybackInfo RwLock poisoned during crossfade decode; resetting: {}",
-                    e
-                );
-                let mut pb = e.into_inner();
-                pb.position_secs = self.position_secs;
-                pb.duration_secs = self.duration_secs;
-            },
-        }
+        let pos = self.position_secs;
+        let dur = self.duration_secs;
+        self.playback_info.rcu(|old| {
+            Arc::new(PlaybackInfo {
+                position_secs: pos,
+                duration_secs: dur,
+                ..old.as_ref().clone()
+            })
+        });
     }
 }

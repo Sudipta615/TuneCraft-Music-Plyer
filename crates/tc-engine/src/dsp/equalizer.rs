@@ -327,7 +327,7 @@ impl ParametricEq {
         // At 0.0005, 95% return takes ~6000 samples (~136ms at 44.1kHz).
         let headroom_linear = 10.0_f32.powf(self.headroom_db / 20.0);
         let peak = l.abs().max(r.abs());
-        
+
         // Envelope follower
         if peak > self.peak_envelope {
             self.peak_envelope = peak; // Instant attack for envelope
@@ -343,8 +343,7 @@ impl ParametricEq {
 
         if target_scale < self.headroom_scale {
             // Fast attack: reduce gain quickly to prevent clipping
-            self.headroom_scale +=
-                self.headroom_attack_rate * (target_scale - self.headroom_scale);
+            self.headroom_scale += self.headroom_attack_rate * (target_scale - self.headroom_scale);
         } else {
             // Slow release: avoid pumping artifacts and waveform distortion
             self.headroom_scale +=

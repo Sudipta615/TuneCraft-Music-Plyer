@@ -416,18 +416,16 @@ impl eframe::App for TuneCraftApp {
                 crate::player_bar::draw(self, ui);
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            match self.nav {
-                crate::sidebar::NavSection::Settings => {
-                    crate::settings_view::draw(self, ui);
-                },
-                crate::sidebar::NavSection::Folders => {
-                    crate::folders_view::draw(self, ui);
-                },
-                _ => {
-                    crate::track_list::draw(self, ui);
-                },
-            }
+        egui::CentralPanel::default().show(ctx, |ui| match self.nav {
+            crate::sidebar::NavSection::Settings => {
+                crate::settings_view::draw(self, ui);
+            },
+            crate::sidebar::NavSection::Folders => {
+                crate::folders_view::draw(self, ui);
+            },
+            _ => {
+                crate::track_list::draw(self, ui);
+            },
         });
 
         // EQ panel as a floating window overlay — responsive sizing
@@ -444,7 +442,9 @@ impl eframe::App for TuneCraftApp {
                 .open(&mut open)
                 .collapsible(false)
                 .resizable(true)
-                .default_pos(screen_rect.center() - egui::Vec2::new(window_width / 2.0, window_height / 2.0))
+                .default_pos(
+                    screen_rect.center() - egui::Vec2::new(window_width / 2.0, window_height / 2.0),
+                )
                 .default_size(egui::Vec2::new(window_width, window_height))
                 .min_size(egui::Vec2::new(400.0, 300.0))
                 .title_bar(false)

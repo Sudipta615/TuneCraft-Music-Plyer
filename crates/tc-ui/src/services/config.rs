@@ -3,69 +3,36 @@
 //! Encapsulates config loading, saving, and change notification,
 //! removing these concerns from the UI layer.
 //!
-//! thread safety. Now consistent with PlaybackService and
-//! EqService which use RwLock. The overhead of RwLock at 60fps is
-//! negligible (one lock/unlock per frame).
+//! Uses `parking_lot::RwLock` — non-poisonable, infallible `.read()` / `.write()`.
+//! The `recover_from_poison` helpers are no longer needed and have been removed.
 
 use std::sync::Arc;
 
 use log::warn;
+use parking_lot::RwLock;
 use tc_config::AppConfig;
-
-/// Recover from a poisoned RwLock by extracting the inner value.
-pub fn recover_from_poison<'a, T>(
-    result: Result<
-        std::sync::RwLockReadGuard<'a, T>,
-        std::sync::PoisonError<std::sync::RwLockReadGuard<'a, T>>,
-    >,
-) -> std::sync::RwLockReadGuard<'a, T> {
-    match result {
-        Ok(guard) => guard,
-        Err(e) => {
-            warn!("RwLock poisoned — recovering (data may be inconsistent)");
-            e.into_inner()
-        },
-    }
-}
-
-/// Recover from a poisoned write lock.
-pub fn recover_from_poison_write<'a, T>(
-    result: Result<
-        std::sync::RwLockWriteGuard<'a, T>,
-        std::sync::PoisonError<std::sync::RwLockWriteGuard<'a, T>>,
-    >,
-) -> std::sync::RwLockWriteGuard<'a, T> {
-    match result {
-        Ok(guard) => guard,
-        Err(e) => {
-            warn!("RwLock poisoned — recovering (data may be inconsistent)");
-            e.into_inner()
-        },
-    }
-}
 
 /// The config service manages application configuration.
 ///
-/// Uses `RwLock` internally. This makes the service both `Send` and `Sync`, consistent
-/// with PlaybackService and EqService, and prevents runtime panics from
-/// cross-thread access.
+/// Uses `parking_lot::RwLock` internally, which is non-poisonable and
+/// provides infallible guard acquisition — no `PoisonError` recovery needed.
 pub struct ConfigService {
-    config: Arc<std::sync::RwLock<AppConfig>>,
+    config: Arc<RwLock<AppConfig>>,
     /// Whether config has been modified since last save
-    dirty: std::sync::RwLock<bool>,
+    dirty: RwLock<bool>,
     /// Time of last config save
-    last_save: std::sync::RwLock<std::time::Instant>,
+    last_save: RwLock<std::time::Instant>,
     /// Minimum interval between saves (seconds)
     save_interval_secs: u64,
 }
 
 impl ConfigService {
     /// Create a new ConfigService.
-    pub fn new(config: Arc<std::sync::RwLock<AppConfig>>) -> Self {
+    pub fn new(config: Arc<RwLock<AppConfig>>) -> Self {
         Self {
             config,
-            dirty: std::sync::RwLock::new(false),
-            last_save: std::sync::RwLock::new(std::time::Instant::now()),
+            dirty: RwLock::new(false),
+            last_save: RwLock::new(std::time::Instant::now()),
             save_interval_secs: 30,
         }
     }
@@ -75,14 +42,12 @@ impl ConfigService {
     where
         F: FnOnce(&AppConfig) -> T,
     {
-        let guard = recover_from_poison(self.config.read());
-        Some(f(&guard))
+        Some(f(&self.config.read()))
     }
 
-    /// Read the entire config as a clone (handles poisoning gracefully).
+    /// Read the entire config as a clone.
     pub fn read_config(&self) -> AppConfig {
-        let guard = recover_from_poison(self.config.read());
-        guard.clone()
+        self.config.read().clone()
     }
 
     /// Write a value to the config and mark it dirty.
@@ -90,42 +55,37 @@ impl ConfigService {
     where
         F: FnOnce(&mut AppConfig),
     {
-        let mut guard = recover_from_poison_write(self.config.write());
-        f(&mut guard);
-        *recover_from_poison_write(self.dirty.write()) = true;
+        f(&mut self.config.write());
+        *self.dirty.write() = true;
     }
 
     /// Mark the config as dirty (to be saved periodically).
     pub fn mark_dirty(&self) {
-        *recover_from_poison_write(self.dirty.write()) = true;
+        *self.dirty.write() = true;
     }
 
     /// Check if the config is dirty.
     pub fn is_dirty(&self) -> bool {
-        self.dirty.read().map(|d| *d).unwrap_or(false)
+        *self.dirty.read()
     }
 
     /// Save config to disk if it has been modified since last save.
     pub fn save_if_dirty(&self) -> bool {
-        let is_dirty = self.dirty.read().map(|d| *d).unwrap_or(false);
-        if !is_dirty {
+        if !*self.dirty.read() {
             return false;
         }
 
-        let should_save = self
-            .last_save
-            .read()
-            .map(|last| last.elapsed() >= std::time::Duration::from_secs(self.save_interval_secs))
-            .unwrap_or(true);
+        let should_save = self.last_save.read().elapsed()
+            >= std::time::Duration::from_secs(self.save_interval_secs);
+
         if !should_save {
             return false;
         }
 
-        let guard = recover_from_poison(self.config.read());
-        match tc_config::ConfigPersistence::save(&guard) {
+        match tc_config::ConfigPersistence::save(&self.config.read()) {
             Ok(()) => {
-                *recover_from_poison_write(self.dirty.write()) = false;
-                *recover_from_poison_write(self.last_save.write()) = std::time::Instant::now();
+                *self.dirty.write() = false;
+                *self.last_save.write() = std::time::Instant::now();
                 true
             },
             Err(e) => {
@@ -137,13 +97,12 @@ impl ConfigService {
 
     /// Force-save the config regardless of dirty state.
     pub fn force_save(&self) -> Result<(), String> {
-        let guard = recover_from_poison(self.config.read());
-        tc_config::ConfigPersistence::save(&guard)
+        tc_config::ConfigPersistence::save(&self.config.read())
             .map_err(|e| format!("Failed to save config: {}", e))
     }
 
     /// Get the current theme setting.
     pub fn theme(&self) -> tc_config::Theme {
-        self.read(|c| c.ui.theme).unwrap_or(tc_config::Theme::Dark)
+        self.config.read().ui.theme
     }
 }

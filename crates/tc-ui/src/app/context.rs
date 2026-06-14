@@ -81,7 +81,7 @@ impl AppContext {
     /// Initialize all subsystems and return a fully wired AppContext.
     pub fn init() -> Result<Self, Box<dyn std::error::Error>> {
         let config = tc_config::ConfigPersistence::load_or_default();
-        let config = Arc::new(std::sync::RwLock::new(config));
+        let config = Arc::new(parking_lot::RwLock::new(config));
 
         let db_path = dirs::data_dir()
             .or_else(|| dirs::home_dir().map(|h| h.join(".local/share")))
@@ -118,13 +118,10 @@ impl AppContext {
 
         // Local offline scrobble service — reads scrobble.enabled from config
         // to allow the user to disable play-count tracking entirely if they wish.
-        let scrobble_enabled = config.read().map(|c| c.scrobble.enabled).unwrap_or(true); // default: enabled (local-only, no privacy concern)
+        let scrobble_enabled = config.read().scrobble.enabled;
         let scrobble = Arc::new(ScrobbleService::new(Arc::clone(&db), scrobble_enabled));
 
-        let library_config = config
-            .read()
-            .map(|c| c.library.clone())
-            .unwrap_or_else(|_| tc_config::LibraryConfig::with_system_defaults());
+        let library_config = config.read().library.clone();
         let library = Arc::new(tc_library::LibraryManager::new(
             Arc::clone(&db),
             library_config,
@@ -135,10 +132,7 @@ impl AppContext {
 
         let (scan_progress_tx, scan_progress_rx) = crossbeam::channel::bounded(64);
 
-        let should_scan = config
-            .read()
-            .map(|c| c.library.scan_on_startup)
-            .unwrap_or(false);
+        let should_scan = config.read().library.scan_on_startup;
         if should_scan {
             info!("Starting library scan...");
             let lib_clone = Arc::clone(&library);
@@ -172,10 +166,7 @@ impl AppContext {
 
         let config_service = Arc::new(ConfigService::new(Arc::clone(&config)));
 
-        let tracks_per_page = config
-            .read()
-            .map(|c| c.library.tracks_per_page)
-            .unwrap_or(500);
+        let tracks_per_page = config.read().library.tracks_per_page;
         let library_service = Arc::new(LibraryService::new(
             db,
             library,
@@ -187,7 +178,7 @@ impl AppContext {
         ));
 
         let (volume, shuffle, repeat, speed, eq_enabled, eq_preamp, eq_dither, eq_bands) = {
-            let cfg = config.read().map(|c| c.clone()).unwrap_or_default();
+            let cfg = config.read().clone();
             let mut bands = [0.0; 10];
             for (i, band) in cfg.engine.eq.bands.iter().enumerate() {
                 if i < 10 {
@@ -208,7 +199,7 @@ impl AppContext {
 
         #[cfg(feature = "audio-output")]
         let (engine_handle, engine_mutex, engine_running, cmd_tx, engine_thread_handle) = {
-            let engine_config = config.read().map(|c| c.engine.clone()).unwrap_or_default();
+            let engine_config = config.read().engine.clone();
             let mut engine = tc_engine::AudioEngine::new(engine_config)?;
             engine.start()?;
             let engine_running = Arc::new(AtomicBool::new(true));
@@ -218,7 +209,7 @@ impl AppContext {
 
             let engine_handle =
                 EngineHandle::new(cmd_tx.clone(), playback_info, Arc::clone(&engine_running));
-            let engine_mutex = Arc::new(std::sync::Mutex::new(engine));
+            let engine_mutex = Arc::new(parking_lot::Mutex::new(engine));
 
             let engine_clone = Arc::clone(&engine_mutex);
             let running_clone = Arc::clone(&engine_running);
@@ -227,9 +218,7 @@ impl AppContext {
                 .spawn(move || {
                     info!("Engine tick thread started");
                     while running_clone.load(Ordering::Relaxed) {
-                        if let Ok(mut eng) = engine_clone.lock() {
-                            eng.tick();
-                        }
+                        engine_clone.lock().tick();
                         std::thread::sleep(std::time::Duration::from_millis(5));
                     }
                     info!("Engine tick thread stopped");

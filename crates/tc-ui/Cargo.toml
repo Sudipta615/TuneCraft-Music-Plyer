@@ -27,3 +27,4 @@ chrono = { workspace = true }
 rusqlite = { workspace = true }
 image = { workspace = true }
 rfd = { workspace = true }
+parking_lot = { workspace = true }

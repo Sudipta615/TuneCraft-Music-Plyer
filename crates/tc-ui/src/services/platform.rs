@@ -3,38 +3,35 @@
 //! Encapsulates platform integration, using the separated
 //! `MediaKeyReceiver` pattern introduced in v0.9.1.
 //!
-//! `std::sync::RwLock<PlatformIntegration>`. Now consistent
-//! with PlaybackService and EqService. Uses standardized lock poisoning
-//! recovery from config.rs.
+//! Uses `parking_lot::RwLock` / `parking_lot::Mutex` — non-poisonable,
+//! infallible guard acquisition. No poison-recovery boilerplate needed.
 
+use parking_lot::{Mutex, RwLock};
 use tc_platform::{
     MediaKeyAction, MediaKeyReceiver, MprisPlaybackStatus, MprisTrackInfo, PlatformIntegration,
 };
 
-use super::config::{recover_from_poison, recover_from_poison_write};
-
 /// The platform service manages OS integration features.
 ///
-/// Uses `RwLock<PlatformIntegration>` instead of `RefCell`. This makes the service both `Send` and
-/// `Sync`, consistent with other services, and prevents panics if accessed from
-/// a background thread during shutdown.
+/// Uses `parking_lot::RwLock<PlatformIntegration>` — non-poisonable,
+/// consistent with ConfigService and EqService.
 pub struct PlatformService {
-    inner: std::sync::RwLock<PlatformIntegration>,
-    media_key_rx: std::sync::Mutex<MediaKeyReceiver>,
+    inner: RwLock<PlatformIntegration>,
+    media_key_rx: Mutex<MediaKeyReceiver>,
 }
 
 impl PlatformService {
     /// Create a new PlatformService.
     pub fn new(platform: PlatformIntegration, media_key_rx: MediaKeyReceiver) -> Self {
         Self {
-            inner: std::sync::RwLock::new(platform),
-            media_key_rx: std::sync::Mutex::new(media_key_rx),
+            inner: RwLock::new(platform),
+            media_key_rx: Mutex::new(media_key_rx),
         }
     }
 
     /// Try to receive a media key action (non-blocking).
     pub fn try_recv_action(&self) -> Option<MediaKeyAction> {
-        self.media_key_rx.lock().ok().and_then(|rx| rx.try_recv())
+        self.media_key_rx.lock().try_recv()
     }
 
     /// Update MPRIS status to Playing with track info.
@@ -46,7 +43,7 @@ impl PlatformService {
         duration_secs: f32,
         track_id: i64,
     ) {
-        let mut platform = recover_from_poison_write(self.inner.write());
+        let mut platform = self.inner.write();
         platform.set_mpris_status(MprisPlaybackStatus::Playing);
         platform.set_mpris_track(MprisTrackInfo {
             title: Some(title.to_string()),
@@ -60,24 +57,28 @@ impl PlatformService {
 
     /// Update MPRIS status to Playing (resume, no track change).
     pub fn update_mpris_playing_by_state(&self) {
-        recover_from_poison_write(self.inner.write())
+        self.inner
+            .write()
             .set_mpris_status(MprisPlaybackStatus::Playing);
     }
 
     /// Update MPRIS status to Paused.
     pub fn update_mpris_paused(&self) {
-        recover_from_poison_write(self.inner.write()).set_mpris_status(MprisPlaybackStatus::Paused);
+        self.inner
+            .write()
+            .set_mpris_status(MprisPlaybackStatus::Paused);
     }
 
     /// Update MPRIS status to Stopped.
     pub fn update_mpris_stopped(&self) {
-        recover_from_poison_write(self.inner.write())
+        self.inner
+            .write()
             .set_mpris_status(MprisPlaybackStatus::Stopped);
     }
 
     /// Update MPRIS volume.
     pub fn update_mpris_volume(&self, volume: f32) {
-        recover_from_poison_write(self.inner.write()).set_mpris_volume(volume);
+        self.inner.write().set_mpris_volume(volume);
     }
 
     /// Send a desktop notification.
@@ -86,7 +87,7 @@ impl PlatformService {
         title: &str,
         body: &str,
     ) -> Result<(), tc_platform::PlatformError> {
-        recover_from_poison(self.inner.read()).send_notification(title, body)
+        self.inner.read().send_notification(title, body)
     }
 
     /// Process a keyboard event for shortcuts.
@@ -98,13 +99,15 @@ impl PlatformService {
         shift: bool,
         meta: bool,
     ) -> Option<MediaKeyAction> {
-        recover_from_poison(self.inner.read()).process_key_event(key, ctrl, alt, shift, meta)
+        self.inner
+            .read()
+            .process_key_event(key, ctrl, alt, shift, meta)
     }
 
     /// Called periodically from the UI sync loop to keep MPRIS clients
     /// (desktop panels, media applets) in sync with the actual position.
     pub fn update_mpris_position(&self, position_secs: f32) {
         let position_us = (position_secs * 1_000_000.0) as i64;
-        recover_from_poison_write(self.inner.write()).set_mpris_position(position_us);
+        self.inner.write().set_mpris_position(position_us);
     }
 }

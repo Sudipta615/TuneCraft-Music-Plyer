@@ -152,7 +152,7 @@ fn test_playback_info_access() {
 fn test_playback_info_arc() {
     let engine = AudioEngine::new_default().unwrap();
     let arc = engine.playback_info_arc();
-    let info = arc.read().unwrap();
+    let info = arc.load();
     assert_eq!(info.state, PlaybackState::Stopped);
 }
 

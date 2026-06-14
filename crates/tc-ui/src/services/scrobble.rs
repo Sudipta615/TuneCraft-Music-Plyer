@@ -62,7 +62,7 @@ pub struct ScrobbleService {
     enabled: bool,
     db: std::sync::Arc<tc_db::Database>,
     event_tx: mpsc::Sender<ScrobbleEvent>,
-    event_rx: std::sync::Mutex<mpsc::Receiver<ScrobbleEvent>>,
+    event_rx: parking_lot::Mutex<mpsc::Receiver<ScrobbleEvent>>,
 }
 
 impl ScrobbleService {
@@ -73,7 +73,7 @@ impl ScrobbleService {
             enabled,
             db,
             event_tx,
-            event_rx: std::sync::Mutex::new(event_rx),
+            event_rx: parking_lot::Mutex::new(event_rx),
         }
     }
 
@@ -164,7 +164,7 @@ impl ScrobbleService {
     ///
     /// Call once per UI frame.  Returns `None` when the queue is empty.
     pub fn try_recv_event(&self) -> Option<ScrobbleEvent> {
-        self.event_rx.lock().ok().and_then(|rx| rx.try_recv().ok())
+        self.event_rx.lock().try_recv().ok()
     }
 
     // -----------------------------------------------------------------------

@@ -486,13 +486,14 @@ impl LibraryManager {
                     // Store cover art for successfully inserted tracks
                     for (idx, track_id) in ids {
                         if let Some(Some(art)) = pending_cover_art.get(idx) {
-                            let album_id = self.db.get_track(track_id).ok().flatten().and_then(|t| {
-                                let album = t.album.as_deref()?;
-                                self.db
-                                    .get_album_id(album, t.album_artist.as_deref())
-                                    .ok()
-                                    .flatten()
-                            });
+                            let album_id =
+                                self.db.get_track(track_id).ok().flatten().and_then(|t| {
+                                    let album = t.album.as_deref()?;
+                                    self.db
+                                        .get_album_id(album, t.album_artist.as_deref())
+                                        .ok()
+                                        .flatten()
+                                });
                             let _ = self.db.insert_cover_art(
                                 album_id,
                                 Some(track_id),

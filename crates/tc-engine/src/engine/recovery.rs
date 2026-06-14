@@ -146,7 +146,7 @@ impl AudioEngine {
                     Err(e) => {
                         let err_msg = format!("Stream recovery failed: {}", e);
                         error!("{}", err_msg);
-                        self.write_playback_info(|pb| pb.engine_error = Some(err_msg));
+                        self.write_playback_info(|pb| pb.engine_error = Some(err_msg.clone()));
                     },
                 }
                 return;

@@ -75,7 +75,7 @@ pub const DEFAULT_Q: f32 = 1.4;
 /// Thread safety follows PlaybackService's threading model. This prevents runtime panics if the
 /// service is accessed from multiple threads through its Arc wrapper.
 pub struct EqService {
-    state: std::sync::RwLock<EqState>,
+    state: parking_lot::RwLock<EqState>,
     #[cfg(feature = "audio-output")]
     engine_cmd_tx: Option<crossbeam::channel::Sender<tc_engine::buffer::EngineCommand>>,
 }
@@ -100,7 +100,7 @@ impl EqService {
         };
 
         let service = Self {
-            state: std::sync::RwLock::new(state),
+            state: parking_lot::RwLock::new(state),
             engine_cmd_tx: Some(engine_cmd_tx),
         };
 
@@ -132,39 +132,35 @@ impl EqService {
         };
 
         Self {
-            state: std::sync::RwLock::new(state),
+            state: parking_lot::RwLock::new(state),
         }
     }
 
     /// Get a clone of the EQ state (snapshot for UI reads).
     /// Using a clone avoids holding a lock across the UI frame.
     pub fn state_snapshot(&self) -> EqState {
-        self.state.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.state.read().clone()
     }
 
     /// Get a reference to the EQ state.
-    pub fn state(&self) -> std::sync::RwLockReadGuard<'_, EqState> {
-        self.state.read().unwrap_or_else(|e| e.into_inner())
+    pub fn state(&self) -> parking_lot::RwLockReadGuard<'_, EqState> {
+        self.state.read()
     }
 
     /// Get a mutable reference to the EQ state.
-    pub fn state_mut(&self) -> std::sync::RwLockWriteGuard<'_, EqState> {
-        self.state.write().unwrap_or_else(|e| e.into_inner())
+    pub fn state_mut(&self) -> parking_lot::RwLockWriteGuard<'_, EqState> {
+        self.state.write()
     }
 
     /// Toggle the EQ panel visibility.
     pub fn toggle_panel(&self) {
-        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
-        state.show_panel = !state.show_panel;
+        self.state.write().show_panel ^= true;
     }
 
     /// Set EQ enabled state.
     pub fn set_enabled(&self, enabled: bool) {
         self.apply_eq_enabled(enabled);
-        self.state
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .enabled = enabled;
+        self.state.write().enabled = enabled;
     }
 
     /// Set a specific EQ band gain.
@@ -180,7 +176,7 @@ impl EqService {
             DEFAULT_Q,
             gain_db != 0.0,
         );
-        self.state.write().unwrap_or_else(|e| e.into_inner()).bands[index] = gain_db;
+        self.state.write().bands[index] = gain_db;
     }
 
     /// Set a specific EQ band with full parameters (frequency, gain, Q, enabled).
@@ -196,56 +192,44 @@ impl EqService {
             return;
         }
         self.apply_eq_band(index, frequency, gain_db, q, gain_db != 0.0);
-        self.state.write().unwrap_or_else(|e| e.into_inner()).bands[index] = gain_db;
+        self.state.write().bands[index] = gain_db;
     }
 
     /// Set bass shelf.
     pub fn set_bass_shelf(&self, db: f32) {
         self.apply_bass_shelf(db);
-        self.state
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .bass_shelf = db;
+        self.state.write().bass_shelf = db;
     }
 
     /// Set treble shelf.
     pub fn set_treble_shelf(&self, db: f32) {
         self.apply_treble_shelf(db);
-        self.state
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .treble_shelf = db;
+        self.state.write().treble_shelf = db;
     }
 
     /// Set preamp gain.
     pub fn set_preamp(&self, db: f32) {
         self.apply_preamp(db);
-        self.state.write().unwrap_or_else(|e| e.into_inner()).preamp = db;
+        self.state.write().preamp = db;
     }
 
     /// Set stereo width.
     pub fn set_stereo_width(&self, width: f32) {
         let clamped = width.clamp(0.0, 2.0);
         self.apply_stereo_width(clamped);
-        self.state
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .stereo_width = clamped;
+        self.state.write().stereo_width = clamped;
     }
 
     /// Set balance.
     pub fn set_balance(&self, balance: f32) {
         self.apply_balance(balance);
-        self.state
-            .write()
-            .unwrap_or_else(|e| e.into_inner())
-            .balance = balance;
+        self.state.write().balance = balance;
     }
 
     /// Set dither enabled.
     pub fn set_dither(&self, enabled: bool) {
         self.apply_dither(enabled);
-        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
+        let mut state = self.state.write();
         state.dither = enabled;
         state.cached_dither_enabled = enabled;
     }
@@ -253,7 +237,7 @@ impl EqService {
     /// Set Mid/Side EQ mode.
     pub fn set_midside(&self, enabled: bool) {
         self.apply_midside(enabled);
-        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
+        let mut state = self.state.write();
         state.midside = enabled;
         state.cached_midside_enabled = enabled;
     }

@@ -4199,6 +4199,7 @@ name = "tc-engine"
 version = "2.6.4"
 dependencies = [
  "approx",
+ "arc-swap",
  "coreaudio-rs",
  "cpal",
  "criterion",
@@ -4259,6 +4260,7 @@ dependencies = [
  "egui-phosphor",
  "image",
  "log",
+ "parking_lot",
  "rfd",
  "rusqlite",
  "tc-analysis",

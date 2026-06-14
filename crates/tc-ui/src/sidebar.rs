@@ -222,13 +222,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.add_space(24.0);
             if ui
-                .add(
-                    egui::Button::new(
-                        egui::RichText::new("Create")
-                            .font(egui::FontId::proportional(12.0))
-                            .color(colors.text),
-                    )
-                )
+                .add(egui::Button::new(
+                    egui::RichText::new("Create")
+                        .font(egui::FontId::proportional(12.0))
+                        .color(colors.text),
+                ))
                 .clicked()
             {
                 app.show_create_playlist_dialog = true;
@@ -236,13 +234,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
 
             ui.add_space(8.0);
 
-            let remove_btn_resp = ui.add(
-                egui::Button::new(
-                    egui::RichText::new("Remove")
-                        .font(egui::FontId::proportional(12.0))
-                        .color(colors.text),
-                )
-            );
+            let remove_btn_resp = ui.add(egui::Button::new(
+                egui::RichText::new("Remove")
+                    .font(egui::FontId::proportional(12.0))
+                    .color(colors.text),
+            ));
 
             let popup_id = ui.make_persistent_id("remove_playlist_popup");
 

@@ -413,7 +413,9 @@ impl LibraryService {
 
     /// Get all tracks whose file path is inside the given folder (recursive).
     pub fn get_tracks_by_folder(&self, folder_path: &str) -> Vec<Track> {
-        self.db.get_tracks_by_folder(folder_path).unwrap_or_default()
+        self.db
+            .get_tracks_by_folder(folder_path)
+            .unwrap_or_default()
     }
 
     /// Count tracks in a folder (recursive). For sidebar badge display.

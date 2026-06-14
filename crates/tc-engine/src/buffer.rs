@@ -510,7 +510,7 @@ mod tests {
 
     #[test]
     fn test_audio_frame_zero() {
-        let f = AudioFrame::zero(2).unwrap();
+        let f = AudioFrame::zero_stereo();
         assert_eq!(f.num_channels, 2);
         assert!((f.get(0) - 0.0).abs() < 1e-6);
     }

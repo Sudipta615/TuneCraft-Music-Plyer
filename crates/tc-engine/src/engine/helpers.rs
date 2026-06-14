@@ -1,43 +1,32 @@
 //! Helper methods for AudioEngine — utility functions for playback info,
 //! state management, and URI decoding.
 
-use log::error;
+use std::sync::Arc;
 
 use super::AudioEngine;
 use crate::buffer::{PlaybackInfo, PlaybackState};
 
 impl AudioEngine {
     pub(super) fn current_state(&self) -> PlaybackState {
-        match self.playback_info.read() {
-            Ok(pb) => pb.state,
-            Err(e) => {
-                error!("PlaybackInfo RwLock poisoned in current_state; using Stopped");
-                e.into_inner().state
-            },
-        }
+        self.playback_info.load().state
     }
 
     pub(super) fn update_playback_state(&self, state: PlaybackState) {
-        match self.playback_info.write() {
-            Ok(mut pb) => {
-                pb.state = state;
-            },
-            Err(e) => {
-                error!("PlaybackInfo RwLock poisoned in update_playback_state; resetting");
-                e.into_inner().state = state;
-            },
-        }
+        self.playback_info.rcu(|old| {
+            Arc::new(PlaybackInfo {
+                state,
+                ..old.as_ref().clone()
+            })
+        });
     }
 
     /// Helper for short one-field writes to PlaybackInfo.
-    pub(super) fn write_playback_info<F: FnOnce(&mut PlaybackInfo)>(&self, f: F) {
-        match self.playback_info.write() {
-            Ok(mut pb) => f(&mut pb),
-            Err(e) => {
-                error!("PlaybackInfo RwLock poisoned; resetting and continuing");
-                f(&mut e.into_inner());
-            },
-        }
+    pub(super) fn write_playback_info<F: FnMut(&mut PlaybackInfo)>(&self, mut f: F) {
+        self.playback_info.rcu(|old| {
+            let mut next = old.as_ref().clone();
+            f(&mut next);
+            Arc::new(next)
+        });
     }
 }
 

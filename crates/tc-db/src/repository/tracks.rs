@@ -769,13 +769,11 @@ impl Database {
             format!("{}/", folder_path)
         };
         let pattern = format!("{}%", prefix);
-        let count: i64 = self
-            .read_lock()?
-            .query_row(
-                "SELECT COUNT(*) FROM tracks WHERE path LIKE ?1",
-                params![pattern],
-                |row| row.get(0),
-            )?;
+        let count: i64 = self.read_lock()?.query_row(
+            "SELECT COUNT(*) FROM tracks WHERE path LIKE ?1",
+            params![pattern],
+            |row| row.get(0),
+        )?;
         Ok(count)
     }
 }

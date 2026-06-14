@@ -181,7 +181,13 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                             if add_files_resp.clicked() {
                                 let files = rfd::FileDialog::new()
                                     .set_title("Select Music Files")
-                                    .add_filter("Audio Files", &["mp3", "flac", "ogg", "wav", "aac", "m4a", "opus", "wma", "aiff", "ape"])
+                                    .add_filter(
+                                        "Audio Files",
+                                        &[
+                                            "mp3", "flac", "ogg", "wav", "aac", "m4a", "opus",
+                                            "wma", "aiff", "ape",
+                                        ],
+                                    )
                                     .pick_files();
                                 if let Some(paths) = files {
                                     app.add_music_files(paths);

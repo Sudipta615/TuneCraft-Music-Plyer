@@ -120,8 +120,7 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                     .add_filter(
                         "Audio Files",
                         &[
-                            "mp3", "flac", "ogg", "wav", "aac", "m4a", "opus", "wma", "aiff",
-                            "ape",
+                            "mp3", "flac", "ogg", "wav", "aac", "m4a", "opus", "wma", "aiff", "ape",
                         ],
                     )
                     .pick_files();
@@ -173,11 +172,8 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
         .auto_shrink([false, false])
         .show(ui, |ui| {
             for (i, dir) in watch_dirs.iter().enumerate() {
-
-                let (card_rect, card_resp) = ui.allocate_exact_size(
-                    Vec2::new(ui.available_width(), card_h),
-                    Sense::click(),
-                );
+                let (card_rect, card_resp) =
+                    ui.allocate_exact_size(Vec2::new(ui.available_width(), card_h), Sense::click());
 
                 // Inner card rect with horizontal padding
                 let inner_rect = Rect::from_min_max(
@@ -220,10 +216,8 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                 // Folder icon
                 let icon_x = inner_rect.left() + 24.0;
                 let icon_size = 28.0;
-                let icon_rect = Rect::from_center_size(
-                    Pos2::new(icon_x, cy),
-                    Vec2::splat(icon_size + 8.0),
-                );
+                let icon_rect =
+                    Rect::from_center_size(Pos2::new(icon_x, cy), Vec2::splat(icon_size + 8.0));
                 // Icon background circle
                 let icon_bg = if colors.dark_mode {
                     Color32::from_rgba_premultiplied(
@@ -362,12 +356,12 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
 
                 let badge_bg = if colors.dark_mode {
                     Color32::from_rgba_premultiplied(
-                        (colors.text_dim.r() as u16 * 30 / 100
-                            + colors.bg.r() as u16 * 70 / 100) as u8,
-                        (colors.text_dim.g() as u16 * 30 / 100
-                            + colors.bg.g() as u16 * 70 / 100) as u8,
-                        (colors.text_dim.b() as u16 * 30 / 100
-                            + colors.bg.b() as u16 * 70 / 100) as u8,
+                        (colors.text_dim.r() as u16 * 30 / 100 + colors.bg.r() as u16 * 70 / 100)
+                            as u8,
+                        (colors.text_dim.g() as u16 * 30 / 100 + colors.bg.g() as u16 * 70 / 100)
+                            as u8,
+                        (colors.text_dim.b() as u16 * 30 / 100 + colors.bg.b() as u16 * 70 / 100)
+                            as u8,
                         255,
                     )
                 } else {
@@ -390,10 +384,8 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                 if card_resp.clicked() {
                     app.folder_view_path = Some(dir.clone());
                     // Pre-fetch tracks for this folder
-                    app.folder_tracks = app
-                        .ctx
-                        .library
-                        .get_tracks_by_folder(&dir.to_string_lossy());
+                    app.folder_tracks =
+                        app.ctx.library.get_tracks_by_folder(&dir.to_string_lossy());
                 }
 
                 // Bottom separator
@@ -469,8 +461,11 @@ fn draw_folder_contents(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftC
             );
 
             let total_tracks = app.folder_tracks.len();
-            let total_duration_mins: f32 =
-                app.folder_tracks.iter().map(|t| t.duration_secs / 60.0).sum();
+            let total_duration_mins: f32 = app
+                .folder_tracks
+                .iter()
+                .map(|t| t.duration_secs / 60.0)
+                .sum();
             let hours = (total_duration_mins / 60.0) as u32;
             let mins = (total_duration_mins % 60.0) as u32;
             ui.label(
@@ -603,10 +598,8 @@ fn draw_folder_contents(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftC
 
                     // Left accent bar for playing track
                     if is_playing {
-                        let bar = Rect::from_min_size(
-                            row_rect.left_top(),
-                            Vec2::new(3.0, track_row_h),
-                        );
+                        let bar =
+                            Rect::from_min_size(row_rect.left_top(), Vec2::new(3.0, track_row_h));
                         ui.painter().rect_filled(bar, 1.5, colors.accent);
                     }
 
