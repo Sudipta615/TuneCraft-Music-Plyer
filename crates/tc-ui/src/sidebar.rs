@@ -221,24 +221,30 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.add_space(24.0);
-            if ui
-                .add(egui::Button::new(
-                    egui::RichText::new("Create")
-                        .font(egui::FontId::proportional(12.0))
-                        .color(colors.text),
-                ))
-                .clicked()
-            {
+            
+            let create_btn = egui::Button::new(
+                egui::RichText::new(format!("{} Create", egui_phosphor::regular::PLUS))
+                    .font(egui::FontId::proportional(13.0))
+                    .color(colors.text),
+            )
+            .fill(colors.active_bg)
+            .rounding(6.0);
+            
+            if ui.add_sized(egui::Vec2::new(76.0, 28.0), create_btn).clicked() {
                 app.show_create_playlist_dialog = true;
             }
 
             ui.add_space(8.0);
 
-            let remove_btn_resp = ui.add(egui::Button::new(
-                egui::RichText::new("Remove")
-                    .font(egui::FontId::proportional(12.0))
+            let remove_btn = egui::Button::new(
+                egui::RichText::new(format!("{} Remove", egui_phosphor::regular::TRASH))
+                    .font(egui::FontId::proportional(13.0))
                     .color(colors.text),
-            ));
+            )
+            .fill(colors.hover)
+            .rounding(6.0);
+
+            let remove_btn_resp = ui.add_sized(egui::Vec2::new(84.0, 28.0), remove_btn);
 
             let popup_id = ui.make_persistent_id("remove_playlist_popup");
 

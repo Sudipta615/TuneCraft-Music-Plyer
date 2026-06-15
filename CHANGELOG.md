@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.7.0] — 2026-06-15
+
+### 🚀 Added
+- **UI**: Added a fully functional 3-dot context menu in track lists and grids with "Info/Tags" and "Playlist" options.
+- **UI**: Implemented a new overlay dialog for adding tracks directly to user-created playlists.
+
+### ✨ Changed
+- **UI**: Redesigned the sidebar "Create" and "Remove" playlist buttons to match the main application aesthetic.
+- **UI**: Simplified the top bar on "Favorites", "Recently Played", and "Most Played" views by hiding track counts and durations.
+- **Library**: Refined "Recently Played" rules to only show tracks played within the last 48 hours.
+- **Library**: Refined "Most Played" rules to strictly show tracks played more than 3 times, capped at 30 items.
+
+---
+
 ## [2.6.4] — 2026-06-13
 
 ### 🐛 Fixed

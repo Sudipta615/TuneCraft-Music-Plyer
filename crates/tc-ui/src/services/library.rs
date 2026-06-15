@@ -422,4 +422,21 @@ impl LibraryService {
     pub fn count_tracks_in_folder(&self, folder_path: &str) -> i64 {
         self.db.count_tracks_in_folder(folder_path).unwrap_or(0)
     }
+
+    /// Delete all tracks whose file path is inside the given folder (recursive).
+    pub fn remove_folder(&self, folder_path: &str) -> Result<usize, String> {
+        match self.db.delete_tracks_by_folder(folder_path) {
+            Ok(deleted) => {
+                self.mark_db_dirty();
+                self.refresh_tracks();
+                self.refresh_favorite_ids();
+                Ok(deleted)
+            },
+            Err(e) => {
+                let msg = format!("Failed to remove folder: {}", e);
+                warn!("{}", msg);
+                Err(msg)
+            },
+        }
+    }
 }

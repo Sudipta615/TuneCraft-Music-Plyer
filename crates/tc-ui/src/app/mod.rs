@@ -95,6 +95,7 @@ pub struct TuneCraftApp {
     pub selected_playlist_id: Option<i64>,
     pub show_create_playlist_dialog: bool,
     pub new_playlist_name: String,
+    pub show_add_to_playlist_dialog: Option<i64>,
 
     pub show_eq_panel: bool,
     pub eq_enabled: bool,
@@ -255,6 +256,7 @@ impl TuneCraftApp {
             selected_playlist_id: None,
             show_create_playlist_dialog: false,
             new_playlist_name: String::new(),
+            show_add_to_playlist_dialog: None,
 
             show_eq_panel: false,
             eq_enabled,
@@ -553,6 +555,115 @@ impl eframe::App for TuneCraftApp {
                         }
                     });
                 });
+        }
+
+        if let Some(track_id) = self.show_add_to_playlist_dialog {
+            let colors = self.colors();
+            let mut is_open = true;
+            egui::Window::new("Add to Playlist")
+                .open(&mut is_open)
+                .collapsible(false)
+                .resizable(false)
+                .title_bar(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .frame(
+                    egui::Frame::window(ctx.style().as_ref())
+                        .inner_margin(24.0)
+                        .rounding(16.0)
+                        .fill(colors.surface)
+                        .stroke(egui::Stroke::new(1.0, colors.border)),
+                )
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new("Add to Playlist")
+                                .font(egui::FontId::proportional(20.0))
+                                .strong()
+                                .color(colors.text),
+                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .button(
+                                    egui::RichText::new(egui_phosphor::regular::X)
+                                        .color(colors.text_dim),
+                                )
+                                .clicked()
+                            {
+                                self.show_add_to_playlist_dialog = None;
+                            }
+                        });
+                    });
+
+                    ui.add_space(16.0);
+
+                    // List existing playlists
+                    egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                        let playlists: Vec<_> =
+                            self.playlists.iter().filter(|p| !p.is_smart).collect();
+                        if playlists.is_empty() {
+                            ui.label(
+                                egui::RichText::new("No playlists available")
+                                    .color(colors.text_dim),
+                            );
+                        } else {
+                            for playlist in playlists {
+                                let (rect, resp) = ui.allocate_exact_size(
+                                    egui::Vec2::new(300.0, 36.0),
+                                    egui::Sense::click(),
+                                );
+                                if resp.hovered() {
+                                    ui.painter().rect_filled(rect, 6.0, colors.hover);
+                                }
+                                ui.painter().text(
+                                    egui::Pos2::new(rect.left() + 12.0, rect.center().y),
+                                    egui::Align2::LEFT_CENTER,
+                                    egui_phosphor::regular::PLAYLIST,
+                                    egui::FontId::proportional(16.0),
+                                    colors.text_dim,
+                                );
+                                ui.painter().text(
+                                    egui::Pos2::new(rect.left() + 36.0, rect.center().y),
+                                    egui::Align2::LEFT_CENTER,
+                                    &playlist.name,
+                                    egui::FontId::proportional(14.0),
+                                    colors.text,
+                                );
+                                if resp.clicked() {
+                                    if let Err(e) =
+                                        self.ctx.library.add_track_to_playlist(playlist.id, track_id)
+                                    {
+                                        log::warn!("Failed to add track to playlist: {}", e);
+                                    }
+                                    self.playlists_loaded = false;
+                                    self.show_add_to_playlist_dialog = None;
+                                }
+                            }
+                        }
+                    });
+
+                    ui.add_space(16.0);
+
+                    if ui
+                        .add_sized(
+                            [300.0, 40.0],
+                            egui::Button::new(
+                                egui::RichText::new(format!(
+                                    "{} Create New Playlist",
+                                    egui_phosphor::regular::PLUS
+                                ))
+                                .font(egui::FontId::proportional(14.0))
+                                .color(colors.text),
+                            ),
+                        )
+                        .clicked()
+                    {
+                        self.show_create_playlist_dialog = true;
+                        self.show_add_to_playlist_dialog = None;
+                    }
+                });
+                if !is_open {
+                    self.show_add_to_playlist_dialog = None;
+                }
         }
 
         self.draw_toasts(ctx);

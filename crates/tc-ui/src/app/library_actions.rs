@@ -234,6 +234,37 @@ impl TuneCraftApp {
         self.push_toast(label, ToastLevel::Success);
     }
 
+    /// Remove a music folder from the library watch dirs and delete its tracks.
+    pub fn remove_music_folder(&mut self, folder_path: &str) {
+        let path = PathBuf::from(folder_path);
+
+        // Remove from config watch_dirs
+        self.ctx.config.write(|c| {
+            c.library.watch_dirs.retain(|p| p != &path);
+        });
+
+        // Delete tracks from DB
+        match self.ctx.library.remove_folder(folder_path) {
+            Ok(deleted) => {
+                let folder_name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                self.push_toast(
+                    format!("Removed folder '{}' ({} tracks)", folder_name, deleted),
+                    ToastLevel::Info,
+                );
+            },
+            Err(e) => {
+                self.push_toast(e, ToastLevel::Error);
+            },
+        }
+
+        // We already refreshed tracks in library_service.remove_folder, but we need
+        // to sync the UI's track list snapshot.
+        self.refresh_tracks();
+    }
+
     /// Poll media key actions from the platform service.
     pub fn poll_media_keys(&mut self) {
         while let Some(action) = self.ctx.platform.try_recv_action() {

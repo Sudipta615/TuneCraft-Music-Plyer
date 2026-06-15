@@ -776,6 +776,41 @@ impl Database {
         )?;
         Ok(count)
     }
+
+    /// Delete all tracks whose file path is inside the given folder (recursive).
+    pub fn delete_tracks_by_folder(&self, folder_path: &str) -> Result<usize, DbError> {
+        let prefix = if folder_path.ends_with('/') {
+            folder_path.to_string()
+        } else {
+            format!("{}/", folder_path)
+        };
+        let pattern = format!("{}%", prefix);
+
+        let conn = self.write_lock()?;
+        let tx = conn.unchecked_transaction().map_err(DbError::Sqlite)?;
+
+        let deleted = tx.execute("DELETE FROM tracks WHERE path LIKE ?1", params![pattern])?;
+
+        tx.execute(
+            "UPDATE playlists SET \
+             track_count = (SELECT COUNT(*) FROM playlist_tracks WHERE playlist_id = playlists.id), \
+             duration_secs = COALESCE((SELECT SUM(t.duration_secs) FROM playlist_tracks pt JOIN tracks t ON t.id = pt.track_id WHERE pt.playlist_id = playlists.id), 0.0), \
+             date_modified = CURRENT_TIMESTAMP",
+            [],
+        )?;
+
+        tx.execute(
+            "DELETE FROM albums WHERE (title, artist) NOT IN (\
+             SELECT album, album_artist FROM tracks \
+             WHERE album IS NOT NULL AND album != '' \
+             GROUP BY album, album_artist)",
+            [],
+        )
+        .ok(); // Best-effort cleanup
+
+        tx.commit().map_err(DbError::Sqlite)?;
+        Ok(deleted)
+    }
 }
 
 #[cfg(test)]

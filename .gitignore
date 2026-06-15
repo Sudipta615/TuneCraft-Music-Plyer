@@ -54,3 +54,4 @@ tarpaulin-report.html
 # ── AI guidelines ────────────────────────────────────────────────────────────
 GEMINI.md
 AGENTS.md
+.antigravityignore
