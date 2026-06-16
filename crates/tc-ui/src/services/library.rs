@@ -17,7 +17,7 @@ use std::sync::{
 
 use arc_swap::ArcSwap;
 use log::{error, warn};
-use tc_db::{Database, Playlist, Track};
+use tc_db::{Database, Playlist, Track, DbError};
 
 /// Snapshot of library state that the UI can read without any locks.
 #[derive(Debug, Clone, Default)]
@@ -424,19 +424,11 @@ impl LibraryService {
     }
 
     /// Delete all tracks whose file path is inside the given folder (recursive).
-    pub fn remove_folder(&self, folder_path: &str) -> Result<usize, String> {
-        match self.db.delete_tracks_by_folder(folder_path) {
-            Ok(deleted) => {
-                self.mark_db_dirty();
-                self.refresh_tracks();
-                self.refresh_favorite_ids();
-                Ok(deleted)
-            },
-            Err(e) => {
-                let msg = format!("Failed to remove folder: {}", e);
-                warn!("{}", msg);
-                Err(msg)
-            },
+    pub fn delete_tracks_by_folder(&self, folder_path: &str) -> Result<usize, DbError> {
+        let result = self.db.delete_tracks_by_folder(folder_path);
+        if result.is_ok() {
+            self.mark_db_dirty();
         }
+        result
     }
 }

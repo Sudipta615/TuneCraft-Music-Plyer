@@ -150,6 +150,52 @@ impl TuneCraftColors {
         }
     }
 
+    /// Build a fully chromatic glassmorphism light theme.
+    fn chromatic_light(
+        hue_light: Color32, // base light bg
+        hue_card: Color32,  // slightly lighter card
+        accent: Color32,
+    ) -> Self {
+        let accent_light = Self::lighten(accent, 0.25);
+        let accent_dark = Self::darken(accent, 0.30);
+
+        let bg = hue_light;
+        let card = hue_card;
+        let sidebar = hue_card;
+        let hover = Self::darken(hue_light, 0.05);
+        let border = Self::darken(hue_card, 0.15);
+
+        Self {
+            bg,
+            sidebar,
+            surface: bg,
+            card,
+            text: Color32::from_rgb(0x11, 0x18, 0x27), // LIGHT_TEXT
+            text_dim: Color32::from_rgb(0x4B, 0x55, 0x63),
+            text_muted: Color32::from_rgb(0x6B, 0x72, 0x80),
+            border,
+            hover,
+            active_bg: Self::lighten(accent, 0.85),
+            sidebar_active_bg: Self::lighten(accent, 0.85),
+            accent,
+            accent_light,
+            accent_dark,
+            player_bar: bg,
+            player_bar_border: border,
+            slider_track: border,
+            slider_fill: accent,
+            toggle_bg_on: accent,
+            toggle_bg_off: border,
+            table_header_bg: bg,
+            table_row_even: bg,
+            table_row_odd: Self::darken(hue_light, 0.02),
+            table_row_hover: hover,
+            search_bg: card,
+            search_border: border,
+            dark_mode: false,
+        }
+    }
+
     // ── Public theme constructors ─────────────────────────────────────────────
 
     pub fn dark() -> Self {
@@ -228,23 +274,21 @@ impl TuneCraftColors {
         )
     }
 
-    /// Rich forest greens with emerald accent
+    /// Light emerald greens with forest accent
     pub fn forest() -> Self {
-        Self::chromatic(
-            Color32::from_rgb(0x04, 0x15, 0x0B), // deep forest
-            Color32::from_rgb(0x07, 0x20, 0x10), // mid forest
-            Color32::from_rgb(0x0C, 0x2E, 0x18), // lighter forest
-            Color32::from_rgb(0x34, 0xD3, 0x99), // emerald green
+        Self::chromatic_light(
+            Color32::from_rgb(0xEB, 0xF4, 0xEE), // pale green bg
+            Color32::from_rgb(0xF2, 0xF9, 0xF5), // lighter green card
+            Color32::from_rgb(0x10, 0xB9, 0x81), // emerald accent
         )
     }
 
-    /// Warm amber and deep burnt-orange sunset
+    /// Soft warm amber/orange sunset
     pub fn sunset() -> Self {
-        Self::chromatic(
-            Color32::from_rgb(0x20, 0x08, 0x02), // deep burnt
-            Color32::from_rgb(0x30, 0x0F, 0x03), // mid warm brown
-            Color32::from_rgb(0x42, 0x18, 0x05), // lighter warm
-            Color32::from_rgb(0xFB, 0x92, 0x3C), // warm orange
+        Self::chromatic_light(
+            Color32::from_rgb(0xFD, 0xF3, 0xEA), // pale orange bg
+            Color32::from_rgb(0xFF, 0xFA, 0xF5), // lighter orange card
+            Color32::from_rgb(0xF9, 0x73, 0x16), // vivid orange accent
         )
     }
 
@@ -268,13 +312,12 @@ impl TuneCraftColors {
         )
     }
 
-    /// Deep crimson reds with rose accent
+    /// Soft pinks with rose accent
     pub fn rose() -> Self {
-        Self::chromatic(
-            Color32::from_rgb(0x1E, 0x04, 0x08), // deep crimson
-            Color32::from_rgb(0x2C, 0x06, 0x0C), // mid crimson
-            Color32::from_rgb(0x3C, 0x09, 0x12), // lighter crimson
-            Color32::from_rgb(0xF4, 0x3F, 0x5E), // rose red
+        Self::chromatic_light(
+            Color32::from_rgb(0xFC, 0xED, 0xF0), // pale pink bg
+            Color32::from_rgb(0xFF, 0xF5, 0xF7), // lighter pink card
+            Color32::from_rgb(0xF4, 0x3F, 0x5E), // rose red accent
         )
     }
 
@@ -288,13 +331,12 @@ impl TuneCraftColors {
         )
     }
 
-    /// Deep teal with bright mint accent
+    /// Fresh crisp light mint
     pub fn mint() -> Self {
-        Self::chromatic(
-            Color32::from_rgb(0x03, 0x16, 0x18), // deep teal
-            Color32::from_rgb(0x05, 0x21, 0x23), // mid teal
-            Color32::from_rgb(0x08, 0x2E, 0x30), // lighter teal
-            Color32::from_rgb(0x10, 0xB9, 0x81), // mint green
+        Self::chromatic_light(
+            Color32::from_rgb(0xEC, 0xF8, 0xF6), // pale mint bg
+            Color32::from_rgb(0xF3, 0xFB, 0xFA), // lighter mint card
+            Color32::from_rgb(0x0D, 0x94, 0x88), // deep teal accent
         )
     }
 }

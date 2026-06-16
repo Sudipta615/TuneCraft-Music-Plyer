@@ -50,9 +50,10 @@ impl NavSection {
             Self::AllTracks => Some(tracks.len() as u32),
             Self::Favorites => None,
             Self::RecentlyPlayed => {
-                Some(tracks.iter().filter(|t| t.last_played.is_some()).count() as u32)
-            },
-            Self::MostPlayed => Some(tracks.iter().filter(|t| t.play_count > 0).count() as u32),
+                let now = chrono::Utc::now().naive_utc();
+                Some(tracks.iter().filter(|t| t.last_played.map_or(false, |dt| (now - dt).num_hours() <= 48)).count() as u32)
+            }
+            Self::MostPlayed => Some(tracks.iter().filter(|t| t.play_count > 3).count().min(30) as u32),
             _ => None,
         }
     }
@@ -221,34 +222,42 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.add_space(24.0);
-            
-            let create_btn = egui::Button::new(
-                egui::RichText::new(format!("{} Create", egui_phosphor::regular::PLUS))
-                    .font(egui::FontId::proportional(13.0))
-                    .color(colors.text),
-            )
-            .fill(colors.active_bg)
-            .rounding(6.0);
-            
-            if ui.add_sized(egui::Vec2::new(76.0, 28.0), create_btn).clicked() {
+            let btn_h = 28.0;
+
+            // Create button
+            let (create_rect, create_resp) = ui.allocate_exact_size(egui::Vec2::new(70.0, btn_h), Sense::click());
+            let create_bg = if create_resp.hovered() { colors.hover } else { colors.card };
+            ui.painter().rect_filled(create_rect, 6.0, create_bg);
+            ui.painter().rect_stroke(create_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+            ui.painter().text(
+                create_rect.center(),
+                Align2::CENTER_CENTER,
+                "Create",
+                FontId::proportional(13.0),
+                colors.text,
+            );
+            if create_resp.clicked() {
                 app.show_create_playlist_dialog = true;
             }
 
             ui.add_space(8.0);
 
-            let remove_btn = egui::Button::new(
-                egui::RichText::new(format!("{} Remove", egui_phosphor::regular::TRASH))
-                    .font(egui::FontId::proportional(13.0))
-                    .color(colors.text),
-            )
-            .fill(colors.hover)
-            .rounding(6.0);
-
-            let remove_btn_resp = ui.add_sized(egui::Vec2::new(84.0, 28.0), remove_btn);
+            // Remove button
+            let (remove_rect, remove_resp) = ui.allocate_exact_size(egui::Vec2::new(70.0, btn_h), Sense::click());
+            let remove_bg = if remove_resp.hovered() { colors.hover } else { colors.card };
+            ui.painter().rect_filled(remove_rect, 6.0, remove_bg);
+            ui.painter().rect_stroke(remove_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+            ui.painter().text(
+                remove_rect.center(),
+                Align2::CENTER_CENTER,
+                "Remove",
+                FontId::proportional(13.0),
+                colors.text,
+            );
 
             let popup_id = ui.make_persistent_id("remove_playlist_popup");
 
-            egui::Popup::from_toggle_button_response(&remove_btn_resp)
+            egui::Popup::from_toggle_button_response(&remove_resp)
                 .id(popup_id)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
                 .show(|ui: &mut egui::Ui| {

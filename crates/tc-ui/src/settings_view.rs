@@ -39,12 +39,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                             // Each entry: (theme, label, bg_preview, accent_preview)
                             // bg_preview uses the true mid-hue so the swatch reads correctly
                             let themes = [
-                                (
-                                    tc_config::Theme::Light,
-                                    "Light",
-                                    Color32::from_rgb(0xF4, 0xF5, 0xF7),
-                                    Color32::from_rgb(0x35, 0xC8, 0xE1),
-                                ),
+                                // Dark Themes
                                 (
                                     tc_config::Theme::Dark,
                                     "Dark",
@@ -54,50 +49,57 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                                 (
                                     tc_config::Theme::Ocean,
                                     "Ocean",
-                                    Color32::from_rgb(0x07, 0x1A, 0x40), // mid navy
+                                    Color32::from_rgb(0x07, 0x1A, 0x40),
                                     Color32::from_rgb(0x00, 0xE5, 0xFF),
-                                ),
-                                (
-                                    tc_config::Theme::Forest,
-                                    "Forest",
-                                    Color32::from_rgb(0x07, 0x20, 0x10), // mid forest
-                                    Color32::from_rgb(0x34, 0xD3, 0x99),
-                                ),
-                                (
-                                    tc_config::Theme::Sunset,
-                                    "Sunset",
-                                    Color32::from_rgb(0x30, 0x0F, 0x03), // mid warm brown
-                                    Color32::from_rgb(0xFB, 0x92, 0x3C),
                                 ),
                                 (
                                     tc_config::Theme::Berry,
                                     "Berry",
-                                    Color32::from_rgb(0x24, 0x07, 0x32), // mid plum
+                                    Color32::from_rgb(0x24, 0x07, 0x32),
                                     Color32::from_rgb(0xE8, 0x43, 0x93),
                                 ),
                                 (
                                     tc_config::Theme::Midnight,
                                     "Midnight",
-                                    Color32::from_rgb(0x05, 0x05, 0x18), // deep blue-black
+                                    Color32::from_rgb(0x05, 0x05, 0x18),
                                     Color32::from_rgb(0x60, 0xA5, 0xFA),
-                                ),
-                                (
-                                    tc_config::Theme::Rose,
-                                    "Rose",
-                                    Color32::from_rgb(0x2C, 0x06, 0x0C), // mid crimson
-                                    Color32::from_rgb(0xF4, 0x3F, 0x5E),
                                 ),
                                 (
                                     tc_config::Theme::Coffee,
                                     "Coffee",
-                                    Color32::from_rgb(0x24, 0x16, 0x08), // dark caramel
+                                    Color32::from_rgb(0x24, 0x16, 0x08),
                                     Color32::from_rgb(0xFB, 0xBF, 0x24),
+                                ),
+                                // Light Themes
+                                (
+                                    tc_config::Theme::Light,
+                                    "Light",
+                                    Color32::from_rgb(0xF4, 0xF5, 0xF7),
+                                    Color32::from_rgb(0x35, 0xC8, 0xE1),
+                                ),
+                                (
+                                    tc_config::Theme::Forest,
+                                    "Forest",
+                                    Color32::from_rgb(0xF2, 0xF9, 0xF5), // light card bg
+                                    Color32::from_rgb(0x10, 0xB9, 0x81),
+                                ),
+                                (
+                                    tc_config::Theme::Sunset,
+                                    "Sunset",
+                                    Color32::from_rgb(0xFF, 0xFA, 0xF5), // light card bg
+                                    Color32::from_rgb(0xF9, 0x73, 0x16),
+                                ),
+                                (
+                                    tc_config::Theme::Rose,
+                                    "Rose",
+                                    Color32::from_rgb(0xFF, 0xF5, 0xF7), // light card bg
+                                    Color32::from_rgb(0xF4, 0x3F, 0x5E),
                                 ),
                                 (
                                     tc_config::Theme::Mint,
                                     "Mint",
-                                    Color32::from_rgb(0x05, 0x21, 0x23), // mid teal
-                                    Color32::from_rgb(0x10, 0xB9, 0x81),
+                                    Color32::from_rgb(0xF3, 0xFB, 0xFA), // light card bg
+                                    Color32::from_rgb(0x0D, 0x94, 0x88),
                                 ),
                             ];
 

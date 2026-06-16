@@ -183,19 +183,18 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         .strong(),
                 );
 
-                let total_tracks = app.tracks.len();
-                let total_duration_mins: f32 =
-                    app.tracks.iter().map(|t| t.duration_secs / 60.0).sum();
-                let hours = (total_duration_mins / 60.0) as u32;
-                let mins = (total_duration_mins % 60.0) as u32;
-                let sub_font = if is_narrow { 11.0 } else { 14.0 };
-                let hide_stats = matches!(
+                if !matches!(
                     app.nav,
                     crate::sidebar::NavSection::Favorites
                         | crate::sidebar::NavSection::RecentlyPlayed
                         | crate::sidebar::NavSection::MostPlayed
-                );
-                if !hide_stats {
+                ) {
+                    let total_tracks = app.tracks.len();
+                    let total_duration_mins: f32 =
+                        app.tracks.iter().map(|t| t.duration_secs / 60.0).sum();
+                    let hours = (total_duration_mins / 60.0) as u32;
+                    let mins = (total_duration_mins % 60.0) as u32;
+                    let sub_font = if is_narrow { 11.0 } else { 14.0 };
                     ui.label(
                         RichText::new(format!(
                             "{} tracks \u{2022} {} hours {} minutes",
@@ -397,7 +396,11 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                         crate::sidebar::NavSection::Favorites => {
                             app.cached_favorite_ids.contains(&track.id)
                         },
-                        crate::sidebar::NavSection::RecentlyPlayed => track.last_played.is_some_and(|lp| (chrono::Utc::now().naive_utc() - lp).num_days() <= 2),
+                        crate::sidebar::NavSection::RecentlyPlayed => {
+                            track.last_played.map_or(false, |dt| {
+                                (chrono::Utc::now().naive_utc() - dt).num_hours() <= 48
+                            })
+                        }
                         crate::sidebar::NavSection::MostPlayed => track.play_count > 3,
                         crate::sidebar::NavSection::Settings => false,
                     }
@@ -440,16 +443,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             } else {
                 filtered_indices.sort_by(|&a, &b| app.tracks[b].title.cmp(&app.tracks[a].title));
             }
-        } else if app.nav == crate::sidebar::NavSection::MostPlayed {
-            filtered_indices.sort_by(|&a, &b| {
-                app.tracks[b].play_count.cmp(&app.tracks[a].play_count)
-                    .then_with(|| app.tracks[b].last_played.cmp(&app.tracks[a].last_played))
-            });
-            if filtered_indices.len() > 30 {
-                filtered_indices.truncate(30);
-            }
-        } else if app.nav == crate::sidebar::NavSection::RecentlyPlayed {
-            filtered_indices.sort_by(|&a, &b| app.tracks[b].last_played.cmp(&app.tracks[a].last_played));
         }
 
         if app.list_view {
@@ -509,12 +502,7 @@ pub(crate) fn styled_toolbar_btn(
 }
 
 /// Icon-only square toggle button for grid/list view
-pub(crate) fn styled_icon_btn(
-    ui: &mut Ui,
-    icon: &str,
-    active: bool,
-    colors: &TuneCraftColors,
-) -> bool {
+pub(crate) fn styled_icon_btn(ui: &mut Ui, icon: &str, active: bool, colors: &TuneCraftColors) -> bool {
     let btn_h = 40.0;
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(btn_h, btn_h), Sense::click());
 
@@ -914,67 +902,48 @@ pub(crate) fn draw_list_view(
                     colors.text_dim,
                 );
 
-                // Three-dot context menu
+                // Three-dot context menu — always visible
                 let dots_rect = egui::Rect::from_center_size(
                     Pos2::new(row_rect.right() - 16.0, cy),
-                    Vec2::new(24.0, 24.0),
+                    Vec2::new(20.0, 20.0),
                 );
-                let dots_resp = ui.put(
-                    dots_rect,
-                    egui::Button::new(
-                        RichText::new(egui_phosphor::regular::DOTS_THREE_VERTICAL)
-                            .font(FontId::proportional(18.0))
-                            .color(if ui.rect_contains_pointer(dots_rect) {
-                                colors.text
-                            } else {
-                                colors.text_dim
-                            }),
-                    )
-                    .frame(false),
+                let dots_id = ui.id().with(format!("dots_{}", track_id));
+                let dots_resp = ui.interact(dots_rect, dots_id, egui::Sense::click());
+                
+                let dots_color = if dots_resp.hovered() {
+                    colors.text
+                } else {
+                    colors.text_dim
+                };
+                ui.painter().text(
+                    dots_rect.center(),
+                    Align2::CENTER_CENTER,
+                    egui_phosphor::regular::DOTS_THREE_VERTICAL,
+                    FontId::proportional(18.0),
+                    dots_color,
                 );
 
-                let popup_id = ui.make_persistent_id(format!("dots_popup_list_{}", track_id));
-                egui::Popup::from_toggle_button_response(&dots_resp)
-                    .id(popup_id)
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-                    .show(|ui: &mut egui::Ui| {
-                        ui.set_min_width(120.0);
-                        if ui
-                            .add(
-                                egui::Button::new(
-                                    RichText::new(format!(
-                                        "{} Info/Tags",
-                                        egui_phosphor::regular::INFO
-                                    ))
-                                    .color(colors.text),
-                                )
-                                .frame(false),
-                            )
-                            .clicked()
-                        {
-                            egui::Popup::close_id(ui.ctx(), popup_id);
-                        }
+                let popup_id = dots_id.with("popup");
+                if dots_resp.clicked() {
+                    ui.memory_mut(|mem| mem.toggle_popup(popup_id));
+                }
 
-                        if ui
-                            .add(
-                                egui::Button::new(
-                                    RichText::new(format!(
-                                        "{} Playlist",
-                                        egui_phosphor::regular::PLUS
-                                    ))
-                                    .color(colors.text),
-                                )
-                                .frame(false),
-                            )
-                            .clicked()
-                        {
-                            app.show_add_to_playlist_dialog = Some(track_id);
-                            egui::Popup::close_id(ui.ctx(), popup_id);
-                        }
-                    });
+                egui::popup::popup_below_widget(ui, popup_id, &dots_resp, |ui| {
+                    ui.set_min_width(140.0);
+                    let info_btn = ui.button(format!("{} Info/Tags", egui_phosphor::regular::INFO));
+                    if info_btn.clicked() {
+                        ui.memory_mut(|mem| mem.close_popup());
+                        // TODO: show info/tags dialog
+                    }
+                    let pl_btn = ui.button(format!("{} Playlist", egui_phosphor::regular::PLUS));
+                    if pl_btn.clicked() {
+                        app.show_add_to_playlist_dialog = Some(track_id);
+                        ui.memory_mut(|mem| mem.close_popup());
+                    }
+                });
 
-                // Interactions
-                if row_resp.clicked() && !dots_resp.clicked() {
+                // Interactions (make sure we didn't click the dots)
+                if row_resp.clicked() && !dots_rect.contains(row_resp.interact_pointer_pos().unwrap_or_default()) {
                     let new_queue: Vec<i64> = filtered_indices
                         .iter()
                         .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
@@ -984,17 +953,11 @@ pub(crate) fn draw_list_view(
                     app.play_track(track_id);
                     app.selected_track_id = Some(track_id);
                 }
-
-                // Bottom row separator
-                ui.painter().line_segment(
-                    [row_rect.left_bottom(), row_rect.right_bottom()],
-                    egui::Stroke::new(1.0, colors.border),
-                );
             }
         });
 }
 
-/// Draw tracks as a responsive grid of album art cards
+/// Draw the grid/card view of tracks — responsive card sizing
 pub(crate) fn draw_grid_view(
     app: &mut TuneCraftApp,
     ui: &mut Ui,
@@ -1131,67 +1094,7 @@ pub(crate) fn draw_grid_view(
                             colors.text_dim,
                         );
 
-                        // Three-dot context menu
-                        let dots_size = 24.0;
-                        let dots_rect = egui::Rect::from_center_size(
-                            Pos2::new(card_rect.right() - 16.0, card_rect.top() + 18.0),
-                            Vec2::new(dots_size, dots_size),
-                        );
-                        let dots_resp = ui.put(
-                            dots_rect,
-                            egui::Button::new(
-                                RichText::new(egui_phosphor::regular::DOTS_THREE_VERTICAL)
-                                    .font(FontId::proportional(18.0))
-                                    .color(if ui.rect_contains_pointer(dots_rect) {
-                                        colors.text
-                                    } else {
-                                        colors.text_dim
-                                    }),
-                            )
-                            .frame(false),
-                        );
-
-                        let popup_id = ui.make_persistent_id(format!("dots_popup_grid_{}", track_id));
-                        egui::Popup::from_toggle_button_response(&dots_resp)
-                            .id(popup_id)
-                            .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-                            .show(|ui: &mut egui::Ui| {
-                                ui.set_min_width(120.0);
-                                if ui
-                                    .add(
-                                        egui::Button::new(
-                                            RichText::new(format!(
-                                                "{} Info/Tags",
-                                                egui_phosphor::regular::INFO
-                                            ))
-                                            .color(colors.text),
-                                        )
-                                        .frame(false),
-                                    )
-                                    .clicked()
-                                {
-                                    egui::Popup::close_id(ui.ctx(), popup_id);
-                                }
-
-                                if ui
-                                    .add(
-                                        egui::Button::new(
-                                            RichText::new(format!(
-                                                "{} Playlist",
-                                                egui_phosphor::regular::PLUS
-                                            ))
-                                            .color(colors.text),
-                                        )
-                                        .frame(false),
-                                    )
-                                    .clicked()
-                                {
-                                    app.show_add_to_playlist_dialog = Some(track_id);
-                                    egui::Popup::close_id(ui.ctx(), popup_id);
-                                }
-                            });
-
-                        if card_resp.clicked() && !dots_resp.clicked() {
+                        if card_resp.clicked() {
                             let new_queue: Vec<i64> = filtered_indices
                                 .iter()
                                 .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))

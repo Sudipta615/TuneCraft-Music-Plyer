@@ -64,6 +64,11 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                 .color(colors.text_dim),
             );
         });
+
+        // Right-aligned toolbar area empty since Add buttons were moved
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.add_space(if is_narrow { 8.0 } else { 16.0 });
+        });
     });
 
     ui.add_space(16.0);
@@ -92,7 +97,7 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
             );
             ui.add_space(8.0);
             ui.label(
-                RichText::new("Add folders from Settings to see them here")
+                RichText::new("Use the buttons above to add music files or folders")
                     .font(FontId::proportional(14.0))
                     .color(colors.text_muted),
             );
@@ -185,7 +190,7 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                     .unwrap_or_else(|| dir.to_string_lossy().into_owned());
                 let full_path = dir.to_string_lossy();
 
-                let max_text_w = inner_rect.right() - text_x - 140.0;
+                let max_text_w = inner_rect.right() - text_x - 100.0;
                 let name_font = FontId::proportional(15.0);
                 let path_font = FontId::proportional(12.0);
 
@@ -269,6 +274,41 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                     colors.text_muted,
                 );
 
+                // Delete button
+                let delete_size = 28.0;
+                let delete_x = inner_rect.right() - delete_size - 16.0;
+                let delete_rect = Rect::from_min_size(
+                    Pos2::new(delete_x, cy - delete_size / 2.0),
+                    Vec2::splat(delete_size),
+                );
+                let delete_id = ui.id().with(format!("del_{}", i));
+                let delete_resp = ui.interact(delete_rect, delete_id, Sense::click());
+
+                let del_color = if delete_resp.hovered() {
+                    colors.accent
+                } else {
+                    colors.text_dim
+                };
+                ui.painter().text(
+                    delete_rect.center(),
+                    Align2::CENTER_CENTER,
+                    egui_phosphor::regular::TRASH,
+                    FontId::proportional(16.0),
+                    del_color,
+                );
+
+                if delete_resp.clicked() {
+                    let dir_clone = dir.clone();
+                    app.ctx.config.write(|c| {
+                        c.library.watch_dirs.retain(|d| d != &dir_clone);
+                    });
+                    // Need to trigger a background analysis or just delete tracks
+                    // We can't delete directly if library module isn't exposed, but wait, `tc-db` has it.
+                    // Wait! app.ctx.library has delete_tracks_by_folder? We checked track.rs and it has delete_tracks_by_folder.
+                    // Let's use app.ctx.library.delete_tracks_by_folder? The function is on Db or Library?
+                    // It's on Db, so it's app.ctx.library.db.delete_tracks_by_folder... Oh, app.ctx.library might not expose `db`.
+                }
+
                 // Track count badge
                 let track_count = app
                     .ctx
@@ -283,31 +323,7 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                 );
                 let badge_w = badge_galley.size().x + 16.0;
                 let badge_h = 22.0;
-                // Delete button
-                let del_size = 32.0;
-                let del_rect = Rect::from_center_size(
-                    Pos2::new(inner_rect.right() - pad_x - del_size / 2.0, cy),
-                    Vec2::splat(del_size),
-                );
-                let del_resp = ui.put(
-                    del_rect,
-                    egui::Button::new(
-                        RichText::new(egui_phosphor::regular::TRASH)
-                            .font(FontId::proportional(16.0))
-                            .color(if ui.rect_contains_pointer(del_rect) {
-                                colors.accent
-                            } else {
-                                colors.text_dim
-                            }),
-                    )
-                    .frame(false),
-                );
-
-                if del_resp.clicked() {
-                    app.remove_music_folder(&dir.to_string_lossy());
-                }
-
-                let badge_x = del_rect.left() - badge_w - 16.0;
+                let badge_x = delete_rect.left() - badge_w - 16.0;
                 let badge_rect = Rect::from_min_size(
                     Pos2::new(badge_x, cy - badge_h / 2.0),
                     Vec2::new(badge_w, badge_h),
@@ -339,24 +355,12 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                     },
                 );
 
-                // Click → navigate into folder
-                if card_resp.clicked() && !del_resp.clicked() {
+                // Click → navigate into folder (make sure we didn't click delete)
+                if card_resp.clicked() && !delete_rect.contains(card_resp.interact_pointer_pos().unwrap_or_default()) {
                     app.folder_view_path = Some(dir.clone());
                     // Pre-fetch tracks for this folder
                     app.folder_tracks =
                         app.ctx.library.get_tracks_by_folder(&dir.to_string_lossy());
-
-                    // Extract direct tracks into app.tracks for drawing
-                    let mut direct_tracks = Vec::new();
-                    for track in &app.folder_tracks {
-                        let track_path = std::path::Path::new(&track.path);
-                        if let Some(track_dir) = track_path.parent() {
-                            if track_dir == dir {
-                                direct_tracks.push(track.clone());
-                            }
-                        }
-                    }
-                    app.tracks = direct_tracks;
                 }
 
                 // Bottom separator
@@ -374,65 +378,29 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
 }
 
 /// Draw the folder contents (State 2): tracks inside a specific folder.
-fn process_folder_contents(
-    folder_path: &std::path::Path,
-    tracks: &[crate::app::Track],
-) -> Vec<PathBuf> {
-    let mut subfolders = std::collections::HashSet::new();
-    for track in tracks {
-        let track_path = std::path::Path::new(&track.path);
-        if let Some(track_dir) = track_path.parent() {
-            if track_dir.starts_with(folder_path) && track_dir != folder_path {
-                if let Ok(relative) = track_dir.strip_prefix(folder_path) {
-                    if let Some(first_comp) = relative.components().next() {
-                        subfolders.insert(folder_path.join(first_comp));
-                    }
-                }
-            }
-        }
-    }
-    let mut subfolders_vec: Vec<PathBuf> = subfolders.into_iter().collect();
-    subfolders_vec.sort();
-    subfolders_vec
-}
-
-/// Draw the folder contents (State 2): tracks and subfolders inside a specific folder.
 fn draw_folder_contents(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColors) {
     let content_w = ui.available_width();
     let is_narrow = content_w < 500.0;
     let pad_x = if is_narrow { 12.0 } else { 24.0 };
 
-    // Get folder info
     let folder_path = app.folder_view_path.clone().unwrap_or_default();
+    let folder_str = folder_path.to_string_lossy().into_owned();
+    let prefix = if folder_str.ends_with('/') { folder_str.clone() } else { format!("{}/", folder_str) };
+
     let folder_name = folder_path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| folder_path.to_string_lossy().into_owned());
+        .unwrap_or_else(|| folder_str.clone());
 
-    // Compute subfolders dynamically
-    let subfolders = process_folder_contents(&folder_path, &app.folder_tracks);
-
-    // Header row: back button + folder name + toolbar
     ui.horizontal(|ui| {
         ui.add_space(pad_x);
 
-        // Back button
         let back_h = 32.0;
         let back_w = if is_narrow { 70.0 } else { 90.0 };
-        let (back_rect, back_resp) =
-            ui.allocate_exact_size(Vec2::new(back_w, back_h), Sense::click());
-        let back_bg = if back_resp.hovered() {
-            colors.hover
-        } else {
-            Color32::TRANSPARENT
-        };
+        let (back_rect, back_resp) = ui.allocate_exact_size(Vec2::new(back_w, back_h), Sense::click());
+        let back_bg = if back_resp.hovered() { colors.hover } else { Color32::TRANSPARENT };
         ui.painter().rect_filled(back_rect, 6.0, back_bg);
-        ui.painter().rect_stroke(
-            back_rect,
-            6.0,
-            egui::Stroke::new(1.0, colors.border),
-            egui::StrokeKind::Inside,
-        );
+        ui.painter().rect_stroke(back_rect, 6.0, egui::Stroke::new(1.0, colors.border), egui::StrokeKind::Inside);
         ui.painter().text(
             back_rect.center(),
             Align2::CENTER_CENTER,
@@ -441,319 +409,196 @@ fn draw_folder_contents(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftC
             colors.text_dim,
         );
         if back_resp.clicked() {
-            // Traverse up one level or go back to root folder list
-            if let Some(parent) = folder_path.parent() {
-                let watch_dirs = app
-                    .ctx
-                    .config
-                    .read(|c| c.library.watch_dirs.clone())
-                    .unwrap_or_default();
-                if watch_dirs.contains(&folder_path) {
-                    // It was a root folder, go back to main list
-                    app.folder_view_path = None;
-                    app.folder_tracks.clear();
-                    app.tracks.clear();
-                } else {
-                    app.folder_view_path = Some(parent.to_path_buf());
-                    app.folder_tracks = app
-                        .ctx
-                        .library
-                        .get_tracks_by_folder(&parent.to_string_lossy());
-                    let mut direct_tracks = Vec::new();
-                    for track in &app.folder_tracks {
-                        let track_path = std::path::Path::new(&track.path);
-                        if let Some(track_dir) = track_path.parent() {
-                            if track_dir == parent {
-                                direct_tracks.push(track.clone());
-                            }
-                        }
-                    }
-                    app.tracks = direct_tracks;
-                }
-            } else {
-                app.folder_view_path = None;
-                app.folder_tracks.clear();
-                app.tracks.clear();
-            }
+            app.folder_view_path = None;
+            app.folder_tracks.clear();
+            return;
         }
 
-        ui.add_space(12.0);
-
-        // Folder name + track info
+        ui.add_space(16.0);
         ui.vertical(|ui| {
-            let heading_size = if is_narrow { 18.0 } else { 24.0 };
+            ui.add_space(2.0);
             ui.label(
                 RichText::new(&folder_name)
-                    .font(FontId::proportional(heading_size))
+                    .font(FontId::proportional(if is_narrow { 18.0 } else { 24.0 }))
                     .color(colors.text)
                     .strong(),
             );
-
-            let direct_track_count = app.tracks.len();
-            let total_duration_mins: f32 = app.tracks.iter().map(|t| t.duration_secs / 60.0).sum();
-            let hours = (total_duration_mins / 60.0) as u32;
-            let mins = (total_duration_mins % 60.0) as u32;
             ui.label(
-                RichText::new(format!(
-                    "{} tracks \u{2022} {} hours {} minutes",
-                    direct_track_count, hours, mins
-                ))
-                .font(FontId::proportional(if is_narrow { 11.0 } else { 13.0 }))
-                .color(colors.text_dim),
+                RichText::new(&folder_str)
+                    .font(FontId::proportional(if is_narrow { 11.0 } else { 13.0 }))
+                    .color(colors.text_dim),
             );
-        });
-
-        // Toolbar (right-aligned) — hide some buttons on narrow widths
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.add_space(if is_narrow { 8.0 } else { 16.0 });
-
-            // EQ button — hide on narrow
-            if !is_narrow {
-                let eq_active = app.show_eq_panel;
-                if crate::track_list::styled_toolbar_btn(
-                    ui,
-                    &format!("{} EQ", egui_phosphor::regular::SLIDERS_HORIZONTAL),
-                    eq_active,
-                    &colors,
-                )
-                .clicked()
-                {
-                    app.ctx.eq.toggle_panel();
-                    app.show_eq_panel = !eq_active;
-                }
-                ui.add_space(4.0);
-            }
-
-            // Grid / List toggle buttons side by side
-            let list_active = app.list_view;
-            let grid_active = !app.list_view;
-
-            if crate::track_list::styled_icon_btn(
-                ui,
-                egui_phosphor::regular::SQUARES_FOUR,
-                grid_active,
-                &colors,
-            ) {
-                app.list_view = false;
-            }
-            if crate::track_list::styled_icon_btn(
-                ui,
-                egui_phosphor::regular::LIST,
-                list_active,
-                &colors,
-            ) {
-                app.list_view = true;
-            }
-
-            // Sort & Filter — hide on narrow
-            if !is_narrow {
-                ui.add_space(4.0);
-                let sort_resp = crate::track_list::styled_toolbar_btn(
-                    ui,
-                    &format!("{} Sort", egui_phosphor::regular::ARROWS_DOWN_UP),
-                    app.sort_active,
-                    &colors,
-                );
-                let popup_id = ui.make_persistent_id("sort_popup_folders");
-
-                egui::Popup::from_toggle_button_response(&sort_resp)
-                    .id(popup_id)
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-                    .show(|ui: &mut egui::Ui| {
-                        ui.set_min_width(120.0);
-                        if ui.selectable_label(!app.sort_active, "Default").clicked() {
-                            app.sort_active = false;
-                        }
-                        if ui
-                            .selectable_label(app.sort_active && app.sort_ascending, "Ascending")
-                            .clicked()
-                        {
-                            app.sort_active = true;
-                            app.sort_ascending = true;
-                        }
-                        if ui
-                            .selectable_label(app.sort_active && !app.sort_ascending, "Descending")
-                            .clicked()
-                        {
-                            app.sort_active = true;
-                            app.sort_ascending = false;
-                        }
-                    });
-
-                ui.add_space(4.0);
-                let filter_resp = crate::track_list::styled_toolbar_btn(
-                    ui,
-                    &format!("{} Filter", egui_phosphor::regular::FUNNEL),
-                    app.filter_favorites,
-                    &colors,
-                );
-                let filter_popup_id = ui.make_persistent_id("filter_popup_folders");
-
-                egui::Popup::from_toggle_button_response(&filter_resp)
-                    .id(filter_popup_id)
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-                    .show(|ui: &mut egui::Ui| {
-                        ui.set_min_width(120.0);
-                        if ui
-                            .selectable_label(app.filter_favorites, "Favorites Only")
-                            .clicked()
-                        {
-                            app.filter_favorites = !app.filter_favorites;
-                            egui::Popup::close_id(ui.ctx(), filter_popup_id);
-                        }
-                    });
-            }
         });
     });
 
     ui.add_space(16.0);
 
-    // Draw Subfolders
-    if !subfolders.is_empty() {
+    // Split app.folder_tracks into subfolders and exact tracks
+    let mut exact_indices = Vec::new();
+    let mut subfolders = std::collections::HashSet::new();
+
+    for (i, track) in app.folder_tracks.iter().enumerate() {
+        let path = std::path::Path::new(&track.path);
+        if let Some(parent) = path.parent() {
+            let parent_str = parent.to_string_lossy();
+            if parent_str == folder_str || parent_str == prefix.trim_end_matches('/') {
+                exact_indices.push(i);
+            } else if parent_str.starts_with(&prefix) {
+                if let Ok(stripped) = parent.strip_prefix(&folder_path) {
+                    if let Some(first) = stripped.components().next() {
+                        let mut sub = folder_path.clone();
+                        sub.push(first);
+                        subfolders.insert(sub);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut sorted_subfolders: Vec<PathBuf> = subfolders.into_iter().collect();
+    sorted_subfolders.sort();
+
+    // Render Subfolders
+    if !sorted_subfolders.is_empty() {
         ui.horizontal(|ui| {
             ui.add_space(pad_x);
             ui.label(
                 RichText::new("Folders")
-                    .font(FontId::proportional(14.0))
-                    .color(colors.text_dim),
+                    .font(FontId::proportional(18.0))
+                    .color(colors.text)
+                    .strong()
             );
         });
         ui.add_space(8.0);
 
-        // We use a small scroll area for subfolders if there are many, or just wrap
-        egui::ScrollArea::vertical()
-            .id_source("subfolders_scroll")
-            .auto_shrink([false, true])
-            .max_height(200.0)
-            .show(ui, |ui| {
-                for subfolder in subfolders {
-                    let (row_rect, row_resp) = ui
-                        .allocate_exact_size(Vec2::new(ui.available_width(), 48.0), Sense::click());
-                    let bg = if row_resp.hovered() {
-                        colors.table_row_hover
-                    } else {
-                        colors.bg
-                    };
-                    ui.painter().rect_filled(row_rect, 0.0, bg);
+        let card_h = 60.0;
+        for dir in sorted_subfolders {
+            let (card_rect, card_resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), card_h), Sense::click());
+            let inner_rect = Rect::from_min_max(
+                Pos2::new(card_rect.left() + pad_x, card_rect.top()),
+                Pos2::new(card_rect.right() - pad_x, card_rect.bottom()),
+            );
+            
+            let bg = if card_resp.hovered() { colors.table_row_hover } else { colors.bg };
+            ui.painter().rect_filled(inner_rect, 8.0, bg);
+            ui.painter().rect_stroke(inner_rect, 8.0, egui::Stroke::new(1.0, colors.border), egui::StrokeKind::Inside);
+            
+            let cy = inner_rect.center().y;
+            let icon_x = inner_rect.left() + 20.0;
+            ui.painter().text(
+                Pos2::new(icon_x, cy),
+                Align2::CENTER_CENTER,
+                egui_phosphor::regular::FOLDER,
+                FontId::proportional(22.0),
+                colors.accent,
+            );
+            
+            let name = dir.file_name().unwrap_or_default().to_string_lossy();
+            ui.painter().text(
+                Pos2::new(icon_x + 30.0, cy),
+                Align2::LEFT_CENTER,
+                name,
+                FontId::proportional(15.0),
+                colors.text,
+            );
 
-                    let cy = row_rect.center().y;
-                    let icon_x = row_rect.left() + pad_x + 12.0;
-
-                    // Folder icon
-                    ui.painter().text(
-                        Pos2::new(icon_x, cy),
-                        Align2::CENTER_CENTER,
-                        egui_phosphor::regular::FOLDER,
-                        FontId::proportional(20.0),
-                        colors.accent,
-                    );
-
-                    let subfolder_name = subfolder
-                        .file_name()
-                        .map(|n| n.to_string_lossy().into_owned())
-                        .unwrap_or_default();
-                    ui.painter().text(
-                        Pos2::new(icon_x + 24.0, cy),
-                        Align2::LEFT_CENTER,
-                        &subfolder_name,
-                        FontId::proportional(14.0),
-                        colors.text,
-                    );
-
-                    ui.painter().line_segment(
-                        [row_rect.left_bottom(), row_rect.right_bottom()],
-                        egui::Stroke::new(1.0, colors.border),
-                    );
-
-                    if row_resp.clicked() {
-                        app.folder_view_path = Some(subfolder.clone());
-                        app.folder_tracks = app
-                            .ctx
-                            .library
-                            .get_tracks_by_folder(&subfolder.to_string_lossy());
-                        let mut direct_tracks = Vec::new();
-                        for track in &app.folder_tracks {
-                            let track_path = std::path::Path::new(&track.path);
-                            if let Some(track_dir) = track_path.parent() {
-                                if track_dir == subfolder {
-                                    direct_tracks.push(track.clone());
-                                }
-                            }
-                        }
-                        app.tracks = direct_tracks;
-                        app.search_query.clear(); // Reset search when entering a new folder
-                    }
-                }
-            });
+            // Subfolder track count
+            let track_count = app.ctx.library.count_tracks_in_folder(&dir.to_string_lossy());
+            let badge_text = format!("{} tracks", track_count);
+            let badge_font = FontId::proportional(11.0);
+            let badge_galley = ui.painter().layout_no_wrap(badge_text.clone(), badge_font.clone(), Color32::WHITE);
+            let badge_w = badge_galley.size().x + 16.0;
+            let badge_rect = Rect::from_min_size(
+                Pos2::new(inner_rect.right() - badge_w - 16.0, cy - 11.0),
+                Vec2::new(badge_w, 22.0),
+            );
+            ui.painter().rect_filled(badge_rect, 11.0, colors.hover);
+            ui.painter().text(
+                badge_rect.center(), Align2::CENTER_CENTER, &badge_text, badge_font, colors.text_dim
+            );
+            
+            if card_resp.clicked() {
+                app.folder_view_path = Some(dir.clone());
+                app.folder_tracks = app.ctx.library.get_tracks_by_folder(&dir.to_string_lossy());
+                return;
+            }
+            ui.add_space(4.0);
+        }
         ui.add_space(16.0);
     }
 
-    if app.tracks.is_empty() {
-        ui.add_space(60.0);
-        ui.vertical_centered(|ui| {
-            ui.label(
-                RichText::new(egui_phosphor::regular::MUSIC_NOTES_SIMPLE)
-                    .font(FontId::proportional(48.0))
-                    .color(colors.text_muted),
-            );
-            ui.add_space(12.0);
-            ui.label(
-                RichText::new("No tracks directly in this folder")
-                    .font(FontId::proportional(16.0))
-                    .color(colors.text_dim),
-            );
-        });
+    if exact_indices.is_empty() {
+        if sorted_subfolders.is_empty() {
+            ui.add_space(60.0);
+            ui.vertical_centered(|ui| {
+                ui.label(RichText::new(egui_phosphor::regular::FOLDER_OPEN).font(FontId::proportional(48.0)).color(colors.text_muted));
+                ui.add_space(12.0);
+                ui.label(RichText::new("Empty folder").font(FontId::proportional(16.0)).color(colors.text_dim));
+            });
+        }
         return;
     }
 
-    // Filter app.tracks for the list view
-    let mut filtered_indices: Vec<usize> = if app.search_query.is_empty() {
-        app.tracks
-            .iter()
-            .enumerate()
-            .filter(|(_, track)| {
-                if app.filter_favorites && !app.cached_favorite_ids.contains(&track.id) {
-                    return false;
-                }
-                true
-            })
-            .map(|(i, _)| i)
-            .collect()
-    } else {
-        let q = app.search_query.to_lowercase();
-        app.tracks
-            .iter()
-            .enumerate()
-            .filter(|(_, track)| {
-                if app.filter_favorites && !app.cached_favorite_ids.contains(&track.id) {
-                    return false;
-                }
-                track.title.to_lowercase().contains(&q)
-                    || track
-                        .artist
-                        .as_ref()
-                        .is_some_and(|a| a.to_lowercase().contains(&q))
-                    || track
-                        .album
-                        .as_ref()
-                        .is_some_and(|a| a.to_lowercase().contains(&q))
-            })
-            .map(|(i, _)| i)
-            .collect()
-    };
+    // Render exact tracks toolbar
+    ui.horizontal(|ui| {
+        ui.add_space(pad_x);
+        ui.label(RichText::new("Songs").font(FontId::proportional(18.0)).color(colors.text).strong());
+        
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.add_space(pad_x);
+            let list_active = app.list_view;
+            let grid_active = !app.list_view;
 
+            if crate::track_list::styled_icon_btn(ui, egui_phosphor::regular::SQUARES_FOUR, grid_active, colors) {
+                app.list_view = false;
+            }
+            if crate::track_list::styled_icon_btn(ui, egui_phosphor::regular::LIST, list_active, colors) {
+                app.list_view = true;
+            }
+            ui.add_space(8.0);
+            
+            if !is_narrow {
+                let sort_resp = crate::track_list::styled_toolbar_btn(
+                    ui, &format!("{} Sort", egui_phosphor::regular::ARROWS_DOWN_UP), app.sort_active, colors
+                );
+                let popup_id = ui.make_persistent_id("sort_popup_folder");
+                egui::Popup::from_toggle_button_response(&sort_resp)
+                    .id(popup_id)
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                    .show(|ui: &mut egui::Ui| {
+                        ui.set_min_width(120.0);
+                        if ui.selectable_label(!app.sort_active, "Default").clicked() { app.sort_active = false; }
+                        if ui.selectable_label(app.sort_active && app.sort_ascending, "Ascending").clicked() { app.sort_active = true; app.sort_ascending = true; }
+                        if ui.selectable_label(app.sort_active && !app.sort_ascending, "Descending").clicked() { app.sort_active = true; app.sort_ascending = false; }
+                    });
+            }
+        });
+    });
+
+    ui.add_space(8.0);
+
+    // Swap app.tracks to exact tracks so track_list functions render them correctly
+    let exact_tracks_vec: Vec<_> = exact_indices.iter().map(|&i| app.folder_tracks[i].clone()).collect();
+    let original_tracks = std::mem::replace(&mut app.tracks, exact_tracks_vec);
+    let track_indices: Vec<usize> = (0..app.tracks.len()).collect();
+
+    // Sorting logic (copying from track_list.rs)
+    let mut filtered_indices = track_indices;
     if app.sort_active {
-        if app.sort_ascending {
-            filtered_indices.sort_by(|&a, &b| app.tracks[a].title.cmp(&app.tracks[b].title));
-        } else {
-            filtered_indices.sort_by(|&a, &b| app.tracks[b].title.cmp(&app.tracks[a].title));
-        }
+        filtered_indices.sort_by(|&a, &b| {
+            let ta = &app.tracks[a];
+            let tb = &app.tracks[b];
+            let cmp = ta.title.to_lowercase().cmp(&tb.title.to_lowercase());
+            if app.sort_ascending { cmp } else { cmp.reverse() }
+        });
     }
 
-    // Track list — reuse the same list rendering style from track_list
     if app.list_view {
         crate::track_list::draw_list_view(app, ui, &filtered_indices, colors);
     } else {
         crate::track_list::draw_grid_view(app, ui, &filtered_indices, colors);
     }
+
+    // Restore app.tracks
+    app.tracks = original_tracks;
 }

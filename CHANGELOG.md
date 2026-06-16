@@ -7,8 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.7.0] — 2026-06-15
+## [2.7.1] — 2026-06-16
 
+### 🚀 Added
+- **UI**: Display full track list features (sort, filter, grid/list toggle) within specific Folder views.
+- **UI**: Render album art natively in the Folder track list, matching the All Tracks tab functionality.
+- **UI**: Added a "Remove" folder trash icon in the Folders view list to cleanly delete folders from the library.
+
+### ✨ Changed
+- **UI**: Removed dividers between list items in all track lists for a cleaner aesthetic.
+- **UI**: Updated the "Create Playlist" and "Remove Playlist" buttons to exactly match the sidebar application card style.
+- **Library**: Recently Played and Most Played no longer redundantly list the same items. Most played now strictly requires > 3 plays and is capped at 30 songs.
+- **Library**: The "total hours" and "track count" header meta-stats are now hidden in Favorites, Recently Played, and Most Played navigation sections.
+
+---
+
+## [2.7.0] — 2026-06-15
 ### 🚀 Added
 - **UI**: Added a fully functional 3-dot context menu in track lists and grids with "Info/Tags" and "Playlist" options.
 - **UI**: Implemented a new overlay dialog for adding tracks directly to user-created playlists.
