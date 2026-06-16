@@ -663,12 +663,20 @@ impl eframe::App for TuneCraftApp {
                     .show(ctx, |ui| {
                         ui.set_min_width(350.0);
 
-                        ui.vertical_centered(|ui| {
+                        ui.horizontal(|ui| {
                             ui.label(
                                 egui::RichText::new("Track Information")
                                     .font(egui::FontId::proportional(20.0))
                                     .strong()
                                     .color(colors.text),
+                            );
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui.button(egui_phosphor::regular::X).clicked() {
+                                        close_dialog = true;
+                                    }
+                                },
                             );
                         });
                         ui.add_space(16.0);
@@ -722,11 +730,6 @@ impl eframe::App for TuneCraftApp {
                             });
 
                         ui.add_space(20.0);
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Close").clicked() {
-                                close_dialog = true;
-                            }
-                        });
                     });
             } else {
                 close_dialog = true;

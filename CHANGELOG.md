@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.1] — 2026-06-16
+
+### 🐛 Fixed
+- **UI**: Moved the Track Information window close button to the top right corner and replaced the "Close" text with an "X" icon.
+- **UI**: Updated "Favorites", "Recently Played", and "Most Played" tabs to sort tracks by most recently played by default.
+
+---
+
 ## [2.8.0] — 2026-06-16
 
 ### 🚀 Added

@@ -443,6 +443,14 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             } else {
                 filtered_indices.sort_by(|&a, &b| app.tracks[b].title.cmp(&app.tracks[a].title));
             }
+        } else if matches!(
+            app.nav,
+            crate::sidebar::NavSection::Favorites
+                | crate::sidebar::NavSection::RecentlyPlayed
+                | crate::sidebar::NavSection::MostPlayed
+        ) {
+            filtered_indices
+                .sort_by(|&a, &b| app.tracks[b].last_played.cmp(&app.tracks[a].last_played));
         }
 
         if app.list_view {
