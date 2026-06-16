@@ -96,6 +96,7 @@ pub struct TuneCraftApp {
     pub show_create_playlist_dialog: bool,
     pub new_playlist_name: String,
     pub show_add_to_playlist_dialog: Option<i64>,
+    pub show_track_info_dialog: Option<i64>,
 
     pub show_eq_panel: bool,
     pub eq_enabled: bool,
@@ -257,6 +258,7 @@ impl TuneCraftApp {
             show_create_playlist_dialog: false,
             new_playlist_name: String::new(),
             show_add_to_playlist_dialog: None,
+            show_track_info_dialog: None,
 
             show_eq_panel: false,
             eq_enabled,
@@ -589,10 +591,8 @@ impl eframe::App for TuneCraftApp {
 
                     // "+ Create Playlist" button
                     let create_w = 300.0;
-                    let (create_rect, create_resp) = ui.allocate_exact_size(
-                        egui::Vec2::new(create_w, 40.0),
-                        egui::Sense::click(),
-                    );
+                    let (create_rect, create_resp) = ui
+                        .allocate_exact_size(egui::Vec2::new(create_w, 40.0), egui::Sense::click());
                     ui.painter().rect_filled(create_rect, 8.0, colors.hover);
                     ui.painter().text(
                         create_rect.center(),
@@ -610,32 +610,130 @@ impl eframe::App for TuneCraftApp {
                     ui.separator();
                     ui.add_space(12.0);
 
-                    egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                        for playlist in &self.playlists {
-                            let (pl_rect, pl_resp) = ui.allocate_exact_size(
-                                egui::Vec2::new(create_w, 40.0),
-                                egui::Sense::click(),
-                            );
-                            if pl_resp.hovered() {
-                                ui.painter().rect_filled(pl_rect, 8.0, colors.hover);
+                    let mut clicked_playlist = None;
+                    egui::ScrollArea::vertical()
+                        .max_height(300.0)
+                        .show(ui, |ui| {
+                            for playlist in &self.playlists {
+                                let (pl_rect, pl_resp) = ui.allocate_exact_size(
+                                    egui::Vec2::new(create_w, 40.0),
+                                    egui::Sense::click(),
+                                );
+                                if pl_resp.hovered() {
+                                    ui.painter().rect_filled(pl_rect, 8.0, colors.hover);
+                                }
+                                ui.painter().text(
+                                    egui::Pos2::new(pl_rect.left() + 16.0, pl_rect.center().y),
+                                    egui::Align2::LEFT_CENTER,
+                                    &playlist.name,
+                                    egui::FontId::proportional(14.0),
+                                    colors.text,
+                                );
+                                if pl_resp.clicked() {
+                                    clicked_playlist = Some(playlist.id);
+                                }
                             }
-                            ui.painter().text(
-                                egui::Pos2::new(pl_rect.left() + 16.0, pl_rect.center().y),
-                                egui::Align2::LEFT_CENTER,
-                                &playlist.name,
-                                egui::FontId::proportional(14.0),
-                                colors.text,
-                            );
-                            if pl_resp.clicked() {
-                                self.add_track_to_playlist(playlist.id, track_id);
-                                close_dialog = true;
-                            }
-                        }
-                    });
+                        });
+
+                    if let Some(pl_id) = clicked_playlist {
+                        self.add_track_to_playlist(pl_id, track_id);
+                        close_dialog = true;
+                    }
                 });
 
             if close_dialog {
                 self.show_add_to_playlist_dialog = None;
+            }
+        }
+
+        if let Some(track_id) = self.show_track_info_dialog {
+            let mut close_dialog = false;
+            if let Some(track) = self.tracks.iter().find(|t| t.id == track_id) {
+                let colors = self.colors();
+                egui::Window::new("Track Info")
+                    .collapsible(false)
+                    .resizable(false)
+                    .title_bar(false)
+                    .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                    .frame(
+                        egui::Frame::window(&ctx.style())
+                            .fill(colors.card)
+                            .stroke(egui::Stroke::new(1.0, colors.border)),
+                    )
+                    .show(ctx, |ui| {
+                        ui.set_min_width(350.0);
+
+                        ui.vertical_centered(|ui| {
+                            ui.label(
+                                egui::RichText::new("Track Information")
+                                    .font(egui::FontId::proportional(20.0))
+                                    .strong()
+                                    .color(colors.text),
+                            );
+                        });
+                        ui.add_space(16.0);
+
+                        egui::Grid::new("track_info_grid")
+                            .num_columns(2)
+                            .spacing([24.0, 12.0])
+                            .show(ui, |ui| {
+                                let label_font = egui::FontId::proportional(14.0);
+                                let value_font = egui::FontId::proportional(14.0);
+                                let mut row = |name: &str, value: &str| {
+                                    ui.label(
+                                        egui::RichText::new(name)
+                                            .font(label_font.clone())
+                                            .color(colors.text_dim),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new(value)
+                                            .font(value_font.clone())
+                                            .color(colors.text),
+                                    );
+                                    ui.end_row();
+                                };
+
+                                row("Title", &track.title);
+                                row("Artist", track.artist.as_deref().unwrap_or("N/A"));
+                                row("Album", track.album.as_deref().unwrap_or("N/A"));
+                                row("Genre", track.genre.as_deref().unwrap_or("N/A"));
+                                row(
+                                    "Year",
+                                    &track
+                                        .year
+                                        .map(|y| y.to_string())
+                                        .unwrap_or_else(|| "N/A".to_string()),
+                                );
+                                row("Composer", "N/A"); // Composer is not in the database schema
+
+                                let dur_secs = track.duration_secs as u32;
+                                row(
+                                    "Duration",
+                                    &format!("{}:{:02}", dur_secs / 60, dur_secs % 60),
+                                );
+                                row("Format", &track.format.to_uppercase());
+                                row(
+                                    "Bitrate",
+                                    &track
+                                        .bitrate_kbps
+                                        .map(|b| format!("{} kbps", b))
+                                        .unwrap_or_else(|| "N/A".to_string()),
+                                );
+                            });
+
+                        ui.add_space(20.0);
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.button("Close").clicked() {
+                                close_dialog = true;
+                            }
+                        });
+                    });
+            } else {
+                close_dialog = true;
+            }
+
+            if close_dialog {
+                self.show_track_info_dialog = None;
             }
         }
 

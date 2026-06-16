@@ -356,7 +356,9 @@ fn draw_folder_list(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftColor
                 );
 
                 // Click → navigate into folder (make sure we didn't click delete)
-                if card_resp.clicked() && !delete_rect.contains(card_resp.interact_pointer_pos().unwrap_or_default()) {
+                if card_resp.clicked()
+                    && !delete_rect.contains(card_resp.interact_pointer_pos().unwrap_or_default())
+                {
                     app.folder_view_path = Some(dir.clone());
                     // Pre-fetch tracks for this folder
                     app.folder_tracks =
@@ -385,7 +387,11 @@ fn draw_folder_contents(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftC
 
     let folder_path = app.folder_view_path.clone().unwrap_or_default();
     let folder_str = folder_path.to_string_lossy().into_owned();
-    let prefix = if folder_str.ends_with('/') { folder_str.clone() } else { format!("{}/", folder_str) };
+    let prefix = if folder_str.ends_with('/') {
+        folder_str.clone()
+    } else {
+        format!("{}/", folder_str)
+    };
 
     let folder_name = folder_path
         .file_name()
@@ -397,10 +403,20 @@ fn draw_folder_contents(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftC
 
         let back_h = 32.0;
         let back_w = if is_narrow { 70.0 } else { 90.0 };
-        let (back_rect, back_resp) = ui.allocate_exact_size(Vec2::new(back_w, back_h), Sense::click());
-        let back_bg = if back_resp.hovered() { colors.hover } else { Color32::TRANSPARENT };
+        let (back_rect, back_resp) =
+            ui.allocate_exact_size(Vec2::new(back_w, back_h), Sense::click());
+        let back_bg = if back_resp.hovered() {
+            colors.hover
+        } else {
+            Color32::TRANSPARENT
+        };
         ui.painter().rect_filled(back_rect, 6.0, back_bg);
-        ui.painter().rect_stroke(back_rect, 6.0, egui::Stroke::new(1.0, colors.border), egui::StrokeKind::Inside);
+        ui.painter().rect_stroke(
+            back_rect,
+            6.0,
+            egui::Stroke::new(1.0, colors.border),
+            egui::StrokeKind::Inside,
+        );
         ui.painter().text(
             back_rect.center(),
             Align2::CENTER_CENTER,
@@ -458,147 +474,228 @@ fn draw_folder_contents(app: &mut TuneCraftApp, ui: &mut Ui, colors: &TuneCraftC
     let mut sorted_subfolders: Vec<PathBuf> = subfolders.into_iter().collect();
     sorted_subfolders.sort();
 
-    // Render Subfolders
-    if !sorted_subfolders.is_empty() {
-        ui.horizontal(|ui| {
-            ui.add_space(pad_x);
-            ui.label(
-                RichText::new("Folders")
-                    .font(FontId::proportional(18.0))
-                    .color(colors.text)
-                    .strong()
-            );
-        });
-        ui.add_space(8.0);
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            // Render Subfolders
+            if !sorted_subfolders.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.add_space(pad_x);
+                    ui.label(
+                        RichText::new("Folders")
+                            .font(FontId::proportional(18.0))
+                            .color(colors.text)
+                            .strong(),
+                    );
+                });
+                ui.add_space(8.0);
 
-        let card_h = 60.0;
-        for dir in sorted_subfolders {
-            let (card_rect, card_resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), card_h), Sense::click());
-            let inner_rect = Rect::from_min_max(
-                Pos2::new(card_rect.left() + pad_x, card_rect.top()),
-                Pos2::new(card_rect.right() - pad_x, card_rect.bottom()),
-            );
-            
-            let bg = if card_resp.hovered() { colors.table_row_hover } else { colors.bg };
-            ui.painter().rect_filled(inner_rect, 8.0, bg);
-            ui.painter().rect_stroke(inner_rect, 8.0, egui::Stroke::new(1.0, colors.border), egui::StrokeKind::Inside);
-            
-            let cy = inner_rect.center().y;
-            let icon_x = inner_rect.left() + 20.0;
-            ui.painter().text(
-                Pos2::new(icon_x, cy),
-                Align2::CENTER_CENTER,
-                egui_phosphor::regular::FOLDER,
-                FontId::proportional(22.0),
-                colors.accent,
-            );
-            
-            let name = dir.file_name().unwrap_or_default().to_string_lossy();
-            ui.painter().text(
-                Pos2::new(icon_x + 30.0, cy),
-                Align2::LEFT_CENTER,
-                name,
-                FontId::proportional(15.0),
-                colors.text,
-            );
+                let card_h = 60.0;
+                for dir in &sorted_subfolders {
+                    let (card_rect, card_resp) = ui.allocate_exact_size(
+                        Vec2::new(ui.available_width(), card_h),
+                        Sense::click(),
+                    );
+                    let inner_rect = Rect::from_min_max(
+                        Pos2::new(card_rect.left() + pad_x, card_rect.top()),
+                        Pos2::new(card_rect.right() - pad_x, card_rect.bottom()),
+                    );
 
-            // Subfolder track count
-            let track_count = app.ctx.library.count_tracks_in_folder(&dir.to_string_lossy());
-            let badge_text = format!("{} tracks", track_count);
-            let badge_font = FontId::proportional(11.0);
-            let badge_galley = ui.painter().layout_no_wrap(badge_text.clone(), badge_font.clone(), Color32::WHITE);
-            let badge_w = badge_galley.size().x + 16.0;
-            let badge_rect = Rect::from_min_size(
-                Pos2::new(inner_rect.right() - badge_w - 16.0, cy - 11.0),
-                Vec2::new(badge_w, 22.0),
-            );
-            ui.painter().rect_filled(badge_rect, 11.0, colors.hover);
-            ui.painter().text(
-                badge_rect.center(), Align2::CENTER_CENTER, &badge_text, badge_font, colors.text_dim
-            );
-            
-            if card_resp.clicked() {
-                app.folder_view_path = Some(dir.clone());
-                app.folder_tracks = app.ctx.library.get_tracks_by_folder(&dir.to_string_lossy());
+                    let bg = if card_resp.hovered() {
+                        colors.table_row_hover
+                    } else {
+                        colors.bg
+                    };
+                    ui.painter().rect_filled(inner_rect, 8.0, bg);
+                    ui.painter().rect_stroke(
+                        inner_rect,
+                        8.0,
+                        egui::Stroke::new(1.0, colors.border),
+                        egui::StrokeKind::Inside,
+                    );
+
+                    let cy = inner_rect.center().y;
+                    let icon_x = inner_rect.left() + 20.0;
+                    ui.painter().text(
+                        Pos2::new(icon_x, cy),
+                        Align2::CENTER_CENTER,
+                        egui_phosphor::regular::FOLDER,
+                        FontId::proportional(22.0),
+                        colors.accent,
+                    );
+
+                    let name = dir.file_name().unwrap_or_default().to_string_lossy();
+                    ui.painter().text(
+                        Pos2::new(icon_x + 30.0, cy),
+                        Align2::LEFT_CENTER,
+                        name,
+                        FontId::proportional(15.0),
+                        colors.text,
+                    );
+
+                    // Subfolder track count
+                    let track_count = app
+                        .ctx
+                        .library
+                        .count_tracks_in_folder(&dir.to_string_lossy());
+                    let badge_text = format!("{} tracks", track_count);
+                    let badge_font = FontId::proportional(11.0);
+                    let badge_galley = ui.painter().layout_no_wrap(
+                        badge_text.clone(),
+                        badge_font.clone(),
+                        Color32::WHITE,
+                    );
+                    let badge_w = badge_galley.size().x + 16.0;
+                    let badge_rect = Rect::from_min_size(
+                        Pos2::new(inner_rect.right() - badge_w - 16.0, cy - 11.0),
+                        Vec2::new(badge_w, 22.0),
+                    );
+                    ui.painter().rect_filled(badge_rect, 11.0, colors.hover);
+                    ui.painter().text(
+                        badge_rect.center(),
+                        Align2::CENTER_CENTER,
+                        &badge_text,
+                        badge_font,
+                        colors.text_dim,
+                    );
+
+                    if card_resp.clicked() {
+                        app.folder_view_path = Some(dir.clone());
+                        app.folder_tracks =
+                            app.ctx.library.get_tracks_by_folder(&dir.to_string_lossy());
+                        return;
+                    }
+                    ui.add_space(4.0);
+                }
+                ui.add_space(16.0);
+            }
+
+            if exact_indices.is_empty() {
+                if sorted_subfolders.is_empty() {
+                    ui.add_space(60.0);
+                    ui.vertical_centered(|ui| {
+                        ui.label(
+                            RichText::new(egui_phosphor::regular::FOLDER_OPEN)
+                                .font(FontId::proportional(48.0))
+                                .color(colors.text_muted),
+                        );
+                        ui.add_space(12.0);
+                        ui.label(
+                            RichText::new("Empty folder")
+                                .font(FontId::proportional(16.0))
+                                .color(colors.text_dim),
+                        );
+                    });
+                }
                 return;
             }
-            ui.add_space(4.0);
-        }
-        ui.add_space(16.0);
-    }
 
-    if exact_indices.is_empty() {
-        if sorted_subfolders.is_empty() {
-            ui.add_space(60.0);
-            ui.vertical_centered(|ui| {
-                ui.label(RichText::new(egui_phosphor::regular::FOLDER_OPEN).font(FontId::proportional(48.0)).color(colors.text_muted));
-                ui.add_space(12.0);
-                ui.label(RichText::new("Empty folder").font(FontId::proportional(16.0)).color(colors.text_dim));
-            });
-        }
-        return;
-    }
-
-    // Render exact tracks toolbar
-    ui.horizontal(|ui| {
-        ui.add_space(pad_x);
-        ui.label(RichText::new("Songs").font(FontId::proportional(18.0)).color(colors.text).strong());
-        
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.add_space(pad_x);
-            let list_active = app.list_view;
-            let grid_active = !app.list_view;
-
-            if crate::track_list::styled_icon_btn(ui, egui_phosphor::regular::SQUARES_FOUR, grid_active, colors) {
-                app.list_view = false;
-            }
-            if crate::track_list::styled_icon_btn(ui, egui_phosphor::regular::LIST, list_active, colors) {
-                app.list_view = true;
-            }
-            ui.add_space(8.0);
-            
-            if !is_narrow {
-                let sort_resp = crate::track_list::styled_toolbar_btn(
-                    ui, &format!("{} Sort", egui_phosphor::regular::ARROWS_DOWN_UP), app.sort_active, colors
+            // Render exact tracks toolbar
+            ui.horizontal(|ui| {
+                ui.add_space(pad_x);
+                ui.label(
+                    RichText::new("Songs")
+                        .font(FontId::proportional(18.0))
+                        .color(colors.text)
+                        .strong(),
                 );
-                let popup_id = ui.make_persistent_id("sort_popup_folder");
-                egui::Popup::from_toggle_button_response(&sort_resp)
-                    .id(popup_id)
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
-                    .show(|ui: &mut egui::Ui| {
-                        ui.set_min_width(120.0);
-                        if ui.selectable_label(!app.sort_active, "Default").clicked() { app.sort_active = false; }
-                        if ui.selectable_label(app.sort_active && app.sort_ascending, "Ascending").clicked() { app.sort_active = true; app.sort_ascending = true; }
-                        if ui.selectable_label(app.sort_active && !app.sort_ascending, "Descending").clicked() { app.sort_active = true; app.sort_ascending = false; }
-                    });
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_space(pad_x);
+                    let list_active = app.list_view;
+                    let grid_active = !app.list_view;
+
+                    if crate::track_list::styled_icon_btn(
+                        ui,
+                        egui_phosphor::regular::SQUARES_FOUR,
+                        grid_active,
+                        colors,
+                    ) {
+                        app.list_view = false;
+                    }
+                    if crate::track_list::styled_icon_btn(
+                        ui,
+                        egui_phosphor::regular::LIST,
+                        list_active,
+                        colors,
+                    ) {
+                        app.list_view = true;
+                    }
+                    ui.add_space(8.0);
+
+                    if !is_narrow {
+                        let sort_resp = crate::track_list::styled_toolbar_btn(
+                            ui,
+                            &format!("{} Sort", egui_phosphor::regular::ARROWS_DOWN_UP),
+                            app.sort_active,
+                            colors,
+                        );
+                        let popup_id = ui.make_persistent_id("sort_popup_folder");
+                        egui::Popup::from_toggle_button_response(&sort_resp)
+                            .id(popup_id)
+                            .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                            .show(|ui: &mut egui::Ui| {
+                                ui.set_min_width(120.0);
+                                if ui.selectable_label(!app.sort_active, "Default").clicked() {
+                                    app.sort_active = false;
+                                }
+                                if ui
+                                    .selectable_label(
+                                        app.sort_active && app.sort_ascending,
+                                        "Ascending",
+                                    )
+                                    .clicked()
+                                {
+                                    app.sort_active = true;
+                                    app.sort_ascending = true;
+                                }
+                                if ui
+                                    .selectable_label(
+                                        app.sort_active && !app.sort_ascending,
+                                        "Descending",
+                                    )
+                                    .clicked()
+                                {
+                                    app.sort_active = true;
+                                    app.sort_ascending = false;
+                                }
+                            });
+                    }
+                });
+            });
+
+            ui.add_space(8.0);
+
+            // Swap app.tracks to exact tracks so track_list functions render them correctly
+            let exact_tracks_vec: Vec<_> = exact_indices
+                .iter()
+                .map(|&i| app.folder_tracks[i].clone())
+                .collect();
+            let original_tracks = std::mem::replace(&mut app.tracks, exact_tracks_vec);
+            let track_indices: Vec<usize> = (0..app.tracks.len()).collect();
+
+            // Sorting logic (copying from track_list.rs)
+            let mut filtered_indices = track_indices;
+            if app.sort_active {
+                filtered_indices.sort_by(|&a, &b| {
+                    let ta = &app.tracks[a];
+                    let tb = &app.tracks[b];
+                    let cmp = ta.title.to_lowercase().cmp(&tb.title.to_lowercase());
+                    if app.sort_ascending {
+                        cmp
+                    } else {
+                        cmp.reverse()
+                    }
+                });
             }
-        });
-    });
 
-    ui.add_space(8.0);
+            if app.list_view {
+                crate::track_list::draw_list_view(app, ui, &filtered_indices, colors, true);
+            } else {
+                crate::track_list::draw_grid_view(app, ui, &filtered_indices, colors, true);
+            }
 
-    // Swap app.tracks to exact tracks so track_list functions render them correctly
-    let exact_tracks_vec: Vec<_> = exact_indices.iter().map(|&i| app.folder_tracks[i].clone()).collect();
-    let original_tracks = std::mem::replace(&mut app.tracks, exact_tracks_vec);
-    let track_indices: Vec<usize> = (0..app.tracks.len()).collect();
-
-    // Sorting logic (copying from track_list.rs)
-    let mut filtered_indices = track_indices;
-    if app.sort_active {
-        filtered_indices.sort_by(|&a, &b| {
-            let ta = &app.tracks[a];
-            let tb = &app.tracks[b];
-            let cmp = ta.title.to_lowercase().cmp(&tb.title.to_lowercase());
-            if app.sort_ascending { cmp } else { cmp.reverse() }
-        });
-    }
-
-    if app.list_view {
-        crate::track_list::draw_list_view(app, ui, &filtered_indices, colors);
-    } else {
-        crate::track_list::draw_grid_view(app, ui, &filtered_indices, colors);
-    }
-
-    // Restore app.tracks
-    app.tracks = original_tracks;
+            // Restore app.tracks
+            app.tracks = original_tracks;
+        }); // End ScrollArea
 }

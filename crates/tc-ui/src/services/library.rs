@@ -17,7 +17,7 @@ use std::sync::{
 
 use arc_swap::ArcSwap;
 use log::{error, warn};
-use tc_db::{Database, Playlist, Track, DbError};
+use tc_db::{Database, DbError, Playlist, Track};
 
 /// Snapshot of library state that the UI can read without any locks.
 #[derive(Debug, Clone, Default)]

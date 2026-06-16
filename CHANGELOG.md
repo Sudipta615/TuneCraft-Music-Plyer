@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.0] — 2026-06-16
+
+### 🚀 Added
+- **UI**: Added a fully functional "Info/Tags" popup window to display track metadata details (Title, Artist, Album, Genre, Year, Duration, Format, Bitrate).
+
+### ✨ Changed
+- **UI**: Unified the Folders view so that subfolders and tracks are rendered inside a single, seamless scrolling area instead of nested, constrained scroll boxes.
+- **UI**: Relocated the EQ panel close button to the right side of the header for better alignment.
+
+---
+
 ## [2.7.1] — 2026-06-16
 
 ### 🚀 Added

@@ -400,7 +400,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                             track.last_played.map_or(false, |dt| {
                                 (chrono::Utc::now().naive_utc() - dt).num_hours() <= 48
                             })
-                        }
+                        },
                         crate::sidebar::NavSection::MostPlayed => track.play_count > 3,
                         crate::sidebar::NavSection::Settings => false,
                     }
@@ -446,9 +446,9 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         }
 
         if app.list_view {
-            draw_list_view(app, ui, &filtered_indices, &colors);
+            draw_list_view(app, ui, &filtered_indices, &colors, false);
         } else {
-            draw_grid_view(app, ui, &filtered_indices, &colors);
+            draw_grid_view(app, ui, &filtered_indices, &colors, false);
         }
     });
 }
@@ -502,7 +502,12 @@ pub(crate) fn styled_toolbar_btn(
 }
 
 /// Icon-only square toggle button for grid/list view
-pub(crate) fn styled_icon_btn(ui: &mut Ui, icon: &str, active: bool, colors: &TuneCraftColors) -> bool {
+pub(crate) fn styled_icon_btn(
+    ui: &mut Ui,
+    icon: &str,
+    active: bool,
+    colors: &TuneCraftColors,
+) -> bool {
     let btn_h = 40.0;
     let (rect, resp) = ui.allocate_exact_size(Vec2::new(btn_h, btn_h), Sense::click());
 
@@ -681,6 +686,7 @@ pub(crate) fn draw_list_view(
     ui: &mut Ui,
     filtered_indices: &[usize],
     colors: &TuneCraftColors,
+    disable_scroll: bool,
 ) {
     let width = ui.available_width();
     let vis = column_visibility(width);
@@ -746,215 +752,218 @@ pub(crate) fn draw_list_view(
 
     let track_row_h = 64.0;
 
-    egui::ScrollArea::vertical()
-        .auto_shrink([false, false])
-        .show_rows(ui, track_row_h, filtered_indices.len(), |ui, row_range| {
-            for (i, &idx) in filtered_indices[row_range.clone()].iter().enumerate() {
-                // Copy track fields upfront to avoid borrow conflicts with album art loading
-                let track_id = app.tracks[idx].id;
-                let track_title = app.tracks[idx].title.clone();
-                let track_artist = app.tracks[idx].artist.clone();
-                let track_album = app.tracks[idx].album.clone();
-                let track_duration = app.tracks[idx].duration_secs;
-                let is_playing = app.current_track_id == Some(track_id);
-                let display_num = row_range.start + i + 1;
+    let mut draw_rows = |ui: &mut Ui, row_range: std::ops::Range<usize>| {
+        for (i, &idx) in filtered_indices[row_range.clone()].iter().enumerate() {
+            // Copy track fields upfront to avoid borrow conflicts with album art loading
+            let track_id = app.tracks[idx].id;
+            let track_title = app.tracks[idx].title.clone();
+            let track_artist = app.tracks[idx].artist.clone();
+            let track_album = app.tracks[idx].album.clone();
+            let track_duration = app.tracks[idx].duration_secs;
+            let is_playing = app.current_track_id == Some(track_id);
+            let display_num = row_range.start + i + 1;
 
-                let (row_rect, row_resp) = ui.allocate_exact_size(
-                    Vec2::new(ui.available_width(), track_row_h),
-                    Sense::click(),
-                );
+            let (row_rect, row_resp) = ui
+                .allocate_exact_size(Vec2::new(ui.available_width(), track_row_h), Sense::click());
 
-                let bg = if row_resp.hovered() {
-                    colors.table_row_hover
-                } else if is_playing {
-                    if colors.dark_mode {
-                        Color32::from_rgba_premultiplied(
-                            (colors.accent.r() as u16 * 12 / 100 + colors.bg.r() as u16 * 88 / 100)
-                                as u8,
-                            (colors.accent.g() as u16 * 12 / 100 + colors.bg.g() as u16 * 88 / 100)
-                                as u8,
-                            (colors.accent.b() as u16 * 12 / 100 + colors.bg.b() as u16 * 88 / 100)
-                                as u8,
-                            255,
-                        )
-                    } else {
-                        colors.active_bg
-                    }
+            let bg = if row_resp.hovered() {
+                colors.table_row_hover
+            } else if is_playing {
+                if colors.dark_mode {
+                    Color32::from_rgba_premultiplied(
+                        (colors.accent.r() as u16 * 12 / 100 + colors.bg.r() as u16 * 88 / 100)
+                            as u8,
+                        (colors.accent.g() as u16 * 12 / 100 + colors.bg.g() as u16 * 88 / 100)
+                            as u8,
+                        (colors.accent.b() as u16 * 12 / 100 + colors.bg.b() as u16 * 88 / 100)
+                            as u8,
+                        255,
+                    )
                 } else {
-                    colors.bg
-                };
-                ui.painter().rect_filled(row_rect, 0.0, bg);
-
-                // Left accent bar for playing track — full height
-                if is_playing {
-                    let bar =
-                        egui::Rect::from_min_size(row_rect.left_top(), Vec2::new(3.0, track_row_h));
-                    ui.painter().rect_filled(bar, 1.5, colors.accent);
+                    colors.active_bg
                 }
+            } else {
+                colors.bg
+            };
+            ui.painter().rect_filled(row_rect, 0.0, bg);
 
-                let lx = row_rect.left();
-                let cy = row_rect.center().y;
-                let rw = row_rect.width();
+            // Left accent bar for playing track — full height
+            if is_playing {
+                let bar =
+                    egui::Rect::from_min_size(row_rect.left_top(), Vec2::new(3.0, track_row_h));
+                ui.painter().rect_filled(bar, 1.5, colors.accent);
+            }
 
-                // Recompute column offsets for this row's actual width
-                let row_vis = column_visibility(rw);
-                let cx = compute_col_offsets(rw, &row_vis);
-                // Shift by row's left edge
-                let cx: [f32; 5] = [lx + cx[0], lx + cx[1], lx + cx[2], lx + cx[3], lx + cx[4]];
+            let lx = row_rect.left();
+            let cy = row_rect.center().y;
+            let rw = row_rect.width();
 
-                // Track number / play indicator (circled ▶ for playing track)
-                let num_font = FontId::proportional(12.0);
-                let num_color = if is_playing {
-                    colors.accent
-                } else {
-                    colors.text_dim
-                };
-                let num_str = display_num.to_string();
-                if is_playing && !row_resp.hovered() {
-                    // Draw a filled purple circle with ▶ inside
-                    let circle_center = Pos2::new(cx[0] + 12.0, cy);
-                    ui.painter()
-                        .circle_filled(circle_center, 12.0, colors.accent);
-                    ui.painter().text(
-                        circle_center,
-                        Align2::CENTER_CENTER,
-                        egui_phosphor::regular::PLAY,
-                        FontId::proportional(10.0),
-                        Color32::WHITE,
-                    );
-                } else {
-                    ui.painter().text(
-                        Pos2::new(cx[0] + 12.0, cy),
-                        Align2::CENTER_CENTER,
-                        &num_str,
-                        num_font,
-                        num_color,
-                    );
-                }
+            // Recompute column offsets for this row's actual width
+            let row_vis = column_visibility(rw);
+            let cx = compute_col_offsets(rw, &row_vis);
+            // Shift by row's left edge
+            let cx: [f32; 5] = [lx + cx[0], lx + cx[1], lx + cx[2], lx + cx[3], lx + cx[4]];
 
-                // Album art — real cover art or placeholder — only if visible
-                let row_art_tex = get_or_load_album_art(app, ui, track_id);
-                if row_vis.show_art {
-                    let art_size = 44.0;
-                    let art_rect = egui::Rect::from_center_size(
-                        Pos2::new(cx[1] + art_w / 2.0, cy),
-                        Vec2::new(art_size, art_size),
-                    );
-                    draw_album_art(ui, art_rect, colors, is_playing, row_art_tex.as_ref());
-                }
-
-                // Title + Artist (stacked)
-                let title_end_x = if row_vis.show_album { cx[3] } else { cx[4] };
-                let title_max_w = title_end_x - cx[2] - 8.0;
-                let title_font = FontId::proportional(14.0);
-                let artist_font = FontId::proportional(13.0);
-                let title_color = if is_playing {
-                    if colors.dark_mode {
-                        colors.accent_light
-                    } else {
-                        colors.accent
-                    }
-                } else {
-                    colors.text
-                };
-                let truncated_title = truncate_text(ui, &track_title, &title_font, title_max_w);
+            // Track number / play indicator (circled ▶ for playing track)
+            let num_font = FontId::proportional(12.0);
+            let num_color = if is_playing {
+                colors.accent
+            } else {
+                colors.text_dim
+            };
+            let num_str = display_num.to_string();
+            if is_playing && !row_resp.hovered() {
+                // Draw a filled purple circle with ▶ inside
+                let circle_center = Pos2::new(cx[0] + 12.0, cy);
+                ui.painter()
+                    .circle_filled(circle_center, 12.0, colors.accent);
                 ui.painter().text(
-                    Pos2::new(cx[2], cy - 9.0),
-                    Align2::LEFT_CENTER,
-                    &truncated_title,
-                    title_font,
-                    title_color,
-                );
-                let artist = track_artist.as_deref().unwrap_or("Unknown Artist");
-                let truncated_artist = truncate_text(ui, artist, &artist_font, title_max_w);
-                ui.painter().text(
-                    Pos2::new(cx[2], cy + 9.0),
-                    Align2::LEFT_CENTER,
-                    &truncated_artist,
-                    artist_font,
-                    colors.text_dim,
-                );
-
-                // Album — only if column is visible
-                if row_vis.show_album {
-                    let album_max_w = cx[4] - cx[3] - 8.0;
-                    let album_font = FontId::proportional(14.0);
-                    let album = track_album.as_deref().unwrap_or("");
-                    let truncated_album = truncate_text(ui, album, &album_font, album_max_w);
-                    ui.painter().text(
-                        Pos2::new(cx[3] + 4.0, cy),
-                        Align2::LEFT_CENTER,
-                        &truncated_album,
-                        album_font,
-                        colors.text_dim,
-                    );
-                }
-
-                // Duration
-                let dur_secs = track_duration as u32;
-                let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
-                let dur_x = row_rect.right() - 48.0;
-                ui.painter().text(
-                    Pos2::new(dur_x, cy),
-                    Align2::RIGHT_CENTER,
-                    &dur_str,
-                    FontId::monospace(13.0),
-                    colors.text_dim,
-                );
-
-                // Three-dot context menu — always visible
-                let dots_rect = egui::Rect::from_center_size(
-                    Pos2::new(row_rect.right() - 16.0, cy),
-                    Vec2::new(20.0, 20.0),
-                );
-                let dots_id = ui.id().with(format!("dots_{}", track_id));
-                let dots_resp = ui.interact(dots_rect, dots_id, egui::Sense::click());
-                
-                let dots_color = if dots_resp.hovered() {
-                    colors.text
-                } else {
-                    colors.text_dim
-                };
-                ui.painter().text(
-                    dots_rect.center(),
+                    circle_center,
                     Align2::CENTER_CENTER,
-                    egui_phosphor::regular::DOTS_THREE_VERTICAL,
-                    FontId::proportional(18.0),
-                    dots_color,
+                    egui_phosphor::regular::PLAY,
+                    FontId::proportional(10.0),
+                    Color32::WHITE,
                 );
+            } else {
+                ui.painter().text(
+                    Pos2::new(cx[0] + 12.0, cy),
+                    Align2::CENTER_CENTER,
+                    &num_str,
+                    num_font,
+                    num_color,
+                );
+            }
 
-                let popup_id = dots_id.with("popup");
-                if dots_resp.clicked() {
-                    ui.memory_mut(|mem| mem.toggle_popup(popup_id));
+            // Album art — real cover art or placeholder — only if visible
+            let row_art_tex = get_or_load_album_art(app, ui, track_id);
+            if row_vis.show_art {
+                let art_size = 44.0;
+                let art_rect = egui::Rect::from_center_size(
+                    Pos2::new(cx[1] + art_w / 2.0, cy),
+                    Vec2::new(art_size, art_size),
+                );
+                draw_album_art(ui, art_rect, colors, is_playing, row_art_tex.as_ref());
+            }
+
+            // Title + Artist (stacked)
+            let title_end_x = if row_vis.show_album { cx[3] } else { cx[4] };
+            let title_max_w = title_end_x - cx[2] - 8.0;
+            let title_font = FontId::proportional(14.0);
+            let artist_font = FontId::proportional(13.0);
+            let title_color = if is_playing {
+                if colors.dark_mode {
+                    colors.accent_light
+                } else {
+                    colors.accent
                 }
+            } else {
+                colors.text
+            };
+            let truncated_title = truncate_text(ui, &track_title, &title_font, title_max_w);
+            ui.painter().text(
+                Pos2::new(cx[2], cy - 9.0),
+                Align2::LEFT_CENTER,
+                &truncated_title,
+                title_font,
+                title_color,
+            );
+            let artist = track_artist.as_deref().unwrap_or("Unknown Artist");
+            let truncated_artist = truncate_text(ui, artist, &artist_font, title_max_w);
+            ui.painter().text(
+                Pos2::new(cx[2], cy + 9.0),
+                Align2::LEFT_CENTER,
+                &truncated_artist,
+                artist_font,
+                colors.text_dim,
+            );
 
-                egui::popup::popup_below_widget(ui, popup_id, &dots_resp, |ui| {
+            // Album — only if column is visible
+            if row_vis.show_album {
+                let album_max_w = cx[4] - cx[3] - 8.0;
+                let album_font = FontId::proportional(14.0);
+                let album = track_album.as_deref().unwrap_or("");
+                let truncated_album = truncate_text(ui, album, &album_font, album_max_w);
+                ui.painter().text(
+                    Pos2::new(cx[3] + 4.0, cy),
+                    Align2::LEFT_CENTER,
+                    &truncated_album,
+                    album_font,
+                    colors.text_dim,
+                );
+            }
+
+            // Duration
+            let dur_secs = track_duration as u32;
+            let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
+            let dur_x = row_rect.right() - 48.0;
+            ui.painter().text(
+                Pos2::new(dur_x, cy),
+                Align2::RIGHT_CENTER,
+                &dur_str,
+                FontId::monospace(13.0),
+                colors.text_dim,
+            );
+
+            // Three-dot context menu — always visible
+            let dots_rect = egui::Rect::from_center_size(
+                Pos2::new(row_rect.right() - 16.0, cy),
+                Vec2::new(20.0, 20.0),
+            );
+            let dots_id = ui.id().with(format!("dots_{}", track_id));
+            let dots_resp = ui.interact(dots_rect, dots_id, egui::Sense::click());
+
+            let dots_color = if dots_resp.hovered() {
+                colors.text
+            } else {
+                colors.text_dim
+            };
+            ui.painter().text(
+                dots_rect.center(),
+                Align2::CENTER_CENTER,
+                egui_phosphor::regular::DOTS_THREE_VERTICAL,
+                FontId::proportional(18.0),
+                dots_color,
+            );
+
+            let popup_id = dots_id.with("popup");
+            egui::Popup::menu(&dots_resp)
+                .id(popup_id)
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+                .show(|ui: &mut egui::Ui| {
                     ui.set_min_width(140.0);
                     let info_btn = ui.button(format!("{} Info/Tags", egui_phosphor::regular::INFO));
                     if info_btn.clicked() {
-                        ui.memory_mut(|mem| mem.close_popup());
-                        // TODO: show info/tags dialog
+                        app.show_track_info_dialog = Some(track_id);
                     }
                     let pl_btn = ui.button(format!("{} Playlist", egui_phosphor::regular::PLUS));
                     if pl_btn.clicked() {
                         app.show_add_to_playlist_dialog = Some(track_id);
-                        ui.memory_mut(|mem| mem.close_popup());
                     }
                 });
 
-                // Interactions (make sure we didn't click the dots)
-                if row_resp.clicked() && !dots_rect.contains(row_resp.interact_pointer_pos().unwrap_or_default()) {
-                    let new_queue: Vec<i64> = filtered_indices
-                        .iter()
-                        .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
-                        .collect();
-                    app.ctx.playback.set_play_queue(new_queue.clone());
-                    app.play_queue = new_queue;
-                    app.play_track(track_id);
-                    app.selected_track_id = Some(track_id);
-                }
+            // Interactions (make sure we didn't click the dots)
+            if row_resp.clicked()
+                && !dots_rect.contains(row_resp.interact_pointer_pos().unwrap_or_default())
+            {
+                let new_queue: Vec<i64> = filtered_indices
+                    .iter()
+                    .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
+                    .collect();
+                app.ctx.playback.set_play_queue(new_queue.clone());
+                app.play_queue = new_queue;
+                app.play_track(track_id);
+                app.selected_track_id = Some(track_id);
             }
-        });
+        }
+    };
+
+    if disable_scroll {
+        draw_rows(ui, 0..filtered_indices.len());
+    } else {
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show_rows(ui, track_row_h, filtered_indices.len(), draw_rows);
+    }
 }
 
 /// Draw the grid/card view of tracks — responsive card sizing
@@ -963,6 +972,7 @@ pub(crate) fn draw_grid_view(
     ui: &mut Ui,
     filtered_indices: &[usize],
     colors: &TuneCraftColors,
+    disable_scroll: bool,
 ) {
     let available_width = ui.available_width();
     // Adaptive card sizing: smaller cards on narrow viewports
@@ -976,139 +986,142 @@ pub(crate) fn draw_grid_view(
     let columns =
         ((available_width + card_spacing) / (card_width + card_spacing)).max(1.0) as usize;
 
-    egui::ScrollArea::vertical()
-        .auto_shrink([false, false])
-        .show(ui, |ui| {
-            for chunk in filtered_indices.chunks(columns) {
-                ui.horizontal(|ui| {
-                    for &idx in chunk {
-                        // Copy track fields upfront to avoid borrow conflicts
-                        let track_id = app.tracks[idx].id;
-                        let track_title = app.tracks[idx].title.clone();
-                        let track_artist = app.tracks[idx].artist.clone();
-                        let track_album = app.tracks[idx].album.clone();
-                        let track_duration = app.tracks[idx].duration_secs;
-                        let is_playing = app.current_track_id == Some(track_id);
+    let mut draw_grid = |ui: &mut Ui| {
+        for chunk in filtered_indices.chunks(columns) {
+            ui.horizontal(|ui| {
+                for &idx in chunk {
+                    // Copy track fields upfront to avoid borrow conflicts
+                    let track_id = app.tracks[idx].id;
+                    let track_title = app.tracks[idx].title.clone();
+                    let track_artist = app.tracks[idx].artist.clone();
+                    let track_album = app.tracks[idx].album.clone();
+                    let track_duration = app.tracks[idx].duration_secs;
+                    let is_playing = app.current_track_id == Some(track_id);
 
-                        let (card_rect, card_resp) = ui.allocate_exact_size(
-                            Vec2::new(card_width, card_height),
-                            Sense::click(),
-                        );
+                    let (card_rect, card_resp) =
+                        ui.allocate_exact_size(Vec2::new(card_width, card_height), Sense::click());
 
-                        let bg = if card_resp.hovered() {
-                            colors.table_row_hover
-                        } else if is_playing {
-                            if colors.dark_mode {
-                                Color32::from_rgba_premultiplied(
-                                    (colors.accent.r() as u16 * 15 / 100
-                                        + colors.card.r() as u16 * 85 / 100)
-                                        as u8,
-                                    (colors.accent.g() as u16 * 15 / 100
-                                        + colors.card.g() as u16 * 85 / 100)
-                                        as u8,
-                                    (colors.accent.b() as u16 * 15 / 100
-                                        + colors.card.b() as u16 * 85 / 100)
-                                        as u8,
-                                    255,
-                                )
-                            } else {
-                                colors.active_bg
-                            }
+                    let bg = if card_resp.hovered() {
+                        colors.table_row_hover
+                    } else if is_playing {
+                        if colors.dark_mode {
+                            Color32::from_rgba_premultiplied(
+                                (colors.accent.r() as u16 * 15 / 100
+                                    + colors.card.r() as u16 * 85 / 100)
+                                    as u8,
+                                (colors.accent.g() as u16 * 15 / 100
+                                    + colors.card.g() as u16 * 85 / 100)
+                                    as u8,
+                                (colors.accent.b() as u16 * 15 / 100
+                                    + colors.card.b() as u16 * 85 / 100)
+                                    as u8,
+                                255,
+                            )
                         } else {
-                            colors.card
-                        };
-                        ui.painter().rect_filled(card_rect, 8.0, bg);
-                        ui.painter().rect_stroke(
-                            card_rect,
-                            8.0,
-                            egui::Stroke::new(1.0, colors.border),
-                            egui::StrokeKind::Inside,
-                        );
-
-                        // Album art on left (real or placeholder)
-                        let grid_art_tex = get_or_load_album_art(app, ui, track_id);
-                        let art_size = card_height - 16.0;
-                        let art_rect = egui::Rect::from_min_size(
-                            Pos2::new(card_rect.left() + 8.0, card_rect.top() + 8.0),
-                            Vec2::new(art_size, art_size),
-                        );
-                        draw_album_art(ui, art_rect, colors, is_playing, grid_art_tex.as_ref());
-
-                        // Left accent bar if playing
-                        if is_playing {
-                            let bar = egui::Rect::from_min_size(
-                                card_rect.left_top(),
-                                Vec2::new(3.0, card_height),
-                            );
-                            ui.painter().rect_filled(bar, 8.0, colors.accent);
+                            colors.active_bg
                         }
+                    } else {
+                        colors.card
+                    };
+                    ui.painter().rect_filled(card_rect, 8.0, bg);
+                    ui.painter().rect_stroke(
+                        card_rect,
+                        8.0,
+                        egui::Stroke::new(1.0, colors.border),
+                        egui::StrokeKind::Inside,
+                    );
 
-                        let text_x = art_rect.right() + 8.0;
-                        let max_text_w = card_rect.right() - text_x - 6.0;
-                        let title_color = if is_playing {
-                            colors.accent
-                        } else {
-                            colors.text
-                        };
+                    // Album art on left (real or placeholder)
+                    let grid_art_tex = get_or_load_album_art(app, ui, track_id);
+                    let art_size = card_height - 16.0;
+                    let art_rect = egui::Rect::from_min_size(
+                        Pos2::new(card_rect.left() + 8.0, card_rect.top() + 8.0),
+                        Vec2::new(art_size, art_size),
+                    );
+                    draw_album_art(ui, art_rect, colors, is_playing, grid_art_tex.as_ref());
 
-                        let title_font = FontId::proportional(12.0);
-                        let truncated_title =
-                            truncate_text(ui, &track_title, &title_font, max_text_w);
-                        ui.painter().text(
-                            Pos2::new(text_x, card_rect.top() + 18.0),
-                            Align2::LEFT_CENTER,
-                            &truncated_title,
-                            title_font,
-                            title_color,
+                    // Left accent bar if playing
+                    if is_playing {
+                        let bar = egui::Rect::from_min_size(
+                            card_rect.left_top(),
+                            Vec2::new(3.0, card_height),
                         );
-
-                        let artist_font = FontId::proportional(10.0);
-                        let artist = track_artist.as_deref().unwrap_or("Unknown");
-                        let truncated_artist = truncate_text(ui, artist, &artist_font, max_text_w);
-                        ui.painter().text(
-                            Pos2::new(text_x, card_rect.top() + 34.0),
-                            Align2::LEFT_CENTER,
-                            &truncated_artist,
-                            artist_font,
-                            colors.text_dim,
-                        );
-
-                        let album_font = FontId::proportional(9.5);
-                        let album = track_album.as_deref().unwrap_or("");
-                        let truncated_album = truncate_text(ui, album, &album_font, max_text_w);
-                        ui.painter().text(
-                            Pos2::new(text_x, card_rect.top() + 50.0),
-                            Align2::LEFT_CENTER,
-                            &truncated_album,
-                            album_font,
-                            colors.text_dim,
-                        );
-
-                        let dur_secs = track_duration as u32;
-                        let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
-                        ui.painter().text(
-                            Pos2::new(text_x, card_rect.top() + 66.0),
-                            Align2::LEFT_CENTER,
-                            &dur_str,
-                            FontId::proportional(9.5),
-                            colors.text_dim,
-                        );
-
-                        if card_resp.clicked() {
-                            let new_queue: Vec<i64> = filtered_indices
-                                .iter()
-                                .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
-                                .collect();
-                            app.ctx.playback.set_play_queue(new_queue.clone());
-                            app.play_queue = new_queue;
-                            app.play_track(track_id);
-                            app.selected_track_id = Some(track_id);
-                        }
-
-                        ui.add_space(card_spacing);
+                        ui.painter().rect_filled(bar, 8.0, colors.accent);
                     }
-                });
-                ui.add_space(card_spacing);
-            }
-        });
+
+                    let text_x = art_rect.right() + 8.0;
+                    let max_text_w = card_rect.right() - text_x - 6.0;
+                    let title_color = if is_playing {
+                        colors.accent
+                    } else {
+                        colors.text
+                    };
+
+                    let title_font = FontId::proportional(12.0);
+                    let truncated_title = truncate_text(ui, &track_title, &title_font, max_text_w);
+                    ui.painter().text(
+                        Pos2::new(text_x, card_rect.top() + 18.0),
+                        Align2::LEFT_CENTER,
+                        &truncated_title,
+                        title_font,
+                        title_color,
+                    );
+
+                    let artist_font = FontId::proportional(10.0);
+                    let artist = track_artist.as_deref().unwrap_or("Unknown");
+                    let truncated_artist = truncate_text(ui, artist, &artist_font, max_text_w);
+                    ui.painter().text(
+                        Pos2::new(text_x, card_rect.top() + 34.0),
+                        Align2::LEFT_CENTER,
+                        &truncated_artist,
+                        artist_font,
+                        colors.text_dim,
+                    );
+
+                    let album_font = FontId::proportional(9.5);
+                    let album = track_album.as_deref().unwrap_or("");
+                    let truncated_album = truncate_text(ui, album, &album_font, max_text_w);
+                    ui.painter().text(
+                        Pos2::new(text_x, card_rect.top() + 50.0),
+                        Align2::LEFT_CENTER,
+                        &truncated_album,
+                        album_font,
+                        colors.text_dim,
+                    );
+
+                    let dur_secs = track_duration as u32;
+                    let dur_str = format!("{}:{:02}", dur_secs / 60, dur_secs % 60);
+                    ui.painter().text(
+                        Pos2::new(text_x, card_rect.top() + 66.0),
+                        Align2::LEFT_CENTER,
+                        &dur_str,
+                        FontId::proportional(9.5),
+                        colors.text_dim,
+                    );
+
+                    if card_resp.clicked() {
+                        let new_queue: Vec<i64> = filtered_indices
+                            .iter()
+                            .filter_map(|&idx| app.tracks.get(idx).map(|t| t.id))
+                            .collect();
+                        app.ctx.playback.set_play_queue(new_queue.clone());
+                        app.play_queue = new_queue;
+                        app.play_track(track_id);
+                        app.selected_track_id = Some(track_id);
+                    }
+
+                    ui.add_space(card_spacing);
+                }
+            });
+            ui.add_space(card_spacing);
+        }
+    };
+
+    if disable_scroll {
+        draw_grid(ui);
+    } else {
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, draw_grid);
+    }
 }

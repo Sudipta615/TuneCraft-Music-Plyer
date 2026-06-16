@@ -51,9 +51,19 @@ impl NavSection {
             Self::Favorites => None,
             Self::RecentlyPlayed => {
                 let now = chrono::Utc::now().naive_utc();
-                Some(tracks.iter().filter(|t| t.last_played.map_or(false, |dt| (now - dt).num_hours() <= 48)).count() as u32)
-            }
-            Self::MostPlayed => Some(tracks.iter().filter(|t| t.play_count > 3).count().min(30) as u32),
+                Some(
+                    tracks
+                        .iter()
+                        .filter(|t| {
+                            t.last_played
+                                .map_or(false, |dt| (now - dt).num_hours() <= 48)
+                        })
+                        .count() as u32,
+                )
+            },
+            Self::MostPlayed => {
+                Some(tracks.iter().filter(|t| t.play_count > 3).count().min(30) as u32)
+            },
             _ => None,
         }
     }
@@ -225,10 +235,20 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             let btn_h = 28.0;
 
             // Create button
-            let (create_rect, create_resp) = ui.allocate_exact_size(egui::Vec2::new(70.0, btn_h), Sense::click());
-            let create_bg = if create_resp.hovered() { colors.hover } else { colors.card };
+            let (create_rect, create_resp) =
+                ui.allocate_exact_size(egui::Vec2::new(70.0, btn_h), Sense::click());
+            let create_bg = if create_resp.hovered() {
+                colors.hover
+            } else {
+                colors.card
+            };
             ui.painter().rect_filled(create_rect, 6.0, create_bg);
-            ui.painter().rect_stroke(create_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+            ui.painter().rect_stroke(
+                create_rect,
+                6.0,
+                egui::Stroke::new(1.0, colors.border),
+                egui::StrokeKind::Inside,
+            );
             ui.painter().text(
                 create_rect.center(),
                 Align2::CENTER_CENTER,
@@ -243,10 +263,20 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             ui.add_space(8.0);
 
             // Remove button
-            let (remove_rect, remove_resp) = ui.allocate_exact_size(egui::Vec2::new(70.0, btn_h), Sense::click());
-            let remove_bg = if remove_resp.hovered() { colors.hover } else { colors.card };
+            let (remove_rect, remove_resp) =
+                ui.allocate_exact_size(egui::Vec2::new(70.0, btn_h), Sense::click());
+            let remove_bg = if remove_resp.hovered() {
+                colors.hover
+            } else {
+                colors.card
+            };
             ui.painter().rect_filled(remove_rect, 6.0, remove_bg);
-            ui.painter().rect_stroke(remove_rect, 6.0, egui::Stroke::new(1.0, colors.border));
+            ui.painter().rect_stroke(
+                remove_rect,
+                6.0,
+                egui::Stroke::new(1.0, colors.border),
+                egui::StrokeKind::Inside,
+            );
             ui.painter().text(
                 remove_rect.center(),
                 Align2::CENTER_CENTER,

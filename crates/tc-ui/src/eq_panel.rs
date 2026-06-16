@@ -31,22 +31,6 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.add_space(14.0);
 
-            // Close button (X icon)
-            let arrow_resp = ui.add(
-                egui::Button::new(
-                    RichText::new(egui_phosphor::regular::X)
-                        .font(FontId::proportional(16.0))
-                        .color(colors.text_dim),
-                )
-                .frame(false),
-            );
-            if arrow_resp.clicked() {
-                app.show_eq_panel = false;
-                app.ctx.eq.state_mut().show_panel = false;
-            }
-
-            ui.add_space(8.0);
-
             // "EQ" title
             ui.label(
                 RichText::new("EQ")
@@ -96,6 +80,22 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
             // Spacer
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add_space(14.0);
+
+                // Close button (X icon)
+                let arrow_resp = ui.add(
+                    egui::Button::new(
+                        RichText::new(egui_phosphor::regular::X)
+                            .font(FontId::proportional(16.0))
+                            .color(colors.text_dim),
+                    )
+                    .frame(false),
+                );
+                if arrow_resp.clicked() {
+                    app.show_eq_panel = false;
+                    app.ctx.eq.state_mut().show_panel = false;
+                }
+
+                ui.add_space(8.0);
 
                 // Three-dot menu button (phosphor icon)
                 ui.add(
