@@ -56,7 +56,7 @@ impl NavSection {
                         .iter()
                         .filter(|t| {
                             t.last_played
-                                .map_or(false, |dt| (now - dt).num_hours() <= 48)
+                                .is_some_and(|dt| (now - dt).num_hours() <= 48)
                         })
                         .count() as u32,
                 )

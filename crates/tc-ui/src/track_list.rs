@@ -397,7 +397,7 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                             app.cached_favorite_ids.contains(&track.id)
                         },
                         crate::sidebar::NavSection::RecentlyPlayed => {
-                            track.last_played.map_or(false, |dt| {
+                            track.last_played.is_some_and(|dt| {
                                 (chrono::Utc::now().naive_utc() - dt).num_hours() <= 48
                             })
                         },
