@@ -54,10 +54,7 @@ impl NavSection {
                 Some(
                     tracks
                         .iter()
-                        .filter(|t| {
-                            t.last_played
-                                .is_some_and(|dt| (now - dt).num_hours() <= 48)
-                        })
+                        .filter(|t| t.last_played.is_some_and(|dt| (now - dt).num_hours() <= 48))
                         .count() as u32,
                 )
             },
