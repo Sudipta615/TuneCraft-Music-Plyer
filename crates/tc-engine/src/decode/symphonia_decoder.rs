@@ -189,7 +189,7 @@ impl SymphoniaDecoder {
                     if self
                         .conversion_buffer
                         .as_ref()
-                        .map_or(true, |buf| buf.capacity() < decoded.capacity())
+                        .is_none_or(|buf| buf.capacity() < decoded.capacity())
                     {
                         self.conversion_buffer =
                             Some(symphonia::core::audio::SampleBuffer::<f32>::new(
