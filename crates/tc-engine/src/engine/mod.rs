@@ -661,8 +661,6 @@ impl AudioEngine {
         self.pending_chunk.is_some()
     }
 
-
-
     #[cfg(feature = "resample")]
     pub fn is_resampler_disabled(&self) -> bool {
         match &self.stream {
