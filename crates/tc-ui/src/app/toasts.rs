@@ -103,7 +103,7 @@ impl TuneCraftApp {
         }
 
         if !self.toasts.is_empty() {
-            ctx.request_repaint();
+            ctx.request_repaint_after(std::time::Duration::from_millis(33));
         }
     }
 }

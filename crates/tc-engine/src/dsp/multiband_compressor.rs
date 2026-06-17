@@ -2,6 +2,7 @@ use super::biquad::{BiquadCoeffs, BiquadState};
 
 struct BandCompressor {
     threshold: f32, // linear
+    threshold_db_cached: f32,
     ratio: f32,
     attack_coeff: f32,
     release_coeff: f32,
@@ -20,6 +21,7 @@ impl BandCompressor {
     ) -> Self {
         Self {
             threshold: 10.0_f32.powf(threshold_db / 20.0),
+            threshold_db_cached: threshold_db.max(-100.0),
             ratio,
             attack_coeff: (-1.0 / (attack_ms * 0.001 * sample_rate)).exp(),
             release_coeff: (-1.0 / (release_ms * 0.001 * sample_rate)).exp(),
@@ -49,7 +51,7 @@ impl BandCompressor {
         if self.envelope > self.threshold {
             // Calculate gain reduction in dB
             let env_db = 20.0 * self.envelope.log10().max(-100.0);
-            let thresh_db = 20.0 * self.threshold.log10().max(-100.0);
+            let thresh_db = self.threshold_db_cached;
             let overshoot = env_db - thresh_db;
             let reduced_overshoot = overshoot / self.ratio;
             let gain_reduction_db = overshoot - reduced_overshoot;

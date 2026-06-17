@@ -745,7 +745,10 @@ impl eframe::App for TuneCraftApp {
         self.save_config_if_dirty();
 
         if self.is_playing {
-            ctx.request_repaint();
+            // Throttle repaints to ~30 FPS instead of matching the monitor refresh rate (60/144Hz)
+            // The UI will still feel perfectly responsive because user inputs (mouse/keyboard)
+            // instantly wake up the UI thread.
+            ctx.request_repaint_after(std::time::Duration::from_millis(33));
         }
     }
 

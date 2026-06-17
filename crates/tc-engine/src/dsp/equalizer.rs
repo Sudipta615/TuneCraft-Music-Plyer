@@ -167,6 +167,7 @@ pub struct ParametricEq {
     /// `powf` call in the hot path.  Updated by `set_post_gain_db()`.
     post_gain_linear: f32,
     headroom_db: f32,
+    headroom_linear: f32,
     /// Current headroom scale factor (smoothed for zipper-noise prevention)
     headroom_scale: f32,
     /// Target headroom scale factor (computed from headroom_db and signal peak)
@@ -232,6 +233,7 @@ impl ParametricEq {
             post_gain_db: 0.0,
             post_gain_linear: 1.0,
             headroom_db: -1.0,
+            headroom_linear: 10.0_f32.powf(-1.0 / 20.0),
             headroom_scale: 1.0,
             headroom_scale_target: 1.0,
             headroom_attack_rate: 0.01, // Fast attack: ~7ms to 95% at 44.1kHz
@@ -260,6 +262,7 @@ impl ParametricEq {
             post_gain_db: 0.0,
             post_gain_linear: 1.0,
             headroom_db: -1.0,
+            headroom_linear: 10.0_f32.powf(-1.0 / 20.0),
             headroom_scale: 1.0,
             headroom_scale_target: 1.0,
             headroom_attack_rate: 0.01,
@@ -295,6 +298,7 @@ impl ParametricEq {
     /// Set headroom in dB for headroom management
     pub fn set_headroom_db(&mut self, headroom_db: f32) {
         self.headroom_db = headroom_db;
+        self.headroom_linear = 10.0_f32.powf(headroom_db / 20.0);
     }
 
     /// Process a stereo sample pair through the full EQ chain
@@ -325,7 +329,7 @@ impl ParametricEq {
         //
         // the scale returns to unity gradually, avoiding pumping artifacts.
         // At 0.0005, 95% return takes ~6000 samples (~136ms at 44.1kHz).
-        let headroom_linear = 10.0_f32.powf(self.headroom_db / 20.0);
+        let headroom_linear = self.headroom_linear;
         let peak = l.abs().max(r.abs());
 
         // Envelope follower

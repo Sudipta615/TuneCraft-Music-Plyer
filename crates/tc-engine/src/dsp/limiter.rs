@@ -75,8 +75,8 @@ impl LookaheadLimiter {
             soft_clip,
             enabled: true,
             delay_lines: [
-                vec![0.0; lookahead_samples + 1],
-                vec![0.0; lookahead_samples + 1],
+                vec![0.0; (lookahead_samples + 1).next_power_of_two()],
+                vec![0.0; (lookahead_samples + 1).next_power_of_two()],
             ],
             delay_write_pos: 0,
             current_gain: 1.0,
@@ -144,6 +144,7 @@ impl LookaheadLimiter {
             return (left, right);
         }
 
+        #[cfg(debug_assertions)]
         if left.is_nan() || right.is_nan() {
             log::error!("LookaheadLimiter: NaN input detected, clamping to 0.0");
             return (0.0, 0.0);
@@ -169,7 +170,8 @@ impl LookaheadLimiter {
 
         // giving exactly lookahead_samples of delay
         let delay_len = self.delay_lines[0].len();
-        let read_pos = (self.delay_write_pos + delay_len - self.lookahead_samples) % delay_len;
+        let read_pos =
+            (self.delay_write_pos + delay_len - self.lookahead_samples) & (delay_len - 1);
 
         let delayed_left = self.delay_lines[0][read_pos];
         let delayed_right = self.delay_lines[1][read_pos];
@@ -177,7 +179,7 @@ impl LookaheadLimiter {
         self.delay_lines[0][self.delay_write_pos] = left;
         self.delay_lines[1][self.delay_write_pos] = right;
 
-        self.delay_write_pos = (self.delay_write_pos + 1) % delay_len;
+        self.delay_write_pos = (self.delay_write_pos + 1) & (delay_len - 1);
 
         let mut out_l = delayed_left * self.current_gain;
         let mut out_r = delayed_right * self.current_gain;
@@ -253,7 +255,7 @@ impl LookaheadLimiter {
         let lookahead_samples = (self.lookahead_secs * sample_rate).ceil() as usize;
         self.lookahead_samples = lookahead_samples.max(1);
         for line in &mut self.delay_lines {
-            line.resize(self.lookahead_samples + 1, 0.0);
+            line.resize((self.lookahead_samples + 1).next_power_of_two(), 0.0);
         }
         self.delay_write_pos = 0;
         self.attack_coeff = (-1.0 / (self.attack_secs * self.sample_rate)).exp();

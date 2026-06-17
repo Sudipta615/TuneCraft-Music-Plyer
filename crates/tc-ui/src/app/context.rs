@@ -218,8 +218,18 @@ impl AppContext {
                 .spawn(move || {
                     info!("Engine tick thread started");
                     while running_clone.load(Ordering::Relaxed) {
-                        engine_clone.lock().tick();
-                        std::thread::sleep(std::time::Duration::from_millis(5));
+                        let (state, has_pending) = {
+                            let mut eng = engine_clone.lock();
+                            eng.tick();
+                            (eng.playback_info().state, eng.has_pending_chunk())
+                        };
+                        let sleep_ms =
+                            if state == tc_engine::buffer::PlaybackState::Playing && !has_pending {
+                                5
+                            } else {
+                                50
+                            };
+                        std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
                     }
                     info!("Engine tick thread stopped");
                 })

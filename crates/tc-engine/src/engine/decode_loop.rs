@@ -180,52 +180,75 @@ impl AudioEngine {
 
         let mut stalled_at: Option<usize> = None;
 
-        'outer: for i in start_frame..frames {
-            let idx = i * channels;
-            if idx + channels > chunk.samples.len() {
-                warn!("Inconsistent sample data at frame {}, stopping decode", i);
-                break;
-            }
-            let left = chunk.samples[idx];
-            let right = if channels > 1 {
-                chunk.samples[idx + 1]
-            } else {
-                left
-            };
+        // Loop unswitching to avoid checking `channels > 1` per sample in the hot path.
+        macro_rules! process_frames {
+            ($is_stereo:expr) => {
+                'outer: for i in start_frame..frames {
+                    let idx = i * channels;
+                    if idx + channels > chunk.samples.len() {
+                        warn!("Inconsistent sample data at frame {}, stopping decode", i);
+                        break;
+                    }
+                    let left = chunk.samples[idx];
+                    let right = if $is_stereo {
+                        chunk.samples[idx + 1]
+                    } else {
+                        left
+                    };
 
-            // In Single mode, the mixer is in PlayingCurrent state, so
-            // process() simply passes through (out_l, out_r) unchanged.
-            let (dsp_l, dsp_r) = self.pipeline.process(left, right);
+                    // In Single mode, the mixer is in PlayingCurrent state, so
+                    // process() simply passes through (out_l, out_r) unchanged.
+                    let (dsp_l, dsp_r) = self.pipeline.process(left, right);
 
-            #[cfg(feature = "resample")]
-            if let Some(ref mut r) = resampler {
-                if r.is_passthrough() {
-                    self.pending_output_frames.push_back((dsp_l, dsp_r));
-                } else {
-                    r.feed(dsp_l, dsp_r);
-                    while let Some((out_l, out_r)) = r.read() {
-                        self.pending_output_frames.push_back((out_l, out_r));
+                    #[cfg(feature = "resample")]
+                    let bypass = resampler.is_none();
+                    #[cfg(not(feature = "resample"))]
+                    let bypass = true;
+
+                    if bypass {
+                        if self.output_buffer.push(AudioFrame::stereo(dsp_l, dsp_r)) {
+                            processed_frames += 1;
+                            continue;
+                        } else {
+                            self.pending_output_frames.push_back((dsp_l, dsp_r));
+                            processed_frames += 1;
+                            stalled_at = Some(i + 1);
+                            break 'outer;
+                        }
+                    }
+
+                    #[cfg(feature = "resample")]
+                    if let Some(ref mut r) = resampler {
+                        if r.is_passthrough() {
+                            self.pending_output_frames.push_back((dsp_l, dsp_r));
+                        } else {
+                            r.feed(dsp_l, dsp_r);
+                            while let Some((out_l, out_r)) = r.read() {
+                                self.pending_output_frames.push_back((out_l, out_r));
+                            }
+                        }
+                    }
+
+                    processed_frames += 1;
+
+                    // Drain newly generated frames to output buffer
+                    while let Some(&(l, r)) = self.pending_output_frames.front() {
+                        if self.output_buffer.push(AudioFrame::stereo(l, r)) {
+                            self.pending_output_frames.pop_front();
+                        } else {
+                            // We successfully processed frame `i`, so next time start at `i + 1`
+                            stalled_at = Some(i + 1);
+                            break 'outer;
+                        }
                     }
                 }
-            } else {
-                self.pending_output_frames.push_back((dsp_l, dsp_r));
-            }
+            };
+        }
 
-            #[cfg(not(feature = "resample"))]
-            self.pending_output_frames.push_back((dsp_l, dsp_r));
-
-            processed_frames += 1;
-
-            // Drain newly generated frames to output buffer
-            while let Some(&(l, r)) = self.pending_output_frames.front() {
-                if self.output_buffer.push(AudioFrame::stereo(l, r)) {
-                    self.pending_output_frames.pop_front();
-                } else {
-                    // We successfully processed frame `i`, so next time start at `i + 1`
-                    stalled_at = Some(i + 1);
-                    break 'outer;
-                }
-            }
+        if channels > 1 {
+            process_frames!(true);
+        } else {
+            process_frames!(false);
         }
 
         if let Some(stall_frame) = stalled_at {
@@ -347,158 +370,159 @@ impl AudioEngine {
         let mut in_idx = 0usize;
         let mut stalled_at: Option<(usize, usize)> = None;
 
-        for _ in 0..max_frames {
-            if *crossfade_frames_remaining == 0 {
-                // Crossfade complete — will be handled on next tick.
-                break;
-            }
+        // Loop unswitching to avoid checking `out_channels > 1` and `in_channels > 1` per sample.
+        macro_rules! process_frames_transition {
+            ($out_is_stereo:expr, $in_is_stereo:expr) => {
+                for _ in 0..max_frames {
+                    if *crossfade_frames_remaining == 0 {
+                        // Crossfade complete — will be handled on next tick.
+                        break;
+                    }
 
-            // Get outgoing samples (or silence if the outgoing stream ended).
-            let (out_l, out_r) = if out_idx + out_channels <= out_samples.len() {
-                let l = out_samples[out_idx];
-                let r = if out_channels > 1 {
-                    out_samples[out_idx + 1]
-                } else {
-                    l
-                };
-                out_idx += out_channels;
-                (l, r)
-            } else {
-                (0.0, 0.0)
-            };
+                    // Get outgoing samples (or silence if the outgoing stream ended).
+                    let (out_l, out_r) = if out_idx + out_channels <= out_samples.len() {
+                        let l = out_samples[out_idx];
+                        let r = if $out_is_stereo {
+                            out_samples[out_idx + 1]
+                        } else {
+                            l
+                        };
+                        out_idx += out_channels;
+                        (l, r)
+                    } else {
+                        (0.0, 0.0)
+                    };
 
-            // Get incoming samples (or silence if the incoming stream ended).
-            let (in_l, in_r) = if in_idx + in_channels <= in_samples.len() {
-                let l = in_samples[in_idx];
-                let r = if in_channels > 1 {
-                    in_samples[in_idx + 1]
-                } else {
-                    l
-                };
-                in_idx += in_channels;
-                (l, r)
-            } else {
-                (0.0, 0.0)
-            };
+                    // Get incoming samples (or silence if the incoming stream ended).
+                    let (in_l, in_r) = if in_idx + in_channels <= in_samples.len() {
+                        let l = in_samples[in_idx];
+                        let r = if $in_is_stereo {
+                            in_samples[in_idx + 1]
+                        } else {
+                            l
+                        };
+                        in_idx += in_channels;
+                        (l, r)
+                    } else {
+                        (0.0, 0.0)
+                    };
 
-            // Process the outgoing track through the first half of the DSP pipeline.
-            let (out_dsp_l, out_dsp_r) = self.pipeline.process_outgoing(out_l, out_r);
+                    // Process the outgoing track through the first half of the DSP pipeline.
+                    let (out_dsp_l, out_dsp_r) = self.pipeline.process_outgoing(out_l, out_r);
 
-            // Process the incoming track through the first half of the DSP pipeline.
-            let (in_dsp_l, in_dsp_r) = self.pipeline.process_incoming(in_l, in_r);
+                    // Process the incoming track through the first half of the DSP pipeline.
+                    let (in_dsp_l, in_dsp_r) = self.pipeline.process_incoming(in_l, in_r);
 
-            // v0.21.0: Feed each stream's pre-mix DSP output through its
-            // respective resampler BEFORE mixing. This mirrors how
-            // decode_single_stream works and ensures that tracks with
-            // different sample rates than the output device are correctly
-            // pitch-shifted during crossfade. The previous code bypassed
-            // resampling entirely in the crossfade path, causing audible
-            // pitch/speed errors when source_rate != output_rate.
-            //
-            // Bug #5 fix: When the resampler is non-passthrough, feeding one
-            // input frame may produce multiple output frames. We must read ALL
-            // available output frames, not just one, to avoid under-feeding the
-            // mixer and producing silence gaps / timing drift.
-            //
-            // v0.29.0: Reuse pre-allocated scratch buffers instead of creating
-            // new Vecs each frame. This eliminates the dominant real-time
-            // allocation in the crossfade decode path.
+                    // Clear the scratch buffers for reuse (does not free memory).
+                    self.rs_out_buf.clear();
+                    self.rs_in_buf.clear();
 
-            // Clear the scratch buffers for reuse (does not free memory).
-            self.rs_out_buf.clear();
-            self.rs_in_buf.clear();
+                    #[cfg(feature = "resample")]
+                    {
+                        // Collect outgoing resampler frames.
+                        if let Some(ref mut r) = outgoing_resampler {
+                            if r.is_passthrough() {
+                                self.rs_out_buf.push((out_dsp_l, out_dsp_r));
+                            } else {
+                                r.feed(out_dsp_l, out_dsp_r);
+                                while let Some((l, rv)) = r.read() {
+                                    self.rs_out_buf.push((l, rv));
+                                }
+                                if self.rs_out_buf.is_empty() {
+                                    self.rs_out_buf.push((0.0, 0.0));
+                                }
+                            }
+                        } else {
+                            self.rs_out_buf.push((out_dsp_l, out_dsp_r));
+                        }
 
-            #[cfg(feature = "resample")]
-            {
-                // Collect outgoing resampler frames.
-                if let Some(ref mut r) = outgoing_resampler {
-                    if r.is_passthrough() {
+                        // Collect incoming resampler frames.
+                        if let Some(ref mut r) = incoming_resampler {
+                            if r.is_passthrough() {
+                                self.rs_in_buf.push((in_dsp_l, in_dsp_r));
+                            } else {
+                                r.feed(in_dsp_l, in_dsp_r);
+                                while let Some((l, rv)) = r.read() {
+                                    self.rs_in_buf.push((l, rv));
+                                }
+                                if self.rs_in_buf.is_empty() {
+                                    self.rs_in_buf.push((0.0, 0.0));
+                                }
+                            }
+                        } else {
+                            self.rs_in_buf.push((in_dsp_l, in_dsp_r));
+                        }
+                    }
+
+                    #[cfg(not(feature = "resample"))]
+                    {
                         self.rs_out_buf.push((out_dsp_l, out_dsp_r));
-                    } else {
-                        r.feed(out_dsp_l, out_dsp_r);
-                        while let Some((l, rv)) = r.read() {
-                            self.rs_out_buf.push((l, rv));
-                        }
-                        if self.rs_out_buf.is_empty() {
-                            self.rs_out_buf.push((0.0, 0.0));
-                        }
-                    }
-                } else {
-                    self.rs_out_buf.push((out_dsp_l, out_dsp_r));
-                }
-
-                // Collect incoming resampler frames.
-                if let Some(ref mut r) = incoming_resampler {
-                    if r.is_passthrough() {
                         self.rs_in_buf.push((in_dsp_l, in_dsp_r));
-                    } else {
-                        r.feed(in_dsp_l, in_dsp_r);
-                        while let Some((l, rv)) = r.read() {
-                            self.rs_in_buf.push((l, rv));
+                    }
+
+                    // Mix all combinations of output frames from both resamplers.
+                    // When one resampler produces more frames than the other, the
+                    // shorter one is extended with silence. This handles the case where
+                    // different source rates produce different output frame counts.
+                    let max_rs_frames = self.rs_out_buf.len().max(self.rs_in_buf.len());
+                    for rs_idx in 0..max_rs_frames {
+                        if *crossfade_frames_remaining == 0 {
+                            break;
                         }
-                        if self.rs_in_buf.is_empty() {
-                            self.rs_in_buf.push((0.0, 0.0));
+
+                        let (ors_l, ors_r) =
+                            self.rs_out_buf.get(rs_idx).copied().unwrap_or((0.0, 0.0));
+                        let (irs_l, irs_r) =
+                            self.rs_in_buf.get(rs_idx).copied().unwrap_or((0.0, 0.0));
+
+                        // Feed both RESAMPLED streams into the mixer with distinct inputs.
+                        let (mixed_l, mixed_r) = self
+                            .pipeline
+                            .mixer_mut()
+                            .process(ors_l, ors_r, irs_l, irs_r);
+
+                        // Apply the remaining DSP stages (limiter, volume, dither) to
+                        // the mixed output.
+                        let (final_l, final_r) = self.pipeline.process_post_mix(mixed_l, mixed_r);
+                        self.pending_output_frames.push_back((final_l, final_r));
+                        *crossfade_frames_remaining = crossfade_frames_remaining.saturating_sub(1);
+                        processed_frames += 1;
+
+                        while let Some(&(l, r)) = self.pending_output_frames.front() {
+                            if self.output_buffer.push(AudioFrame::stereo(l, r)) {
+                                self.pending_output_frames.pop_front();
+                            } else {
+                                // Buffer full — cache partial chunk positions for both
+                                // streams so we can resume on the next tick without
+                                // dropping audio data. Note: out_idx and in_idx are already
+                                // incremented past the current frame, so we won't process it twice.
+                                stalled_at = Some((out_idx, in_idx));
+                                break;
+                            }
+                        }
+
+                        if stalled_at.is_some() {
+                            break;
                         }
                     }
-                } else {
-                    self.rs_in_buf.push((in_dsp_l, in_dsp_r));
-                }
-            }
 
-            #[cfg(not(feature = "resample"))]
-            {
-                self.rs_out_buf.push((out_dsp_l, out_dsp_r));
-                self.rs_in_buf.push((in_dsp_l, in_dsp_r));
-            }
-
-            // Mix all combinations of output frames from both resamplers.
-            // When one resampler produces more frames than the other, the
-            // shorter one is extended with silence. This handles the case where
-            // different source rates produce different output frame counts.
-            let max_rs_frames = self.rs_out_buf.len().max(self.rs_in_buf.len());
-            for rs_idx in 0..max_rs_frames {
-                if *crossfade_frames_remaining == 0 {
-                    break;
-                }
-
-                let (ors_l, ors_r) = self.rs_out_buf.get(rs_idx).copied().unwrap_or((0.0, 0.0));
-                let (irs_l, irs_r) = self.rs_in_buf.get(rs_idx).copied().unwrap_or((0.0, 0.0));
-
-                // Feed both RESAMPLED streams into the mixer with distinct inputs.
-                let (mixed_l, mixed_r) = self
-                    .pipeline
-                    .mixer_mut()
-                    .process(ors_l, ors_r, irs_l, irs_r);
-
-                // Apply the remaining DSP stages (limiter, volume, dither) to
-                // the mixed output.
-                let (final_l, final_r) = self.pipeline.process_post_mix(mixed_l, mixed_r);
-                self.pending_output_frames.push_back((final_l, final_r));
-                *crossfade_frames_remaining = crossfade_frames_remaining.saturating_sub(1);
-                processed_frames += 1;
-
-                while let Some(&(l, r)) = self.pending_output_frames.front() {
-                    if self.output_buffer.push(AudioFrame::stereo(l, r)) {
-                        self.pending_output_frames.pop_front();
-                    } else {
-                        // Buffer full — cache partial chunk positions for both
-                        // streams so we can resume on the next tick without
-                        // dropping audio data. Note: out_idx and in_idx are already
-                        // incremented past the current frame, so we won't process it twice.
-                        stalled_at = Some((out_idx, in_idx));
+                    if stalled_at.is_some() {
                         break;
                     }
                 }
+            };
+        }
 
-                if stalled_at.is_some() {
-                    break;
-                }
-            }
+        match (out_channels > 1, in_channels > 1) {
+            (true, true) => process_frames_transition!(true, true),
+            (true, false) => process_frames_transition!(true, false),
+            (false, true) => process_frames_transition!(false, true),
+            (false, false) => process_frames_transition!(false, false),
+        }
 
-            // If we stalled during the resampled-frame sub-loop, break outer loop too.
-            if stalled_at.is_some() {
-                break;
-            }
+        // If we stalled during the resampled-frame sub-loop, break outer loop too.
+        if stalled_at.is_some() {
+            // (Break handled implicitly by macro termination)
         }
 
         // v0.21.0: Handle stalling by caching partial chunks for both

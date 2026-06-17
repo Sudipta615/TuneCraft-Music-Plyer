@@ -472,13 +472,12 @@ pub const DENORMAL_OFFSET: f32 = 1e-15;
 
 #[inline(always)]
 pub fn flush_denormal(sample: f32) -> f32 {
-    // Branchless bitwise check for true denormals (exponent == 0)
     let bits = sample.to_bits();
-    if (bits & 0x7F80_0000) == 0 {
-        0.0
-    } else {
-        sample
-    }
+    // Branchless bitwise check: exponent == 0 implies subnormal or zero.
+    let is_subnormal_or_zero = (bits & 0x7F80_0000) == 0;
+    // If true (1), mask becomes 0x0000_0000. If false (0), mask becomes 0xFFFF_FFFF.
+    let mask = (is_subnormal_or_zero as u32).wrapping_sub(1);
+    f32::from_bits(bits & mask)
 }
 
 #[inline(always)]

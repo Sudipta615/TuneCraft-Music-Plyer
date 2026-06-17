@@ -364,7 +364,7 @@ impl CpalOutput {
         channels: usize,
     ) {
         let _guard = CallbackGuard::new(in_callback);
-        if paused.load(Ordering::SeqCst) {
+        if paused.load(Ordering::Acquire) {
             data.fill(0.0);
             return;
         }
@@ -382,7 +382,7 @@ impl CpalOutput {
                 },
                 None => {
                     frame.fill(0.0);
-                    underruns.fetch_add(1, Ordering::SeqCst);
+                    underruns.fetch_add(1, Ordering::Relaxed);
                 },
             }
         }
@@ -399,7 +399,7 @@ impl CpalOutput {
         channels: usize,
     ) {
         let _guard = CallbackGuard::new(in_callback);
-        if paused.load(Ordering::SeqCst) {
+        if paused.load(Ordering::Acquire) {
             data.fill(0);
             return;
         }
@@ -418,7 +418,7 @@ impl CpalOutput {
                 },
                 None => {
                     frame.fill(0);
-                    underruns.fetch_add(1, Ordering::SeqCst);
+                    underruns.fetch_add(1, Ordering::Relaxed);
                 },
             }
         }
@@ -435,7 +435,7 @@ impl CpalOutput {
         channels: usize,
     ) {
         let _guard = CallbackGuard::new(in_callback);
-        if paused.load(Ordering::SeqCst) {
+        if paused.load(Ordering::Acquire) {
             data.fill(32768);
             return;
         }
@@ -454,7 +454,7 @@ impl CpalOutput {
                 },
                 None => {
                     frame.fill(32768);
-                    underruns.fetch_add(1, Ordering::SeqCst);
+                    underruns.fetch_add(1, Ordering::Relaxed);
                 },
             }
         }
@@ -462,15 +462,15 @@ impl CpalOutput {
 
     /// Pause the output
     pub fn pause(&self) {
-        self.paused.store(true, Ordering::SeqCst);
-        while self.in_callback.load(Ordering::SeqCst) {
-            std::thread::yield_now();
+        self.paused.store(true, Ordering::Release);
+        while self.in_callback.load(Ordering::Acquire) {
+            std::thread::sleep(std::time::Duration::from_micros(100));
         }
     }
 
     /// Resume the output
     pub fn resume(&self) {
-        self.paused.store(false, Ordering::SeqCst);
+        self.paused.store(false, Ordering::Release);
     }
 
     /// Reset the output buffer safely by pausing playback first
@@ -515,13 +515,13 @@ struct CallbackGuard<'a> {
 
 impl<'a> CallbackGuard<'a> {
     fn new(flag: &'a AtomicBool) -> Self {
-        flag.store(true, Ordering::SeqCst);
+        flag.store(true, Ordering::Release);
         Self { flag }
     }
 }
 
 impl<'a> Drop for CallbackGuard<'a> {
     fn drop(&mut self) {
-        self.flag.store(false, Ordering::SeqCst);
+        self.flag.store(false, Ordering::Release);
     }
 }

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.2] — 2026-06-17
+
+### 🚀 Changed
+- **Performance**: Improved engine thread efficiency by using an adaptive sleep strategy and optimizing atomic operations within the audio callback loop.
+- **Performance**: Throttled UI idle redraws to ~30 FPS, significantly reducing CPU usage while maintaining responsiveness.
+
+### 🐛 Fixed
+- **DSP Engine**: Implemented branchless processing for denormal sample flushing and loop unswitching in the decode hot path to lower CPU utilization on legacy hardware.
+
+---
+
 ## [2.8.1] — 2026-06-16
 
 ### 🐛 Fixed
