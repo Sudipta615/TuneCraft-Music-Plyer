@@ -68,7 +68,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: tunecraft
+            asset_name: tunecraft-linux-x86_64
+          - os: macos-latest
+            artifact_name: tunecraft
+            asset_name: tunecraft-macos-aarch64
+          - os: windows-latest
+            artifact_name: tunecraft.exe
+            asset_name: tunecraft-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -79,6 +88,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: cargo build --release
         run: cargo build --release --workspace
+      - name: Stage binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/release/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}
+          retention-days: 30
+
 
   cargo-deny:
     name: Cargo deny (supply chain)
