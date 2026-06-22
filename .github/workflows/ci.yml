@@ -37,8 +37,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - name: Install ALSA headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Install ALSA and Fontconfig headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev
       - uses: Swatinem/rust-cache@v2
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
@@ -53,9 +53,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install ALSA headers (Linux only)
+      - name: Install ALSA and Fontconfig headers (Linux only)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev
       - uses: Swatinem/rust-cache@v2
       - name: cargo test --workspace
         # Tests that require an audio device (e.g. test_app_context_init_headless)
@@ -73,9 +73,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install ALSA headers (Linux only)
+      - name: Install ALSA and Fontconfig headers (Linux only)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev
       - uses: Swatinem/rust-cache@v2
       - name: cargo build --release
         run: cargo build --release --workspace
@@ -103,8 +103,8 @@ jobs:
           # We need full history to compare against main.
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install ALSA headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Install ALSA and Fontconfig headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev
       - uses: Swatinem/rust-cache@v2
       - name: Install critcmp
         run: cargo install critcmp || true
@@ -134,10 +134,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install ALSA + loopback module
+      - name: Install ALSA + Fontconfig + loopback module
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev alsa-utils
+          sudo apt-get install -y libasound2-dev libfontconfig1-dev alsa-utils
           # Try to load the loopback module. This requires
           # `--privileged` on the runner; if it fails, the test falls
           # back to the null device.
