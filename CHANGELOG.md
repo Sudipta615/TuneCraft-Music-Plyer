@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.6] — 2026-06-22
+
+### 🛠️ Fixed
+- **Windows Build**: Fixed compilation errors on Windows by properly formatting `souvlaki::Error` with `{:?}`, stubbing out the unsupported `set_volume` method, and suppressing unused variable warnings in `lib.rs`.
+- **macOS Build**: Fixed a strict compiler warning (`unused_mut`) on the `device` variable in `cpal_output.rs` which failed the CI.
+- **Ubuntu CI**: Fixed `yeslogic-fontconfig-sys` compilation failure by adding the missing `libfontconfig1-dev` system dependency to the GitHub Actions workflow.
+- **Cargo Deny CI**: Fixed invalid arguments passed to the `cargo-deny-action` in the CI workflow.
+
+---
+
 ## [3.1.5] — 2026-06-21 (Slint Migration Fixup 2)
 
 Further `tc-ui` regressions found after auditing the egui → Slint
