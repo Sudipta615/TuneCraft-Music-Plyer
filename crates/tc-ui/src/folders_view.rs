@@ -36,12 +36,7 @@ pub fn build_folders(app: &TuneCraftApp) -> ModelRc<crate::FolderItem> {
                 .and_then(|n| n.to_str())
                 .unwrap_or(path.to_str().unwrap_or("Unknown"))
                 .to_string();
-            folder_to_item(
-                path.to_str().unwrap_or(""),
-                &name,
-                *count,
-                false,
-            )
+            folder_to_item(path.to_str().unwrap_or(""), &name, *count, false)
         })
         .collect();
 

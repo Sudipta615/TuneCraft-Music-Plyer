@@ -3,11 +3,9 @@
 fn main() {
     // Use an include path so .slint files in `components/` can import
     // `theme/colors.slint`, `types.slint`, etc. without `../` prefixes.
-    let config = slint_build::CompilerConfiguration::new()
-        .with_include_paths(vec!["ui".into()]);
+    let config = slint_build::CompilerConfiguration::new().with_include_paths(vec!["ui".into()]);
 
-    slint_build::compile_with_config("ui/app.slint", config)
-        .expect("Slint UI compilation failed");
+    slint_build::compile_with_config("ui/app.slint", config).expect("Slint UI compilation failed");
 
     println!("cargo:rerun-if-changed=ui/app.slint");
     println!("cargo:rerun-if-changed=ui/types.slint");

@@ -46,8 +46,11 @@ impl BpmDetector {
             // autocorrelation toward detecting spurious low-energy beats
             // at packet boundaries.
             let n = chunk.len().max(1);
-            let energy: f32 =
-                chunk.iter().map(|(l, r)| (l * l + r * r) * 0.5).sum::<f32>() / n as f32;
+            let energy: f32 = chunk
+                .iter()
+                .map(|(l, r)| (l * l + r * r) * 0.5)
+                .sum::<f32>()
+                / n as f32;
             let onset = energy.sqrt();
             self.onset_history.push_back(onset);
             if self.onset_history.len() > self.max_history {

@@ -334,7 +334,8 @@ impl TuneCraftApp {
         slint_app.set_show_create_playlist_dialog(self.show_create_playlist_dialog);
         slint_app.set_new_playlist_name(SharedString::from(self.new_playlist_name.clone()));
         slint_app.set_show_add_to_playlist_dialog(self.show_add_to_playlist_dialog.is_some());
-        slint_app.set_add_to_playlist_track_id(self.show_add_to_playlist_dialog.unwrap_or(-1) as i32);
+        slint_app
+            .set_add_to_playlist_track_id(self.show_add_to_playlist_dialog.unwrap_or(-1) as i32);
         slint_app.set_show_track_info_dialog(self.show_track_info_dialog.is_some());
 
         if let Some(track_id) = self.show_track_info_dialog {
@@ -373,12 +374,21 @@ pub fn tick(app_state: &mut TuneCraftApp, slint_app: &App) {
     app_state.poll_lyrics_events();
 
     const MPRIS_POSITION_INTERVAL: std::time::Duration = std::time::Duration::from_millis(1000);
-    if app_state.is_playing && app_state.last_mpris_position_update.elapsed() >= MPRIS_POSITION_INTERVAL {
-        app_state.ctx.platform.update_mpris_position(app_state.position_secs);
+    if app_state.is_playing
+        && app_state.last_mpris_position_update.elapsed() >= MPRIS_POSITION_INTERVAL
+    {
+        app_state
+            .ctx
+            .platform
+            .update_mpris_position(app_state.position_secs);
         app_state.last_mpris_position_update = std::time::Instant::now();
     }
 
-    let config_theme = app_state.ctx.config.read(|c| c.ui.theme).unwrap_or(app_state.theme);
+    let config_theme = app_state
+        .ctx
+        .config
+        .read(|c| c.ui.theme)
+        .unwrap_or(app_state.theme);
     if config_theme != app_state.theme {
         app_state.theme = config_theme;
     }
@@ -680,7 +690,9 @@ fn wire_callbacks(slint_app: &App, app_state: &Arc<Mutex<TuneCraftApp>>) {
     let state = Arc::clone(app_state);
     slint_app.on_tracks_per_page_changed(move |n| {
         let s = state.lock();
-        s.ctx.config.write(|c| c.library.tracks_per_page = n as usize);
+        s.ctx
+            .config
+            .write(|c| c.library.tracks_per_page = n as usize);
     });
 
     // ── Settings: scan-on-startup-changed ──
@@ -708,7 +720,9 @@ fn wire_callbacks(slint_app: &App, app_state: &Arc<Mutex<TuneCraftApp>>) {
     let state = Arc::clone(app_state);
     slint_app.on_lyrics_base_url_changed(move |s_str| {
         let s = state.lock();
-        s.ctx.config.write(|c| c.lyrics.base_url = s_str.to_string());
+        s.ctx
+            .config
+            .write(|c| c.lyrics.base_url = s_str.to_string());
     });
 
     // ── Settings: scrobble-enabled-changed ──
@@ -759,7 +773,9 @@ fn wire_callbacks(slint_app: &App, app_state: &Arc<Mutex<TuneCraftApp>>) {
     slint_app.on_remove_watch_dir(move |dir_str| {
         let s = state.lock();
         let path = std::path::PathBuf::from(dir_str.as_str());
-        s.ctx.config.write(|c| c.library.watch_dirs.retain(|d| d != &path));
+        s.ctx
+            .config
+            .write(|c| c.library.watch_dirs.retain(|d| d != &path));
         if let Some(ui) = weak.upgrade() {
             s.sync_to_slint(&ui);
         }
@@ -785,9 +801,12 @@ fn wire_callbacks(slint_app: &App, app_state: &Arc<Mutex<TuneCraftApp>>) {
         let mut s = state.lock();
         let path = std::path::PathBuf::from(path_str.as_str());
         s.folder_view_path = Some(path.clone());
-        s.folder_tracks = s.tracks.iter().filter(|t| {
-            std::path::Path::new(&t.path).parent() == Some(path.as_path())
-        }).cloned().collect();
+        s.folder_tracks = s
+            .tracks
+            .iter()
+            .filter(|t| std::path::Path::new(&t.path).parent() == Some(path.as_path()))
+            .cloned()
+            .collect();
         if let Some(ui) = weak.upgrade() {
             s.sync_to_slint(&ui);
         }
@@ -947,8 +966,12 @@ fn wire_callbacks(slint_app: &App, app_state: &Arc<Mutex<TuneCraftApp>>) {
             "title" => s.tracks.sort_by(|a, b| a.title.cmp(&b.title)),
             "artist" => s.tracks.sort_by(|a, b| a.artist.cmp(&b.artist)),
             "album" => s.tracks.sort_by(|a, b| a.album.cmp(&b.album)),
-            "duration" => s.tracks.sort_by(|a, b| a.duration_secs.partial_cmp(&b.duration_secs).unwrap_or(std::cmp::Ordering::Equal)),
-            _ => {}
+            "duration" => s.tracks.sort_by(|a, b| {
+                a.duration_secs
+                    .partial_cmp(&b.duration_secs)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }),
+            _ => {},
         }
         if !ascending {
             s.tracks.reverse();

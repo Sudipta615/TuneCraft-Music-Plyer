@@ -20,10 +20,7 @@ impl TuneCraftApp {
                     self.sync_from_playback_service();
                 },
                 Err(e) => {
-                    self.push_toast(
-                        format!("Failed to play track: {}", e),
-                        ToastLevel::Error,
-                    );
+                    self.push_toast(format!("Failed to play track: {}", e), ToastLevel::Error);
                 },
             }
         } else {

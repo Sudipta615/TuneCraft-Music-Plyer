@@ -76,7 +76,10 @@ fn main() -> Result<()> {
 /// sync when adding/removing flags — there is no test that enforces this,
 /// so manual review is required on any change here.
 fn print_help() {
-    println!("TuneCraft v{} — audiophile-grade offline music player", env!("CARGO_PKG_VERSION"));
+    println!(
+        "TuneCraft v{} — audiophile-grade offline music player",
+        env!("CARGO_PKG_VERSION")
+    );
     println!();
     println!("USAGE:");
     println!("    tunecraft [FILE] [OPTIONS]");
@@ -597,9 +600,7 @@ fn run_with_audio(
         // updates. We also skip the update entirely when not Playing.
         if info.state == tc_engine::buffer::PlaybackState::Playing {
             if let Some(ref mut p) = platform {
-                if last_mpris_position_update.elapsed()
-                    >= std::time::Duration::from_millis(1000)
-                {
+                if last_mpris_position_update.elapsed() >= std::time::Duration::from_millis(1000) {
                     // L15: Direct `as i64` cast overflows if position_secs is
                     // negative or very large. Clamp to [0, i64::MAX] range.
                     let pos_us =

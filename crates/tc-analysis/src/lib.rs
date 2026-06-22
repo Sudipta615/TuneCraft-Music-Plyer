@@ -165,11 +165,7 @@ pub fn analyze_file(
             // which made corrupted or truncated files look like a successful
             // analysis with whatever partial data was decoded.
             Err(ref e) => {
-                log::debug!(
-                    "Ending analysis of {}: packet error: {}",
-                    path.display(),
-                    e
-                );
+                log::debug!("Ending analysis of {}: packet error: {}", path.display(), e);
                 break;
             },
         };

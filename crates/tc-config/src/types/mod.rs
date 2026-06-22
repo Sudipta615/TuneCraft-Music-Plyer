@@ -168,7 +168,10 @@ mod tests {
 
     #[test]
     fn test_migrate_updates_version() {
-        let mut config = AppConfig { config_version: 0, ..Default::default() };
+        let mut config = AppConfig {
+            config_version: 0,
+            ..Default::default()
+        };
         let log = config.migrate();
         assert_eq!(config.config_version, CONFIG_VERSION);
         assert!(!log.is_empty());

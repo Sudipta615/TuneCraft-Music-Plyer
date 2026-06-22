@@ -2,19 +2,35 @@
 
 use slint::SharedString;
 
-use crate::App;
 use crate::app::TuneCraftApp;
+use crate::App;
 
 /// Sync settings view state to Slint.
 pub fn sync_settings_view(app: &TuneCraftApp, slint_app: &App) {
     // Read all settings from config in one pass to minimize lock contention.
-    let (volume, speed, crossfade_enabled, crossfade_secs,
-         replaygain_mode,
-         resampler_quality, performance_mode, dither_enabled,
-         tracks_per_page, scan_on_startup, watch_dirs,
-         lyrics_enabled, lyrics_fetch_on_play, lyrics_base_url,
-         scrobble_enabled, scrobble_threshold_pct, scrobble_threshold_sec,
-         theme, show_spectrum, show_waveform, minimize_to_tray) = app
+    let (
+        volume,
+        speed,
+        crossfade_enabled,
+        crossfade_secs,
+        replaygain_mode,
+        resampler_quality,
+        performance_mode,
+        dither_enabled,
+        tracks_per_page,
+        scan_on_startup,
+        watch_dirs,
+        lyrics_enabled,
+        lyrics_fetch_on_play,
+        lyrics_base_url,
+        scrobble_enabled,
+        scrobble_threshold_pct,
+        scrobble_threshold_sec,
+        theme,
+        show_spectrum,
+        show_waveform,
+        minimize_to_tray,
+    ) = app
         .ctx
         .config
         .read(|c| {
@@ -42,12 +58,29 @@ pub fn sync_settings_view(app: &TuneCraftApp, slint_app: &App) {
                 c.ui.minimize_to_tray,
             )
         })
-        .unwrap_or((0.0, 1.0, false, 0.0, "off".to_string(),
-             "balanced".to_string(), "balanced".to_string(), true,
-             500, true, Vec::new(),
-             true, true, String::new(),
-             true, 0.5, 240.0,
-             "dark".to_string(), true, true, false));
+        .unwrap_or((
+            0.0,
+            1.0,
+            false,
+            0.0,
+            "off".to_string(),
+            "balanced".to_string(),
+            "balanced".to_string(),
+            true,
+            500,
+            true,
+            Vec::new(),
+            true,
+            true,
+            String::new(),
+            true,
+            0.5,
+            240.0,
+            "dark".to_string(),
+            true,
+            true,
+            false,
+        ));
 
     slint_app.set_playback_settings(crate::PlaybackSettings {
         volume,
@@ -65,14 +98,13 @@ pub fn sync_settings_view(app: &TuneCraftApp, slint_app: &App) {
         limiter_enabled: false,
     });
 
-    let watch_dirs_model: slint::ModelRc<SharedString> = slint::ModelRc::new(
-        slint::VecModel::from(
+    let watch_dirs_model: slint::ModelRc<SharedString> =
+        slint::ModelRc::new(slint::VecModel::from(
             watch_dirs
                 .iter()
                 .map(|d| SharedString::from(d.to_string_lossy().to_string()))
                 .collect::<Vec<_>>(),
-        ),
-    );
+        ));
     slint_app.set_library_settings(crate::LibrarySettings {
         tracks_per_page: tracks_per_page as i32,
         scan_on_startup,

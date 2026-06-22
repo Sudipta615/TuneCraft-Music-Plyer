@@ -2,11 +2,7 @@
 
 use slint::{ModelRc, SharedString};
 
-use crate::{
-    app::TuneCraftApp,
-    converters::track_to_item,
-    App,
-};
+use crate::{app::TuneCraftApp, converters::track_to_item, App};
 
 /// Build the tracks model for the track list view.
 pub fn build_tracks(app: &TuneCraftApp) -> ModelRc<crate::TrackItem> {
@@ -17,7 +13,14 @@ pub fn build_tracks(app: &TuneCraftApp) -> ModelRc<crate::TrackItem> {
             let is_playing = app.current_track_id == Some(track.id);
             let is_paused = is_playing && !app.is_playing;
             let is_favorite = app.cached_favorite_ids.contains(&track.id);
-            track_to_item(track, is_playing, is_paused, is_favorite, slint::Image::default(), false)
+            track_to_item(
+                track,
+                is_playing,
+                is_paused,
+                is_favorite,
+                slint::Image::default(),
+                false,
+            )
         })
         .collect();
     ModelRc::new(slint::VecModel::from(items))

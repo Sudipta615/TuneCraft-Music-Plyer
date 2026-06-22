@@ -15,7 +15,11 @@ pub fn sync_player_bar(app: &TuneCraftApp, slint_app: &App) {
     if let Some(track) = app.current_track() {
         state.current_track_id = track.id as i32;
         state.title = track.title.clone().into();
-        state.artist = track.artist.clone().unwrap_or_else(|| "Unknown Artist".to_string()).into();
+        state.artist = track
+            .artist
+            .clone()
+            .unwrap_or_else(|| "Unknown Artist".to_string())
+            .into();
         state.album = track.album.clone().unwrap_or_default().into();
         state.has_track = true;
     }

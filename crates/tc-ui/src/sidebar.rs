@@ -6,11 +6,7 @@
 
 use slint::{ModelRc, SharedString};
 
-use crate::{
-    app::TuneCraftApp,
-    converters::nav_item,
-    App,
-};
+use crate::{app::TuneCraftApp, converters::nav_item, App};
 
 /// Which navigation section is active.
 ///
@@ -104,7 +100,11 @@ pub fn build_nav_items(app: &TuneCraftApp) -> ModelRc<crate::NavItem> {
         (NavSection::Artists, "Artists", "icons/users.svg"),
         (NavSection::Folders, "Folders", "icons/folder.svg"),
         (NavSection::Favorites, "Favorites", "icons/star.svg"),
-        (NavSection::RecentlyPlayed, "Recently Played", "icons/clock-counter-clockwise.svg"),
+        (
+            NavSection::RecentlyPlayed,
+            "Recently Played",
+            "icons/clock-counter-clockwise.svg",
+        ),
         (NavSection::MostPlayed, "Most Played", "icons/chart-bar.svg"),
     ];
 
@@ -164,4 +164,3 @@ pub fn load_icon(path: &str) -> slint::Image {
     let full_path = icons_dir.join(path);
     slint::Image::load_from_path(&full_path).unwrap_or_default()
 }
-

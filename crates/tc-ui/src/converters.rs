@@ -8,8 +8,7 @@
 use chrono::NaiveDateTime;
 
 use crate::{
-    NavItem, PlaylistItem, ToastItem, TrackItem, PlayerState, EqBandItem,
-    FolderItem, LyricsLine,
+    EqBandItem, FolderItem, LyricsLine, NavItem, PlayerState, PlaylistItem, ToastItem, TrackItem,
 };
 
 /// Convert a `tc_db::Track` to a `TrackItem` for Slint.
@@ -102,7 +101,9 @@ pub fn parse_lrc(lrc: &str) -> Vec<(i64, String)> {
         let mut rest = line;
         let mut timestamps_ms = Vec::new();
         while let Some(start) = rest.find('[') {
-            let Some(rel_end) = rest[start..].find(']') else { break };
+            let Some(rel_end) = rest[start..].find(']') else {
+                break;
+            };
             let end = start + rel_end;
             let tag = &rest[start + 1..end];
             if let Some(ms) = parse_lrc_timestamp(tag) {
@@ -175,7 +176,13 @@ pub fn empty_player_state() -> PlayerState {
 }
 
 /// Build a `NavItem` for the sidebar.
-pub fn nav_item(section: &str, label: &str, icon: slint::Image, badge: u32, active: bool) -> NavItem {
+pub fn nav_item(
+    section: &str,
+    label: &str,
+    icon: slint::Image,
+    badge: u32,
+    active: bool,
+) -> NavItem {
     NavItem {
         section: section.to_string().into(),
         label: label.to_string().into(),

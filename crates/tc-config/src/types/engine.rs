@@ -732,16 +732,10 @@ impl BandCompressorConfig {
         }
 
         if self.ratio.is_nan() || self.ratio <= 0.0 {
-            warnings.push(format!(
-                "ratio ({}) invalid, reset to 3.0",
-                self.ratio
-            ));
+            warnings.push(format!("ratio ({}) invalid, reset to 3.0", self.ratio));
             self.ratio = 3.0;
         } else if self.ratio > 20.0 {
-            warnings.push(format!(
-                "ratio ({}) above 20, clamped",
-                self.ratio
-            ));
+            warnings.push(format!("ratio ({}) above 20, clamped", self.ratio));
             self.ratio = 20.0;
         }
 

@@ -131,14 +131,22 @@ impl LyricsService {
     /// `base_url` lets the caller override the LRCLIB instance URL (e.g. to
     /// point at a self-hosted mirror). Pass an empty string to use the
     /// default `https://lrclib.net`.
-    pub fn new(db: Arc<Database>, enabled: bool, base_url: impl Into<String>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(
+        db: Arc<Database>,
+        enabled: bool,
+        base_url: impl Into<String>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let (req_tx, req_rx) = mpsc::channel::<LyricsRequest>(16);
         let (event_tx, event_rx) = mpsc::channel::<LyricsEvent>(16);
 
         let base_url = {
             let b = base_url.into();
             let b = b.trim_end_matches('/');
-            if b.is_empty() { LRCLIB_BASE_URL.to_string() } else { b.to_string() }
+            if b.is_empty() {
+                LRCLIB_BASE_URL.to_string()
+            } else {
+                b.to_string()
+            }
         };
 
         let svc = Self {

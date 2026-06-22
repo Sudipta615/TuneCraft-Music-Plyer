@@ -312,10 +312,7 @@ impl TuneCraftApp {
                         use tc_engine::buffer::EngineCommand;
                         self.ctx.playback.send_command(EngineCommand::OpenUri(uri));
                     } else {
-                        log::warn!(
-                            "OpenUri: only file:// URIs are supported, got: {}",
-                            uri
-                        );
+                        log::warn!("OpenUri: only file:// URIs are supported, got: {}", uri);
                     }
                 },
                 MediaKeyAction::Quit => {
