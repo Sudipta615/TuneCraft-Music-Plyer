@@ -1,18 +1,22 @@
-.TH TUNECRAFT 1 "2026" "TuneCraft 1.0.2" "User Commands"
+.TH TUNECRAFT 1 "2026" "TuneCraft 3.1.3" "User Commands"
 .SH NAME
 tunecraft \- offline music player with DSP processing and local play-history journaling
 .SH SYNOPSIS
 .B tunecraft
 [\fIFILE\fR]
 [\fB\-\-headless\fR]
+[\fB\-\-analyze\fR]
+[\fB\-\-skip-scan\fR]
+[\fB\-\-skip-analysis\fR]
 [\fB\-\-help\fR]
 [\fB\-\-version\fR]
 .SH DESCRIPTION
 .B tunecraft
 is a high-fidelity, offline music player featuring a parametric equalizer,
-loudness normalisation, BPM detection, mood classification, synced lyrics, and
-local play-history journaling.  It uses an egui/eframe graphical interface with a
-wgpu back-end and supports the MPRIS D-Bus protocol on Linux.
+loudness normalisation, BPM detection, real-time spectrum analysis, synced
+lyrics via LRCLIB, and local play-history journaling.  It uses an egui/eframe
+graphical interface with a wgpu back-end and supports the MPRIS D-Bus protocol
+on Linux.
 .PP
 Supported audio formats: MP3, FLAC, OGG/Vorbis, WAV, AAC.
 .SH OPTIONS
@@ -20,13 +24,24 @@ Supported audio formats: MP3, FLAC, OGG/Vorbis, WAV, AAC.
 .I FILE
 Open and play a specific audio file on launch.
 .TP
-.B \-\-headless
+.B \-\-headless, \-\-cli
 Run without the graphical interface (library management only).
 .TP
-.B \-\-help
+.B \-\-analyze
+Force loudness/BPM analysis on every track missing either, including
+pre-v3.0.0 libraries where the loudness columns existed but were never
+populated.  Implies \fB\-\-headless\fR.
+.TP
+.B \-\-skip-scan
+Skip the startup library scan (headless mode only).
+.TP
+.B \-\-skip-analysis
+Skip the startup audio-analysis pass (headless mode only).
+.TP
+.B \-h, \-\-help
 Print a short usage summary and exit.
 .TP
-.B \-\-version
+.B \-V, \-\-version
 Print version information and exit.
 .SH ENVIRONMENT
 .TP

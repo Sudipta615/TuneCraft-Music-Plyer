@@ -28,6 +28,12 @@ pub struct CrossPlatformMediaControls {
     /// The souvlaki MediaControls handle. None if initialization failed
     /// (e.g., no D-Bus on Linux, no window handle on some platforms).
     controls: Option<MediaControls>,
+    /// Last reported playback status, so `set_position` can emit the
+    /// correct `MediaPlayback` variant instead of always forcing Playing.
+    current_status: MprisPlaybackStatus,
+    /// Last reported track id (best-effort, used to populate
+    /// `MediaKeyAction::SetPosition.track_id` which MPRIS spec requires).
+    current_track_id: Option<String>,
 }
 
 impl CrossPlatformMediaControls {
@@ -42,7 +48,12 @@ impl CrossPlatformMediaControls {
     /// The application should fall back to keyboard shortcuts in this case.
     pub fn new(action_tx: Sender<MediaKeyAction>) -> Result<Self, String> {
         let config = PlatformConfig {
-            dbus_name: "tunecraft",
+            // Use the canonical "TuneCraft" identity so the souvlaki-registered
+            // D-Bus name `org.mpris.MediaPlayer2.TuneCraft` matches the one
+            // registered by the hand-rolled zbus MPRIS service in
+            // `mpris/dbus.rs`. Previously this was "tunecraft" (lowercase),
+            // causing two separate D-Bus entries to appear in KDE/GNOME.
+            dbus_name: "TuneCraft",
             display_name: "TuneCraft",
             hwnd: None,
         };
@@ -70,7 +81,11 @@ impl CrossPlatformMediaControls {
             },
         };
 
-        Ok(Self { controls })
+        Ok(Self {
+            controls,
+            current_status: MprisPlaybackStatus::Stopped,
+            current_track_id: None,
+        })
     }
 
     /// Translate a souvlaki MediaControlEvent into our MediaKeyAction
@@ -106,6 +121,11 @@ impl CrossPlatformMediaControls {
             MediaControlEvent::SetVolume(volume) => MediaKeyAction::SetVolume(volume as f32),
             MediaControlEvent::SetPosition(position) => {
                 let pos_us = position.0.as_micros() as i64;
+                // We don't have access to the actual track_id here (souvlaki
+                // doesn't pass it through), so we send an empty string and
+                // let the consumer ignore it. The MPRIS spec requires the
+                // track_id to be present, but the engine's SetPosition
+                // handler treats it as informational only.
                 MediaKeyAction::SetPosition {
                     track_id: String::new(),
                     position_us: pos_us,
@@ -121,6 +141,7 @@ impl CrossPlatformMediaControls {
 
     /// Update the playback status shown in the OS media controls.
     pub fn set_playback_status(&mut self, status: MprisPlaybackStatus) {
+        self.current_status = status;
         if let Some(ref mut ctrl) = self.controls {
             let playback = match status {
                 MprisPlaybackStatus::Playing => MediaPlayback::Playing { progress: None },
@@ -142,6 +163,9 @@ impl CrossPlatformMediaControls {
         duration: Option<std::time::Duration>,
         art_url: Option<&str>,
     ) {
+        // Track the title so we can populate SetPosition.track_id later
+        // (the MPRIS spec requires SetPosition to include the track_id).
+        self.current_track_id = title.map(|s| s.to_string());
         if let Some(ref mut ctrl) = self.controls {
             let metadata = MediaMetadata {
                 title,
@@ -157,11 +181,20 @@ impl CrossPlatformMediaControls {
     }
 
     /// Update the current playback position.
+    ///
+    /// Preserves the current playback status (Playing / Paused / Stopped)
+    /// rather than unconditionally forcing `Playing` — previously this
+    /// caused the OS media overlay to flicker back to "Playing" on every
+    /// position update tick even while paused.
     pub fn set_position(&mut self, position: std::time::Duration) {
         if let Some(ref mut ctrl) = self.controls {
-            if let Err(e) = ctrl.set_playback(MediaPlayback::Playing {
-                progress: Some(MediaPosition(position)),
-            }) {
+            let pos = Some(MediaPosition(position));
+            let playback = match self.current_status {
+                MprisPlaybackStatus::Playing => MediaPlayback::Playing { progress: pos },
+                MprisPlaybackStatus::Paused => MediaPlayback::Paused { progress: pos },
+                MprisPlaybackStatus::Stopped => MediaPlayback::Stopped,
+            };
+            if let Err(e) = ctrl.set_playback(playback) {
                 log::warn!("Failed to update media position: {}", e);
             }
         }

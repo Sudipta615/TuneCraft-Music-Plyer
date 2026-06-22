@@ -1,4 +1,4 @@
-//! Smoke tests for TuneCraft v1.0.2
+//! Smoke tests for TuneCraft v3.0.0
 //!
 //! These integration tests exercise the critical startup, data, and shutdown
 //! paths that unit tests inside individual crates cannot cover end-to-end.
@@ -14,6 +14,14 @@ use std::sync::Arc;
 
 fn temp_dir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("tunecraft_test_{}", name));
+    // v3.1.3: Remove any stale state from a previous test run before
+    // recreating the directory. The previous version used
+    // `create_dir_all` without first removing the directory, so a
+    // leftover `library.db` from a prior run would persist and pollute
+    // the new run (e.g. `test_local_scrobble_record_and_read` saw
+    // `total_seconds_listened = 420` instead of `210` because the
+    // scrobble was inserted on top of the previous run's row).
+    let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("create temp dir");
     dir
 }
@@ -54,7 +62,11 @@ fn test_library_scan_empty_dir() {
     };
     let library = tc_library::LibraryManager::new(Arc::clone(&db), library_cfg);
     let result = library.scan(|_| {});
-    assert!(result.is_ok(), "scan of empty dir should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "scan of empty dir should succeed: {:?}",
+        result
+    );
 }
 
 // ── 4. Library scan picks up a real audio file ────────────────────────────────
@@ -66,16 +78,13 @@ fn test_library_scan_finds_audio_file() {
     let wav_path = dir.join("test.wav");
     let wav_bytes: &[u8] = &[
         // RIFF header
-        b'R', b'I', b'F', b'F', 36, 0, 0, 0,
-        b'W', b'A', b'V', b'E',
-        // fmt chunk
-        b'f', b'm', b't', b' ', 16, 0, 0, 0,
-        1, 0,       // PCM
-        1, 0,       // mono
-        0x44, 0xAC, 0x00, 0x00,  // 44100 Hz
-        0x88, 0x58, 0x01, 0x00,  // byte rate
-        2, 0,       // block align
-        16, 0,      // bits per sample
+        b'R', b'I', b'F', b'F', 36, 0, 0, 0, b'W', b'A', b'V', b'E', // fmt chunk
+        b'f', b'm', b't', b' ', 16, 0, 0, 0, 1, 0, // PCM
+        1, 0, // mono
+        0x44, 0xAC, 0x00, 0x00, // 44100 Hz
+        0x88, 0x58, 0x01, 0x00, // byte rate
+        2, 0, // block align
+        16, 0, // bits per sample
         // data chunk (empty)
         b'd', b'a', b't', b'a', 0, 0, 0, 0,
     ];
@@ -99,6 +108,9 @@ fn test_library_scan_finds_audio_file() {
 // ── 5. Local scrobble service records a listen and reads it back ─────────────
 
 #[test]
+#[allow(deprecated)] // NaiveDateTime::from_timestamp_opt is deprecated in chrono 0.4.44+
+                     // but the suggested replacement (DateTime::from_timestamp)
+                     // returns a different type. Test code, leave as-is.
 fn test_local_scrobble_record_and_read() {
     let dir = temp_dir("scrobble_local");
     let db_path = dir.join("library.db");
@@ -131,7 +143,6 @@ fn test_local_scrobble_record_and_read() {
         ebu_r128_loudness: None,
         ebu_r128_peak: None,
         bpm: None,
-        mood: None,
         lyrics_synced: None,
         lyrics_unsynced: None,
         last_played: None,
@@ -182,16 +193,19 @@ fn test_app_context_init_headless() {
             // Basic sanity: scrobble service is created.
             assert!(!ctx.scrobble.is_enabled() || ctx.scrobble.is_available());
             drop(ctx); // exercises Drop / graceful shutdown
-        }
+        },
         Err(e) => {
             let msg = e.to_string().to_lowercase();
             // Accept known headless-environment failures.
             assert!(
-                msg.contains("audio") || msg.contains("device") || msg.contains("alsa")
-                    || msg.contains("no available") || msg.contains("thread"),
+                msg.contains("audio")
+                    || msg.contains("device")
+                    || msg.contains("alsa")
+                    || msg.contains("no available")
+                    || msg.contains("thread"),
                 "unexpected AppContext init error in headless env: {}",
                 e
             );
-        }
+        },
     }
 }

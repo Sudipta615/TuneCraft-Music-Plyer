@@ -1,0 +1,205 @@
+// theme/colors.slint — TuneCraft color system
+//
+// Defines the TuneCraftColors struct (mirrors the Rust `TuneCraftColors`
+// in theme.rs) and a global `ThemeColorsProvider` that holds the currently
+// active palette. All view components read colors from this global, so
+// theme switches are a single property assignment.
+//
+// v3.1.4: Migrated from egui::Color32 to Slint's brush/color types.
+// All 11 themes (Dark, Light, System + 8 chromatic) are preserved
+// 1:1 with the original RGB values for visual parity.
+
+export struct ThemeColors {
+    bg: brush,
+    sidebar: brush,
+    surface: brush,
+    card: brush,
+    text: brush,
+    text-dim: brush,
+    text-muted: brush,
+    border: brush,
+    hover: brush,
+    active-bg: brush,
+    sidebar-active-bg: brush,
+    accent: brush,
+    accent-light: brush,
+    accent-dark: brush,
+    player-bar: brush,
+    player-bar-border: brush,
+    slider-track: brush,
+    slider-fill: brush,
+    toggle-bg-on: brush,
+    toggle-bg-off: brush,
+    table-header-bg: brush,
+    table-row-even: brush,
+    table-row-odd: brush,
+    table-row-hover: brush,
+    search-bg: brush,
+    search-border: brush,
+    dark-mode: bool,
+}
+
+// Global singleton. The App component binds its `theme-name` property
+// to our `active-theme` via `<=>`, so Rust can switch themes by
+// calling `app.set_theme_name(...)`. The `current` palette is derived
+// from `active-theme` via a binding so any change to `active-theme`
+// automatically re-evaluates `current` and propagates to every
+// component that reads from `ThemeColorsProvider.current`.
+export global ThemeColorsProvider {
+    in-out property <string> active-theme: "dark";
+    in-out property <ThemeColors> current: palette-for-name(active-theme);
+    out property <color> accent-color: current.accent;
+    out property <bool> is-dark: current.dark-mode;
+
+    out property <ThemeColors> dark-palette: {
+        bg: #080e19f0, sidebar: #0c121ef0, surface: #080e19f0, card: #0c121ef0,
+        text: #E6E7E7, text-dim: #BABFC8, text-muted: #BABFC8,
+        border: #1C2333, hover: #141B2B, active-bg: #141B2B, sidebar-active-bg: #141B2B,
+        accent: #35C8E1, accent-light: #5ED3E7, accent-dark: #2AA0B4,
+        player-bar: #0c121ef0, player-bar-border: #1C2333,
+        slider-track: #1C2333, slider-fill: #35C8E1,
+        toggle-bg-on: #35C8E1, toggle-bg-off: #1C2333,
+        table-header-bg: #080e19f0, table-row-even: #080e19f0,
+        table-row-odd: #080e19f0, table-row-hover: #141B2B,
+        search-bg: #0c121ef0, search-border: #1C2333,
+        dark-mode: true,
+    };
+    out property <ThemeColors> light-palette: {
+        bg: #e0e1e3f5, sidebar: #e8e8e9f5, surface: #e0e1e3f5, card: #ebebebf5,
+        text: #11182b, text-dim: #6B7280, text-muted: #9CA3AF,
+        border: #E5E7EB, hover: #F9FAFB, active-bg: #EEF2FF, sidebar-active-bg: #E0F2FE,
+        accent: #35C8E1, accent-light: #5ED3E7, accent-dark: #2AA0B4,
+        player-bar: #e0e1e3f5, player-bar-border: #E5E7EB,
+        slider-track: #E5E7EB, slider-fill: #35C8E1,
+        toggle-bg-on: #35C8E1, toggle-bg-off: #E5E7EB,
+        table-header-bg: #e0e1e3f5, table-row-even: #e0e1e3f5,
+        table-row-odd: #e0e1e3f5, table-row-hover: #F9FAFB,
+        search-bg: #ebebebf5, search-border: #E5E7EB,
+        dark-mode: false,
+    };
+    out property <ThemeColors> ocean-palette: {
+        bg: #03102E, sidebar: #071A40, surface: #03102E, card: #071A40,
+        text: #F0F2F4, text-dim: #D0D5DF, text-muted: #A0A8B8,
+        border: #1A3261, hover: #0B1F47, active-bg: #0B1F47, sidebar-active-bg: #0D2652,
+        accent: #00E5FF, accent-light: #5EECFF, accent-dark: #00A0B4,
+        player-bar: #03102E, player-bar-border: #1A3261,
+        slider-track: #1A3261, slider-fill: #00E5FF,
+        toggle-bg-on: #00E5FF, toggle-bg-off: #1A3261,
+        table-header-bg: #03102E, table-row-even: #03102E,
+        table-row-odd: #020A20, table-row-hover: #0B1F47,
+        search-bg: #071A40, search-border: #1A3261,
+        dark-mode: true,
+    };
+    out property <ThemeColors> forest-palette: {
+        bg: #EBF4EE, sidebar: #F2F9F5, surface: #EBF4EE, card: #F2F9F5,
+        text: #11182b, text-dim: #4B5563, text-muted: #6B7280,
+        border: #C9DDD2, hover: #DEEAE2, active-bg: #D5F5E3, sidebar-active-bg: #D5F5E3,
+        accent: #10B981, accent-light: #4FCFA1, accent-dark: #0B825E,
+        player-bar: #EBF4EE, player-bar-border: #C9DDD2,
+        slider-track: #C9DDD2, slider-fill: #10B981,
+        toggle-bg-on: #10B981, toggle-bg-off: #C9DDD2,
+        table-header-bg: #EBF4EE, table-row-even: #EBF4EE,
+        table-row-odd: #E2EDE6, table-row-hover: #DEEAE2,
+        search-bg: #F2F9F5, search-border: #C9DDD2,
+        dark-mode: false,
+    };
+    out property <ThemeColors> sunset-palette: {
+        bg: #FDF3EA, sidebar: #FFFAF5, surface: #FDF3EA, card: #FFFAF5,
+        text: #11182b, text-dim: #4B5563, text-muted: #6B7280,
+        border: #F4D9C0, hover: #F8E6D2, active-bg: #FFE4D1, sidebar-active-bg: #FFE4D1,
+        accent: #F97316, accent-light: #FB9648, accent-dark: #C4520B,
+        player-bar: #FDF3EA, player-bar-border: #F4D9C0,
+        slider-track: #F4D9C0, slider-fill: #F97316,
+        toggle-bg-on: #F97316, toggle-bg-off: #F4D9C0,
+        table-header-bg: #FDF3EA, table-row-even: #FDF3EA,
+        table-row-odd: #FBE9D7, table-row-hover: #F8E6D2,
+        search-bg: #FFFAF5, search-border: #F4D9C0,
+        dark-mode: false,
+    };
+    out property <ThemeColors> berry-palette: {
+        bg: #180422, sidebar: #240732, surface: #180422, card: #240732,
+        text: #F0F2F4, text-dim: #D0D5DF, text-muted: #A0A8B8,
+        border: #3A0E54, hover: #2A0938, active-bg: #2A0938, sidebar-active-bg: #320B44,
+        accent: #E84393, accent-light: #EF72AE, accent-dark: #B22E6E,
+        player-bar: #180422, player-bar-border: #3A0E54,
+        slider-track: #3A0E54, slider-fill: #E84393,
+        toggle-bg-on: #E84393, toggle-bg-off: #3A0E54,
+        table-header-bg: #180422, table-row-even: #180422,
+        table-row-odd: #13031C, table-row-hover: #2A0938,
+        search-bg: #240732, search-border: #3A0E54,
+        dark-mode: true,
+    };
+    out property <ThemeColors> midnight-palette: {
+        bg: #02020E, sidebar: #050518, surface: #02020E, card: #050518,
+        text: #F0F2F4, text-dim: #D0D5DF, text-muted: #A0A8B8,
+        border: #1A1A38, hover: #0A0A1F, active-bg: #0A0A1F, sidebar-active-bg: #080824,
+        accent: #60A5FA, accent-light: #93BFFB, accent-dark: #3B82F6,
+        player-bar: #02020E, player-bar-border: #1A1A38,
+        slider-track: #1A1A38, slider-fill: #60A5FA,
+        toggle-bg-on: #60A5FA, toggle-bg-off: #1A1A38,
+        table-header-bg: #02020E, table-row-even: #02020E,
+        table-row-odd: #01010A, table-row-hover: #0A0A1F,
+        search-bg: #050518, search-border: #1A1A38,
+        dark-mode: true,
+    };
+    out property <ThemeColors> rose-palette: {
+        bg: #FCEDF0, sidebar: #FFF5F7, surface: #FCEDF0, card: #FFF5F7,
+        text: #11182b, text-dim: #4B5563, text-muted: #6B7280,
+        border: #F4C9D2, hover: #F8DDE3, active-bg: #FCD5DC, sidebar-active-bg: #FCD5DC,
+        accent: #F43F5E, accent-light: #F76C85, accent-dark: #C22E47,
+        player-bar: #FCEDF0, player-bar-border: #F4C9D2,
+        slider-track: #F4C9D2, slider-fill: #F43F5E,
+        toggle-bg-on: #F43F5E, toggle-bg-off: #F4C9D2,
+        table-header-bg: #FCEDF0, table-row-even: #FCEDF0,
+        table-row-odd: #F8DDE3, table-row-hover: #F8DDE3,
+        search-bg: #FFF5F7, search-border: #F4C9D2,
+        dark-mode: false,
+    };
+    out property <ThemeColors> coffee-palette: {
+        bg: #180E05, sidebar: #241608, surface: #180E05, card: #241608,
+        text: #F0F2F4, text-dim: #D0D5DF, text-muted: #A0A8B8,
+        border: #3D2A14, hover: #22190C, active-bg: #22190C, sidebar-active-bg: #32200C,
+        accent: #FBBF24, accent-light: #FCD34D, accent-dark: #D97706,
+        player-bar: #180E05, player-bar-border: #3D2A14,
+        slider-track: #3D2A14, slider-fill: #FBBF24,
+        toggle-bg-on: #FBBF24, toggle-bg-off: #3D2A14,
+        table-header-bg: #180E05, table-row-even: #180E05,
+        table-row-odd: #120B04, table-row-hover: #22190C,
+        search-bg: #241608, search-border: #3D2A14,
+        dark-mode: true,
+    };
+    out property <ThemeColors> mint-palette: {
+        bg: #ECF8F6, sidebar: #F3FBFA, surface: #ECF8F6, card: #F3FBFA,
+        text: #11182b, text-dim: #4B5563, text-muted: #6B7280,
+        border: #C5E5E0, hover: #D9EEEB, active-bg: #C9F2EE, sidebar-active-bg: #C9F2EE,
+        accent: #0D9488, accent-light: #14B8A6, accent-dark: #0F766E,
+        player-bar: #ECF8F6, player-bar-border: #C5E5E0,
+        slider-track: #C5E5E0, slider-fill: #0D9488,
+        toggle-bg-on: #0D9488, toggle-bg-off: #C5E5E0,
+        table-header-bg: #ECF8F6, table-row-even: #ECF8F6,
+        table-row-odd: #DFF2EF, table-row-hover: #D9EEEB,
+        search-bg: #F3FBFA, search-border: #C5E5E0,
+        dark-mode: false,
+    };
+
+    public pure function palette-for-name(name: string) -> ThemeColors {
+        if name == "dark" { dark-palette }
+        else if name == "light" { light-palette }
+        else if name == "system" { dark-palette }
+        else if name == "ocean" { ocean-palette }
+        else if name == "forest" { forest-palette }
+        else if name == "sunset" { sunset-palette }
+        else if name == "berry" { berry-palette }
+        else if name == "midnight" { midnight-palette }
+        else if name == "rose" { rose-palette }
+        else if name == "coffee" { coffee-palette }
+        else if name == "mint" { mint-palette }
+        else { dark-palette }
+    }
+
+    public function apply-theme(name: string) {
+        // Just update active-theme; `current` re-evaluates automatically
+        // via its binding to palette-for-name(active-theme).
+        active-theme = name;
+    }
+}

@@ -103,16 +103,19 @@ impl TuneCraftApp {
             self.ctx.library.refresh_tracks();
             let fresh = self.ctx.library.snapshot();
             let new_queue: Vec<i64> = self.ctx.library.get_all_track_ids();
-            // Only update the UI track list and queue if the library actually grew.
-            if new_queue.len() > self.play_queue.len() {
-                self.tracks = fresh.tracks.clone();
-                self.total_track_count = fresh.total_track_count;
-                // Only replace the queue when nothing is playing so we don't
-                // interrupt an active session.
-                if self.current_track_id.is_none() {
-                    self.ctx.playback.set_play_queue(new_queue.clone());
-                    self.play_queue = new_queue;
-                }
+            // v3.1.1: Refresh the UI track list whenever a scan completes,
+            // regardless of whether the queue grew. Previously the check
+            // `if new_queue.len() > self.play_queue.len()` meant that a rescan
+            // that removed files (or replaced them 1:1) left stale entries in
+            // the UI track list and play queue — playing those would then fail
+            // silently with a "Track not found" toast.
+            self.tracks = fresh.tracks.clone();
+            self.total_track_count = fresh.total_track_count;
+            // Only replace the queue when nothing is playing so we don't
+            // interrupt an active session.
+            if self.current_track_id.is_none() {
+                self.ctx.playback.set_play_queue(new_queue.clone());
+                self.play_queue = new_queue;
             }
             self.trigger_background_analysis();
         }

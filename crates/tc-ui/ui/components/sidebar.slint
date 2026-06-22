@@ -1,0 +1,337 @@
+// components/sidebar.slint — Left navigation panel.
+//
+// Renders: logo (waveform bars), search box, "Library" section with nav items
+// (All Tracks, Albums, Artists, Folders, Favorites, Recently Played, Most
+// Played), "Playlists" section with user playlists + Create button, and a
+// Settings link at the bottom. Matches the egui sidebar in sidebar.rs.
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { IconButton } from "theme/widgets.slint";
+import { NavItem, PlaylistItem } from "types.slint";
+
+export component Sidebar inherits Rectangle {
+    in property <[NavItem]> nav-items;
+    in property <[PlaylistItem]> playlists;
+    in property <string> search-query;
+    in property <bool> collapsed: false;
+    in property <bool> is-scanning: false;
+    in property <string> status-message: "";
+
+    background: ThemeColorsProvider.current.sidebar;
+    border-width: 0;
+    border-color: ThemeColorsProvider.current.border;
+
+    callback nav-clicked(string);
+    callback playlist-clicked(int);
+    callback create-playlist-clicked();
+    callback search-changed(string);
+    callback settings-clicked();
+
+    if !root.collapsed : VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // ── Logo row ──
+        HorizontalLayout {
+            spacing: 8px;
+            height: 32px;
+            // Waveform bars icon (5 cyan bars of varying height)
+            HorizontalLayout {
+                spacing: 1.5px;
+                width: 22px;
+                height: 22px;
+                Rectangle { height: 50%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+                Rectangle { height: 100%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+                Rectangle { height: 70%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+                Rectangle { height: 100%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+                Rectangle { height: 50%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+            }
+            Text {
+                text: "TuneCraft";
+                font-size: 18px;
+                font-weight: 800;
+                color: ThemeColorsProvider.current.text;
+                vertical-alignment: center;
+            }
+        }
+
+        // ── Search box ──
+        Rectangle {
+            height: 40px;
+            border-radius: 8px;
+            background: ThemeColorsProvider.current.search-bg;
+            border-width: 1px;
+            border-color: ThemeColorsProvider.current.search-border;
+            horizontal-stretch: 1;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 8px;
+
+                Image {
+                    source: @image-url("icons/magnifying-glass.svg");
+                    width: 16px;
+                    height: 16px;
+                    colorize: ThemeColorsProvider.current.text-dim;
+                    image-fit: contain;
+                    y: (parent.height - self.height) / 2;
+                }
+                search-input := TextInput {
+                    text: root.search-query;
+                    font-size: 14px;
+                    color: ThemeColorsProvider.current.text;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                    edited => { root.search-changed(self.text); }
+                }
+            }
+        }
+
+        // ── Scrolling nav + playlists ──
+        VerticalLayout {
+            vertical-stretch: 1;
+
+            Flickable {
+                VerticalLayout {
+                    spacing: 4px;
+
+                    // "Library" header
+                    Rectangle {
+                        height: 24px;
+                        Text {
+                            text: "LIBRARY";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: ThemeColorsProvider.current.text-muted;
+                            letter-spacing: 1.5px;
+                            x: 8px;
+                            y: 8px;
+                        }
+                    }
+
+                    // Nav items (All Tracks, Albums, etc.)
+                    for item[i] in root.nav-items : Rectangle {
+                        height: 36px;
+                        border-radius: 8px;
+                        background: item.active ? ThemeColorsProvider.current.sidebar-active-bg :
+                                   nav-touch.has-hover ? ThemeColorsProvider.current.hover : transparent;
+                        animate background { duration: 80ms; }
+
+                        nav-touch := TouchArea {
+                            clicked => { root.nav-clicked(item.section); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 12px;
+
+                            Image {
+                                source: item.icon;
+                                width: 18px;
+                                height: 18px;
+                                colorize: item.active ? ThemeColorsProvider.accent-color : ThemeColorsProvider.current.text-dim;
+                                image-fit: contain;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: item.label;
+                                font-size: 14px;
+                                color: item.active ? ThemeColorsProvider.current.text : ThemeColorsProvider.current.text-dim;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                            }
+                            // Badge
+                            if item.badge > 0 : Rectangle {
+                                width: 28px;
+                                height: 18px;
+                                border-radius: 9px;
+                                background: ThemeColorsProvider.current.accent-dark;
+                                y: (parent.height - self.height) / 2;
+                                Text {
+                                    text: item.badge;
+                                    font-size: 11px;
+                                    color: white;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // "Playlists" header
+                    HorizontalLayout {
+                        padding-top: 16px;
+                        padding-bottom: 4px;
+                        padding-left: 8px;
+                        spacing: 4px;
+                        Text {
+                            text: "PLAYLISTS";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: ThemeColorsProvider.current.text-muted;
+                            letter-spacing: 1.5px;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        // + Create button
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 4px;
+                            background: create-pl-touch.has-hover ? ThemeColorsProvider.current.hover : transparent;
+                            create-pl-touch := TouchArea {
+                                clicked => { root.create-playlist-clicked(); }
+                            }
+                            Text {
+                                text: "+";
+                                font-size: 16px;
+                                color: ThemeColorsProvider.accent-color;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Playlists list
+                    for pl[i] in root.playlists : Rectangle {
+                        height: 36px;
+                        border-radius: 8px;
+                        background: pl-touch.has-hover ? ThemeColorsProvider.current.hover : transparent;
+                        animate background { duration: 80ms; }
+
+                        pl-touch := TouchArea {
+                            clicked => { root.playlist-clicked(pl.id); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 12px;
+
+                            Image {
+                                source: @image-url("icons/list.svg");
+                                width: 16px;
+                                height: 16px;
+                                colorize: ThemeColorsProvider.current.text-dim;
+                                image-fit: contain;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: pl.name;
+                                font-size: 14px;
+                                color: ThemeColorsProvider.current.text-dim;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: pl.track-count;
+                                font-size: 11px;
+                                color: ThemeColorsProvider.current.text-muted;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Settings button at bottom ──
+        Rectangle {
+            height: 40px;
+            border-radius: 8px;
+            background: settings-touch.has-hover ? ThemeColorsProvider.current.hover : transparent;
+            animate background { duration: 80ms; }
+
+            settings-touch := TouchArea {
+                clicked => { root.settings-clicked(); }
+            }
+
+            HorizontalLayout {
+                padding-left: 12px;
+                spacing: 12px;
+                Image {
+                    source: @image-url("icons/gear.svg");
+                    width: 18px;
+                    height: 18px;
+                    colorize: ThemeColorsProvider.current.text-dim;
+                    image-fit: contain;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: "Settings";
+                    font-size: 14px;
+                    color: ThemeColorsProvider.current.text-dim;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // ── Scan status indicator ──
+        if root.is-scanning : Rectangle {
+            height: 24px;
+            background: ThemeColorsProvider.current.accent-dark;
+            border-radius: 4px;
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 8px;
+                Text {
+                    text: "Scanning library…";
+                    font-size: 11px;
+                    color: white;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                    overflow: elide;
+                }
+                if root.status-message != "" : Text {
+                    text: root.status-message;
+                    font-size: 11px;
+                    color: #FFFFFFCC;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // Collapsed mode: just icons
+    if root.collapsed : VerticalLayout {
+        padding: 16px;
+        spacing: 8px;
+        alignment: start;
+
+        // Logo bar
+        HorizontalLayout {
+            spacing: 1.5px;
+            width: 22px;
+            height: 22px;
+            Rectangle { height: 50%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+            Rectangle { height: 100%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+            Rectangle { height: 70%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+            Rectangle { height: 100%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+            Rectangle { height: 50%; width: 2.5px; background: ThemeColorsProvider.accent-color; y: (parent.height - self.height) / 2; }
+        }
+
+        for item[i] in root.nav-items : Rectangle {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: item.active ? ThemeColorsProvider.current.sidebar-active-bg :
+                       nav-touch-collapsed.has-hover ? ThemeColorsProvider.current.hover : transparent;
+            nav-touch-collapsed := TouchArea {
+                clicked => { root.nav-clicked(item.section); }
+            }
+            Image {
+                source: item.icon;
+                width: 18px;
+                height: 18px;
+                colorize: item.active ? ThemeColorsProvider.accent-color : ThemeColorsProvider.current.text-dim;
+                image-fit: contain;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+    }
+}

@@ -8,6 +8,12 @@ struct BandCompressor {
     release_coeff: f32,
     makeup_gain: f32, // linear
     envelope: f32,
+    // Stored user-facing params so we can recompute attack/release coeffs
+    // on a sample-rate change without losing the user's tuning.
+    threshold_db: f32,
+    attack_ms: f32,
+    release_ms: f32,
+    makeup_db: f32,
 }
 
 impl BandCompressor {
@@ -27,7 +33,23 @@ impl BandCompressor {
             release_coeff: (-1.0 / (release_ms * 0.001 * sample_rate)).exp(),
             makeup_gain: 10.0_f32.powf(makeup_db / 20.0),
             envelope: 0.0,
+            threshold_db,
+            attack_ms,
+            release_ms,
+            makeup_db,
         }
+    }
+
+    /// Recompute attack/release coefficients and threshold/makeup after a
+    /// sample-rate change, preserving all user-tuned parameters.
+    fn update_sample_rate(&mut self, sample_rate: f32) {
+        self.attack_coeff = (-1.0 / (self.attack_ms * 0.001 * sample_rate)).exp();
+        self.release_coeff = (-1.0 / (self.release_ms * 0.001 * sample_rate)).exp();
+        // threshold and makeup_gain are in dB → linear conversions that don't
+        // depend on sample rate, but recompute anyway for consistency.
+        self.threshold = 10.0_f32.powf(self.threshold_db / 20.0);
+        self.threshold_db_cached = self.threshold_db.max(-100.0);
+        self.makeup_gain = 10.0_f32.powf(self.makeup_db / 20.0);
     }
 
     #[inline]
@@ -96,8 +118,13 @@ impl CrossoverFilter {
         let mut high = self.hp1.process(sample, &self.hp_coeffs);
         high = self.hp2.process(high, &self.hp_coeffs);
 
-        // Invert phase of one band for Linkwitz-Riley sum to be flat
-        (low, -high)
+        // Each biquad here is a 2nd-order Butterworth (Q=0.707). Two cascaded
+        // BW2 stages form a 4th-order Butterworth (BW4), whose LP4 and HP4
+        // outputs are both at -180° phase at the crossover frequency and so
+        // sum flat **without** any phase inversion. The previous code
+        // unconditionally inverted one band (correct for LR2 but wrong here),
+        // producing a deep notch at each crossover frequency.
+        (low, high)
     }
 
     fn reset(&mut self) {
@@ -110,8 +137,10 @@ impl CrossoverFilter {
 
 pub struct MultibandCompressor {
     enabled: bool,
-    #[allow(dead_code)]
     sample_rate: f32,
+    // Crossover frequencies (stored so set_sample_rate can rebuild filters).
+    freq_low_mid: f32,
+    freq_mid_high: f32,
 
     // Crossovers
     xover_low_mid_l: CrossoverFilter,
@@ -136,6 +165,8 @@ impl MultibandCompressor {
         Self {
             enabled: false,
             sample_rate,
+            freq_low_mid,
+            freq_mid_high,
 
             xover_low_mid_l: CrossoverFilter::new(sample_rate, freq_low_mid),
             xover_low_mid_r: CrossoverFilter::new(sample_rate, freq_low_mid),
@@ -163,11 +194,30 @@ impl MultibandCompressor {
         }
     }
 
+    /// Returns whether the compressor is currently enabled. v3.1.0 — used
+    /// by the pipeline's `apply_performance_mode` to restore the user's
+    /// preference when switching back from LowPower.
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
-        // Simple re-init to compute coefficients
-        let enabled = self.enabled;
-        *self = Self::new(sample_rate);
-        self.enabled = enabled;
+        // Preserve all user-tuned band parameters (threshold, ratio, attack,
+        // release, makeup) — only recompute the sample-rate-dependent
+        // coefficients. Previously this method called `Self::new` which
+        // wiped the user's customisation every time the output device
+        // sample rate changed (e.g. on Bluetooth headset connect/disconnect).
+        self.sample_rate = sample_rate;
+        self.xover_low_mid_l = CrossoverFilter::new(sample_rate, self.freq_low_mid);
+        self.xover_low_mid_r = CrossoverFilter::new(sample_rate, self.freq_low_mid);
+        self.xover_mid_high_l = CrossoverFilter::new(sample_rate, self.freq_mid_high);
+        self.xover_mid_high_r = CrossoverFilter::new(sample_rate, self.freq_mid_high);
+        self.comp_low_l.update_sample_rate(sample_rate);
+        self.comp_low_r.update_sample_rate(sample_rate);
+        self.comp_mid_l.update_sample_rate(sample_rate);
+        self.comp_mid_r.update_sample_rate(sample_rate);
+        self.comp_high_l.update_sample_rate(sample_rate);
+        self.comp_high_r.update_sample_rate(sample_rate);
     }
 
     pub fn set_band_params(

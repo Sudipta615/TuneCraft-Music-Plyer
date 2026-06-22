@@ -1,0 +1,304 @@
+// components/eq_panel.slint — 10-band parametric EQ overlay window.
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { IconButton, Slider, Toggle } from "theme/widgets.slint";
+import { EqBandItem } from "types.slint";
+import { ComboBox } from "std-widgets.slint";
+
+export component EqPanel inherits Rectangle {
+    in property <bool> enabled: false;
+    in property <[EqBandItem]> bands;
+    in property <[string]> presets;
+    in property <string> active-preset: "Custom";
+    in property <float> preamp-db: 0.0;
+    in property <float> bass-shelf: 0.0;
+    in property <float> treble-shelf: 0.0;
+    in property <float> stereo-width: 1.0;
+    in property <float> balance: 0.0;
+    in property <bool> dither-enabled: false;
+    in property <bool> midside-enabled: false;
+
+    background: ThemeColorsProvider.current.surface;
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: ThemeColorsProvider.current.border;
+    clip: true;
+
+    callback close();
+    callback toggle-enabled(bool);
+    callback band-changed(int, float);
+    callback preset-selected(string);
+    callback preamp-changed(float);
+    callback bass-shelf-changed(float);
+    callback treble-shelf-changed(float);
+    callback stereo-width-changed(float);
+    callback balance-changed(float);
+    callback dither-toggled(bool);
+    callback midside-toggled(bool);
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // ── Title bar ──
+        HorizontalLayout {
+            spacing: 8px;
+            height: 32px;
+
+            Text {
+                text: "Equalizer";
+                font-size: 18px;
+                font-weight: 700;
+                color: ThemeColorsProvider.current.text;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            // Enable toggle
+            Toggle {
+                on: root.enabled;
+                width: 44px;
+                height: 24px;
+                toggled(v) => { root.toggle-enabled(v); }
+                y: (parent.height - self.height) / 2;
+            }
+            // Close button
+            IconButton {
+                icon: @image-url("icons/x.svg");
+                icon-size: 18px;
+                icon-color: ThemeColorsProvider.current.text-dim;
+                clicked => { root.close(); }
+            }
+        }
+
+        // ── Preset selector ──
+        HorizontalLayout {
+            spacing: 8px;
+            height: 32px;
+
+            Text {
+                text: "Preset:";
+                font-size: 13px;
+                color: ThemeColorsProvider.current.text-dim;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                height: 32px;
+                border-radius: 6px;
+                background: ThemeColorsProvider.current.search-bg;
+                border-width: 1px;
+                border-color: ThemeColorsProvider.current.search-border;
+                horizontal-stretch: 1;
+
+                preset-input := ComboBox {
+                    height: parent.height;
+                    current-value: root.active-preset;
+                    model: root.presets;
+                    selected => { root.preset-selected(self.current-value); }
+                }
+            }
+        }
+
+        // ── Band sliders ──
+        Rectangle {
+            vertical-stretch: 1;
+            background: ThemeColorsProvider.current.card;
+            border-radius: 8px;
+
+            HorizontalLayout {
+                padding: 16px;
+                spacing: 4px;
+                alignment: center;
+
+                // Preamp
+                VerticalLayout {
+                    spacing: 4px;
+                    alignment: center;
+                    width: 50px;
+
+                    Text {
+                        text: root.preamp-db > 0 ? "+" + root.preamp-db + " dB" : root.preamp-db + " dB";
+                        font-size: 10px;
+                        color: ThemeColorsProvider.current.text-dim;
+                        horizontal-alignment: center;
+                    }
+                    // Vertical slider rotated — Slint doesn't have native vertical
+                    // sliders, so we use a horizontal one rotated 90° via width/height swap
+                    Rectangle {
+                        width: 30px;
+                        height: 160px;
+                        border-radius: 4px;
+                        background: ThemeColorsProvider.current.slider-track;
+                        clip: true;
+
+                        Rectangle {
+                            x: 0;
+                            y: parent.height * (1 - ((root.preamp-db + 12) / 24));
+                            width: parent.width;
+                            height: parent.height * ((root.preamp-db + 12) / 24);
+                            background: ThemeColorsProvider.current.slider-fill;
+                            animate height { duration: 80ms; }
+                        }
+
+                        preamp-touch := TouchArea {
+                            pointer-event(e) => {
+                                if e.kind == PointerEventKind.down || e.kind == PointerEventKind.move {
+                                    root.preamp-changed(clamp(1 - (preamp-touch.mouse-y / self.height), 0.0, 1.0) * 24 - 12);
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        text: "Preamp";
+                        font-size: 10px;
+                        color: ThemeColorsProvider.current.text-muted;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                // 10 bands
+                for band[i] in root.bands : VerticalLayout {
+                    spacing: 4px;
+                    alignment: center;
+                    width: 50px;
+
+                    Text {
+                        text: band.gain-db > 0 ? "+" + band.gain-db : band.gain-db;
+                        font-size: 10px;
+                        color: ThemeColorsProvider.current.text-dim;
+                        horizontal-alignment: center;
+                    }
+                    Rectangle {
+                        width: 30px;
+                        height: 160px;
+                        border-radius: 4px;
+                        background: ThemeColorsProvider.current.slider-track;
+                        clip: true;
+
+                        Rectangle {
+                            x: 0;
+                            y: parent.height * (1 - ((band.gain-db + 12) / 24));
+                            width: parent.width;
+                            height: parent.height * ((band.gain-db + 12) / 24);
+                            background: ThemeColorsProvider.current.slider-fill;
+                            animate height { duration: 80ms; }
+                        }
+
+                        band-touch := TouchArea {
+                            pointer-event(e) => {
+                                if e.kind == PointerEventKind.down || e.kind == PointerEventKind.move {
+                                    root.band-changed(band.index, clamp(1 - (band-touch.mouse-y / self.height), 0.0, 1.0) * 24 - 12);
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        text: band.label;
+                        font-size: 10px;
+                        color: ThemeColorsProvider.current.text-muted;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // ── Extra DSP controls ──
+        HorizontalLayout {
+            spacing: 12px;
+            height: 100px;
+
+            // Bass shelf
+            VerticalLayout {
+                spacing: 4px;
+                horizontal-stretch: 1;
+                Text {
+                    text: "Bass Shelf";
+                    font-size: 11px;
+                    color: ThemeColorsProvider.current.text-dim;
+                }
+                Slider {
+                    value: root.bass-shelf + 12;
+                    maximum: 24;
+                    changed(v) => { root.bass-shelf-changed(v - 12); }
+                }
+            }
+            // Treble shelf
+            VerticalLayout {
+                spacing: 4px;
+                horizontal-stretch: 1;
+                Text {
+                    text: "Treble Shelf";
+                    font-size: 11px;
+                    color: ThemeColorsProvider.current.text-dim;
+                }
+                Slider {
+                    value: root.treble-shelf + 12;
+                    maximum: 24;
+                    changed(v) => { root.treble-shelf-changed(v - 12); }
+                }
+            }
+            // Stereo width
+            VerticalLayout {
+                spacing: 4px;
+                horizontal-stretch: 1;
+                Text {
+                    text: "Stereo Width";
+                    font-size: 11px;
+                    color: ThemeColorsProvider.current.text-dim;
+                }
+                Slider {
+                    value: root.stereo-width;
+                    maximum: 2.0;
+                    changed(v) => { root.stereo-width-changed(v); }
+                }
+            }
+            // Balance
+            VerticalLayout {
+                spacing: 4px;
+                horizontal-stretch: 1;
+                Text {
+                    text: "Balance";
+                    font-size: 11px;
+                    color: ThemeColorsProvider.current.text-dim;
+                }
+                Slider {
+                    value: root.balance + 1.0;
+                    maximum: 2.0;
+                    changed(v) => { root.balance-changed(v - 1.0); }
+                }
+            }
+        }
+
+        // ── Toggle row ──
+        HorizontalLayout {
+            spacing: 16px;
+            height: 32px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: "Dither";
+                    font-size: 13px;
+                    color: ThemeColorsProvider.current.text;
+                    vertical-alignment: center;
+                }
+                Toggle {
+                    on: root.dither-enabled;
+                    toggled(v) => { root.dither-toggled(v); }
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    text: "Mid/Side";
+                    font-size: 13px;
+                    color: ThemeColorsProvider.current.text;
+                    vertical-alignment: center;
+                }
+                Toggle {
+                    on: root.midside-enabled;
+                    toggled(v) => { root.midside-toggled(v); }
+                }
+            }
+        }
+    }
+}

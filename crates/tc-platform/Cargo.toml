@@ -13,7 +13,11 @@ parking_lot = { workspace = true }
 # raw D-Bus approach. souvlaki uses MPRIS on Linux, SMTC on Windows, and
 # MPRemoteCommandCenter on macOS, providing true cross-platform parity.
 souvlaki = { workspace = true }
-dbus = { version = "0.9.11", features = ["vendored"] }
+# v3.1.1: Removed unused `dbus` dependency (with `vendored` feature). The
+# crate was listed but never `use`d anywhere in tc-platform source — it
+# forced building libdbus from source via autotools/make on every platform
+# (not just Linux), inflating build time and binary size while requiring
+# a C toolchain. zbus (below) handles all the D-Bus interaction we need.
 
 # v0.18.0: Pinned zbus to 4.4.0 to prevent future version drift.
 # zbus 4.4+ pulls in proc-macro-crate 3.x → toml_edit 0.25 (edition2024),

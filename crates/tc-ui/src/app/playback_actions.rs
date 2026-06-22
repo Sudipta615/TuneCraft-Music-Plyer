@@ -8,11 +8,24 @@ impl TuneCraftApp {
 
         if let Some(track) = track {
             let is_fav = self.ctx.library.is_favorite(track_id);
-            self.ctx.playback.play_track(&track, is_fav);
-
-            self.ctx.library.record_play(track_id);
-
-            self.sync_from_playback_service();
+            // v3.1.1: Only bump play_count if the track actually loaded.
+            // Previously record_play was called unconditionally after
+            // play_track, which silently returned early on engine.load_track
+            // failure — the user got no playback but the play counter went
+            // up, and `current_track_id` ended up pointing at the previous
+            // track (or None).
+            match self.ctx.playback.play_track(&track, is_fav) {
+                Ok(()) => {
+                    self.ctx.library.record_play(track_id);
+                    self.sync_from_playback_service();
+                },
+                Err(e) => {
+                    self.push_toast(
+                        format!("Failed to play track: {}", e),
+                        ToastLevel::Error,
+                    );
+                },
+            }
         } else {
             self.push_toast("Track not found in library", ToastLevel::Error);
         }
@@ -100,9 +113,43 @@ impl TuneCraftApp {
     ///
     pub fn set_volume(&mut self, volume: f32) {
         let clamped = volume.clamp(0.0, 1.0);
+        // If the volume is being set to something audible other than via
+        // `toggle_mute`'s restore (which clears `volume_before_mute` via
+        // `.take()` before calling this), drop any stale "muted" memory so
+        // a later Mute press doesn't ignore a manual slider change made
+        // while supposedly muted.
+        if clamped > 0.0 {
+            self.volume_before_mute = None;
+        }
         self.volume = clamped;
         self.ctx.playback.set_volume(clamped);
         self.ctx.config.write(|c| c.playback.volume = clamped);
+    }
+
+    /// Toggle mute, remembering the actual volume that was set before
+    /// muting so un-mute restores it exactly.
+    ///
+    /// v3.1.2: Previously this was inlined at each call site as
+    /// `if volume > 0.0 { 0.0 } else { 0.7 }` — un-mute always landed on a
+    /// hardcoded 0.7 instead of whatever the user's volume actually was
+    /// (e.g. muting at 0.3 and un-muting jumped to 0.7, not back to 0.3).
+    pub fn toggle_mute(&mut self) {
+        match self.volume_before_mute.take() {
+            Some(previous) => {
+                // Currently muted — restore.
+                self.set_volume(previous);
+            },
+            None => {
+                // Currently audible — remember it and mute. If volume is
+                // already 0 (e.g. user dragged the slider down manually),
+                // there's nothing meaningful to remember or restore, so
+                // just leave it at 0 and don't store a "previous" value.
+                if self.volume > 0.0 {
+                    self.volume_before_mute = Some(self.volume);
+                    self.set_volume(0.0);
+                }
+            },
+        }
     }
 
     pub fn set_speed(&mut self, speed: f32) {

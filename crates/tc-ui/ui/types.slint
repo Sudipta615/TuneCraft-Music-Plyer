@@ -1,0 +1,142 @@
+// types.slint — Shared data structures for the TuneCraft UI.
+//
+// These structs mirror the Rust `Track`, `Playlist`, etc. types.
+// The Rust side converts from DB models to these lightweight structs
+// before pushing them into Slint models. Keeping them in a single file
+// makes the type contract between Rust and Slint easy to audit.
+
+import { ThemeColors } from "theme/colors.slint";
+
+// ── Track row in track list / playlist views ──
+export struct TrackItem {
+    id: int,
+    title: string,
+    artist: string,
+    album: string,
+    duration-text: string,
+    format: string,
+    bitrate-kbps: int,
+    year: int,
+    genre: string,
+    track-number: int,
+    disc-number: int,
+    is-favorite: bool,
+    is-playing: bool,
+    is-paused: bool,
+    play-count: int,
+    cover-art: image,
+    has-cover: bool,
+    file-path: string,
+}
+
+// ── Playlist row in sidebar / playlist dialogs ──
+export struct PlaylistItem {
+    id: int,
+    name: string,
+    track-count: int,
+}
+
+// ── Sidebar navigation entry ──
+export struct NavItem {
+    section: string,        // "all_tracks" | "albums" | "folders" | etc.
+    label: string,
+    icon: image,
+    badge: int,             // 0 = no badge shown
+    active: bool,
+}
+
+// ── Folder entry in the Folders view ──
+export struct FolderItem {
+    path: string,
+    name: string,
+    track-count: int,
+    is-parent: bool,        // true = ".." go-back entry
+}
+
+// ── EQ band row (vertical slider + label) ──
+export struct EqBandItem {
+    index: int,
+    label: string,          // "60Hz" "170Hz" etc.
+    gain-db: float,
+    filter-type: string,    // "peaking" | "low_shelf" | etc.
+}
+
+// ── EQ preset dropdown entry ──
+export struct EqPresetItem {
+    name: string,
+}
+
+// ── Player bar state (mirrors `PlaybackInfo`) ──
+export struct PlayerState {
+    current-track-id: int,
+    title: string,
+    artist: string,
+    album: string,
+    album-art: image,
+    has-album-art: bool,
+    duration-secs: float,
+    position-secs: float,
+    is-playing: bool,
+    is-favorited: bool,
+    volume: float,
+    shuffle: bool,
+    repeat: string,            // "off" | "all" | "one"
+    speed: float,
+    has-track: bool,
+}
+
+// ── Toast notification ──
+export struct ToastItem {
+    id: int,
+    message: string,
+    level: string,             // "info" | "success" | "warning" | "error"
+}
+
+// ── Lyrics line (synced) ──
+export struct LyricsLine {
+    timestamp-ms: int,
+    text: string,
+    is-current: bool,
+}
+
+// ── Settings page state (one struct per section) ──
+export struct PlaybackSettings {
+    volume: float,
+    speed: float,
+    crossfade-secs: float,
+    crossfade-enabled: bool,
+  replaygain-mode: string,
+  replaygain-preamp-db: float,
+}
+
+export struct EngineSettings {
+    resampler-quality: string,
+    performance-mode: string,
+    dither-enabled: bool,
+    limiter-enabled: bool,
+}
+
+export struct LibrarySettings {
+    tracks-per-page: int,
+    scan-on-startup: bool,
+    watch-dirs: [string],
+}
+
+export struct LyricsSettings {
+    enabled: bool,
+    fetch-on-play: bool,
+    base-url: string,
+}
+
+export struct ScrobbleSettings {
+    enabled: bool,
+    min-duration-secs: float,
+    min-percent: float,
+}
+
+export struct UiSettings {
+    theme: string,
+    show-spectrum: bool,
+    show-waveform: bool,
+    minimize-to-tray: bool,
+}

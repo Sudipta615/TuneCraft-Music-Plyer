@@ -1,4 +1,5 @@
-//! Digital Signal Processing module — EQ, limiter, loudness, resampler, and the full pipeline.
+//! Digital Signal Processing module — EQ, limiter, loudness, resampler, spectrum analyzer,
+//! and the full pipeline.
 
 pub mod biquad;
 pub mod convolution;
@@ -13,6 +14,7 @@ pub mod multiband_compressor;
 pub mod pipeline;
 #[cfg(feature = "resample")]
 pub mod resampler;
+pub mod spectrum;
 pub mod stereo;
 
 pub use biquad::{BiquadCoeffs, BiquadState, FilterType, SmoothedBiquad};
@@ -28,6 +30,7 @@ pub use pipeline::DspPipeline;
 pub use resampler::AudioResampler;
 #[cfg(feature = "resample")]
 pub use resampler::ResamplerError;
+pub use spectrum::{SpectrumAnalyzer, SpectrumSnapshot, NUM_VISUAL_BANDS};
 pub use stereo::StereoEnhancer;
 
 pub use crossfeed::Crossfeed;

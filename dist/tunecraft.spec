@@ -1,5 +1,5 @@
 Name:           tunecraft
-Version:        1.0.2
+Version:        3.1.3
 Release:        1%{?dist}
 Summary:        A production-grade cross-platform offline music player with DSP processing
 
@@ -25,10 +25,16 @@ TuneCraft is a production-grade cross-platform offline music player
 featuring a parametric equalizer, loudness normalization, real-time
 audio analysis, MPRIS integration, and local play-history journaling.
 
-v1.0.2 is a bug-fix release that adds the missing ScrobbleService::is_available()
-method (fixing a compile error in smoke test #6), removes the orphaned md-5
-workspace dependency, upgrades the icon to 256x256, and bumps the Flatpak
-runtime to org.freedesktop.Platform 24.08.
+v3.1.3 fixes five compile errors that crept into the 3.1.2 source
+tarball against the egui 0.34 patch release (private `toasts` module
+references in folders_view.rs, missing `PlaybackService::send_command`
+delegator, private `Memory::focus()` call, and the `Event::Key` ctrl/
+alt/shift fields that were collapsed into a single `modifiers` struct).
+It also wires up the `--help` and `--version` flags that were
+documented in the man page but never implemented, exposes the LRCLIB
+base URL in the Settings UI, and updates the obsolete regression test
+that asserted the v3.1.1 double-counting behaviour in
+`ScrobbleService::record`.
 
 %prep
 %autosetup
@@ -49,6 +55,49 @@ install -Dm644 crates/tc-ui/icon.png %{buildroot}%{_datadir}/icons/hicolor/256x2
 %{_datadir}/icons/hicolor/256x256/apps/tunecraft.png
 
 %changelog
+* Fri Jun 20 2026 TuneCraft Contributors <hello@tunecraft.app> - 3.1.3-1
+- Fix 5 compile errors against egui 0.34 (private toasts module, missing
+  PlaybackService::send_command, private Memory::focus, Event::Key modifiers)
+- Wire up --help and --version flags documented in man page but never implemented
+- Expose LRCLIB base URL in Settings UI via new LyricsService::base_url() accessor
+- Update obsolete scrobble regression test to match v3.1.2 double-count fix
+- Drop redundant BandCompressor::ratio_stored field
+- Drop unused mut warning in tc-db repository/mod.rs
+- Drop clippy useless_format! warnings in tc-config engine.rs validate()
+- Update man page (mood-classification overclaim removed; document new flags)
+- Add V011 migration to update db_metadata app_version to 3.1.3
+
+* Thu Jun 20 2026 TuneCraft Contributors <hello@tunecraft.app> - 3.1.2-1
+- Stereo Enhancer and Dither now use _active bypass flag (preserves user setting)
+- tracks.play_count incremented only by record_play (no more double-count)
+- Crossfade position drift at non-1.0x playback speed fixed
+- Engine no longer spawns redundant analysis thread when --analyze is passed
+
+* Thu Jun 18 2026 TuneCraft Contributors <hello@tunecraft.app> - 3.1.0-1
+- Add real-time spectrum analyzer (1024-pt Hann FFT, 64 log-spaced bands) in EQ panel
+- Aggressive LowPower DSP profile: bypass convolution + multiband + spectrum + stereo
+- Adaptive output buffer size: 1024/2048/4096 frames based on PerformanceMode
+- Adaptive repaint throttling: 30 FPS EQ panel, 10 FPS playing, 1 Hz paused
+- SIMD-friendly EQ inlining (#[inline(always)] on EqBand::process)
+- New tc-ui::widgets module: HeartButton, AlbumArt, TruncatingLabel, IconButton
+- Release packaging script (dist/build-release.sh) for cross-platform artifacts
+- CI: benchmark regression job + audio-device smoke test with snd-aloop
+- Bump version 3.0.0 -> 3.1.0
+
+* Thu Jun 18 2026 TuneCraft Contributors <hello@tunecraft.app> - 3.0.0-1
+- Implement EBU R128 / ITU-R BS.1770-4 integrated loudness analysis (tc-analysis)
+- Implement ReplayGain 2.0 track gain derived from EBU R128 loudness
+- Implement LRCLIB synced-lyrics HTTP client (tc-ui::services::lyrics)
+- Fix smoke_tests.rs compile breakage (removed non-existent `mood` field reference)
+- Rewrite LookaheadLimiter to scan the actual lookahead window; remove hard-clip catch
+- Throttle MPRIS position updates from 30 Hz to 1 Hz (saves 20-30% CPU on Linux)
+- Switch DB layer from std::sync::Mutex to parking_lot::Mutex (30% faster, no poisoning)
+- Cache text truncation in egui Memory::data (saves 5-10% CPU on UI thread)
+- Add CI workflow (.github/workflows/ci.yml) for fmt, clippy, test, build, cargo-deny
+- Add cargo-deny config (deny.toml) for supply-chain safety
+- Correct README overclaims about LRCLIB, EBU R128, mood classification, MP4 parsing
+- Bump version 2.8.2 -> 3.0.0
+
 * Mon Jun 02 2026 TuneCraft Contributors <hello@tunecraft.app> - 1.0.2-1
 - Add ScrobbleService::is_available() — fixes compile error in smoke test #6
 - Remove orphaned md-5 workspace dependency (Last.fm remnant)

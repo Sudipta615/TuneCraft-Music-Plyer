@@ -49,6 +49,10 @@ impl AudioEngine {
                         self.output_buffer.reset();
                     }
                 }
+                // v3.1.1: Clear the pending-output frame queue. Otherwise
+                // processed-but-unpushed frames from the previous track would
+                // play as a brief glitch at the start of the next load_track().
+                self.pending_output_frames.clear();
                 self.position_secs = 0.0;
                 self.pipeline.reset();
                 self.stream = None;

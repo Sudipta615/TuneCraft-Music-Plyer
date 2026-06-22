@@ -1,26 +1,22 @@
-//! Audio analysis — BPM detection, mood classification, chroma/key detection,
-//! lyrics sentiment, and waveform generation.
+//! Audio analysis — BPM detection, chroma/key detection, EBU R128 / ReplayGain 2.0
+//! loudness measurement, and waveform generation.
 //!
-//! ## What's new in v0.25.0
+//! ## Modules
 //!
-//! The mood classifier now uses **two additional signal layers** to sharpen the
-//! Romantic vs Sad distinction, which is the hardest classification problem for
-//! slow Bollywood tracks:
+//! - `bpm` — onset-strength-based tempo detection (60–200 BPM).
+//! - `chroma` — 12-bin chroma + Krumhansl–Schmuckler key-profile matching.
+//! - `loudness` — ITU-R BS.1770-4 integrated loudness (LUFS) + derived
+//!   ReplayGain 2.0 track gain, with K-weighting duplicated from
+//!   `tc_engine::dsp::loudness` so this crate has no runtime dependency
+//!   on the audio engine.
+//! - `waveform` — min/max peak waveform thumbnails for the UI.
 //!
-//! - **Chroma / key-mode detection** (`chroma` module): 12 Goertzel filters + Krumhansl–Schmuckler
-//!   key-profile matching → major/minor mode. Minor key biases toward Sad; major key biases toward
-//!   Romantic.
-//!
-//! - **Lyrics sentiment** (`lyrics_sentiment` module): a 400+ entry bilingual lexicon (Hindi/Urdu
-//!   Devanagari, romanised Hindi, English) that scores lyrics text as Romantic or Sad.  When lyrics
-//!   are available in the DB (fetched by the LRCLIB integration), they are passed to `analyze_file`
-//!   and the result overrides the audio-only classification when confidence is sufficient (≥ 0.15).
-//!
-//! All new analysis runs on the existing background thread; nothing blocks
+//! All analysis runs on the existing background thread; nothing blocks
 //! the audio callback or the UI thread.
 
 mod bpm;
 mod chroma;
+mod loudness;
 mod waveform;
 
 use std::path::Path;
@@ -28,6 +24,7 @@ use std::path::Path;
 pub use bpm::BpmDetector;
 pub use chroma::{ChromaDetector, KeyMode, PitchClass};
 use log::{info, warn};
+pub use loudness::LoudnessAnalyzer;
 use thiserror::Error;
 pub use waveform::WaveformGenerator;
 
@@ -70,6 +67,10 @@ pub struct TrackAnalysis {
     /// Detected musical key and mode (None if tonality is ambiguous or
     /// insufficient audio was processed).
     pub key: Option<KeyMode>,
+    /// EBU R128 integrated loudness / ReplayGain 2.0 track gain. Populated
+    /// since v3.0.0; previously these columns existed in the DB schema but
+    /// were never filled, so loudness normalization silently did nothing.
+    pub loudness: loudness::LoudnessResult,
     pub duration_secs: f32,
     pub sample_rate: u32,
     pub channels: usize,
@@ -144,6 +145,7 @@ pub fn analyze_file(
         .map_err(|e| AnalysisError::Failed(format!("BpmDetector init failed: {}", e)))?;
     let mut chroma_detector = ChromaDetector::new(sample_rate)
         .map_err(|e| AnalysisError::Failed(format!("ChromaDetector init failed: {}", e)))?;
+    let mut loudness_analyzer = LoudnessAnalyzer::new(sample_rate);
 
     let mut total_samples: u64 = 0;
     let max_samples = (max_duration * sample_rate) as u64;
@@ -158,7 +160,18 @@ pub fn analyze_file(
             {
                 break;
             },
-            Err(_) => break,
+            // Log non-EOF packet errors at debug level before terminating the
+            // decode loop. Previously every error was silently swallowed,
+            // which made corrupted or truncated files look like a successful
+            // analysis with whatever partial data was decoded.
+            Err(ref e) => {
+                log::debug!(
+                    "Ending analysis of {}: packet error: {}",
+                    path.display(),
+                    e
+                );
+                break;
+            },
         };
 
         if packet.track_id() != track_id {
@@ -184,6 +197,9 @@ pub fn analyze_file(
                         if stereo_chunk.len() >= 512 {
                             bpm_detector.feed(&stereo_chunk);
                             chroma_detector.feed(&stereo_chunk);
+                            for &(sl, sr) in &stereo_chunk {
+                                loudness_analyzer.process_pair(sl, sr);
+                            }
                             stereo_chunk.clear();
                         }
                     }
@@ -195,6 +211,9 @@ pub fn analyze_file(
                         if stereo_chunk.len() >= 512 {
                             bpm_detector.feed(&stereo_chunk);
                             chroma_detector.feed(&stereo_chunk);
+                            for &(sl, sr) in &stereo_chunk {
+                                loudness_analyzer.process_pair(sl, sr);
+                            }
                             stereo_chunk.clear();
                         }
                     }
@@ -203,6 +222,9 @@ pub fn analyze_file(
                 if !stereo_chunk.is_empty() {
                     bpm_detector.feed(&stereo_chunk);
                     chroma_detector.feed(&stereo_chunk);
+                    for &(sl, sr) in &stereo_chunk {
+                        loudness_analyzer.process_pair(sl, sr);
+                    }
                 }
 
                 if total_samples >= max_samples {
@@ -251,6 +273,7 @@ pub fn analyze_file(
 
     let bpm_result = bpm_detector.detect();
     let key_result = chroma_detector.detect();
+    let loudness_result = loudness_analyzer.finish();
 
     let actual_duration = if duration > 0.0 {
         duration
@@ -261,7 +284,7 @@ pub fn analyze_file(
     };
 
     info!(
-        "Analysis complete for {}: BPM={:.1} (conf={:.2}), key={}, duration={:.1}s",
+        "Analysis complete for {}: BPM={:.1} (conf={:.2}), key={}, loudness={:?}, duration={:.1}s",
         path.display(),
         bpm_result.bpm,
         bpm_result.confidence,
@@ -270,12 +293,14 @@ pub fn analyze_file(
             k.tonic.name(),
             if k.is_major { "maj" } else { "min" }
         )),
+        loudness_result.ebu_r128_loudness,
         actual_duration,
     );
 
     Ok(TrackAnalysis {
         bpm: bpm_result,
         key: key_result,
+        loudness: loudness_result,
         duration_secs: actual_duration,
         sample_rate: sample_rate as u32,
         channels,

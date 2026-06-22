@@ -10,6 +10,7 @@ use crate::dsp::{
     limiter::LookaheadLimiter,
     loudness::{LoudnessMetadata, LoudnessMode, LoudnessNormalizer},
     multiband_compressor::MultibandCompressor,
+    spectrum::SpectrumAnalyzer,
     stereo::StereoEnhancer,
 };
 
@@ -38,12 +39,35 @@ pub struct DspPipeline {
     pub seek_fade: FadeProcessor,
     pub dither: Dither,
 
+    /// Real-time spectrum analyzer tap (v3.1.0). Taps the post-limiter
+    /// signal so the EQ panel spectrum reflects exactly what the user
+    /// hears. Disabled in `PerformanceMode::LowPower`.
+    pub spectrum: SpectrumAnalyzer,
+
     sample_rate: f32,
     performance_mode: PerformanceMode,
     speed: f32,
     balance: f32,
     midside_eq_enabled: bool,
     volume_fade_ms: f32,
+    /// Whether convolution should actually run. False when
+    /// `PerformanceMode::LowPower` is set, even if the user enabled
+    /// convolution in config — low-end hardware cannot afford the FFT
+    /// cost. The user-visible config flag is preserved so re-enabling
+    /// Balanced/UltraQuality restores the user's preference.
+    convolution_active: bool,
+    /// Same pattern for the multiband compressor.
+    multiband_active: bool,
+    /// v3.1.2: Same pattern for the stereo enhancer. Previously LowPower
+    /// mode disabled the enhancer via `set_enabled(false)` directly, which
+    /// permanently wiped the user's preference — switching back to
+    /// Balanced/UltraQuality never re-enabled it. Gating via a separate
+    /// `_active` flag (mirroring `convolution_active`/`multiband_active`)
+    /// preserves `stereo_enhancer.is_enabled()` as the user's actual
+    /// setting at all times.
+    stereo_enhancer_active: bool,
+    /// Same pattern for dither.
+    dither_active: bool,
 }
 
 impl DspPipeline {
@@ -179,6 +203,13 @@ impl DspPipeline {
         let volume = GainProcessor::with_ramp(1.0, config.volume_fade_ms as f32, sample_rate);
         let seek_fade = FadeProcessor::new(config.seek_fade_ms as f32, sample_rate);
 
+        // v3.1.0: spectrum analyzer is always constructed (cheap), but
+        // disabled in LowPower mode. The UI reads `snapshot()` which
+        // returns `None` when disabled — the EQ panel falls back to a
+        // static curve display.
+        let mut spectrum = SpectrumAnalyzer::new(sample_rate);
+        spectrum.set_enabled(config.performance_mode != PerformanceMode::LowPower);
+
         let mut pipeline = Self {
             out_preamp: preamp_out,
             out_loudness: loudness_out,
@@ -196,12 +227,17 @@ impl DspPipeline {
             seek_fade,
             dither,
             mixer,
+            spectrum,
             sample_rate,
             performance_mode: config.performance_mode,
             speed: 1.0,
             balance: 0.0,
             midside_eq_enabled: false,
             volume_fade_ms: config.volume_fade_ms as f32,
+            convolution_active: true,
+            multiband_active: true,
+            stereo_enhancer_active: true,
+            dither_active: true,
         };
 
         pipeline.apply_performance_mode();
@@ -210,8 +246,45 @@ impl DspPipeline {
 
     fn apply_performance_mode(&mut self) {
         if self.performance_mode == PerformanceMode::LowPower {
-            self.stereo_enhancer.set_enabled(false);
-            self.dither.set_enabled(false);
+            // v3.1.0: Aggressive low-power mode. Disables every DSP stage
+            // that costs >1 % CPU on a 2015-class Celeron and isn't
+            // essential to audio quality. The user can re-enable
+            // Balanced/UltraQuality at any time to restore these features.
+            //
+            // v3.1.2: Stereo enhancer and dither are now bypassed via the
+            // `_active` flag pattern (same as convolution/multiband below)
+            // instead of `set_enabled(false)`. The latter mutated the
+            // user's actual preference in-place with no way to recover it
+            // on mode switch-back; `is_enabled()` now always reflects what
+            // the user configured, regardless of performance mode.
+            self.stereo_enhancer_active = false;
+            self.dither_active = false;
+            // Bypass convolution (overlap-add FFT) and multiband compressor
+            // (3 linkwitz-riley crossovers). Together these are the two
+            // most expensive stages after the resampler. We keep their
+            // state intact so a mode switch back to Balanced is instant.
+            self.convolution_active = false;
+            self.multiband_active = false;
+            // Spectrum analyzer is disabled too — the FFT runs at 30 Hz
+            // which is ~0.06 % CPU on a fast machine but ~0.5 % on a
+            // Celeron, and the user is on low-power mode for a reason.
+            self.spectrum.set_enabled(false);
+        } else {
+            // Restore active flags from the user-facing config. We don't
+            // touch the underlying `set_enabled` calls here — those were
+            // already applied in `from_config`.
+            self.convolution_active = self.convolution.is_enabled();
+            self.multiband_active = self.multiband_compressor.is_enabled();
+            // v3.1.2: Restore stereo enhancer / dither the same way —
+            // `is_enabled()` still holds the user's real setting since we
+            // never mutated it above.
+            self.stereo_enhancer_active = self.stereo_enhancer.is_enabled();
+            self.dither_active = self.dither.is_enabled();
+            // Spectrum analyzer is enabled unless the user explicitly
+            // disabled it via `set_spectrum_enabled(false)`.
+            if !self.spectrum.is_enabled() {
+                self.spectrum.set_enabled(true);
+            }
         }
     }
 
@@ -255,15 +328,40 @@ impl DspPipeline {
             l = eq_l;
             r = eq_r;
         }
-        let (l_c, r_c) = self.multiband_compressor.process(l, r);
-        let (l_cv, r_cv) = self.convolution.process(l_c, r_c);
+        // v3.1.0: Multiband compressor + convolution are bypassed in
+        // LowPower mode. The bypass is implemented as a flag check
+        // rather than a `set_enabled(false)` call so the user's config
+        // is preserved when switching back to Balanced.
+        // v3.1.2: Stereo enhancer + dither now use the same flag-check
+        // pattern (see `stereo_enhancer_active` / `dither_active`).
+        let (l_c, r_c) = if self.multiband_active {
+            self.multiband_compressor.process(l, r)
+        } else {
+            (l, r)
+        };
+        let (l_cv, r_cv) = if self.convolution_active {
+            self.convolution.process(l_c, r_c)
+        } else {
+            (l_c, r_c)
+        };
         let (l_b, r_b) = (l_cv * self.balance_gain_l, r_cv * self.balance_gain_r);
         let (l_x, r_x) = self.crossfeed.process(l_b, r_b);
-        let (l_s, r_s) = self.stereo_enhancer.process(l_x, r_x);
+        let (l_s, r_s) = if self.stereo_enhancer_active {
+            self.stereo_enhancer.process(l_x, r_x)
+        } else {
+            (l_x, r_x)
+        };
         let (l_lm, r_lm) = self.limiter.process(l_s, r_s);
+        // v3.1.0: tap the spectrum analyzer at the post-limiter stage so
+        // the EQ panel reflects exactly what the user hears.
+        self.spectrum.process(l_lm, r_lm);
         let (l_v, r_v) = self.volume.process_stereo(l_lm, r_lm);
         let (l_f, r_f) = self.seek_fade.process(l_v, r_v);
-        self.dither.process(l_f, r_f)
+        if self.dither_active {
+            self.dither.process(l_f, r_f)
+        } else {
+            (l_f, r_f)
+        }
     }
 
     pub fn set_volume(&mut self, volume: f32) {
@@ -324,6 +422,7 @@ impl DspPipeline {
         self.convolution.set_sample_rate(sample_rate);
         self.crossfeed.set_sample_rate(sample_rate);
         self.limiter.set_sample_rate(sample_rate);
+        self.spectrum.set_sample_rate(sample_rate);
         self.out_preamp
             .set_slew_rate(1.0 / (PREAMP_RAMP_DURATION_MS * 0.001 * sample_rate));
         self.in_preamp
@@ -350,6 +449,7 @@ impl DspPipeline {
         self.seek_fade.reset();
         self.dither.reset();
         self.mixer.reset();
+        self.spectrum.reset();
     }
 
     pub fn set_limiter_enabled(&mut self, enabled: bool) {
@@ -469,5 +569,30 @@ impl DspPipeline {
     pub fn set_loudness_mode(&mut self, mode: LoudnessMode) {
         self.out_loudness.set_mode(mode);
         self.in_loudness.set_mode(mode);
+    }
+
+    /// Get a snapshot of the current spectrum. Returns `None` when the
+    /// analyzer is disabled (e.g. in `PerformanceMode::LowPower`).
+    pub fn spectrum_snapshot(&self) -> Option<crate::dsp::spectrum::SpectrumSnapshot> {
+        self.spectrum.snapshot()
+    }
+
+    /// Manually enable/disable the spectrum analyzer. Overrides the
+    /// `PerformanceMode::LowPower` default. Used by the EQ panel's
+    /// "show spectrum" toggle.
+    pub fn set_spectrum_enabled(&mut self, enabled: bool) {
+        self.spectrum.set_enabled(enabled);
+    }
+
+    pub fn is_spectrum_enabled(&self) -> bool {
+        self.spectrum.is_enabled()
+    }
+
+    /// Update the performance mode at runtime. Re-applies the
+    /// `apply_performance_mode` logic — disabling expensive DSP stages
+    /// when switching to LowPower, restoring them when switching back.
+    pub fn set_performance_mode(&mut self, mode: PerformanceMode) {
+        self.performance_mode = mode;
+        self.apply_performance_mode();
     }
 }

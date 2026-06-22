@@ -90,8 +90,14 @@ impl ScrobbleService {
     /// Record a completed listen to the local journal.
     ///
     /// Inserts one row into `scrobbles` and upserts `listening_stats`.
-    /// Also updates the legacy `play_count` and `last_played` columns on
-    /// the `tracks` table so existing UI queries continue to work unchanged.
+    /// Also updates `tracks.last_played` so existing UI queries that show
+    /// "last played" timestamps continue to work without joining the
+    /// `listening_stats` table.
+    ///
+    /// v3.1.2: This function no longer touches `tracks.play_count`. Only
+    /// `LibraryService::record_play` increments that column (once, when
+    /// playback starts). Previously this function also incremented it,
+    /// which double-counted every scrobbled track in "Most Played" lists.
     ///
     /// Called from the UI tick after the 50%-or-4-minute threshold is
     /// crossed.  All operations are synchronous and complete in < 1 ms.
@@ -105,7 +111,11 @@ impl ScrobbleService {
             .unwrap_or_default()
             .as_secs() as i64;
 
-        let result = self.db.with_connection(|conn| {
+        // Use a single transaction so the three writes (scrobbles journal,
+        // listening_stats upsert, tracks play_count update) commit atomically.
+        // Previously each `conn.execute` auto-committed, so a failure in step
+        // 2 or 3 left the journal out of sync with the aggregate stats.
+        let result: Result<(), tc_db::DbError> = self.db.transaction(|conn| {
             // 1. Append to the permanent play journal.
             conn.execute(
                 "INSERT INTO scrobbles (track_id, played_at, duration_played_secs, completed)
@@ -126,10 +136,22 @@ impl ScrobbleService {
                 rusqlite::params![entry.track_id, entry.duration_played_secs, played_at],
             )?;
 
-            // 3. Keep legacy tracks columns in sync (UI already reads these).
+            // 3. Keep `tracks.last_played` in sync with the moment the
+            //    scrobble threshold was actually reached (a more accurate
+            //    timestamp than the play-start time `record_play` uses).
+            //
+            //    v3.1.2: This used to also run
+            //    `play_count = play_count + 1`, which double-counted plays:
+            //    `LibraryService::record_play` already increments
+            //    `tracks.play_count` once when playback successfully
+            //    starts (see `playback_actions.rs`), so every track that
+            //    played long enough to scrobble was counted twice in
+            //    "Most Played" / track stats, while the separate
+            //    `listening_stats.play_count` aggregate (upserted in step 2
+            //    above) only ever counted once. `tracks.play_count` is now
+            //    only ever incremented by `record_play`.
             conn.execute(
                 "UPDATE tracks SET
-                     play_count  = play_count + 1,
                      last_played = datetime(?1, 'unixepoch')
                  WHERE id = ?2",
                 rusqlite::params![played_at, entry.track_id],
@@ -472,6 +494,13 @@ mod tests {
 
     #[test]
     fn test_record_increments_play_count() {
+        // v3.1.2 regression test: `ScrobbleService::record` must NOT touch
+        // `tracks.play_count`. Only `LibraryService::record_play` does.
+        // Previously this test asserted the opposite (and passed because
+        // record() double-counted), which masked the bug.
+        //
+        // The scrobble is recorded in the separate `listening_stats`
+        // aggregate and the `local_scrobbles` journal — we check both.
         let db = test_db();
         let track_id = insert_test_track(&db, "Northern Lights", "Aurora Glass");
         let svc = ScrobbleService::new(std::sync::Arc::clone(&db), true);
@@ -483,7 +512,8 @@ mod tests {
             duration_played_secs: 200.0,
         });
 
-        let play_count: u32 = db
+        // 1. tracks.play_count must remain 0 — record() must not double-count.
+        let tracks_play_count: u32 = db
             .with_connection(|conn| {
                 conn.query_row(
                     "SELECT play_count FROM tracks WHERE id = ?1",
@@ -492,8 +522,38 @@ mod tests {
                 )
             })
             .unwrap();
+        assert_eq!(
+            tracks_play_count, 0,
+            "tracks.play_count must NOT be incremented by ScrobbleService::record (v3.1.2 fix)"
+        );
 
-        assert_eq!(play_count, 1, "play_count should be 1 after one record()");
+        // 2. listening_stats.play_count must be 1 — that's the correct
+        //    aggregate for "how many times has this been scrobbled".
+        let stats_play_count: u32 = db
+            .with_connection(|conn| {
+                conn.query_row(
+                    "SELECT play_count FROM listening_stats WHERE track_id = ?1",
+                    rusqlite::params![track_id],
+                    |r| r.get(0),
+                )
+            })
+            .unwrap();
+        assert_eq!(
+            stats_play_count, 1,
+            "listening_stats.play_count should be 1 after one scrobble"
+        );
+
+        // 3. The scrobbles journal must have one row too.
+        let scrobble_count: u32 = db
+            .with_connection(|conn| {
+                conn.query_row(
+                    "SELECT COUNT(*) FROM scrobbles WHERE track_id = ?1",
+                    rusqlite::params![track_id],
+                    |r| r.get(0),
+                )
+            })
+            .unwrap();
+        assert_eq!(scrobble_count, 1, "one row in scrobbles");
     }
 
     #[test]

@@ -1,0 +1,527 @@
+// components/settings_view.slint — Application settings page.
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { Slider, Toggle, IconButton } from "theme/widgets.slint";
+import { PlaybackSettings, EngineSettings, LibrarySettings, LyricsSettings, ScrobbleSettings, UiSettings } from "types.slint";
+import { ComboBox } from "std-widgets.slint";
+
+export component SettingsView inherits Rectangle {
+    in property <PlaybackSettings> playback;
+    in property <EngineSettings> engine;
+    in property <LibrarySettings> library;
+    in property <LyricsSettings> lyrics;
+    in property <ScrobbleSettings> scrobble;
+    in property <UiSettings> ui;
+    in property <[string]> theme-options: ["system", "dark", "light", "ocean", "forest", "sunset", "berry", "midnight", "rose", "coffee", "mint"];
+
+    background: ThemeColorsProvider.current.bg;
+
+    // Per-field changed callbacks — Rust updates the actual config struct.
+    callback volume-changed(float);
+    callback speed-changed(float);
+    callback crossfade-enabled-changed(bool);
+    callback crossfade-secs-changed(float);
+    callback replaygain-mode-changed(string);
+    callback resampler-quality-changed(string);
+    callback performance-mode-changed(string);
+    callback dither-enabled-changed(bool);
+    callback tracks-per-page-changed(int);
+    callback scan-on-startup-changed(bool);
+    callback add-watch-dir();
+    callback remove-watch-dir(string);
+    callback rescan-now();
+    callback lyrics-enabled-changed(bool);
+    callback lyrics-fetch-on-play-changed(bool);
+    callback lyrics-base-url-changed(string);
+    callback scrobble-enabled-changed(bool);
+    callback scrobble-min-duration-changed(float);
+    callback scrobble-min-percent-changed(float);
+    callback theme-changed(string);
+    callback show-spectrum-changed(bool);
+    callback show-waveform-changed(bool);
+    callback minimize-to-tray-changed(bool);
+
+    Flickable {
+        VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
+
+            Text {
+                text: "Settings";
+                font-size: 28px;
+                font-weight: 700;
+                color: ThemeColorsProvider.current.text;
+            }
+
+            // ── 1. Playback ──
+            Rectangle {
+                background: ThemeColorsProvider.current.card;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: ThemeColorsProvider.current.border;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Playback";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "Default Volume: " + round(root.playback.volume * 100) + "%";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                        }
+                        Slider {
+                            value: root.playback.volume;
+                            maximum: 1.0;
+                            changed(v) => { root.volume-changed(v); }
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "Playback Speed: " + root.playback.speed + "x";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                        }
+                        Slider {
+                            value: root.playback.speed;
+                            minimum: 0.25;
+                            maximum: 4.0;
+                            changed(v) => { root.speed-changed(v); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Crossfade";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.playback.crossfade-enabled;
+                            toggled(v) => { root.crossfade-enabled-changed(v); }
+                        }
+                    }
+                    if root.playback.crossfade-enabled : VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "Crossfade Duration: " + root.playback.crossfade-secs + "s";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                        }
+                        Slider {
+                            value: root.playback.crossfade-secs;
+                            maximum: 12.0;
+                            changed(v) => { root.crossfade-secs-changed(v); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "ReplayGain Mode:";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            vertical-alignment: center;
+                        }
+                        ComboBox {
+                            current-value: root.playback.replaygain-mode;
+                            model: ["off", "track_replaygain", "album_replaygain", "ebu_r128"];
+                            selected => { root.replaygain-mode-changed(self.current-value); }
+                        }
+                    }
+                }
+            }
+
+            // ── 2. Engine ──
+            Rectangle {
+                background: ThemeColorsProvider.current.card;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: ThemeColorsProvider.current.border;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Engine";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Resampler Quality:";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            vertical-alignment: center;
+                        }
+                        ComboBox {
+                            current-value: root.engine.resampler-quality;
+                            model: ["high_quality", "balanced", "fast"];
+                            selected => { root.resampler-quality-changed(self.current-value); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Performance Mode:";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            vertical-alignment: center;
+                        }
+                        ComboBox {
+                            current-value: root.engine.performance-mode;
+                            model: ["ultra_quality", "balanced", "low_power"];
+                            selected => { root.performance-mode-changed(self.current-value); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Dither";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.engine.dither-enabled;
+                            toggled(v) => { root.dither-enabled-changed(v); }
+                        }
+                    }
+                }
+            }
+
+            // ── 3. Library ──
+            Rectangle {
+                background: ThemeColorsProvider.current.card;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: ThemeColorsProvider.current.border;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Library";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "Tracks Per Page: " + root.library.tracks-per-page;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                        }
+                        Slider {
+                            value: root.library.tracks-per-page;
+                            minimum: 50;
+                            maximum: 1000;
+                            changed(v) => { root.tracks-per-page-changed(round(v)); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Scan on Startup";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.library.scan-on-startup;
+                            toggled(v) => { root.scan-on-startup-changed(v); }
+                        }
+                    }
+                    Text {
+                        text: "Watched Folders:";
+                        font-size: 13px;
+                        color: ThemeColorsProvider.current.text-dim;
+                    }
+                    for dir[i] in root.library.watch-dirs : Rectangle {
+                        height: 32px;
+                        background: ThemeColorsProvider.current.search-bg;
+                        border-radius: 6px;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 8px;
+                            alignment: center;
+                            Text {
+                                text: dir;
+                                font-size: 12px;
+                                color: ThemeColorsProvider.current.text-dim;
+                                overflow: elide;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                            }
+                            IconButton {
+                                icon: @image-url("icons/x.svg");
+                                icon-size: 14px;
+                                icon-color: ThemeColorsProvider.current.text-dim;
+                                clicked => { root.remove-watch-dir(dir); }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Rectangle {
+                            height: 32px;
+                            border-radius: 6px;
+                            background: ThemeColorsProvider.current.hover;
+                            border-width: 1px;
+                            border-color: ThemeColorsProvider.current.border;
+                            horizontal-stretch: 1;
+                            add-dir-touch := TouchArea {
+                                clicked => { root.add-watch-dir(); }
+                            }
+                            Text {
+                                text: "+ Add Folder";
+                                font-size: 13px;
+                                color: ThemeColorsProvider.current.text;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+                        }
+                        Rectangle {
+                            height: 32px;
+                            border-radius: 6px;
+                            background: ThemeColorsProvider.accent-color;
+                            rescan-touch := TouchArea {
+                                clicked => { root.rescan-now(); }
+                            }
+                            Text {
+                                text: "Rescan Now";
+                                font-size: 13px;
+                                color: white;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── 5. Lyrics ──
+            Rectangle {
+                background: ThemeColorsProvider.current.card;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: ThemeColorsProvider.current.border;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Lyrics (LRCLIB)";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Enable Lyrics";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.lyrics.enabled;
+                            toggled(v) => { root.lyrics-enabled-changed(v); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Fetch on Play";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.lyrics.fetch-on-play;
+                            toggled(v) => { root.lyrics-fetch-on-play-changed(v); }
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "LRCLIB Base URL";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                        }
+                        Rectangle {
+                            height: 32px;
+                            background: ThemeColorsProvider.current.search-bg;
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: ThemeColorsProvider.current.search-border;
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                base-url-input := TextInput {
+                                    text: root.lyrics.base-url;
+                                    font-size: 13px;
+                                    color: ThemeColorsProvider.current.text;
+                                    vertical-alignment: center;
+                                    horizontal-stretch: 1;
+                                    edited => { root.lyrics-base-url-changed(self.text); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── 6. Scrobble ──
+            Rectangle {
+                background: ThemeColorsProvider.current.card;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: ThemeColorsProvider.current.border;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Local Scrobble Journal";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Enable Local Scrobbling";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.scrobble.enabled;
+                            toggled(v) => { root.scrobble-enabled-changed(v); }
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "Min Duration: " + root.scrobble.min-duration-secs + "s";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                        }
+                        Slider {
+                            value: root.scrobble.min-duration-secs;
+                            maximum: 240;
+                            changed(v) => { root.scrobble-min-duration-changed(v); }
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text {
+                            text: "Min Percent: " + round(root.scrobble.min-percent * 100) + "%";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                        }
+                        Slider {
+                            value: root.scrobble.min-percent;
+                            maximum: 1.0;
+                            changed(v) => { root.scrobble-min-percent-changed(v); }
+                        }
+                    }
+                }
+            }
+
+            // ── 7. UI ──
+            Rectangle {
+                background: ThemeColorsProvider.current.card;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: ThemeColorsProvider.current.border;
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "User Interface";
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Theme:";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            vertical-alignment: center;
+                        }
+                        ComboBox {
+                            current-value: root.ui.theme;
+                            model: root.theme-options;
+                            selected => { root.theme-changed(self.current-value); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Show Spectrum Analyzer";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.ui.show-spectrum;
+                            toggled(v) => { root.show-spectrum-changed(v); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Show Waveform";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.ui.show-waveform;
+                            toggled(v) => { root.show-waveform-changed(v); }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            text: "Minimize to Tray";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                        Toggle {
+                            on: root.ui.minimize-to-tray;
+                            toggled(v) => { root.minimize-to-tray-changed(v); }
+                        }
+                    }
+                }
+            }
+
+            Rectangle { height: 24px; }
+        }
+    }
+}

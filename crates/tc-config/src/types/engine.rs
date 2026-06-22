@@ -683,11 +683,115 @@ impl Default for CrossfeedConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BandCompressorConfig {
+    #[serde(default = "BandCompressorConfig::default_threshold_db")]
     pub threshold_db: f32,
+    #[serde(default = "BandCompressorConfig::default_ratio")]
     pub ratio: f32,
+    #[serde(default = "BandCompressorConfig::default_attack_ms")]
     pub attack_ms: f32,
+    #[serde(default = "BandCompressorConfig::default_release_ms")]
     pub release_ms: f32,
+    #[serde(default)]
     pub makeup_gain_db: f32,
+}
+
+impl BandCompressorConfig {
+    fn default_threshold_db() -> f32 {
+        -12.0
+    }
+    fn default_ratio() -> f32 {
+        3.0
+    }
+    fn default_attack_ms() -> f32 {
+        10.0
+    }
+    fn default_release_ms() -> f32 {
+        100.0
+    }
+
+    /// Validate and clamp band parameters. Returns a list of warnings
+    /// for any out-of-range values that were corrected.
+    pub fn validate(&mut self) -> Vec<String> {
+        let mut warnings = Vec::new();
+
+        if self.threshold_db.is_nan() || self.threshold_db.is_infinite() {
+            warnings.push("threshold_db is NaN/inf, reset to -12.0".to_string());
+            self.threshold_db = -12.0;
+        } else if self.threshold_db < -60.0 {
+            warnings.push(format!(
+                "threshold_db ({}) below -60, clamped",
+                self.threshold_db
+            ));
+            self.threshold_db = -60.0;
+        } else if self.threshold_db > 0.0 {
+            warnings.push(format!(
+                "threshold_db ({}) above 0, clamped",
+                self.threshold_db
+            ));
+            self.threshold_db = 0.0;
+        }
+
+        if self.ratio.is_nan() || self.ratio <= 0.0 {
+            warnings.push(format!(
+                "ratio ({}) invalid, reset to 3.0",
+                self.ratio
+            ));
+            self.ratio = 3.0;
+        } else if self.ratio > 20.0 {
+            warnings.push(format!(
+                "ratio ({}) above 20, clamped",
+                self.ratio
+            ));
+            self.ratio = 20.0;
+        }
+
+        if self.attack_ms.is_nan() || self.attack_ms <= 0.0 {
+            warnings.push(format!(
+                "attack_ms ({}) invalid, reset to 10.0",
+                self.attack_ms
+            ));
+            self.attack_ms = 10.0;
+        } else if self.attack_ms > 1000.0 {
+            warnings.push(format!(
+                "attack_ms ({}) above 1000, clamped",
+                self.attack_ms
+            ));
+            self.attack_ms = 1000.0;
+        }
+
+        if self.release_ms.is_nan() || self.release_ms <= 0.0 {
+            warnings.push(format!(
+                "release_ms ({}) invalid, reset to 100.0",
+                self.release_ms
+            ));
+            self.release_ms = 100.0;
+        } else if self.release_ms > 5000.0 {
+            warnings.push(format!(
+                "release_ms ({}) above 5000, clamped",
+                self.release_ms
+            ));
+            self.release_ms = 5000.0;
+        }
+
+        if self.makeup_gain_db.is_nan() || self.makeup_gain_db.is_infinite() {
+            warnings.push("makeup_gain_db is NaN/inf, reset to 0.0".to_string());
+            self.makeup_gain_db = 0.0;
+        } else if self.makeup_gain_db > 24.0 {
+            warnings.push(format!(
+                "makeup_gain_db ({}) above 24, clamped",
+                self.makeup_gain_db
+            ));
+            self.makeup_gain_db = 24.0;
+        } else if self.makeup_gain_db < -24.0 {
+            warnings.push(format!(
+                "makeup_gain_db ({}) below -24, clamped",
+                self.makeup_gain_db
+            ));
+            self.makeup_gain_db = -24.0;
+        }
+
+        warnings
+    }
 }
 
 impl Default for BandCompressorConfig {
@@ -746,7 +850,17 @@ impl Default for MultibandCompressorConfig {
 
 impl MultibandCompressorConfig {
     pub fn validate(&mut self) -> Vec<String> {
-        Vec::new()
+        let mut warnings = Vec::new();
+        for (name, band) in [
+            ("low_band", &mut self.low_band),
+            ("mid_band", &mut self.mid_band),
+            ("high_band", &mut self.high_band),
+        ] {
+            for msg in band.validate() {
+                warnings.push(format!("{}: {}", name, msg));
+            }
+        }
+        warnings
     }
 }
 
@@ -833,13 +947,17 @@ impl EngineConfig {
             },
             PerformanceMode::LowPower => {
                 self.resampler_quality = ResamplerQuality::Fast;
-                // For LowPower, convolution and stereo enhancer are suggestions
-                // rather than mandates. They can be overridden by the user.
+                // For LowPower, convolution is disabled when auto_disable_low_power
+                // is set (the user's explicit enable is overridden by the perf mode).
                 if self.convolution.auto_disable_low_power {
                     self.convolution.enabled = false;
                 }
-                if self.stereo_enhancer.width > 0.0 && !self.stereo_enhancer.enabled {
-                    // Only suggest disabling if not already explicitly enabled
+                // Stereo enhancer: suggest disabling in low-power mode unless
+                // the user has explicitly enabled it. We respect an explicit
+                // `enabled = true` here so that audiophile users who want
+                // stereo widening on low-power hardware keep it.
+                if !self.stereo_enhancer.enabled {
+                    self.stereo_enhancer.width = 0.0;
                 }
             },
         }

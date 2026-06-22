@@ -22,9 +22,9 @@ default-members = [
 ]
 
 [workspace.package]
-version = "2.8.2"
+version = "3.1.5"
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.85"
 license = "MIT"
 
 [workspace.dependencies]
@@ -53,10 +53,15 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.134"
 toml = "0.8.19"
 
-# UI
-egui = "0.34.3"
-eframe = { version = "0.34.3", default-features = false, features = ["default_fonts", "wgpu", "wayland", "x11"] }
+# UI — Slint 1.16.1 with femtovg (GPU) renderer for low-end hardware.
+# Slint uses a retained-mode declarative model that avoids the per-frame
+# CPU spikes egui was causing on Celeron N3050-class CPUs.
+slint = { version = "1.16.1", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-femtovg", "accessibility"] }
+# slint-build compiles .slint markup → Rust code at build time.
+slint-build = "1.16.1"
 rfd = "0.17.2"
+# Fonts: Inter for body, embedded via slint-build's font feature.
+# Phosphor icons are embedded as inline SVG strings in .slint files.
 
 # Utilities
 log = "0.4.22"

@@ -1,0 +1,229 @@
+// components/player_bar.slint — Bottom playback control bar.
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { IconButton, HeartButton, Slider } from "theme/widgets.slint";
+import { PlayerState } from "types.slint";
+
+export component PlayerBar inherits Rectangle {
+    in property <PlayerState> player-state;
+    in property <bool> show-eq-panel: false;
+    in property <bool> lyrics-available: false;
+
+    height: 88px;
+    background: ThemeColorsProvider.current.player-bar;
+    border-width: 0;
+    border-color: ThemeColorsProvider.current.player-bar-border;
+
+    callback play-pause();
+    callback prev();
+    callback next();
+    callback seek(float);
+    callback set-volume(float);
+    callback toggle-favorite();
+    callback toggle-eq-panel();
+    callback toggle-lyrics();
+    callback toggle-shuffle();
+    callback cycle-repeat();
+
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 16px;
+        alignment: center;
+
+        // ── Left: album art + track info ──
+        HorizontalLayout {
+            spacing: 12px;
+            width: 280px;
+
+            Rectangle {
+                width: 56px;
+                height: 56px;
+                border-radius: 8px;
+                background: ThemeColorsProvider.current.card;
+                clip: true;
+                y: (parent.height - self.height) / 2;
+
+                if root.player-state.has-album-art : Image {
+                    source: root.player-state.album-art;
+                    width: parent.width;
+                    height: parent.height;
+                    image-fit: cover;
+                }
+                if !root.player-state.has-album-art : Image {
+                    source: @image-url("icons/music-notes.svg");
+                    width: 28px;
+                    height: 28px;
+                    colorize: ThemeColorsProvider.current.text-muted;
+                    image-fit: contain;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            VerticalLayout {
+                spacing: 2px;
+                y: (parent.height - self.height) / 2;
+                horizontal-stretch: 1;
+
+                Text {
+                    text: root.player-state.has-track ? root.player-state.title : "No track selected";
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: ThemeColorsProvider.current.text;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: root.player-state.has-track ? root.player-state.artist : "—";
+                    font-size: 12px;
+                    color: ThemeColorsProvider.current.text-dim;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+            }
+
+            HeartButton {
+                favorited: root.player-state.is-favorited;
+                clicked => { root.toggle-favorite(); }
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        // ── Center: transport controls + seek bar ──
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 4px;
+            alignment: center;
+
+            HorizontalLayout {
+                alignment: center;
+                spacing: 8px;
+
+                IconButton {
+                    icon: @image-url("icons/shuffle.svg");
+                    icon-size: 16px;
+                    active: root.player-state.shuffle;
+                    icon-color: ThemeColorsProvider.current.text-dim;
+                    hover-color: ThemeColorsProvider.accent-color;
+                    clicked => { root.toggle-shuffle(); }
+                }
+                IconButton {
+                    icon: @image-url("icons/skip-back.svg");
+                    icon-size: 20px;
+                    icon-color: ThemeColorsProvider.current.text;
+                    clicked => { root.prev(); }
+                }
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 18px;
+                    background: ThemeColorsProvider.accent-color;
+                    y: (parent.height - self.height) / 2;
+                    play-touch := TouchArea {
+                        clicked => { root.play-pause(); }
+                    }
+                    Image {
+                        source: root.player-state.is-playing ? @image-url("icons/pause.svg") : @image-url("icons/play.svg");
+                        width: 18px;
+                        height: 18px;
+                        colorize: white;
+                        image-fit: contain;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+                IconButton {
+                    icon: @image-url("icons/skip-forward.svg");
+                    icon-size: 20px;
+                    icon-color: ThemeColorsProvider.current.text;
+                    clicked => { root.next(); }
+                }
+                IconButton {
+                    icon: root.player-state.repeat == "one" ? @image-url("icons/repeat-once.svg") : @image-url("icons/repeat.svg");
+                    icon-size: 16px;
+                    active: root.player-state.repeat != "off";
+                    icon-color: ThemeColorsProvider.current.text-dim;
+                    hover-color: ThemeColorsProvider.accent-color;
+                    clicked => { root.cycle-repeat(); }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                height: 16px;
+
+                Text {
+                    text: format-elapsed(root.player-state.position-secs);
+                    font-size: 11px;
+                    color: ThemeColorsProvider.current.text-muted;
+                    vertical-alignment: center;
+                    width: 40px;
+                }
+                seek := Slider {
+                    value: root.player-state.position-secs;
+                    maximum: root.player-state.duration-secs > 0 ? root.player-state.duration-secs : 1.0;
+                    track-height: 4px;
+                    thumb-radius: 6px;
+                    horizontal-stretch: 1;
+                    changed(v) => { root.seek(v); }
+                }
+                Text {
+                    text: format-elapsed(root.player-state.duration-secs);
+                    font-size: 11px;
+                    color: ThemeColorsProvider.current.text-muted;
+                    vertical-alignment: center;
+                    width: 40px;
+                }
+            }
+        }
+
+        // ── Right: volume + EQ + lyrics ──
+        HorizontalLayout {
+            spacing: 8px;
+            width: 200px;
+            alignment: end;
+
+            IconButton {
+                icon: root.player-state.volume == 0 ? @image-url("icons/speaker-x.svg") :
+                      root.player-state.volume < 0.5 ? @image-url("icons/speaker-low.svg") :
+                      @image-url("icons/speaker-high.svg");
+                icon-size: 16px;
+                icon-color: ThemeColorsProvider.current.text-dim;
+            }
+            vol-slider := Slider {
+                value: root.player-state.volume;
+                maximum: 1.0;
+                track-height: 4px;
+                thumb-radius: 6px;
+                width: 80px;
+                changed(v) => { root.set-volume(v); }
+            }
+
+            IconButton {
+                icon: @image-url("icons/sliders.svg");
+                icon-size: 16px;
+                active: root.show-eq-panel;
+                icon-color: ThemeColorsProvider.current.text-dim;
+                hover-color: ThemeColorsProvider.accent-color;
+                clicked => { root.toggle-eq-panel(); }
+            }
+
+            IconButton {
+                icon: @image-url("icons/microphone.svg");
+                icon-size: 16px;
+                active: false;
+                disabled: !root.lyrics-available;
+                icon-color: ThemeColorsProvider.current.text-dim;
+                hover-color: ThemeColorsProvider.accent-color;
+                clicked => { root.toggle-lyrics(); }
+            }
+        }
+    }
+
+    // Format seconds as M:SS. Both branches of the inner conditional must
+    // return strings so Slint can concatenate them without type coercion.
+    function format-elapsed(secs: float) -> string {
+        floor(secs / 60) + ":" + (Math.mod(floor(secs), 60) < 10 ? "0" : "") + Math.mod(floor(secs), 60)
+    }
+}

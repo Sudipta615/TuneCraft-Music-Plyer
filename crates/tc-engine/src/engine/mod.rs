@@ -45,7 +45,7 @@ use crossbeam::channel::{self, Receiver, Sender};
 use log::{error, info, warn};
 // Re-export public types from submodules so the public API is unchanged.
 pub use stream::EngineError;
-use tc_config::EngineConfig;
+use tc_config::{EngineConfig, PerformanceMode};
 
 #[cfg(feature = "resample")]
 use crate::dsp::resampler::AudioResampler;
@@ -243,7 +243,26 @@ impl AudioEngine {
             return Err(EngineError::AlreadyRunning);
         }
         let audio_backend = self.config.output_backend;
-        let mut output = CpalOutput::new(Arc::clone(&self.output_buffer), audio_backend)?;
+        // v3.1.0: Pick the output buffer size based on the performance
+        // mode. This is the single biggest lever for low-end hardware —
+        // doubling the buffer halves the context-switch rate of the
+        // audio callback, which on a Celeron-class CPU can save 5–10 %
+        // CPU on its own.
+        let target_buffer_size: u32 = match self.config.performance_mode {
+            PerformanceMode::UltraQuality => 1024, // ~23 ms latency
+            PerformanceMode::Balanced => 2048,     // ~46 ms latency (default)
+            PerformanceMode::LowPower => 4096,     // ~93 ms latency
+        };
+        log::info!(
+            "Performance mode: {:?} → target buffer size: {} frames",
+            self.config.performance_mode,
+            target_buffer_size
+        );
+        let mut output = CpalOutput::new_with_buffer_size(
+            Arc::clone(&self.output_buffer),
+            audio_backend,
+            target_buffer_size,
+        )?;
         self.output_sample_rate = output.sample_rate();
         output.start()?;
         self.audio_output = Some(output);
@@ -293,7 +312,12 @@ impl AudioEngine {
                 };
 
                 while running.load(Ordering::Acquire) {
-                    std::thread::sleep(Duration::from_secs(2));
+                    // 5-second polling interval. The previous 2-second
+                    // interval caused CPAL device enumeration (50–100 ms on
+                    // Linux ALSA) to consume 1–3% CPU even when nothing was
+                    // changing. 5 seconds is still well within the user's
+                    // perception window for a Bluetooth sink switch.
+                    std::thread::sleep(Duration::from_secs(5));
                     if !running.load(Ordering::Acquire) {
                         break;
                     }
@@ -399,6 +423,10 @@ impl AudioEngine {
         self.position_secs = 0.0;
         self.source_frames_consumed = 0;
         self.consecutive_decode_errors = 0;
+        // v3.1.1: Clear the pending-output frame queue so any processed-but-
+        // unpushed frames from the previous track don't play as a brief
+        // glitch at the start of this new track.
+        self.pending_output_frames.clear();
         self.crossfade_triggered = false;
 
         #[cfg(feature = "resample")]

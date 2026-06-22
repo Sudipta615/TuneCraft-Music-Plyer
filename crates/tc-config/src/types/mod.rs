@@ -7,6 +7,7 @@ mod app;
 mod engine;
 pub mod enums;
 mod library;
+mod lyrics;
 mod playback;
 mod scrobble;
 mod ui;
@@ -21,8 +22,9 @@ pub const CONFIG_VERSION: u32 = 1;
 pub use app::{AppConfig, ConfigChangedEvent, ConfigSection};
 // Engine types
 pub use engine::{
-    ConvolutionConfig, CrossfadeConfig, EngineConfig, EqBand, EqConfig, LimiterConfig,
-    LoudnessConfig, StereoEnhancerConfig,
+    BandCompressorConfig, ConvolutionConfig, CrossfadeConfig, CrossfeedConfig, EngineConfig,
+    EqBand, EqConfig, LimiterConfig, LoudnessConfig, MultibandCompressorConfig,
+    StereoEnhancerConfig,
 };
 pub use enums::{
     AudioBackend, CrossfadeCurve, CrossfeedProfile, FilterType, LoudnessMode, PerformanceMode,
@@ -30,6 +32,8 @@ pub use enums::{
 };
 // Library types
 pub use library::LibraryConfig;
+// Lyrics types
+pub use lyrics::LyricsConfig;
 // Playback types
 pub use playback::PlaybackConfig;
 // Scrobble types
@@ -164,8 +168,7 @@ mod tests {
 
     #[test]
     fn test_migrate_updates_version() {
-        let mut config = AppConfig::default();
-        config.config_version = 0;
+        let mut config = AppConfig { config_version: 0, ..Default::default() };
         let log = config.migrate();
         assert_eq!(config.config_version, CONFIG_VERSION);
         assert!(!log.is_empty());

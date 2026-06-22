@@ -8,9 +8,7 @@ default = ["audio-output"]
 audio-output = ["tc-engine/audio-output"]
 
 [dependencies]
-egui = { workspace = true }
-eframe = { workspace = true }
-egui-phosphor = "0.12.0"
+slint = { workspace = true }
 tc-engine = { workspace = true }
 tc-db = { workspace = true }
 tc-library = { workspace = true }
@@ -28,3 +26,9 @@ rusqlite = { workspace = true }
 image = { workspace = true }
 rfd = { workspace = true }
 parking_lot = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[build-dependencies]
+slint-build = { workspace = true }

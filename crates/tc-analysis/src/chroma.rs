@@ -341,6 +341,15 @@ impl ChromaDetector {
             _ => PitchClass::B,
         };
 
+        // Apply a confidence floor. The Krumhansl–Schmuckler correlation
+        // for atonal / percussion-heavy material can be near zero or even
+        // negative; reporting a "key" in that case is misleading. The
+        // docstring on `KeyMode` says values below ~0.6 indicate ambiguous
+        // tonality, so we use that as the cutoff.
+        if best_corr < 0.6 {
+            return None;
+        }
+
         Some(KeyMode {
             tonic,
             is_major: best_major,

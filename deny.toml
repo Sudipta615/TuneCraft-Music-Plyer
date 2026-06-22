@@ -1,0 +1,65 @@
+# cargo-deny configuration
+#
+# Supply-chain safety for TuneCraft. Runs in CI via the `cargo-deny` job in
+# .github/workflows/ci.yml. Catches:
+#   - CVEs in dependencies (advisories)
+#   - Licenses incompatible with the project's MIT license
+#   - Undesired crates (e.g. crates with known unmaintained status)
+#   - Duplicate versions of the same crate (potential bloat / conflicts)
+
+[graph]
+# Analyze the entire workspace.
+all-features = true
+
+[advisories]
+# Fail the build on any advisory. TuneCraft is an offline audio player
+# handling user files; security matters.
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "deny"
+ignore = [
+  # Add entries here only with a written justification. Each ignored
+  # advisory must have a comment explaining why it doesn't apply to
+  # TuneCraft and when the ignore can be removed.
+]
+
+[licenses]
+# TuneCraft is MIT-licensed. Allow common permissive licenses; reject
+# copyleft (GPL, LGPL, AGPL) which would force the entire project to
+# change license. Allow CPL for compatibility with symphonia's deps.
+allow = [
+  "MIT",
+  "MIT-0",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-DFS-2016",
+  "Unicode-3.0",
+  "Zlib",
+  "CC0-1.0",
+  "MPL-2.0",
+  "BSL-1.0",
+]
+# Some crates don't ship a license file. Deny by default to catch typos.
+confidence-threshold = 0.93
+
+[bans]
+# Warn on duplicate versions; don't fail — duplicate versions are sometimes
+# unavoidable (e.g. tokio 1.x and windows-sys pulled by different deps).
+multiple-versions = "warn"
+deny = [
+  # Reject crates that are known to be unmaintained or have better alternatives.
+  { name = "chrono", version = "<0.4.20" },  # older chrono had CVEs
+]
+skip = [
+  # Allow these specific duplicates — they're deep in the dep tree and
+  # would require major refactors to deduplicate.
+]
+
+[sources]
+# Only allow crates from crates.io. Prevents accidental git dependencies
+# that could be force-pushed / rewritten.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

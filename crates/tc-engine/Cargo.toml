@@ -31,6 +31,7 @@ thiserror = { workspace = true }
 num-traits = { workspace = true }
 num-complex = { workspace = true }
 realfft = { workspace = true }
+parking_lot = { workspace = true }
 tc-config = { workspace = true }
 tc-analysis = { workspace = true }
 thread-priority = { workspace = true, optional = true }

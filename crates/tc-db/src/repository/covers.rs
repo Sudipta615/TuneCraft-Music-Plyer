@@ -140,9 +140,13 @@ impl Database {
                         |row| row.get(0),
                     )
                     .ok(),
+                // Match the same semantics as `get_album_id`: when no
+                // artist is given, only return albums whose artist is NULL.
+                // Previously this branch matched any album with the same
+                // title, which could link cover art to the wrong album.
                 None => lock
                     .query_row(
-                        "SELECT id FROM albums WHERE title = ?1",
+                        "SELECT id FROM albums WHERE title = ?1 AND artist IS NULL",
                         params![album_title],
                         |row| row.get(0),
                     )

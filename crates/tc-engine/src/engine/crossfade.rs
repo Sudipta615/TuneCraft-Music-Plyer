@@ -55,7 +55,12 @@ impl AudioEngine {
 
         // Add a small lead time (0.5s) so the incoming decoder has time
         // to start producing samples before the crossfade begins.
-        let trigger_threshold = crossfade_duration_secs + 0.5;
+        // v3.1.1: Scale the trigger by 1/speed so that the crossfade fires at
+        // the correct *wall-clock* time when speed != 1.0. Without this, at
+        // 2x speed the trigger fires when 2.5 s of *track* time remains, but
+        // source frames are consumed at 2× rate so only 1.25 s of wall-clock
+        // time remain — not enough to complete a 2 s crossfade.
+        let trigger_threshold = (crossfade_duration_secs + 0.5) / self.speed.max(0.25);
 
         if remaining_secs <= trigger_threshold && remaining_secs > 0.0 {
             self.crossfade_triggered = true;

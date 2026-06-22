@@ -632,14 +632,32 @@ impl AudioEngine {
         // During crossfade, track position advances based on the incoming
         // track since that's what the user will hear after the transition.
         // Only update once crossfade is well underway (> 50%).
+        //
+        // v3.1.2: `time_delta` is *wall-clock* elapsed time (output frames /
+        // output rate). At `speed` != 1.0 the decoder consumes track
+        // content faster (speed > 1) or slower (speed < 1) than wall-clock
+        // time, so the actual *track-content* time elapsed this tick is
+        // `time_delta * speed`, not `time_delta`. The previous code
+        // advanced `position_secs` by raw `time_delta` (no speed factor)
+        // and then separately multiplied by `speed` again when deriving
+        // `source_frames_consumed` — leaving `position_secs` itself
+        // speed-inconsistent with the frame count, so the on-screen
+        // position during a crossfade drifted from the actual track
+        // position at any speed other than 1.0x, and jumped once the
+        // crossfade completed and the normal (correct) position calc in
+        // `decode_single_stream` took back over. Now `position_secs`
+        // itself is advanced by content time, and `source_frames_consumed`
+        // is derived from it without re-applying `speed` — matching the
+        // same `frames = position * rate` relationship used by the
+        // non-transitioning path.
+        let content_time_delta = time_delta * self.speed;
         if *crossfade_frames_remaining < crossfade_total_frames / 2 {
-            self.position_secs += time_delta;
+            self.position_secs += content_time_delta;
             self.source_sample_rate = incoming_rate;
             self.duration_secs = incoming_decoder.duration_secs();
-            self.source_frames_consumed =
-                (self.position_secs * incoming_rate as f32).round() as u64;
+            self.source_frames_consumed = (self.position_secs * incoming_rate as f32).round() as u64;
         } else {
-            self.position_secs += time_delta;
+            self.position_secs += content_time_delta;
             self.source_frames_consumed =
                 (self.position_secs * self.source_sample_rate as f32).round() as u64;
         }

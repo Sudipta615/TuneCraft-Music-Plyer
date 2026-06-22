@@ -308,6 +308,14 @@ impl Database {
             [],
         ).ok(); // Best-effort — don't fail the delete if album cleanup has issues
 
+        // Best-effort: remove orphaned artists (those with no remaining tracks).
+        tx.execute(
+            "DELETE FROM artists WHERE name NOT IN (\
+             SELECT DISTINCT artist FROM tracks WHERE artist IS NOT NULL AND artist != '')",
+            [],
+        )
+        .ok();
+
         tx.commit().map_err(DbError::Sqlite)?;
         Ok(())
     }
@@ -543,6 +551,14 @@ impl Database {
         )
         .ok(); // Best-effort cleanup
 
+        // Best-effort: remove orphaned artists (those with no remaining tracks).
+        tx.execute(
+            "DELETE FROM artists WHERE name NOT IN (\
+             SELECT DISTINCT artist FROM tracks WHERE artist IS NOT NULL AND artist != '')",
+            [],
+        )
+        .ok();
+
         tx.commit().map_err(DbError::Sqlite)?;
         Ok(deleted)
     }
@@ -550,6 +566,31 @@ impl Database {
     /// Get tracks that haven't been analyzed yet (no BPM)
     pub fn get_unanalyzed_tracks(&self) -> Result<Vec<Track>, DbError> {
         let sql = format!("SELECT {} FROM tracks WHERE bpm IS NULL", TRACK_COLUMNS);
+        let lock = self.read_lock()?;
+        let mut stmt = lock.prepare_cached(&sql)?;
+        let tracks = stmt
+            .query_map([], row_to_track)?
+            .filter_map(log_and_filter)
+            .collect();
+        Ok(tracks)
+    }
+
+    /// Get tracks that are missing any kind of analysis (BPM, EBU R128
+    /// loudness, or ReplayGain). This is the superset of `get_unanalyzed_tracks`
+    /// — it also returns tracks that have BPM but lack loudness metadata,
+    /// which is the common case for libraries created before v3.0.0
+    /// (when the loudness columns existed but were never populated).
+    ///
+    /// Use this for the "force analysis" / background-analysis code paths
+    /// to ensure loudness backfill for pre-existing libraries.
+    pub fn get_tracks_missing_analysis(&self) -> Result<Vec<Track>, DbError> {
+        let sql = format!(
+            "SELECT {} FROM tracks \
+             WHERE bpm IS NULL \
+                OR replaygain_track_db IS NULL \
+                OR ebu_r128_loudness IS NULL",
+            TRACK_COLUMNS
+        );
         let lock = self.read_lock()?;
         let mut stmt = lock.prepare_cached(&sql)?;
         let tracks = stmt
@@ -738,15 +779,18 @@ impl Database {
     /// Matches tracks where `path` starts with `folder_path` followed by a
     /// path separator. This finds all tracks at any depth within the folder.
     pub fn get_tracks_by_folder(&self, folder_path: &str) -> Result<Vec<Track>, DbError> {
-        // Normalize: ensure the prefix ends with '/' for correct LIKE matching.
-        let prefix = if folder_path.ends_with('/') {
-            folder_path.to_string()
+        // Escape LIKE wildcards (%, _, \) in the user-supplied path and use
+        // an explicit ESCAPE clause. Without this, a folder named e.g.
+        // `/music/100%_Hits` would match unrelated paths.
+        let escaped = escape_like_pattern(folder_path);
+        let prefix = if escaped.ends_with('/') {
+            escaped
         } else {
-            format!("{}/", folder_path)
+            format!("{}/", escaped)
         };
         let pattern = format!("{}%", prefix);
         let sql = format!(
-            "SELECT {} FROM tracks WHERE path LIKE ?1 ORDER BY path, title",
+            "SELECT {} FROM tracks WHERE path LIKE ?1 ESCAPE '\\' ORDER BY path, title",
             TRACK_COLUMNS
         );
         let lock = self.read_lock()?;
@@ -763,14 +807,15 @@ impl Database {
     /// Lightweight query for sidebar badge display — avoids materializing
     /// full Track structs.
     pub fn count_tracks_in_folder(&self, folder_path: &str) -> Result<i64, DbError> {
-        let prefix = if folder_path.ends_with('/') {
-            folder_path.to_string()
+        let escaped = escape_like_pattern(folder_path);
+        let prefix = if escaped.ends_with('/') {
+            escaped
         } else {
-            format!("{}/", folder_path)
+            format!("{}/", escaped)
         };
         let pattern = format!("{}%", prefix);
         let count: i64 = self.read_lock()?.query_row(
-            "SELECT COUNT(*) FROM tracks WHERE path LIKE ?1",
+            "SELECT COUNT(*) FROM tracks WHERE path LIKE ?1 ESCAPE '\\'",
             params![pattern],
             |row| row.get(0),
         )?;
@@ -779,17 +824,21 @@ impl Database {
 
     /// Delete all tracks whose file path is inside the given folder (recursive).
     pub fn delete_tracks_by_folder(&self, folder_path: &str) -> Result<usize, DbError> {
-        let prefix = if folder_path.ends_with('/') {
-            folder_path.to_string()
+        let escaped = escape_like_pattern(folder_path);
+        let prefix = if escaped.ends_with('/') {
+            escaped
         } else {
-            format!("{}/", folder_path)
+            format!("{}/", escaped)
         };
         let pattern = format!("{}%", prefix);
 
         let conn = self.write_lock()?;
         let tx = conn.unchecked_transaction().map_err(DbError::Sqlite)?;
 
-        let deleted = tx.execute("DELETE FROM tracks WHERE path LIKE ?1", params![pattern])?;
+        let deleted = tx.execute(
+            "DELETE FROM tracks WHERE path LIKE ?1 ESCAPE '\\'",
+            params![pattern],
+        )?;
 
         tx.execute(
             "UPDATE playlists SET \
@@ -808,9 +857,33 @@ impl Database {
         )
         .ok(); // Best-effort cleanup
 
+        // Best-effort: remove orphaned artists (those with no remaining tracks).
+        tx.execute(
+            "DELETE FROM artists WHERE name NOT IN (\
+             SELECT DISTINCT artist FROM tracks WHERE artist IS NOT NULL AND artist != '')",
+            [],
+        )
+        .ok();
+
         tx.commit().map_err(DbError::Sqlite)?;
         Ok(deleted)
     }
+}
+
+/// Escape LIKE wildcard characters (`%`, `_`, `\`) in a user-supplied
+/// string so it matches literally when used with `LIKE ... ESCAPE '\\'`.
+fn escape_like_pattern(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 4);
+    for c in s.chars() {
+        match c {
+            '%' | '_' | '\\' => {
+                out.push('\\');
+                out.push(c);
+            },
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 #[cfg(test)]

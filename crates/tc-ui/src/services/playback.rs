@@ -267,7 +267,7 @@ impl PlaybackService {
         false
     }
 
-    pub fn play_track(&self, track: &Track, is_favorited: bool) {
+    pub fn play_track(&self, track: &Track, is_favorited: bool) -> Result<(), String> {
         let _path = std::path::PathBuf::from(&track.path);
 
         #[cfg(feature = "audio-output")]
@@ -283,7 +283,13 @@ impl PlaybackService {
                 },
                 Err(e) => {
                     error!("Failed to load track: {}", e);
-                    return;
+                    // v3.1.1: Return an error so the caller knows NOT to
+                    // increment play_count or update now-playing state.
+                    // Previously the function returned early silently, but
+                    // the caller (TuneCraftApp::play_track) called
+                    // `record_play` unconditionally — bumping the play count
+                    // even though nothing actually played.
+                    return Err(e.to_string());
                 },
             }
 
@@ -330,6 +336,8 @@ impl PlaybackService {
 
         self.scrobble
             .update_now_playing(&artist, &title, album.as_deref());
+
+        Ok(())
     }
 
     pub fn toggle_playback(&self) {
@@ -432,6 +440,20 @@ impl PlaybackService {
         state.speed = clamped;
         state.version += 1;
         info!("Playback speed set to {:.2}x", clamped);
+    }
+
+    /// Forward a raw `EngineCommand` to the audio engine.
+    ///
+    /// Used for one-off commands (e.g. `EngineCommand::OpenUri` from MPRIS)
+    /// that don't have a dedicated wrapper method on `PlaybackService`.
+    /// When the `audio-output` feature is disabled this is a no-op.
+    pub fn send_command(&self, cmd: EngineCommand) {
+        #[cfg(feature = "audio-output")]
+        self.engine.send_command(cmd);
+        // No-op when audio-output feature is disabled — keep the param
+        // name to silence unused-variable warnings in that build.
+        #[cfg(not(feature = "audio-output"))]
+        let _ = cmd;
     }
 
     pub fn set_shuffle(&self, shuffle: bool) {
@@ -721,6 +743,35 @@ impl PlaybackService {
     pub fn scrobble(&self) -> &Arc<ScrobbleService> {
         &self.scrobble
     }
+
+    /// Get a snapshot of the real-time spectrum analyzer. Returns `None`
+    /// when the analyzer is disabled (LowPower mode) or when no audio is
+    /// being processed. The snapshot is cheap to take (one `Vec<f32>` of
+    /// 64 bands = ~256 bytes) and is intended to be called per-frame
+    /// from the EQ panel.
+    ///
+    /// v3.1.0.
+    #[cfg(feature = "audio-output")]
+    pub fn spectrum_snapshot(&self) -> Option<tc_engine::SpectrumSnapshot> {
+        let eng = self.engine_mutex.lock();
+        eng.pipeline().spectrum_snapshot()
+    }
+
+    #[cfg(not(feature = "audio-output"))]
+    pub fn spectrum_snapshot(&self) -> Option<tc_engine::SpectrumSnapshot> {
+        None
+    }
+
+    /// Toggle the spectrum analyzer on/off. Used by the EQ panel's
+    /// "show spectrum" toggle. v3.1.0.
+    #[cfg(feature = "audio-output")]
+    pub fn set_spectrum_enabled(&self, enabled: bool) {
+        let mut eng = self.engine_mutex.lock();
+        eng.pipeline_mut().set_spectrum_enabled(enabled);
+    }
+
+    #[cfg(not(feature = "audio-output"))]
+    pub fn set_spectrum_enabled(&self, _enabled: bool) {}
 
     /// Signal the engine to stop the tick thread (v0.9.3: H-02/H-08 fix).
     #[cfg(feature = "audio-output")]

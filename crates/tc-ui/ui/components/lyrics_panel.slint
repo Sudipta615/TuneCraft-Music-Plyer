@@ -1,0 +1,65 @@
+// components/lyrics_panel.slint — Synced lyrics overlay.
+//
+// Shown as a floating panel on the right side of the window when the user
+// toggles the lyrics button in the player bar. Renders synced lyrics with
+// the current line highlighted in accent color; non-synced lyrics are
+// shown as plain text.
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { LyricsLine } from "types.slint";
+
+export component LyricsPanel inherits Rectangle {
+    in property <[LyricsLine]> lines;
+    in property <bool> has-lyrics: false;
+    in property <string> track-title: "";
+
+    width: 320px;
+    background: ThemeColorsProvider.current.surface;
+    border-width: 0;
+    border-color: ThemeColorsProvider.current.border;
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        Text {
+            text: "Lyrics";
+            font-size: 16px;
+            font-weight: 700;
+            color: ThemeColorsProvider.current.text;
+        }
+        if root.track-title != "" : Text {
+            text: root.track-title;
+            font-size: 12px;
+            color: ThemeColorsProvider.current.text-dim;
+            overflow: elide;
+        }
+
+        if root.has-lyrics : Flickable {
+            vertical-stretch: 1;
+            VerticalLayout {
+                spacing: 8px;
+                for line[i] in root.lines : Text {
+                    text: line.text;
+                    font-size: line.is-current ? 16px : 14px;
+                    font-weight: line.is-current ? 700 : 400;
+                    color: line.is-current ? ThemeColorsProvider.accent-color : ThemeColorsProvider.current.text-dim;
+                    horizontal-alignment: center;
+                    animate font-size { duration: 200ms; }
+                    animate color { duration: 200ms; }
+                }
+            }
+        }
+
+        if !root.has-lyrics : Rectangle {
+            vertical-stretch: 1;
+            Text {
+                text: "No lyrics available.\n\nLyrics are fetched from LRCLIB\nthe first time a track plays.";
+                font-size: 13px;
+                color: ThemeColorsProvider.current.text-muted;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

@@ -28,3 +28,14 @@ anyhow = { workspace = true }
 dirs = { workspace = true }
 ctrlc = { workspace = true }
 tokio = { workspace = true }
+
+[dev-dependencies]
+# Smoke tests (crates/tunecraft/tests/smoke_tests.rs) exercise the full
+# tc-db / tc-config / tc-library / tc-ui stack headlessly. tc-ui is required
+# here unconditionally (not gated by the `gui` feature) because the smoke
+# test calls into ScrobbleService and (since v3.0.0) LyricsService.
+tc-db = { workspace = true }
+tc-config = { workspace = true }
+tc-library = { workspace = true }
+tc-ui = { workspace = true }
+chrono = { workspace = true }

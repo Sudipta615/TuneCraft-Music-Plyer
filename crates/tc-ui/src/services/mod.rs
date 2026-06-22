@@ -26,10 +26,14 @@
 //! - **ScrobbleService** — Local offline scrobbling (play journal)
 //! - **ConfigService** — configuration persistence and dirty tracking
 //! - **PlatformService** — MPRIS status, media keys, OS integration
+//! - **LyricsService** — Synced lyrics via LRCLIB (v3.0.0). Network access
+//!   runs on a dedicated tokio runtime; results are cached in the `tracks`
+//!   table so subsequent plays never hit the network.
 
 pub mod config;
 pub mod eq;
 pub mod library;
+pub mod lyrics;
 pub mod platform;
 pub mod playback;
 pub mod scrobble;
@@ -37,6 +41,7 @@ pub mod scrobble;
 pub use config::ConfigService;
 pub use eq::EqService;
 pub use library::LibraryService;
+pub use lyrics::LyricsService;
 pub use platform::PlatformService;
 pub use playback::PlaybackService;
 pub use scrobble::ScrobbleService;

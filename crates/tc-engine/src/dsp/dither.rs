@@ -185,6 +185,14 @@ impl Dither {
         self.enabled = enabled;
     }
 
+    /// Whether dithering is currently enabled (the user's actual setting).
+    /// v3.1.2: added so `DspPipeline::apply_performance_mode` can restore
+    /// the preference after a LowPower round-trip without having mutated
+    /// it directly.
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
     /// Reset the dither state (PRNG seed and shaping memory)
     pub fn reset(&mut self) {
         self.shape_left = 0.0;

@@ -38,5 +38,44 @@ fn bench_loudness(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_equalizer, bench_limiter, bench_loudness);
+/// v3.1.0: Spectrum analyzer benchmark. Measures the per-sample cost
+/// of the FFT tap (most samples are no-ops due to the hop), and a
+/// full FFT block (every 512 samples). Together these give us the
+/// true amortized cost of the analyzer.
+fn bench_spectrum(c: &mut Criterion) {
+    use tc_engine::dsp::spectrum::SpectrumAnalyzer;
+    let mut analyzer = SpectrumAnalyzer::new(44100.0);
+
+    // Per-sample cost (no FFT runs — only 1 in 512 samples triggers it).
+    // This is the cost added to every audio callback invocation.
+    c.bench_function("spectrum/per_sample_no_fft", |b| {
+        let mut i = 0;
+        b.iter(|| {
+            // Avoid hitting the hop boundary on every iteration —
+            // criterion's `iter` calls us many times, but the analyzer
+            // only FFTs every 512 samples, so most calls are no-ops.
+            i = (i + 1) % 511;
+            analyzer.process(black_box(0.5_f32), black_box(0.3_f32));
+        });
+    });
+
+    // Amortized cost over a full hop (512 samples). This is the true
+    // cost the audio engine pays per output frame.
+    c.bench_function("spectrum/amortized_512_sample_hop", |b| {
+        b.iter(|| {
+            for _ in 0..512 {
+                analyzer.process(black_box(0.5_f32), black_box(0.3_f32));
+            }
+            black_box(analyzer.snapshot());
+        });
+    });
+}
+
+criterion_group!(
+    benches,
+    bench_equalizer,
+    bench_limiter,
+    bench_loudness,
+    bench_spectrum
+);
 criterion_main!(benches);

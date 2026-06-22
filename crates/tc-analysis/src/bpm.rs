@@ -39,7 +39,15 @@ impl BpmDetector {
         let hop_size = 512;
 
         for chunk in samples.chunks(hop_size) {
-            let energy: f32 = chunk.iter().map(|(l, r)| (l * l + r * r) * 0.5).sum();
+            // Normalize by chunk length so a partial tail chunk (which can
+            // be as short as 1 sample) doesn't produce an onset √(hop_size)
+            // times smaller than a full chunk for the same signal level.
+            // Previously the sum was used directly, which biased the
+            // autocorrelation toward detecting spurious low-energy beats
+            // at packet boundaries.
+            let n = chunk.len().max(1);
+            let energy: f32 =
+                chunk.iter().map(|(l, r)| (l * l + r * r) * 0.5).sum::<f32>() / n as f32;
             let onset = energy.sqrt();
             self.onset_history.push_back(onset);
             if self.onset_history.len() > self.max_history {

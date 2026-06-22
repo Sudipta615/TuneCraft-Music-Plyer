@@ -18,7 +18,8 @@ use tokio::runtime::Runtime;
 use crate::services::playback::EngineHandle;
 
 use crate::services::{
-    ConfigService, EqService, LibraryService, PlatformService, PlaybackService, ScrobbleService,
+    ConfigService, EqService, LibraryService, LyricsService, PlatformService, PlaybackService,
+    ScrobbleService,
 };
 
 /// The shared application context that connects UI to all backends via services.
@@ -29,6 +30,7 @@ pub struct AppContext {
     pub library: Arc<LibraryService>,
     pub eq: Arc<EqService>,
     pub scrobble: Arc<ScrobbleService>,
+    pub lyrics: Arc<LyricsService>,
     pub config: Arc<ConfigService>,
     pub platform: Arc<PlatformService>,
 
@@ -120,6 +122,22 @@ impl AppContext {
         // to allow the user to disable play-count tracking entirely if they wish.
         let scrobble_enabled = config.read().scrobble.enabled;
         let scrobble = Arc::new(ScrobbleService::new(Arc::clone(&db), scrobble_enabled));
+
+        // LRCLIB synced-lyrics service (v3.0.0). Network access runs on a
+        // dedicated tokio runtime inside the service; the UI thread only
+        // sends requests and polls for events. Results are cached in the
+        // `tracks.lyrics_synced` column so subsequent plays never hit the
+        // network.
+        // v3.1.1: Plumb the user-configured `lyrics.base_url` through so
+        // self-hosted LRCLIB instances actually work. Previously this value
+        // was read into `lyrics_enabled` but the base_url was dropped, and
+        // the service always hit the hardcoded `https://lrclib.net`.
+        let lyrics_cfg = config.read().lyrics.clone();
+        let lyrics = Arc::new(LyricsService::new(
+            Arc::clone(&db),
+            lyrics_cfg.enabled,
+            lyrics_cfg.base_url.clone(),
+        )?);
 
         let library_config = config.read().library.clone();
         let library = Arc::new(tc_library::LibraryManager::new(
@@ -223,11 +241,18 @@ impl AppContext {
                             eng.tick();
                             (eng.playback_info().state, eng.has_pending_chunk())
                         };
+                        // 50 Hz while playing (20 ms) gives 9× headroom over
+                        // the 185 ms output buffer — plenty to avoid underruns
+                        // without busy-polling. Previously this was 5 ms (200 Hz),
+                        // which spent most ticks doing nothing useful while
+                        // burning ~10–15% CPU on mutex acquire + atomic ops +
+                        // channel drain. 100 ms idle polling is plenty for
+                        // command latency.
                         let sleep_ms =
                             if state == tc_engine::buffer::PlaybackState::Playing && !has_pending {
-                                5
+                                20
                             } else {
-                                50
+                                100
                             };
                         std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
                     }
@@ -281,6 +306,7 @@ impl AppContext {
             library: library_service,
             eq,
             scrobble,
+            lyrics,
             config: config_service,
             platform,
             tokio_runtime,

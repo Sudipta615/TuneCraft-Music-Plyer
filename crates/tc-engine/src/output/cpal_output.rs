@@ -70,6 +70,33 @@ pub struct CpalOutput {
 impl CpalOutput {
     /// Create a new cpal output
     pub fn new(buffer: Arc<FixedFrameBuffer>, backend: AudioBackend) -> Result<Self, OutputError> {
+        // v3.1.0: Default buffer size chosen for the Balanced performance
+        // profile. 2048 frames at 44.1 kHz = ~46 ms latency — well below
+        // the 100 ms perceptual threshold, and large enough to absorb
+        // scheduler jitter on most hardware.
+        Self::new_with_buffer_size(buffer, backend, 2048)
+    }
+
+    /// Construct a CpalOutput with an explicit target buffer size in
+    /// frames. Used by the engine when the user picks a PerformanceMode:
+    ///
+    /// - **UltraQuality**: 1024 frames (~23 ms @ 44.1 kHz) — minimum
+    ///   latency for studio monitoring. Requires a stable scheduler.
+    /// - **Balanced**: 2048 frames (~46 ms) — the default; safe on
+    ///   virtually all hardware.
+    /// - **LowPower**: 4096 frames (~93 ms) — large enough that the
+    ///   audio callback fires only ~11 times per second, drastically
+    ///   reducing context-switch overhead on low-end hardware. Still
+    ///   well below the 150 ms lip-sync threshold.
+    ///
+    /// The actual buffer size is clamped to the device's supported
+    /// range — some ALSA devices only accept power-of-two sizes within
+    /// a narrow window.
+    pub fn new_with_buffer_size(
+        buffer: Arc<FixedFrameBuffer>,
+        backend: AudioBackend,
+        target_buffer_size: u32,
+    ) -> Result<Self, OutputError> {
         let host = match backend {
             #[cfg(target_os = "linux")]
             AudioBackend::ExclusiveAlsa => {
@@ -194,7 +221,11 @@ impl CpalOutput {
 
         let buffer_size = match config.buffer_size() {
             cpal::SupportedBufferSize::Range { min, max } => {
-                cpal::BufferSize::Fixed(2048.clamp(*min, *max))
+                // v3.1.0: Use the performance-mode-derived target size,
+                // clamped to the device's supported range. Round to the
+                // nearest power of two — most ALSA backends require it.
+                let target_pow2 = target_buffer_size.next_power_of_two().min(*max).max(*min);
+                cpal::BufferSize::Fixed(target_pow2)
             },
             cpal::SupportedBufferSize::Unknown => cpal::BufferSize::Default,
         };
@@ -206,11 +237,12 @@ impl CpalOutput {
         };
 
         log::info!(
-            "Audio output: {} Hz, {} ch, {:?}, buffer size: {:?}",
+            "Audio output: {} Hz, {} ch, {:?}, buffer size: {:?} (target was {} frames)",
             actual_sample_rate,
             channels,
             sample_format,
-            buffer_size
+            buffer_size,
+            target_buffer_size,
         );
 
         Ok(Self {
@@ -413,7 +445,11 @@ impl CpalOutput {
                         } else {
                             0.0
                         };
-                        *sample = (val * 32767.0).clamp(-32768.0, 32767.0) as i16;
+                        // Scale by 32768 (not 32767) so that -1.0 maps to the
+                        // true minimum i16 value (-32768) and +1.0 maps to
+                        // +32767 (after clamping). Using 32767 underused the
+                        // negative rail by 1 LSB.
+                        *sample = (val * 32768.0).clamp(-32768.0, 32767.0) as i16;
                     }
                 },
                 None => {
@@ -449,7 +485,11 @@ impl CpalOutput {
                         } else {
                             0.0
                         };
-                        *sample = (val * 32767.0 + 32768.0).clamp(0.0, 65535.0) as u16;
+                        // Scale by 32768 and offset by 32768 so that -1.0
+                        // maps to u16 min (0) and +1.0 maps to u16 max (65535
+                        // after clamping). Using 32767 left the negative rail
+                        // off-by-one (val=-1 produced 1 instead of 0).
+                        *sample = (val * 32768.0 + 32768.0).clamp(0.0, 65535.0) as u16;
                     }
                 },
                 None => {

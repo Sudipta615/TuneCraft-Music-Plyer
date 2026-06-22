@@ -1,0 +1,388 @@
+// components/dialogs.slint — Modal dialogs (Create Playlist, Add to Playlist, Track Info).
+//
+// All three dialogs are rendered as overlays on a dimmed backdrop.
+// Each is shown only when its corresponding `show-*` property is true.
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { IconButton } from "theme/widgets.slint";
+import { PlaylistItem, TrackItem } from "types.slint";
+
+export component Dialogs inherits Rectangle {
+    in property <bool> show-create-playlist: false;
+    in-out property <string> new-playlist-name: "";
+    in property <bool> show-add-to-playlist: false;
+    in property <int> add-track-id: -1;
+    in property <[PlaylistItem]> playlists;
+    in property <bool> show-track-info: false;
+    in property <TrackItem> track-info;
+
+    background: transparent;
+
+    callback create-playlist(string);
+    callback cancel-create-playlist();
+    callback add-to-playlist(int, int);  // playlist_id, track_id
+    callback cancel-add-to-playlist();
+    callback open-create-from-add();
+    callback close-track-info();
+
+    // ── Create Playlist ──
+    if root.show-create-playlist : Rectangle {
+        background: #00000080;
+        TouchArea {
+            // Block clicks from passing through to the underlying UI.
+        }
+        Rectangle {
+            width: 540px;
+            height: 220px;
+            border-radius: 16px;
+            background: ThemeColorsProvider.current.card;
+            border-width: 1px;
+            border-color: ThemeColorsProvider.current.border;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #00000060;
+
+            VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+
+                Text {
+                    text: "Create Playlist";
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: ThemeColorsProvider.current.text;
+                }
+                Text {
+                    text: "Playlist Name";
+                    font-size: 13px;
+                    color: ThemeColorsProvider.current.text-dim;
+                }
+                Rectangle {
+                    height: 40px;
+                    background: ThemeColorsProvider.current.search-bg;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: ThemeColorsProvider.current.search-border;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        name-input := TextInput {
+                            text: root.new-playlist-name;
+                            font-size: 14px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            edited => { root.new-playlist-name = self.text; }
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        width: 80px;
+                        height: 40px;
+                        border-radius: 8px;
+                        background: cancel-touch.has-hover ? ThemeColorsProvider.current.hover : ThemeColorsProvider.current.search-bg;
+                        cancel-touch := TouchArea { clicked => { root.cancel-create-playlist(); } }
+                        Text {
+                            text: "Cancel";
+                            font-size: 14px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Rectangle {
+                        height: 40px;
+                        border-radius: 8px;
+                        background: ThemeColorsProvider.accent-color;
+                        horizontal-stretch: 1;
+                        create-touch := TouchArea {
+                            clicked => {
+                                if root.new-playlist-name != "" {
+                                    root.create-playlist(root.new-playlist-name);
+                                }
+                            }
+                        }
+                        Text {
+                            text: "Create";
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: white;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Add to Playlist ──
+    if root.show-add-to-playlist : Rectangle {
+        background: #00000080;
+        TouchArea {}
+        Rectangle {
+            width: 360px;
+            height: 460px;
+            border-radius: 16px;
+            background: ThemeColorsProvider.current.card;
+            border-width: 1px;
+            border-color: ThemeColorsProvider.current.border;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #00000060;
+
+            VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+
+                HorizontalLayout {
+                    Text {
+                        text: "Add to Playlist";
+                        font-size: 20px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    IconButton {
+                        icon: @image-url("icons/x.svg");
+                        icon-size: 18px;
+                        icon-color: ThemeColorsProvider.current.text-dim;
+                        clicked => { root.cancel-add-to-playlist(); }
+                    }
+                }
+
+                Rectangle {
+                    height: 40px;
+                    border-radius: 8px;
+                    background: ThemeColorsProvider.current.hover;
+                    create-from-add-touch := TouchArea {
+                        clicked => { root.open-create-from-add(); }
+                    }
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 8px;
+                        Image {
+                            source: @image-url("icons/plus.svg");
+                            width: 16px;
+                            height: 16px;
+                            colorize: ThemeColorsProvider.accent-color;
+                            image-fit: contain;
+                            y: (parent.height - self.height) / 2;
+                        }
+                        Text {
+                            text: "Create Playlist";
+                            font-size: 14px;
+                            color: ThemeColorsProvider.current.text;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Flickable {
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        spacing: 0px;
+                        for pl[i] in root.playlists : Rectangle {
+                            height: 40px;
+                            background: pl-touch.has-hover ? ThemeColorsProvider.current.hover : transparent;
+                            pl-touch := TouchArea {
+                                clicked => { root.add-to-playlist(pl.id, root.add-track-id); }
+                            }
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                Text {
+                                    text: pl.name;
+                                    font-size: 14px;
+                                    color: ThemeColorsProvider.current.text;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Track Info ──
+    if root.show-track-info : Rectangle {
+        background: #00000080;
+        TouchArea {}
+        Rectangle {
+            width: 420px;
+            height: 480px;
+            border-radius: 16px;
+            background: ThemeColorsProvider.current.card;
+            border-width: 1px;
+            border-color: ThemeColorsProvider.current.border;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #00000060;
+
+            VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+
+                HorizontalLayout {
+                    Text {
+                        text: "Track Information";
+                        font-size: 20px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    IconButton {
+                        icon: @image-url("icons/x.svg");
+                        icon-size: 18px;
+                        icon-color: ThemeColorsProvider.current.text-dim;
+                        clicked => { root.close-track-info(); }
+                    }
+                }
+
+                GridLayout {
+                    spacing: 12px;
+                    Row {
+                        Text {
+                            text: "Title";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.title;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-stretch: 1;
+                            overflow: elide;
+                        }
+                    }
+                    Row {
+                        Text {
+                            text: "Artist";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.artist;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-stretch: 1;
+                            overflow: elide;
+                        }
+                    }
+                    Row {
+                        Text {
+                            text: "Album";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.album;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-stretch: 1;
+                            overflow: elide;
+                        }
+                    }
+                    Row {
+                        Text {
+                            text: "Genre";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.genre;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-stretch: 1;
+                            overflow: elide;
+                        }
+                    }
+                    Row {
+                        Text {
+                            text: "Year";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.year > 0 ? root.track-info.year : "N/A";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Row {
+                        Text {
+                            text: "Duration";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.duration-text;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Row {
+                        Text {
+                            text: "Format";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.format;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Row {
+                        Text {
+                            text: "Bitrate";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.bitrate-kbps > 0 ? root.track-info.bitrate-kbps + " kbps" : "N/A";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                    Row {
+                        Text {
+                            text: "File Path";
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 120px;
+                        }
+                        Text {
+                            text: root.track-info.file-path;
+                            font-size: 12px;
+                            color: ThemeColorsProvider.current.text-muted;
+                            horizontal-stretch: 1;
+                            overflow: elide;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

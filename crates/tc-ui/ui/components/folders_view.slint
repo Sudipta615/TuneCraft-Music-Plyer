@@ -1,0 +1,204 @@
+// components/folders_view.slint — Folder-based library browser.
+//
+// Two modes:
+// - Top-level: shows all configured watch folders as cards.
+// - Drill-down: shows tracks inside the selected folder (similar to TrackList
+//   but with a back button).
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { IconButton, HeartButton } from "theme/widgets.slint";
+import { FolderItem, TrackItem } from "types.slint";
+
+export component FoldersView inherits Rectangle {
+    in property <[FolderItem]> folders;
+    in property <[TrackItem]> folder-tracks;
+    in property <string> current-folder: "";
+    in property <bool> in-folder: false;
+
+    background: ThemeColorsProvider.current.bg;
+
+    callback folder-clicked(string);
+    callback back-clicked();
+    callback track-clicked(int);
+    callback toggle-favorite(int);
+    callback add-folder-clicked();
+
+    VerticalLayout {
+        // Header
+        Rectangle {
+            height: 56px;
+            background: ThemeColorsProvider.current.surface;
+            border-width: 0;
+            border-color: ThemeColorsProvider.current.border;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 12px;
+                alignment: center;
+
+                if root.in-folder : IconButton {
+                    icon: @image-url("icons/arrow-left.svg");
+                    icon-size: 20px;
+                    icon-color: ThemeColorsProvider.current.text;
+                    clicked => { root.back-clicked(); }
+                }
+
+                Text {
+                    text: root.in-folder ? root.current-folder : "Folders";
+                    font-size: 22px;
+                    font-weight: 700;
+                    color: ThemeColorsProvider.current.text;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                    overflow: elide;
+                }
+
+                if !root.in-folder : Rectangle {
+                    height: 36px;
+                    border-radius: 8px;
+                    background: ThemeColorsProvider.accent-color;
+                    add-touch := TouchArea {
+                        clicked => { root.add-folder-clicked(); }
+                    }
+                    Text {
+                        text: "+ Add Folder";
+                        font-size: 13px;
+                        color: white;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Top-level folders grid
+        if !root.in-folder : Flickable {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 12px;
+
+                for folder[i] in root.folders : Rectangle {
+                    height: 64px;
+                    border-radius: 8px;
+                    background: folder-touch.has-hover ? ThemeColorsProvider.current.hover : ThemeColorsProvider.current.card;
+                    border-width: 1px;
+                    border-color: ThemeColorsProvider.current.border;
+                    animate background { duration: 80ms; }
+
+                    folder-touch := TouchArea {
+                        clicked => { root.folder-clicked(folder.path); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 12px;
+                        alignment: center;
+
+                        Image {
+                            source: @image-url("icons/folder.svg");
+                            width: 24px;
+                            height: 24px;
+                            colorize: ThemeColorsProvider.accent-color;
+                            image-fit: contain;
+                        }
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: folder.name;
+                                font-size: 15px;
+                                font-weight: 600;
+                                color: ThemeColorsProvider.current.text;
+                                overflow: elide;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: folder.track-count + " tracks";
+                                font-size: 12px;
+                                color: ThemeColorsProvider.current.text-dim;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                if root.folders.length == 0 : Rectangle {
+                    height: 200px;
+                    Text {
+                        text: "No folders configured.\nClick \"+ Add Folder\" to scan your music.";
+                        font-size: 14px;
+                        color: ThemeColorsProvider.current.text-muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Folder contents (track list)
+        if root.in-folder : Flickable {
+            vertical-stretch: 1;
+            VerticalLayout {
+                spacing: 0px;
+
+                for track[i] in root.folder-tracks : Rectangle {
+                    height: 40px;
+                    background: track.is-playing ? ThemeColorsProvider.current.active-bg :
+                               row-touch.has-hover ? ThemeColorsProvider.current.table-row-hover :
+                               (Math.mod(i, 2) == 0 ? ThemeColorsProvider.current.table-row-even : ThemeColorsProvider.current.table-row-odd);
+
+                    row-touch := TouchArea {
+                        clicked => { root.track-clicked(track.id); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        alignment: center;
+
+                        Text {
+                            text: i + 1;
+                            font-size: 12px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 32px;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: track.title;
+                            font-size: 13px;
+                            color: track.is-playing ? ThemeColorsProvider.accent-color : ThemeColorsProvider.current.text;
+                            overflow: elide;
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: track.artist;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 180px;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: track.duration-text;
+                            font-size: 12px;
+                            color: ThemeColorsProvider.current.text-muted;
+                            width: 80px;
+                            horizontal-alignment: right;
+                            vertical-alignment: center;
+                        }
+                        HeartButton {
+                            favorited: track.is-favorite;
+                            heart-size: 14px;
+                            clicked => { root.toggle-favorite(track.id); }
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

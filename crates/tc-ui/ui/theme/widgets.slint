@@ -1,0 +1,177 @@
+// theme/widgets.slint — Reusable widget primitives
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+
+// ─── IconButton ──────────────────────────────────────────────────────────
+export component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <color> icon-color: ThemeColorsProvider.current.text;
+    in property <color> hover-color: ThemeColorsProvider.accent-color;
+    in property <color> active-color: ThemeColorsProvider.current.accent-dark;
+    in property <length> icon-size: 24px;
+    in property <bool> active: false;
+    in property <bool> disabled: false;
+
+    width: icon-size + 12px;
+    height: icon-size + 12px;
+    border-radius: 6px;
+
+    animate background { duration: 80ms; }
+    background: disabled ? transparent :
+                active ? ThemeColorsProvider.current.active-bg :
+                touch.has-hover ? ThemeColorsProvider.current.hover : transparent;
+
+    touch := TouchArea {
+        enabled: !root.disabled;
+        clicked => { root.clicked(); }
+    }
+
+    Image {
+        x: (parent.width - root.icon-size) / 2;
+        y: (parent.height - root.icon-size) / 2;
+        width: root.icon-size;
+        height: root.icon-size;
+        source: root.icon;
+        colorize: root.disabled ? ThemeColorsProvider.current.text-muted :
+                   root.active ? root.active-color :
+                   touch.has-hover ? root.hover-color : root.icon-color;
+        image-fit: contain;
+    }
+
+    callback clicked();
+}
+
+// ─── HeartButton ─────────────────────────────────────────────────────────
+export component HeartButton inherits Rectangle {
+    in property <bool> favorited: false;
+    in property <length> heart-size: 18px;
+    in property <color> active-color: #EF4444;
+    in property <color> inactive-color: ThemeColorsProvider.current.text-dim;
+
+    width: heart-size + 10px;
+    height: heart-size + 10px;
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    Image {
+        x: (parent.width - root.heart-size) / 2;
+        y: (parent.height - root.heart-size) / 2;
+        width: root.heart-size;
+        height: root.heart-size;
+        source: @image-url("icons/heart.svg");
+        colorize: root.favorited ? root.active-color : root.inactive-color;
+        image-fit: contain;
+        opacity: root.favorited ? 1.0 : (touch.has-hover ? 0.8 : 0.6);
+        animate opacity { duration: 120ms; }
+    }
+
+    callback clicked();
+}
+
+// ─── Slider ──────────────────────────────────────────────────────────────
+export component Slider inherits Rectangle {
+    in-out property <float> value: 0.0;
+    in property <float> minimum: 0.0;
+    in property <float> maximum: 1.0;
+    in property <length> track-height: 6px;
+    in property <length> thumb-radius: 8px;
+    in property <color> track-color: ThemeColorsProvider.current.slider-track;
+    in property <color> fill-color: ThemeColorsProvider.current.slider-fill;
+    in property <bool> disabled: false;
+
+    height: thumb-radius * 2 + 4px;
+    horizontal-stretch: 1;
+
+    touch := TouchArea {
+        enabled: !root.disabled;
+        pointer-event(e) => {
+            if e.kind == PointerEventKind.down || e.kind == PointerEventKind.move {
+                if root.maximum > root.minimum {
+                    root.value = clamp((touch.mouse-x - root.thumb-radius) / (root.width - root.thumb-radius * 2), 0.0, 1.0) * (root.maximum - root.minimum) + root.minimum;
+                    root.changed(root.value);
+                }
+            }
+        }
+    }
+
+    // Track (full-width background)
+    Rectangle {
+        y: (parent.height - root.track-height) / 2;
+        height: root.track-height;
+        border-radius: root.track-height / 2;
+        background: root.track-color;
+    }
+    // Fill (left of thumb)
+    Rectangle {
+        y: (parent.height - root.track-height) / 2;
+        width: root.thumb-radius + (root.maximum > root.minimum ? ((root.value - root.minimum) / (root.maximum - root.minimum)) * (parent.width - root.thumb-radius * 2) : 0);
+        height: root.track-height;
+        border-radius: root.track-height / 2;
+        background: root.fill-color;
+        animate width { duration: 60ms; }
+    }
+    // Thumb
+    Rectangle {
+        x: root.maximum > root.minimum ? root.thumb-radius + ((root.value - root.minimum) / (root.maximum - root.minimum)) * (parent.width - root.thumb-radius * 2) - root.thumb-radius : 0;
+        y: (parent.height - root.thumb-radius * 2) / 2;
+        width: root.thumb-radius * 2;
+        height: root.thumb-radius * 2;
+        border-radius: root.thumb-radius;
+        background: root.fill-color;
+        border-width: 2px;
+        border-color: white;
+        drop-shadow-blur: 4px;
+        drop-shadow-color: #00000040;
+    }
+
+    callback changed(float);
+}
+
+// ─── Toggle ──────────────────────────────────────────────────────────────
+export component Toggle inherits Rectangle {
+    in-out property <bool> on: false;
+    in property <color> on-color: ThemeColorsProvider.current.toggle-bg-on;
+    in property <color> off-color: ThemeColorsProvider.current.toggle-bg-off;
+    in property <length> switch-width: 44px;
+    in property <length> switch-height: 24px;
+
+    width: root.switch-width;
+    height: root.switch-height;
+    border-radius: root.switch-height / 2;
+    background: root.on ? root.on-color : root.off-color;
+    animate background { duration: 150ms; }
+
+    touch := TouchArea {
+        clicked => {
+            root.on = !root.on;
+            root.toggled(root.on);
+        }
+    }
+
+    Rectangle {
+        x: root.on ? parent.width - root.switch-height + 2px : 2px;
+        y: 2px;
+        width: root.switch-height - 4px;
+        height: root.switch-height - 4px;
+        border-radius: (root.switch-height - 4px) / 2;
+        background: white;
+        drop-shadow-blur: 2px;
+        drop-shadow-color: #00000030;
+        animate x { duration: 150ms; easing: ease-in-out; }
+    }
+
+    callback toggled(bool);
+}
+
+// ─── TruncatingLabel ─────────────────────────────────────────────────────
+export component TruncatingLabel inherits Text {
+    in property <color> label-color: ThemeColorsProvider.current.text;
+    in property <length> label-font-size: 14px;
+    overflow: elide;
+    color: root.label-color;
+    font-size: root.label-font-size;
+    horizontal-alignment: left;
+    vertical-alignment: center;
+}

@@ -1,0 +1,358 @@
+// app.slint — Root window for TuneCraft UI.
+//
+// Composes:
+//   [Sidebar | (ContentArea / FoldersView / SettingsView / LyricsPanel)]
+//   [PlayerBar]
+//   [EqPanel overlay] [Dialogs overlay] [Toasts overlay]
+//
+// All state is exposed as `in property` fields. The Rust side orchestrates
+// state via timers + callback handlers. See `app/mod.rs` for the bridge.
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { Sidebar } from "components/sidebar.slint";
+import { PlayerBar } from "components/player_bar.slint";
+import { TrackList } from "components/track_list.slint";
+import { FoldersView } from "components/folders_view.slint";
+import { SettingsView } from "components/settings_view.slint";
+import { EqPanel } from "components/eq_panel.slint";
+import { LyricsPanel } from "components/lyrics_panel.slint";
+import { Toasts } from "components/toasts.slint";
+import { Dialogs } from "components/dialogs.slint";
+import { NavItem, PlaylistItem, TrackItem, PlayerState, EqBandItem, EqPresetItem, ToastItem, LyricsLine,
+          PlaybackSettings, EngineSettings, LibrarySettings, LyricsSettings, ScrobbleSettings, UiSettings,
+          FolderItem } from "types.slint";
+
+export component App inherits Window {
+    title: "TuneCraft";
+    background: ThemeColorsProvider.current.bg;
+    preferred-width: 1200px;
+    preferred-height: 800px;
+    min-width: 800px;
+    min-height: 600px;
+
+    // Active theme name — Rust sets this to switch themes. Two-way bound
+    // to the global's `active-theme`, which is then applied to `current`
+    // via the `apply-theme` function.
+    in-out property <string> theme-name <=> ThemeColorsProvider.active-theme;
+
+    // ── Sidebar state ──
+    in property <[NavItem]> nav-items;
+    in property <[PlaylistItem]> playlists;
+    in property <string> search-query;
+    in property <bool> sidebar-collapsed: false;
+    in property <bool> is-scanning: false;
+    in property <string> status-message: "";
+
+    // ── Content area state ──
+    in property <string> active-section: "all_tracks";
+    in property <[TrackItem]> tracks;
+    in property <int> total-track-count: 0;
+    in property <int> current-page: 0;
+    in property <int> tracks-per-page: 500;
+    in property <bool> sort-active: false;
+    in property <bool> sort-ascending: true;
+    in property <bool> filter-favorites: false;
+    in property <bool> list-view: true;
+
+    // ── Folders view state ──
+    in property <[FolderItem]> folders;
+    in property <[TrackItem]> folder-tracks;
+    in property <string> current-folder: "";
+    in property <bool> in-folder: false;
+
+    // ── Player bar state ──
+    in property <PlayerState> player;
+    in property <bool> lyrics-available: false;
+
+    // ── EQ panel state ──
+    in property <bool> show-eq-panel: false;
+    in property <bool> eq-enabled: false;
+    in property <[EqBandItem]> eq-bands;
+    in property <[string]> eq-presets;
+    in property <string> eq-active-preset: "Custom";
+    in property <float> eq-preamp-db: 0.0;
+    in property <float> eq-bass-shelf: 0.0;
+    in property <float> eq-treble-shelf: 0.0;
+    in property <float> eq-stereo-width: 1.0;
+    in property <float> eq-balance: 0.0;
+    in property <bool> eq-dither-enabled: false;
+    in property <bool> eq-midside-enabled: false;
+
+    // ── Settings state ──
+    in property <PlaybackSettings> playback-settings;
+    in property <EngineSettings> engine-settings;
+    in property <LibrarySettings> library-settings;
+    in property <LyricsSettings> lyrics-settings;
+    in property <ScrobbleSettings> scrobble-settings;
+    in property <UiSettings> ui-settings;
+
+    // ── Lyrics state ──
+    in property <bool> show-lyrics-panel: false;
+    in property <[LyricsLine]> lyrics-lines;
+    in property <string> lyrics-track-title: "";
+
+    // ── Dialogs state ──
+    in property <bool> show-create-playlist-dialog: false;
+    in property <string> new-playlist-name: "";
+    in property <bool> show-add-to-playlist-dialog: false;
+    in property <int> add-to-playlist-track-id: -1;
+    in property <bool> show-track-info-dialog: false;
+    in property <TrackItem> track-info-item;
+
+    // ── Toasts ──
+    in property <[ToastItem]> toasts;
+
+    // ── Callbacks: Sidebar ──
+    callback nav-clicked(string);
+    callback playlist-clicked(int);
+    callback create-playlist-clicked();
+    callback search-changed(string);
+    callback settings-clicked();
+    callback toggle-sidebar-collapse();
+
+    // ── Callbacks: Track list ──
+    callback track-clicked(int);
+    callback track-double-clicked(int);
+    callback toggle-favorite(int);
+    callback show-track-info(int);
+    callback sort-by(string);
+    callback page-changed(int);
+    callback toggle-list-view();
+    callback toggle-favorite-filter();
+
+    // ── Callbacks: Folders ──
+    callback folder-clicked(string);
+    callback back-clicked();
+    callback add-folder-clicked();
+
+    // ── Callbacks: Player bar ──
+    callback play-pause();
+    callback prev();
+    callback next();
+    callback seek(float);
+    callback set-volume(float);
+    callback toggle-favorite-current();
+    callback toggle-eq-panel();
+    callback toggle-lyrics();
+    callback toggle-shuffle();
+    callback cycle-repeat();
+
+    // ── Callbacks: EQ ──
+    callback eq-close();
+    callback eq-toggle-enabled(bool);
+    callback eq-band-changed(int, float);
+    callback eq-preset-selected(string);
+    callback eq-preamp-changed(float);
+    callback eq-bass-shelf-changed(float);
+    callback eq-treble-shelf-changed(float);
+    callback eq-stereo-width-changed(float);
+    callback eq-balance-changed(float);
+    callback eq-dither-toggled(bool);
+    callback eq-midside-toggled(bool);
+
+    // ── Callbacks: Settings ──
+    callback volume-changed(float);
+    callback speed-changed(float);
+    callback crossfade-enabled-changed(bool);
+    callback crossfade-secs-changed(float);
+    callback replaygain-mode-changed(string);
+    callback resampler-quality-changed(string);
+    callback performance-mode-changed(string);
+    callback dither-enabled-changed(bool);
+    callback tracks-per-page-changed(int);
+    callback scan-on-startup-changed(bool);
+    callback lyrics-enabled-changed(bool);
+    callback lyrics-fetch-on-play-changed(bool);
+    callback lyrics-base-url-changed(string);
+    callback scrobble-enabled-changed(bool);
+    callback scrobble-min-duration-changed(float);
+    callback scrobble-min-percent-changed(float);
+    callback theme-changed(string);
+    callback show-spectrum-changed(bool);
+    callback show-waveform-changed(bool);
+    callback minimize-to-tray-changed(bool);
+    callback add-watch-dir();
+    callback remove-watch-dir(string);
+    callback rescan-now();
+
+    // ── Callbacks: Dialogs ──
+    callback create-playlist(string);
+    callback cancel-create-playlist();
+    callback add-to-playlist(int, int);
+    callback cancel-add-to-playlist();
+    callback open-create-from-add();
+    callback close-track-info();
+
+    // ── Layout ──
+    HorizontalLayout {
+        Sidebar {
+            nav-items: root.nav-items;
+            playlists: root.playlists;
+            search-query: root.search-query;
+            collapsed: root.sidebar-collapsed;
+            is-scanning: root.is-scanning;
+            status-message: root.status-message;
+            nav-clicked(section) => { root.nav-clicked(section); }
+            playlist-clicked(id) => { root.playlist-clicked(id); }
+            create-playlist-clicked() => { root.create-playlist-clicked(); }
+            search-changed(text) => { root.search-changed(text); }
+            settings-clicked() => { root.nav-clicked("settings"); }
+        }
+
+        VerticalLayout {
+            HorizontalLayout {
+                horizontal-stretch: 1;
+
+                // Main content area — switches based on active-section
+                TrackList {
+                    visible: root.active-section == "all_tracks" || root.active-section == "favorites"
+                             || root.active-section == "recently_played" || root.active-section == "most_played";
+                    tracks: root.tracks;
+                    total-track-count: root.total-track-count;
+                    current-page: root.current-page;
+                    tracks-per-page: root.tracks-per-page;
+                    sort-active: root.sort-active;
+                    sort-ascending: root.sort-ascending;
+                    search-query: root.search-query;
+                    filter-favorites: root.filter-favorites;
+                    list-view: root.list-view;
+                    track-clicked(id) => { root.track-clicked(id); }
+                    track-double-clicked(id) => { root.track-double-clicked(id); }
+                    toggle-favorite(id) => { root.toggle-favorite(id); }
+                    sort-by(field) => { root.sort-by(field); }
+                    page-changed(p) => { root.page-changed(p); }
+                    toggle-list-view() => { root.toggle-list-view(); }
+                    toggle-favorite-filter() => { root.toggle-favorite-filter(); }
+                }
+
+                FoldersView {
+                    visible: root.active-section == "folders";
+                    folders: root.folders;
+                    folder-tracks: root.folder-tracks;
+                    current-folder: root.current-folder;
+                    in-folder: root.in-folder;
+                    folder-clicked(path) => { root.folder-clicked(path); }
+                    back-clicked() => { root.back-clicked(); }
+                    track-clicked(id) => { root.track-clicked(id); }
+                    toggle-favorite(id) => { root.toggle-favorite(id); }
+                    add-folder-clicked() => { root.add-folder-clicked(); }
+                }
+
+                SettingsView {
+                    visible: root.active-section == "settings";
+                    playback: root.playback-settings;
+                    engine: root.engine-settings;
+                    library: root.library-settings;
+                    lyrics: root.lyrics-settings;
+                    scrobble: root.scrobble-settings;
+                    ui: root.ui-settings;
+                    volume-changed(v) => { root.volume-changed(v); }
+                    speed-changed(v) => { root.speed-changed(v); }
+                    crossfade-enabled-changed(b) => { root.crossfade-enabled-changed(b); }
+                    crossfade-secs-changed(v) => { root.crossfade-secs-changed(v); }
+                    replaygain-mode-changed(s) => { root.replaygain-mode-changed(s); }
+                    resampler-quality-changed(s) => { root.resampler-quality-changed(s); }
+                    performance-mode-changed(s) => { root.performance-mode-changed(s); }
+                    dither-enabled-changed(b) => { root.dither-enabled-changed(b); }
+                    tracks-per-page-changed(n) => { root.tracks-per-page-changed(n); }
+                    scan-on-startup-changed(b) => { root.scan-on-startup-changed(b); }
+                    lyrics-enabled-changed(b) => { root.lyrics-enabled-changed(b); }
+                    lyrics-fetch-on-play-changed(b) => { root.lyrics-fetch-on-play-changed(b); }
+                    lyrics-base-url-changed(s) => { root.lyrics-base-url-changed(s); }
+                    scrobble-enabled-changed(b) => { root.scrobble-enabled-changed(b); }
+                    scrobble-min-duration-changed(v) => { root.scrobble-min-duration-changed(v); }
+                    scrobble-min-percent-changed(v) => { root.scrobble-min-percent-changed(v); }
+                    theme-changed(s) => { root.theme-changed(s); }
+                    show-spectrum-changed(b) => { root.show-spectrum-changed(b); }
+                    show-waveform-changed(b) => { root.show-waveform-changed(b); }
+                    minimize-to-tray-changed(b) => { root.minimize-to-tray-changed(b); }
+                    add-watch-dir() => { root.add-watch-dir(); }
+                    remove-watch-dir(d) => { root.remove-watch-dir(d); }
+                    rescan-now() => { root.rescan-now(); }
+                }
+
+                // Lyrics panel docks on the right when active
+                LyricsPanel {
+                    visible: root.show-lyrics-panel;
+                    lines: root.lyrics-lines;
+                    has-lyrics: root.lyrics-lines.length > 0;
+                    track-title: root.lyrics-track-title;
+                }
+            }
+
+            PlayerBar {
+                player-state: root.player;
+                show-eq-panel: root.show-eq-panel;
+                lyrics-available: root.lyrics-available;
+                play-pause() => { root.play-pause(); }
+                prev() => { root.prev(); }
+                next() => { root.next(); }
+                seek(pos) => { root.seek(pos); }
+                set-volume(v) => { root.set-volume(v); }
+                toggle-favorite() => { root.toggle-favorite-current(); }
+                toggle-eq-panel() => { root.toggle-eq-panel(); }
+                toggle-lyrics() => { root.toggle-lyrics(); }
+                toggle-shuffle() => { root.toggle-shuffle(); }
+                cycle-repeat() => { root.cycle-repeat(); }
+            }
+        }
+    }
+
+    // ── Overlay: EQ panel (centered floating window) ──
+    if root.show-eq-panel : Rectangle {
+        background: transparent;
+        eq-overlay := EqPanel {
+            width: min(parent.width * 0.6, 900px);
+            height: min(parent.height * 0.75, 600px);
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #00000060;
+
+            enabled: root.eq-enabled;
+            bands: root.eq-bands;
+            presets: root.eq-presets;
+            active-preset: root.eq-active-preset;
+            preamp-db: root.eq-preamp-db;
+            bass-shelf: root.eq-bass-shelf;
+            treble-shelf: root.eq-treble-shelf;
+            stereo-width: root.eq-stereo-width;
+            balance: root.eq-balance;
+            dither-enabled: root.eq-dither-enabled;
+            midside-enabled: root.eq-midside-enabled;
+
+            close() => { root.eq-close(); }
+            toggle-enabled(v) => { root.eq-toggle-enabled(v); }
+            band-changed(idx, val) => { root.eq-band-changed(idx, val); }
+            preset-selected(name) => { root.eq-preset-selected(name); }
+            preamp-changed(v) => { root.eq-preamp-changed(v); }
+            bass-shelf-changed(v) => { root.eq-bass-shelf-changed(v); }
+            treble-shelf-changed(v) => { root.eq-treble-shelf-changed(v); }
+            stereo-width-changed(v) => { root.eq-stereo-width-changed(v); }
+            balance-changed(v) => { root.eq-balance-changed(v); }
+            dither-toggled(v) => { root.eq-dither-toggled(v); }
+            midside-toggled(v) => { root.eq-midside-toggled(v); }
+        }
+    }
+
+    // ── Overlays: Dialogs + Toasts ──
+    Dialogs {
+        show-create-playlist: root.show-create-playlist-dialog;
+        new-playlist-name: root.new-playlist-name;
+        show-add-to-playlist: root.show-add-to-playlist-dialog;
+        add-track-id: root.add-to-playlist-track-id;
+        playlists: root.playlists;
+        show-track-info: root.show-track-info-dialog;
+        track-info: root.track-info-item;
+        create-playlist(name) => { root.create-playlist(name); }
+        cancel-create-playlist() => { root.cancel-create-playlist(); }
+        add-to-playlist(pl, tr) => { root.add-to-playlist(pl, tr); }
+        cancel-add-to-playlist() => { root.cancel-add-to-playlist(); }
+        open-create-from-add() => { root.open-create-from-add(); }
+        close-track-info() => { root.close-track-info(); }
+    }
+
+    Toasts {
+        toasts: root.toasts;
+    }
+}

@@ -161,6 +161,12 @@ impl TuneCraftApp {
                 library_svc.refresh_tracks();
                 library_svc.refresh_favorite_ids();
                 library_svc.mark_db_dirty();
+                // v3.1.1: Kick off background BPM / loudness analysis for
+                // the newly-added tracks. Previously this was only done at
+                // startup, so tracks added at runtime never got BPM / EBU R128
+                // values until the user restarted the app — silently breaking
+                // loudness normalization and BPM display.
+                trigger_bg_analysis_via_service(&library_svc);
             })
             .ok();
 
@@ -221,6 +227,8 @@ impl TuneCraftApp {
                 library_svc.refresh_tracks();
                 library_svc.refresh_favorite_ids();
                 library_svc.mark_db_dirty();
+                // v3.1.1: Kick off background analysis for newly-added tracks.
+                trigger_bg_analysis_via_service(&library_svc);
             })
             .ok();
 
@@ -265,6 +273,67 @@ impl TuneCraftApp {
                 MediaKeyAction::SetVolume(vol) => {
                     self.set_volume(vol);
                 },
+                // v3.1.1: Handle the previously-dropped MediaKeyAction variants.
+                // External MPRIS clients (playerctl, KDE Connect, GNOME Shell)
+                // send these — previously they were silently swallowed by the
+                // `_ => {}` catch-all.
+                MediaKeyAction::VolumeUp => {
+                    let new_vol = (self.volume + 0.05).min(1.0);
+                    self.set_volume(new_vol);
+                },
+                MediaKeyAction::VolumeDown => {
+                    let new_vol = (self.volume - 0.05).max(0.0);
+                    self.set_volume(new_vol);
+                },
+                MediaKeyAction::Mute => {
+                    self.toggle_mute();
+                },
+                MediaKeyAction::SetRate(rate) => {
+                    self.set_speed(rate);
+                },
+                MediaKeyAction::SetShuffle(shuffle) => {
+                    self.shuffle = shuffle;
+                    self.ctx.playback.set_shuffle(shuffle);
+                },
+                MediaKeyAction::SetLoopStatus(status) => {
+                    use tc_config::RepeatMode;
+                    let mode = match status.as_str() {
+                        "Track" => RepeatMode::One,
+                        "Playlist" => RepeatMode::All,
+                        _ => RepeatMode::Off,
+                    };
+                    self.set_repeat(mode);
+                },
+                MediaKeyAction::OpenUri(uri) => {
+                    // Forward file:// URIs to the engine, which already
+                    // implements path canonicalization + sandboxing against
+                    // home/audio dirs.
+                    if uri.starts_with("file://") {
+                        use tc_engine::buffer::EngineCommand;
+                        self.ctx.playback.send_command(EngineCommand::OpenUri(uri));
+                    } else {
+                        log::warn!(
+                            "OpenUri: only file:// URIs are supported, got: {}",
+                            uri
+                        );
+                    }
+                },
+                MediaKeyAction::Quit => {
+                    log::info!("Quit requested via MPRIS / media key");
+                    self.close_requested = true;
+                },
+                MediaKeyAction::Seek(offset_us) => {
+                    let offset_secs = offset_us as f32 / 1_000_000.0;
+                    let new_pos = (self.position_secs + offset_secs).max(0.0);
+                    self.seek(new_pos);
+                },
+                MediaKeyAction::SetPosition {
+                    track_id: _,
+                    position_us,
+                } => {
+                    let pos_secs = position_us as f32 / 1_000_000.0;
+                    self.seek(pos_secs);
+                },
                 MediaKeyAction::ToggleShuffle => {
                     self.toggle_shuffle();
                 },
@@ -274,7 +343,6 @@ impl TuneCraftApp {
                 MediaKeyAction::GlobalSearch => {
                     self.focus_search = true;
                 },
-                _ => {},
             }
         }
     }
@@ -289,7 +357,12 @@ impl TuneCraftApp {
                 use std::path::PathBuf;
                 use tc_analysis::analyze_file;
 
-                let unanalyzed = match db.get_unanalyzed_tracks() {
+                // v3.1.1: Use get_tracks_missing_analysis instead of
+                // get_unanalyzed_tracks so we also backfill loudness for
+                // tracks that have BPM but lack EBU R128 / ReplayGain.
+                // This is the common case for libraries created before v3.0.0,
+                // where the loudness columns existed but were never populated.
+                let unanalyzed = match db.get_tracks_missing_analysis() {
                     Ok(tracks) => tracks,
                     Err(_) => return,
                 };
@@ -306,6 +379,24 @@ impl TuneCraftApp {
                             let _ = db.update_bpm(track.id, analysis.bpm.bpm);
                             changed = true;
                         }
+                        // Persist loudness metadata if not yet computed. Since v3.0.0
+                        // the analysis pass produces real EBU R128 / ReplayGain 2.0
+                        // values; previously the DB columns existed but were never
+                        // populated, so loudness normalization silently did nothing.
+                        if track.replaygain_track_db.is_none() && track.ebu_r128_loudness.is_none()
+                        {
+                            let meta = tc_db::LoudnessMeta {
+                                track_id: track.id,
+                                replaygain_track_db: analysis.loudness.replaygain_track_db,
+                                replaygain_album_db: None, // album gain computed separately on album batches
+                                replaygain_track_peak: analysis.loudness.replaygain_track_peak,
+                                replaygain_album_peak: None,
+                                ebu_r128_loudness: analysis.loudness.ebu_r128_loudness,
+                                ebu_r128_peak: analysis.loudness.ebu_r128_peak,
+                            };
+                            let _ = db.update_loudness_meta(track.id, &meta);
+                            changed = true;
+                        }
                     }
                 }
 
@@ -316,4 +407,65 @@ impl TuneCraftApp {
             })
             .ok();
     }
+}
+
+/// Free function that spawns a background analysis thread given only an
+/// `Arc<LibraryService>`. Used by `add_music_files` and `add_music_folders`
+/// inside their scan-thread closures — they don't have access to `self` (the
+/// `TuneCraftApp`) because they're already running on a spawned thread, so we
+/// rebuild the analysis pipeline from the library service alone.
+///
+/// This is essentially `TuneCraftApp::trigger_background_analysis` extracted
+/// into a standalone function so it can be called from thread contexts that
+/// only hold an `Arc<LibraryService>`.
+fn trigger_bg_analysis_via_service(library_svc: &Arc<crate::services::LibraryService>) {
+    let db = library_svc.db().clone();
+    let library_svc = Arc::clone(library_svc);
+
+    // Defer slightly so the just-finished scan's refresh_tracks() call has
+    // time to land and the new tracks are visible to get_tracks_missing_analysis.
+    std::thread::Builder::new()
+        .name("tunecraft-add-files-analysis".into())
+        .spawn(move || {
+            use std::path::PathBuf;
+            use tc_analysis::analyze_file;
+
+            let unanalyzed = match db.get_tracks_missing_analysis() {
+                Ok(tracks) => tracks,
+                Err(_) => return,
+            };
+            if unanalyzed.is_empty() {
+                return;
+            }
+
+            let mut changed = false;
+            for track in &unanalyzed {
+                let path = PathBuf::from(&track.path);
+                if let Ok(analysis) = analyze_file(&path, Some(60.0)) {
+                    if track.bpm.is_none() {
+                        let _ = db.update_bpm(track.id, analysis.bpm.bpm);
+                        changed = true;
+                    }
+                    if track.replaygain_track_db.is_none() && track.ebu_r128_loudness.is_none() {
+                        let meta = tc_db::LoudnessMeta {
+                            track_id: track.id,
+                            replaygain_track_db: analysis.loudness.replaygain_track_db,
+                            replaygain_album_db: None,
+                            replaygain_track_peak: analysis.loudness.replaygain_track_peak,
+                            replaygain_album_peak: None,
+                            ebu_r128_loudness: analysis.loudness.ebu_r128_loudness,
+                            ebu_r128_peak: analysis.loudness.ebu_r128_peak,
+                        };
+                        let _ = db.update_loudness_meta(track.id, &meta);
+                        changed = true;
+                    }
+                }
+            }
+
+            if changed {
+                library_svc.mark_db_dirty();
+                library_svc.refresh_tracks();
+            }
+        })
+        .ok();
 }

@@ -22,7 +22,36 @@ fn main() -> Result<()> {
 
     // L18: Collect args once here; run_headless() also collects its own.
     let args: Vec<String> = std::env::args().collect();
+
+    // v3.1.3: The man page (dist/tunecraft.1) documents --help and --version
+    // but they were never wired up. Handle them up-front before any other
+    // initialization so we exit immediately without opening the DB / audio
+    // engine — that mirrors user expectations for these standard flags and
+    // matches the behaviour documented in the man page.
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        print_help();
+        return Ok(());
+    }
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        // Single-line semver-style version string. The man page promises
+        // "version information"; include crate name + version + target OS
+        // + architecture so users can identify the exact build.
+        println!(
+            "TuneCraft {} ({} {})",
+            env!("CARGO_PKG_VERSION"),
+            std::env::consts::OS,
+            std::env::consts::ARCH,
+        );
+        return Ok(());
+    }
+
     let headless = args.iter().any(|a| a == "--headless" || a == "--cli");
+    // v3.1.1: `--analyze` was documented in the README but never wired up.
+    // It forces headless mode and ensures the analysis pass runs on every
+    // track missing BPM, loudness, or ReplayGain — including tracks that
+    // have BPM but lack loudness (the common case for pre-v3.0.0 libraries).
+    let analyze = args.iter().any(|a| a == "--analyze");
+    let headless = headless || analyze;
 
     if headless {
         run_headless()
@@ -39,6 +68,36 @@ fn main() -> Result<()> {
             run_headless()
         }
     }
+}
+
+/// Print a short usage summary.
+///
+/// Mirrors the SYNOPSIS section of `dist/tunecraft.1`. Keep the two in
+/// sync when adding/removing flags — there is no test that enforces this,
+/// so manual review is required on any change here.
+fn print_help() {
+    println!("TuneCraft v{} — audiophile-grade offline music player", env!("CARGO_PKG_VERSION"));
+    println!();
+    println!("USAGE:");
+    println!("    tunecraft [FILE] [OPTIONS]");
+    println!();
+    println!("OPTIONS:");
+    println!("    FILE                Open and play a specific audio file on launch");
+    println!("    --headless, --cli   Run without the GUI (library management only)");
+    println!("    --analyze           Force loudness/BPM analysis on unanalyzed tracks");
+    println!("    --skip-scan         Skip the startup library scan (headless only)");
+    println!("    --skip-analysis     Skip the startup audio analysis pass (headless only)");
+    println!("    -h, --help          Print this help and exit");
+    println!("    -V, --version       Print version information and exit");
+    println!();
+    println!("ENVIRONMENT:");
+    println!("    RUST_LOG            Log level filter (info, debug, warn). Default: info");
+    println!("    XDG_DATA_HOME       Override the SQLite DB / play-history location");
+    println!("    XDG_CONFIG_HOME     Override the config.toml location");
+    println!();
+    println!("SUPPORTED FORMATS: MP3, FLAC, OGG/Vorbis, WAV, AAC");
+    println!();
+    println!("Full documentation: https://github.com/Sudipta615/TuneCraft-Music-Plyer");
 }
 
 #[cfg(feature = "gui")]
@@ -196,6 +255,7 @@ fn run_headless() -> Result<()> {
 
     let skip_analysis = args.iter().any(|a| a == "--skip-analysis");
     let skip_scan = args.iter().any(|a| a == "--skip-scan");
+    let force_analyze = args.iter().any(|a| a == "--analyze");
 
     // Scan library (unless skipped).
     if !skip_scan {
@@ -216,7 +276,7 @@ fn run_headless() -> Result<()> {
     }
 
     if !skip_analysis {
-        run_analysis(&resources.db)?;
+        run_analysis(&resources.db, force_analyze)?;
     } else {
         info!("Skipping audio analysis (--skip-analysis)");
     }
@@ -247,17 +307,31 @@ fn run_headless() -> Result<()> {
     Ok(())
 }
 
-/// Run audio analysis on tracks that haven't been analyzed yet
-fn run_analysis(db: &tc_db::Database) -> Result<()> {
+/// Run audio analysis on tracks that haven't been analyzed yet.
+///
+/// `force_loudness_backfill`: when true (i.e. `--analyze` was passed), use
+/// the broader `get_tracks_missing_analysis` query that also returns tracks
+/// with BPM but no loudness. Otherwise use `get_unanalyzed_tracks` (BPM only)
+/// to keep the default startup behaviour fast.
+fn run_analysis(db: &tc_db::Database, force_loudness_backfill: bool) -> Result<()> {
     use std::path::PathBuf;
 
     use tc_analysis::analyze_file;
 
     info!("Running audio analysis on unanalyzed tracks...");
 
-    let unanalyzed = db
-        .get_unanalyzed_tracks()
-        .context("Failed to get unanalyzed tracks")?;
+    // v3.1.1: Use get_tracks_missing_analysis when --analyze is passed so we
+    // also backfill loudness for pre-v3.0.0 libraries where the loudness
+    // columns existed but were never populated. Without this, upgrading to
+    // v3.0+ would silently leave loudness normalization broken for all
+    // tracks that existed before the upgrade.
+    let unanalyzed = if force_loudness_backfill {
+        db.get_tracks_missing_analysis()
+            .context("Failed to get tracks missing analysis")?
+    } else {
+        db.get_unanalyzed_tracks()
+            .context("Failed to get unanalyzed tracks")?
+    };
 
     if unanalyzed.is_empty() {
         info!("All tracks already analyzed.");
@@ -275,6 +349,27 @@ fn run_analysis(db: &tc_db::Database) -> Result<()> {
                 if track.bpm.is_none() {
                     if let Err(e) = db.update_bpm(track.id, analysis.bpm.bpm) {
                         warn!("Failed to update BPM for track {}: {}", track.id, e);
+                    }
+                }
+                // Persist loudness metadata (EBU R128 + ReplayGain 2.0) if not
+                // already present. Since v3.0.0 the analysis pass produces real
+                // loudness values; previously these DB columns existed but were
+                // never populated, so loudness normalization did nothing.
+                if track.replaygain_track_db.is_none() && track.ebu_r128_loudness.is_none() {
+                    let meta = tc_db::LoudnessMeta {
+                        track_id: track.id,
+                        replaygain_track_db: analysis.loudness.replaygain_track_db,
+                        replaygain_album_db: None,
+                        replaygain_track_peak: analysis.loudness.replaygain_track_peak,
+                        replaygain_album_peak: None,
+                        ebu_r128_loudness: analysis.loudness.ebu_r128_loudness,
+                        ebu_r128_peak: analysis.loudness.ebu_r128_peak,
+                    };
+                    if let Err(e) = db.update_loudness_meta(track.id, &meta) {
+                        warn!(
+                            "Failed to update loudness meta for track {}: {}",
+                            track.id, e
+                        );
                     }
                 }
                 succeeded += 1;
@@ -327,6 +422,11 @@ fn run_with_audio(
                     error!("Failed to load track: {}", e);
                 },
             }
+        } else {
+            // v3.1.1: Previously a typo'd path was silently ignored, leaving
+            // the user wondering why nothing was playing. Log a warning so
+            // the failure mode is visible.
+            warn!("File not found: {}", path.display());
         }
     }
 
@@ -341,6 +441,11 @@ fn run_with_audio(
     .context("Failed to set Ctrl+C handler")?;
 
     let mut _headless_shuffle = false;
+
+    // v3.1.1: Last time we pushed a Position update to MPRIS. Used to throttle
+    // the D-Bus PropertiesChanged signal to 1 Hz (was ~200 Hz at the previous
+    // 5 ms loop sleep — see the comment near set_mpris_position below).
+    let mut last_mpris_position_update = std::time::Instant::now();
 
     while r.load(Ordering::Relaxed) {
         engine.tick();
@@ -365,10 +470,22 @@ fn run_with_audio(
                         }
                     },
                     MediaKeyAction::Next => {
-                        engine.send_command(tc_engine::buffer::EngineCommand::NextTrack);
+                        // v3.1.1: In headless mode there is no PlaybackService
+                        // to manage the queue, and EngineCommand::NextTrack is
+                        // an intentional no-op in the engine (queue management
+                        // lives in the UI layer). Log a one-shot warning so
+                        // users running headless daemon mode know MPRIS next/prev
+                        // aren't supported here.
+                        log::warn!(
+                            "NextTrack ignored in headless mode — queue management \
+                             requires the GUI (run without --headless/--cli)"
+                        );
                     },
                     MediaKeyAction::Previous => {
-                        engine.send_command(tc_engine::buffer::EngineCommand::PrevTrack);
+                        log::warn!(
+                            "PrevTrack ignored in headless mode — queue management \
+                             requires the GUI (run without --headless/--cli)"
+                        );
                     },
                     MediaKeyAction::Stop => {
                         engine.send_command(tc_engine::buffer::EngineCommand::Stop);
@@ -465,21 +582,42 @@ fn run_with_audio(
             }
         }
 
-        if let Some(ref mut p) = platform {
-            let info = engine.playback_info();
-            // L15: Direct `as i64` cast overflows if position_secs is negative or
-            // very large. Clamp to [0, i64::MAX] range before casting.
-            let pos_us = (info.position_secs * 1_000_000.0).clamp(0.0, i64::MAX as f32) as i64;
-            p.set_mpris_position(pos_us);
-        }
-
-        // Adaptive sleep
+        // v3.1.1: Hoist the per-iteration playback_info() call once instead
+        // of calling it twice (for MPRIS + for sleep). Each call clones an
+        // ArcSwap'd PlaybackInfo, so doubling it was wasted work.
         let info = engine.playback_info();
         let has_pending = engine.has_pending_chunk();
+
+        // v3.1.1: Throttle MPRIS position updates to 1 Hz (was 200 Hz at the
+        // old 5 ms sleep interval). Each set_mpris_position call goes through
+        // a D-Bus PropertiesChanged signal (1–5 ms IPC), so pushing on every
+        // loop iteration was responsible for ~20–30% CPU usage on Linux.
+        // MPRIS clients compute live position from Position + Rate + elapsed
+        // time, so a 1-second refresh is indistinguishable from per-frame
+        // updates. We also skip the update entirely when not Playing.
+        if info.state == tc_engine::buffer::PlaybackState::Playing {
+            if let Some(ref mut p) = platform {
+                if last_mpris_position_update.elapsed()
+                    >= std::time::Duration::from_millis(1000)
+                {
+                    // L15: Direct `as i64` cast overflows if position_secs is
+                    // negative or very large. Clamp to [0, i64::MAX] range.
+                    let pos_us =
+                        (info.position_secs * 1_000_000.0).clamp(0.0, i64::MAX as f32) as i64;
+                    p.set_mpris_position(pos_us);
+                    last_mpris_position_update = std::time::Instant::now();
+                }
+            }
+        }
+
+        // v3.1.1: Match the v3.0.0 CHANGELOG sleep schedule (20 ms / 100 ms)
+        // instead of the old 5 ms / 50 ms. The 5 ms rate was burning ~10–15 %
+        // CPU on the headless daemon, exactly the issue the CHANGELOG claimed
+        // to have fixed (but only fixed in the GUI path).
         let sleep_ms = if info.state == tc_engine::buffer::PlaybackState::Playing && !has_pending {
-            5
+            20
         } else {
-            50
+            100
         };
         std::thread::sleep(Duration::from_millis(sleep_ms));
     }

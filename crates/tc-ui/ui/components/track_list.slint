@@ -1,0 +1,374 @@
+// components/track_list.slint — Main track listing.
+//
+// Renders a table of tracks with columns:
+// # | Title | Artist | Album | Duration | Favorite
+//
+// Header is sticky at top; rows scroll vertically. Hover highlights rows.
+// Click anywhere on a row plays the track; heart icon toggles favorite.
+// Double-click on title opens track info dialog (right-click also works).
+
+import { ThemeColorsProvider } from "theme/colors.slint";
+import { HeartButton } from "theme/widgets.slint";
+import { TrackItem } from "types.slint";
+
+export component TrackList inherits Rectangle {
+    in property <[TrackItem]> tracks;
+    in property <int> total-track-count: 0;
+    in property <int> current-page: 0;
+    in property <int> tracks-per-page: 500;
+    in property <bool> sort-active: false;
+    in property <bool> sort-ascending: true;
+    in property <string> search-query: "";
+    in property <bool> filter-favorites: false;
+    in property <bool> list-view: true;       // false = grid/album view
+
+    background: ThemeColorsProvider.current.bg;
+
+    callback track-clicked(int);
+    callback track-double-clicked(int);
+    callback toggle-favorite(int);
+    callback show-track-info(int);
+    callback add-to-playlist(int);
+    callback sort-by(string);
+    callback search-changed(string);
+    callback page-changed(int);
+    callback toggle-list-view();
+
+    VerticalLayout {
+        // ── Header bar ──
+        Rectangle {
+            height: 56px;
+            background: ThemeColorsProvider.current.surface;
+            border-width: 0;
+            border-color: ThemeColorsProvider.current.border;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 12px;
+                alignment: center;
+
+                // Title + count
+                VerticalLayout {
+                    spacing: 0px;
+                    horizontal-stretch: 1;
+                    Text {
+                        text: "All Tracks";
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: ThemeColorsProvider.current.text;
+                    }
+                    Text {
+                        text: root.total-track-count + " tracks";
+                        font-size: 12px;
+                        color: ThemeColorsProvider.current.text-dim;
+                    }
+                }
+
+                // Filter favorites toggle
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: root.filter-favorites ? ThemeColorsProvider.current.accent-dark : transparent;
+                    fav-touch := TouchArea {
+                        clicked => { root.toggle-favorite-filter(); }
+                    }
+                    Image {
+                        source: @image-url("icons/star.svg");
+                        width: 16px;
+                        height: 16px;
+                        colorize: root.filter-favorites ? white : ThemeColorsProvider.current.text-dim;
+                        image-fit: contain;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                // List/Grid view toggle
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: transparent;
+                    view-touch := TouchArea {
+                        clicked => { root.toggle-list-view(); }
+                    }
+                    Image {
+                        source: root.list-view ? @image-url("icons/squares-four.svg") : @image-url("icons/list.svg");
+                        width: 16px;
+                        height: 16px;
+                        colorize: ThemeColorsProvider.current.text-dim;
+                        image-fit: contain;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+        }
+
+        // ── Column header ──
+        Rectangle {
+            height: 32px;
+            background: ThemeColorsProvider.current.table-header-bg;
+            border-width: 0;
+            border-color: ThemeColorsProvider.current.border;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                alignment: center;
+
+                col-num := Text {
+                    text: "#";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: ThemeColorsProvider.current.text-muted;
+                    width: 40px;
+                    vertical-alignment: center;
+                }
+                col-title := Text {
+                    text: "TITLE";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: ThemeColorsProvider.current.text-muted;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                    title-touch := TouchArea {
+                        clicked => { root.sort-by("title"); }
+                    }
+                }
+                col-artist := Text {
+                    text: "ARTIST";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: ThemeColorsProvider.current.text-muted;
+                    width: 180px;
+                    vertical-alignment: center;
+                    artist-touch := TouchArea {
+                        clicked => { root.sort-by("artist"); }
+                    }
+                }
+                col-album := Text {
+                    text: "ALBUM";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: ThemeColorsProvider.current.text-muted;
+                    width: 180px;
+                    vertical-alignment: center;
+                    album-touch := TouchArea {
+                        clicked => { root.sort-by("album"); }
+                    }
+                }
+                col-duration := Text {
+                    text: "DURATION";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: ThemeColorsProvider.current.text-muted;
+                    width: 80px;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
+                    duration-touch := TouchArea {
+                        clicked => { root.sort-by("duration"); }
+                    }
+                }
+                // Spacer for heart icon column
+                Rectangle { width: 32px; }
+            }
+        }
+
+        // ── Scrollable track rows ──
+        Flickable {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                spacing: 0px;
+
+                for track[i] in root.tracks : Rectangle {
+                    height: 40px;
+                    background: track.is-playing ? ThemeColorsProvider.current.active-bg :
+                               row-touch.has-hover ? ThemeColorsProvider.current.table-row-hover :
+                               (Math.mod(i, 2) == 0 ? ThemeColorsProvider.current.table-row-even : ThemeColorsProvider.current.table-row-odd);
+                    animate background { duration: 60ms; }
+
+                    row-touch := TouchArea {
+                        clicked => { root.track-clicked(track.id); }
+                        double-clicked => { root.track-double-clicked(track.id); }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        alignment: center;
+
+                        // # column
+                        Rectangle {
+                            width: 40px;
+                            if track.is-playing : Image {
+                                source: @image-url("icons/waveform.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: ThemeColorsProvider.accent-color;
+                                image-fit: contain;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            if !track.is-playing : Text {
+                                text: track.track-number > 0 ? track.track-number : (i + 1);
+                                font-size: 12px;
+                                color: ThemeColorsProvider.current.text-dim;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Title + album art thumbnail
+                        HorizontalLayout {
+                            spacing: 8px;
+                            horizontal-stretch: 1;
+
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 4px;
+                                background: ThemeColorsProvider.current.card;
+                                y: (parent.height - self.height) / 2;
+                                clip: true;
+                                if track.has-cover : Image {
+                                    source: track.cover-art;
+                                    width: parent.width;
+                                    height: parent.height;
+                                    image-fit: cover;
+                                }
+                                if !track.has-cover : Image {
+                                    source: @image-url("icons/music-notes.svg");
+                                    width: 14px;
+                                    height: 14px;
+                                    colorize: ThemeColorsProvider.current.text-muted;
+                                    image-fit: contain;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                            }
+                            Text {
+                                text: track.title;
+                                font-size: 13px;
+                                color: track.is-playing ? ThemeColorsProvider.accent-color : ThemeColorsProvider.current.text;
+                                overflow: elide;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                            }
+                        }
+
+                        // Artist
+                        Text {
+                            text: track.artist;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 180px;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+                        // Album
+                        Text {
+                            text: track.album;
+                            font-size: 13px;
+                            color: ThemeColorsProvider.current.text-dim;
+                            width: 180px;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+                        // Duration
+                        Text {
+                            text: track.duration-text;
+                            font-size: 12px;
+                            color: ThemeColorsProvider.current.text-muted;
+                            width: 80px;
+                            horizontal-alignment: right;
+                            vertical-alignment: center;
+                        }
+                        // Favorite
+                        HeartButton {
+                            favorited: track.is-favorite;
+                            heart-size: 14px;
+                            clicked => { root.toggle-favorite(track.id); }
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                }
+
+                // Empty state
+                if root.total-track-count == 0 : Rectangle {
+                    height: 200px;
+                    Text {
+                        text: "No tracks yet.\nClick \"Add Music Folder\" in Settings or drag files here.";
+                        font-size: 14px;
+                        color: ThemeColorsProvider.current.text-muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // ── Pagination footer ──
+        if root.total-track-count > root.tracks-per-page : Rectangle {
+            height: 40px;
+            background: ThemeColorsProvider.current.surface;
+            border-width: 0;
+            border-color: ThemeColorsProvider.current.border;
+
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                alignment: center;
+                spacing: 8px;
+
+                Text {
+                    text: "Page " + (root.current-page + 1) + " of " + max(1, ceil(root.total-track-count / root.tracks-per-page));
+                    font-size: 12px;
+                    color: ThemeColorsProvider.current.text-dim;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+
+                Rectangle {
+                    width: 80px;
+                    height: 28px;
+                    border-radius: 4px;
+                    background: prev-touch.has-hover ? ThemeColorsProvider.current.hover : transparent;
+                    prev-touch := TouchArea {
+                        clicked => { root.page-changed(root.current-page - 1); }
+                        enabled: root.current-page > 0;
+                    }
+                    Text {
+                        text: "Previous";
+                        font-size: 12px;
+                        color: root.current-page > 0 ? ThemeColorsProvider.current.text : ThemeColorsProvider.current.text-muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+                Rectangle {
+                    width: 80px;
+                    height: 28px;
+                    border-radius: 4px;
+                    background: next-touch.has-hover ? ThemeColorsProvider.current.hover : transparent;
+                    next-touch := TouchArea {
+                        clicked => { root.page-changed(root.current-page + 1); }
+                        enabled: (root.current-page + 1) * root.tracks-per-page < root.total-track-count;
+                    }
+                    Text {
+                        text: "Next";
+                        font-size: 12px;
+                        color: (root.current-page + 1) * root.tracks-per-page < root.total-track-count ? ThemeColorsProvider.current.text : ThemeColorsProvider.current.text-muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+
+    callback toggle-favorite-filter();
+}

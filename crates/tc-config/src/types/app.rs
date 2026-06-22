@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    engine::EngineConfig, library::LibraryConfig, playback::PlaybackConfig,
+    engine::EngineConfig, library::LibraryConfig, lyrics::LyricsConfig, playback::PlaybackConfig,
     scrobble::ScrobbleConfig, ui::UiConfig, CONFIG_VERSION,
 };
 
@@ -25,6 +25,9 @@ pub struct AppConfig {
     pub ui: UiConfig,
     #[serde(default)]
     pub scrobble: ScrobbleConfig,
+    /// LRCLIB synced-lyrics integration (v3.0.0).
+    #[serde(default)]
+    pub lyrics: LyricsConfig,
 }
 
 impl AppConfig {
@@ -47,6 +50,9 @@ impl AppConfig {
 
         // Validate scrobble
         warnings.extend(self.scrobble.validate());
+
+        // Validate lyrics
+        warnings.extend(self.lyrics.validate());
 
         if self.config_version < CONFIG_VERSION {
             warnings.push(format!(
@@ -91,6 +97,7 @@ impl Default for AppConfig {
             playback: PlaybackConfig::default(),
             ui: UiConfig::default(),
             scrobble: ScrobbleConfig::default(),
+            lyrics: LyricsConfig::default(),
         }
     }
 }
@@ -111,5 +118,6 @@ pub enum ConfigSection {
     Playback,
     Ui,
     Scrobble,
+    Lyrics,
     All,
 }

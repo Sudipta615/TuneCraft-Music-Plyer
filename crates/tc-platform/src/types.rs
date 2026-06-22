@@ -17,7 +17,7 @@ pub enum PlatformError {
 }
 
 /// Media key actions that the platform can emit
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MediaKeyAction {
     PlayPause,
     Play,
@@ -51,42 +51,14 @@ pub enum MediaKeyAction {
     GlobalSearch,
 }
 
-impl PartialEq for MediaKeyAction {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::PlayPause, Self::PlayPause) => true,
-            (Self::Play, Self::Play) => true,
-            (Self::Pause, Self::Pause) => true,
-            (Self::Next, Self::Next) => true,
-            (Self::Previous, Self::Previous) => true,
-            (Self::Stop, Self::Stop) => true,
-            (Self::VolumeUp, Self::VolumeUp) => true,
-            (Self::VolumeDown, Self::VolumeDown) => true,
-            (Self::Mute, Self::Mute) => true,
-            (Self::Quit, Self::Quit) => true,
-            (Self::Seek(a), Self::Seek(b)) => a == b,
-            (
-                Self::SetPosition {
-                    track_id: a1,
-                    position_us: a2,
-                },
-                Self::SetPosition {
-                    track_id: b1,
-                    position_us: b2,
-                },
-            ) => a1 == b1 && a2 == b2,
-            (Self::SetVolume(a), Self::SetVolume(b)) => (a - b).abs() < f32::EPSILON,
-            (Self::SetRate(a), Self::SetRate(b)) => (a - b).abs() < f32::EPSILON,
-            (Self::SetShuffle(a), Self::SetShuffle(b)) => a == b,
-            (Self::SetLoopStatus(a), Self::SetLoopStatus(b)) => a == b,
-            (Self::OpenUri(a), Self::OpenUri(b)) => a == b,
-            (Self::ToggleShuffle, Self::ToggleShuffle) => true,
-            (Self::ToggleRepeat, Self::ToggleRepeat) => true,
-            (Self::GlobalSearch, Self::GlobalSearch) => true,
-            _ => false,
-        }
-    }
-}
+// Note: previously a hand-written `PartialEq` used `f32::EPSILON` to compare
+// the float-bearing variants (`SetVolume`, `SetRate`). That constant is the
+// ULP at 1.0 and is wildly wrong for values far from 1.0 (e.g. it would
+// consider `SetVolume(0.0)` and `SetVolume(1e-8)` equal, while also considering
+// `SetVolume(1000.0)` and `SetVolume(1000.0 + 1e-5)` equal). The derived
+// `PartialEq` does an exact bit-for-bit comparison, which is correct for an
+// enum used in tests and in coalescing event queues where identical values
+// should coalesce.
 
 /// Playback status for MPRIS reporting
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
