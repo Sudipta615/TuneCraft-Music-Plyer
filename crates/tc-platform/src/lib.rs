@@ -221,7 +221,7 @@ impl PlatformIntegration {
     }
 
     /// Update MPRIS shuffle state.
-    pub fn set_mpris_shuffle(&mut self, shuffle: bool) {
+    pub fn set_mpris_shuffle(&mut self, #[allow(unused_variables)] shuffle: bool) {
         #[cfg(target_os = "linux")]
         {
             if let Some(ref state) = self.mpris_state {
@@ -235,7 +235,7 @@ impl PlatformIntegration {
     }
 
     /// Update MPRIS loop status.
-    pub fn set_mpris_loop_status(&mut self, status: &str) {
+    pub fn set_mpris_loop_status(&mut self, #[allow(unused_variables)] status: &str) {
         #[cfg(target_os = "linux")]
         {
             if let Some(ref state) = self.mpris_state {
