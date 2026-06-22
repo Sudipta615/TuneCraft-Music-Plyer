@@ -38,7 +38,7 @@ jobs:
         with:
           components: clippy
       - name: Install ALSA and Fontconfig headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@v2
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
@@ -55,7 +55,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install ALSA and Fontconfig headers (Linux only)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@v2
       - name: cargo test --workspace
         # Tests that require an audio device (e.g. test_app_context_init_headless)
@@ -75,7 +75,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install ALSA and Fontconfig headers (Linux only)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@v2
       - name: cargo build --release
         run: cargo build --release --workspace
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@v2
 
   # v3.1.0: Benchmark regression detection. Runs the criterion benches
   # and compares against the `main` branch baseline. A 10 % regression
@@ -104,7 +104,7 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - name: Install ALSA and Fontconfig headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libfontconfig1-dev libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@v2
       - name: Install critcmp
         run: cargo install critcmp || true
@@ -137,7 +137,7 @@ jobs:
       - name: Install ALSA + Fontconfig + loopback module
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libfontconfig1-dev alsa-utils
+          sudo apt-get install -y libasound2-dev libfontconfig1-dev libdbus-1-dev pkg-config alsa-utils
           # Try to load the loopback module. This requires
           # `--privileged` on the runner; if it fails, the test falls
           # back to the null device.
