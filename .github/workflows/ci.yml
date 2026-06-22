@@ -88,8 +88,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: EmbarkStudios/cargo-deny-action@v1
-        with:
-          arguments: --workspace check
 
   # v3.1.0: Benchmark regression detection. Runs the criterion benches
   # and compares against the `main` branch baseline. A 10 % regression
