@@ -197,12 +197,16 @@ fn test_app_context_init_headless() {
         Err(e) => {
             let msg = e.to_string().to_lowercase();
             // Accept known headless-environment failures.
+            // "hwnd" covers the Windows souvlaki panic: "Windows media controls
+            // require an HWND in MediaControlsOptions."
             assert!(
                 msg.contains("audio")
                     || msg.contains("device")
                     || msg.contains("alsa")
                     || msg.contains("no available")
-                    || msg.contains("thread"),
+                    || msg.contains("thread")
+                    || msg.contains("hwnd")
+                    || msg.contains("media controls"),
                 "unexpected AppContext init error in headless env: {}",
                 e
             );

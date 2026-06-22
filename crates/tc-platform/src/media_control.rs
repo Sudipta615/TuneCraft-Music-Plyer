@@ -58,8 +58,13 @@ impl CrossPlatformMediaControls {
             hwnd: None,
         };
 
-        let controls = match MediaControls::new(config) {
-            Ok(mut ctrl) => {
+        // souvlaki panics (does not return Err) on Windows when no HWND is
+        // provided (e.g. in tests or headless CI).  Catch the panic so we
+        // degrade gracefully to "no media controls" instead of crashing.
+        let init_result = std::panic::catch_unwind(|| MediaControls::new(config));
+
+        let controls = match init_result {
+            Ok(Ok(mut ctrl)) => {
                 // Attach the event handler that translates souvlaki events
                 // into our MediaKeyAction type.
                 let tx = action_tx.clone();
@@ -69,13 +74,22 @@ impl CrossPlatformMediaControls {
                 .map_err(|e| format!("Failed to attach media control handler: {:?}", e))?;
                 Some(ctrl)
             },
-            Err(e) => {
+            Ok(Err(e)) => {
                 log::warn!(
                     "Failed to initialize cross-platform media controls: {:?}. \
                      Media key events will not be forwarded. \
-                     On Linux, ensure a D-Bus session is available. \
-                     On macOS/Windows, this should not fail.",
+                     On Linux, ensure a D-Bus session is available.",
                     e
+                );
+                None
+            },
+            Err(_panic) => {
+                // souvlaki panicked — most likely "Windows media controls
+                // require an HWND" in a headless / test environment.
+                log::warn!(
+                    "Cross-platform media controls panicked during init \
+                     (likely no HWND on Windows). \
+                     Media key events will not be forwarded."
                 );
                 None
             },
