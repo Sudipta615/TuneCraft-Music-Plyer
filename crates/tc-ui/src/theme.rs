@@ -423,10 +423,25 @@ pub fn custom_visuals(colors: &TuneCraftColors) -> Visuals {
     v.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, colors.text);
     v.widgets.hovered.bg_fill = colors.hover;
     v.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, colors.accent_light);
-    v.widgets.active.fg_stroke = egui::Stroke::new(1.0, if colors.dark_mode { colors.text } else { Color32::WHITE });
-    v.widgets.active.bg_fill = if colors.dark_mode { colors.accent_dark } else { colors.accent };
+    v.widgets.active.fg_stroke = egui::Stroke::new(
+        1.0,
+        if colors.dark_mode {
+            colors.text
+        } else {
+            Color32::WHITE
+        },
+    );
+    v.widgets.active.bg_fill = if colors.dark_mode {
+        colors.accent_dark
+    } else {
+        colors.accent
+    };
     v.widgets.active.bg_stroke = egui::Stroke::new(1.0, colors.accent);
-    v.selection.bg_fill = if colors.dark_mode { colors.accent_dark } else { colors.active_bg };
+    v.selection.bg_fill = if colors.dark_mode {
+        colors.accent_dark
+    } else {
+        colors.active_bg
+    };
     v.selection.stroke = egui::Stroke::new(1.0, colors.text);
     v.override_text_color = Some(colors.text);
     v.window_corner_radius = egui::CornerRadius::same(12);

@@ -184,7 +184,8 @@ impl Database {
                         log::warn!(
                             "Database was created by TuneCraft v{}, but this is v{}. \
                              Allowing downgrade in debug build.",
-                            version, current_version
+                            version,
+                            current_version
                         );
                     }
 

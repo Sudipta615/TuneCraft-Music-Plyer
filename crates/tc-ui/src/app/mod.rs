@@ -341,7 +341,11 @@ impl TuneCraftApp {
 
     /// Load or retrieve cached album art texture for a track.
     /// Downscales to max 256x256 and enforces a 100-item LRU cache (~25MB max) to keep RAM usage <= 300MB.
-    pub fn get_or_load_album_art(&mut self, ctx: &egui::Context, track_id: i64) -> Option<egui::TextureHandle> {
+    pub fn get_or_load_album_art(
+        &mut self,
+        ctx: &egui::Context,
+        track_id: i64,
+    ) -> Option<egui::TextureHandle> {
         if let Some(handle) = self.album_art_cache.get(&track_id) {
             if let Some(pos) = self.album_art_lru.iter().position(|&id| id == track_id) {
                 self.album_art_lru.remove(pos);
