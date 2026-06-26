@@ -661,17 +661,6 @@ impl AudioEngine {
         self.pending_chunk.is_some()
     }
 
-    pub fn write_playback_info<F>(&mut self, f: F)
-    where
-        F: FnOnce(&mut PlaybackInfo),
-    {
-        self.playback_info.rcu(|old| {
-            let mut new = old.as_ref().clone();
-            f(&mut new);
-            Arc::new(new)
-        });
-    }
-
     #[cfg(feature = "resample")]
     pub fn is_resampler_disabled(&self) -> bool {
         match &self.stream {

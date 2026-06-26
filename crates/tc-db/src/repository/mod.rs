@@ -172,13 +172,20 @@ impl Database {
                     stored_padded.resize(max_len, 0);
                     current_padded.resize(max_len, 0);
 
-                    // If stored version is newer (higher major.minor.patch), refuse to open
+                    // If stored version is newer (higher major.minor.patch), refuse to open in release builds
                     if stored_padded > current_padded {
+                        #[cfg(not(debug_assertions))]
                         return Err(DbError::Migration(format!(
                             "Database was created by TuneCraft v{}, but this is v{}. \
                              Downgrading is not supported — please upgrade the application.",
                             version, current_version
                         )));
+                        #[cfg(debug_assertions)]
+                        log::warn!(
+                            "Database was created by TuneCraft v{}, but this is v{}. \
+                             Allowing downgrade in debug build.",
+                            version, current_version
+                        );
                     }
 
                     let _ = conn.execute(

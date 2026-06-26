@@ -4162,7 +4162,7 @@ dependencies = [
 
 [[package]]
 name = "tc-analysis"
-version = "2.8.0"
+version = "2.8.2"
 dependencies = [
  "log",
  "symphonia",
@@ -4171,7 +4171,7 @@ dependencies = [
 
 [[package]]
 name = "tc-config"
-version = "2.8.0"
+version = "2.8.2"
 dependencies = [
  "crossbeam",
  "dirs",
@@ -4184,7 +4184,7 @@ dependencies = [
 
 [[package]]
 name = "tc-db"
-version = "2.8.0"
+version = "2.8.2"
 dependencies = [
  "chrono",
  "log",
@@ -4196,7 +4196,7 @@ dependencies = [
 
 [[package]]
 name = "tc-engine"
-version = "2.8.0"
+version = "2.8.2"
 dependencies = [
  "approx",
  "arc-swap",
@@ -4219,7 +4219,7 @@ dependencies = [
 
 [[package]]
 name = "tc-library"
-version = "2.8.0"
+version = "2.8.2"
 dependencies = [
  "chrono",
  "crc32fast",
@@ -4235,7 +4235,7 @@ dependencies = [
 
 [[package]]
 name = "tc-platform"
-version = "2.8.0"
+version = "2.8.2"
 dependencies = [
  "dbus",
  "log",
@@ -4248,7 +4248,7 @@ dependencies = [
 
 [[package]]
 name = "tc-ui"
-version = "2.8.0"
+version = "2.8.2"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -4550,7 +4550,7 @@ dependencies = [
 
 [[package]]
 name = "tunecraft"
-version = "2.8.0"
+version = "2.8.2"
 dependencies = [
  "anyhow",
  "ctrlc",
