@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.4] — 2026-06-26
+
+### 🐛 Fixed
+- **Playback**: Synchronized internal audio engine gain and Linux D-Bus MPRIS volume directly upon application startup (`PlaybackService::new`), resolving max volume jump spikes when connecting to Bluetooth audio sinks.
+- **UI Interaction**: Decoupled high-frequency bottom volume bar slider drag polling from D-Bus IPC updates (`player_bar.rs`), eliminating slider stuttering and UI lag.
+- **Theme**: Fixed custom light themes (Forest, Sunset, Rose, Mint) incorrectly forcing popups into dark mode, and standardized card styling for Sort, Filter, and Settings Audio Output dropdown menus.
+
 ## [2.8.3] — 2026-06-26
 
 ### 🚀 Changed

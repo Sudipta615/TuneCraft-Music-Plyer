@@ -443,7 +443,7 @@ impl eframe::App for TuneCraftApp {
             let visuals = match self.theme {
                 tc_config::Theme::Light => crate::theme::light_visuals(),
                 tc_config::Theme::Dark | tc_config::Theme::System => crate::theme::dark_visuals(),
-                _ => crate::theme::custom_dark_visuals(&colors),
+                _ => crate::theme::custom_visuals(&colors),
             };
             ctx.set_visuals(visuals);
         }

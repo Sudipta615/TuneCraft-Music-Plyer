@@ -314,13 +314,13 @@ pub fn draw(app: &mut TuneCraftApp, ui: &mut Ui) {
                                 app.filter_favorites = !app.filter_favorites;
                                 egui::Popup::close_id(ui.ctx(), filter_popup_id);
                             }
-                            if ui.button("Release Year").clicked() {
+                            if ui.selectable_label(false, "Release Year").clicked() {
                                 egui::Popup::close_id(ui.ctx(), filter_popup_id);
                             }
-                            if ui.button("Album Type").clicked() {
+                            if ui.selectable_label(false, "Album Type").clicked() {
                                 egui::Popup::close_id(ui.ctx(), filter_popup_id);
                             }
-                            if ui.button("File Size").clicked() {
+                            if ui.selectable_label(false, "File Size").clicked() {
                                 egui::Popup::close_id(ui.ctx(), filter_popup_id);
                             }
                         });

@@ -403,11 +403,16 @@ pub fn light_visuals() -> Visuals {
     v
 }
 
-pub fn custom_dark_visuals(colors: &TuneCraftColors) -> Visuals {
-    let mut v = Visuals::dark();
+pub fn custom_visuals(colors: &TuneCraftColors) -> Visuals {
+    let mut v = if colors.dark_mode {
+        Visuals::dark()
+    } else {
+        Visuals::light()
+    };
     v.extreme_bg_color = colors.bg;
     v.panel_fill = colors.bg;
-    v.window_fill = colors.bg;
+    v.window_fill = colors.card;
+    v.window_stroke = egui::Stroke::new(1.0, colors.border);
     v.faint_bg_color = colors.card;
     v.widgets.noninteractive.bg_fill = Color32::TRANSPARENT;
     v.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, colors.text_dim);
@@ -418,10 +423,10 @@ pub fn custom_dark_visuals(colors: &TuneCraftColors) -> Visuals {
     v.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, colors.text);
     v.widgets.hovered.bg_fill = colors.hover;
     v.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, colors.accent_light);
-    v.widgets.active.fg_stroke = egui::Stroke::new(1.0, colors.text);
-    v.widgets.active.bg_fill = colors.accent_dark;
+    v.widgets.active.fg_stroke = egui::Stroke::new(1.0, if colors.dark_mode { colors.text } else { Color32::WHITE });
+    v.widgets.active.bg_fill = if colors.dark_mode { colors.accent_dark } else { colors.accent };
     v.widgets.active.bg_stroke = egui::Stroke::new(1.0, colors.accent);
-    v.selection.bg_fill = colors.accent_dark;
+    v.selection.bg_fill = if colors.dark_mode { colors.accent_dark } else { colors.active_bg };
     v.selection.stroke = egui::Stroke::new(1.0, colors.text);
     v.override_text_color = Some(colors.text);
     v.window_corner_radius = egui::CornerRadius::same(12);
@@ -431,4 +436,8 @@ pub fn custom_dark_visuals(colors: &TuneCraftColors) -> Visuals {
     v.widgets.active.corner_radius = egui::CornerRadius::same(8);
     v.slider_trailing_fill = true;
     v
+}
+
+pub fn custom_dark_visuals(colors: &TuneCraftColors) -> Visuals {
+    custom_visuals(colors)
 }

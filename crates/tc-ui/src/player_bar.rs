@@ -231,10 +231,18 @@ fn draw_full(
             Sense::click_and_drag(),
         )
         .on_hover_text(format!("Volume: {:.0}%", app.volume * 100.0));
-    if vol_resp.clicked() || vol_resp.dragged() {
+    if vol_resp.dragged() {
+        if let Some(ptr) = vol_resp.interact_pointer_pos() {
+            let t = ((ptr.x - vol_rect.left()) / vol_rect.width()).clamp(0.0, 1.0);
+            app.set_volume_dsp(t);
+        }
+    } else if vol_resp.drag_stopped() || vol_resp.clicked() {
         if let Some(ptr) = vol_resp.interact_pointer_pos() {
             let t = ((ptr.x - vol_rect.left()) / vol_rect.width()).clamp(0.0, 1.0);
             app.set_volume(t);
+        } else if vol_resp.drag_stopped() {
+            let vol = app.volume;
+            app.set_volume(vol);
         }
     }
 

@@ -105,6 +105,12 @@ impl TuneCraftApp {
         self.ctx.config.write(|c| c.playback.volume = clamped);
     }
 
+    pub fn set_volume_dsp(&mut self, volume: f32) {
+        let clamped = volume.clamp(0.0, 1.0);
+        self.volume = clamped;
+        self.ctx.playback.set_volume_dsp(clamped);
+    }
+
     pub fn set_speed(&mut self, speed: f32) {
         let clamped = speed.clamp(0.25, 4.0);
         self.speed = clamped;

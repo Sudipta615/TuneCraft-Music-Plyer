@@ -181,7 +181,11 @@ impl PlaybackService {
         speed: f32,
     ) -> Self {
         let clamped_vol = volume.clamp(0.0, 1.0);
-        engine.send_command(EngineCommand::SetVolume(clamped_vol * clamped_vol));
+        {
+            let mut eng = engine_mutex.lock();
+            eng.set_volume(clamped_vol * clamped_vol);
+        }
+        platform.update_mpris_volume(clamped_vol);
 
         let state = PlaybackState {
             volume: clamped_vol,
@@ -211,8 +215,11 @@ impl PlaybackService {
         repeat: RepeatMode,
         speed: f32,
     ) -> Self {
+        let clamped_vol = volume.clamp(0.0, 1.0);
+        platform.update_mpris_volume(clamped_vol);
+
         let state = PlaybackState {
-            volume: volume.clamp(0.0, 1.0),
+            volume: clamped_vol,
             shuffle,
             repeat,
             speed,
@@ -273,6 +280,8 @@ impl PlaybackService {
         #[cfg(feature = "audio-output")]
         {
             let mut eng = self.engine_mutex.lock();
+            let cur_vol = self.state.read().volume;
+            eng.set_volume(cur_vol * cur_vol);
             match eng.load_track(&_path) {
                 Ok(info) => {
                     info!(
@@ -421,6 +430,17 @@ impl PlaybackService {
         drop(state);
 
         self.platform.update_mpris_volume(clamped);
+    }
+
+    /// Fast DSP-only volume update during slider dragging (bypasses D-Bus IPC and config IO).
+    pub fn set_volume_dsp(&self, volume: f32) {
+        let clamped = volume.clamp(0.0, 1.0);
+        #[cfg(feature = "audio-output")]
+        self.engine
+            .send_command(EngineCommand::SetVolume(clamped * clamped));
+
+        let mut state = self.state.write();
+        state.volume = clamped;
     }
 
     pub fn set_speed(&self, speed: f32) {

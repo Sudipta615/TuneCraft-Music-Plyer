@@ -384,6 +384,11 @@ impl AudioEngine {
         self.cmd_tx.clone()
     }
 
+    pub fn set_volume(&mut self, vol: f32) {
+        self.pipeline.set_volume(vol);
+        self.write_playback_info(|pb| pb.volume = vol);
+    }
+
     pub fn load_track(&mut self, path: &std::path::Path) -> Result<DecodeInfo, EngineError> {
         let decoder = match self.cached_incoming_decoder.take() {
             Some(d) if self.next_track_path.as_deref() == Some(path) => {
