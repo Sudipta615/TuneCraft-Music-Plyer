@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.5] — 2026-06-27
+
+### 🐛 Fixed
+- **Playback Engine**: Removed improper audio tick thread polling throttling condition (`&& !has_pending`) during active playback (`context.rs`), ensuring ring buffer replenishment ticks run consistently at 5ms (200Hz) when streaming audio and eliminating severe buffer underrun dropouts and stuttering.
+
 ## [2.8.4] — 2026-06-26
 
 ### 🐛 Fixed

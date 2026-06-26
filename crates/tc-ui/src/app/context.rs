@@ -218,13 +218,13 @@ impl AppContext {
                 .spawn(move || {
                     info!("Engine tick thread started");
                     while running_clone.load(Ordering::Relaxed) {
-                        let (state, has_pending) = {
+                        let state = {
                             let mut eng = engine_clone.lock();
                             eng.tick();
-                            (eng.playback_info().state, eng.has_pending_chunk())
+                            eng.playback_info().state
                         };
                         let sleep_ms =
-                            if state == tc_engine::buffer::PlaybackState::Playing && !has_pending {
+                            if state == tc_engine::buffer::PlaybackState::Playing {
                                 5
                             } else {
                                 250

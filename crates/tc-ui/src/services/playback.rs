@@ -280,8 +280,6 @@ impl PlaybackService {
         #[cfg(feature = "audio-output")]
         {
             let mut eng = self.engine_mutex.lock();
-            let cur_vol = self.state.read().volume;
-            eng.set_volume(cur_vol * cur_vol);
             match eng.load_track(&_path) {
                 Ok(info) => {
                     info!(
