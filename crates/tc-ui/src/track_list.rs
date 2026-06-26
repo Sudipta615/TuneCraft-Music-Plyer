@@ -567,27 +567,7 @@ pub(crate) fn styled_icon_btn(
 /// caching the result in `app.album_art_cache` keyed by `track_id`.
 /// Returns `None` if no cover art exists for this track.
 fn get_or_load_album_art(app: &mut TuneCraftApp, ui: &Ui, track_id: i64) -> Option<TextureHandle> {
-    if let Some(handle) = app.album_art_cache.get(&track_id) {
-        return Some(handle.clone());
-    }
-
-    // Try loading from DB
-    let (bytes, _mime) = app.ctx.library.get_cover_art_by_track_id(track_id)?;
-
-    // Decode image bytes → RGBA
-    let img = image::load_from_memory(&bytes).ok()?;
-    let rgba = img.to_rgba8();
-    let (w, h) = (rgba.width() as usize, rgba.height() as usize);
-    let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], rgba.as_raw());
-
-    let handle = ui.ctx().load_texture(
-        format!("cover_{}", track_id),
-        color_image,
-        egui::TextureOptions::LINEAR,
-    );
-
-    app.album_art_cache.insert(track_id, handle.clone());
-    Some(handle)
+    app.get_or_load_album_art(ui.ctx(), track_id)
 }
 
 /// Draw album art (real texture or placeholder) into the given rect.

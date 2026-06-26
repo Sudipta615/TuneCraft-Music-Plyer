@@ -227,7 +227,7 @@ impl AppContext {
                             if state == tc_engine::buffer::PlaybackState::Playing && !has_pending {
                                 5
                             } else {
-                                50
+                                250
                             };
                         std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
                     }

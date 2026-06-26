@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.3] — 2026-06-26
+
+### 🚀 Changed
+- **Performance**: Throttled idle audio engine tick thread polling from 50ms (20Hz) to 250ms (4Hz) and background audio sink hardware monitor from 2s to 5s, achieving <1% idle CPU usage on low-end hardware.
+- **Memory**: Implemented automatic 256x256 cover art downscaling and a 100-item LRU eviction policy (~25MB max) for decoded album artworks, ensuring total application RAM usage remains below 300MB even on massive music libraries.
+
 ## [2.8.2] — 2026-06-17
 
 ### 🚀 Changed

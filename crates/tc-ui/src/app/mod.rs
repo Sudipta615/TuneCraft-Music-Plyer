@@ -155,6 +155,8 @@ pub struct TuneCraftApp {
     /// In-memory cache of decoded cover art textures keyed by track_id.
     /// Populated lazily on first access per track.
     pub album_art_cache: std::collections::HashMap<i64, egui::TextureHandle>,
+    /// LRU access tracking deque for cover art textures (max 100 items).
+    pub album_art_lru: std::collections::VecDeque<i64>,
 
     /// Whether the sidebar is in collapsed/narrow mode
     pub sidebar_collapsed: bool,
@@ -306,6 +308,7 @@ impl TuneCraftApp {
             folder_tracks: Vec::new(),
 
             album_art_cache: std::collections::HashMap::new(),
+            album_art_lru: std::collections::VecDeque::with_capacity(128),
 
             sidebar_collapsed: false,
             focus_search: false,
@@ -334,6 +337,54 @@ impl TuneCraftApp {
     pub fn current_track(&self) -> Option<&Track> {
         self.current_track_id
             .and_then(|id| self.tracks.iter().find(|t| t.id == id))
+    }
+
+    /// Load or retrieve cached album art texture for a track.
+    /// Downscales to max 256x256 and enforces a 100-item LRU cache (~25MB max) to keep RAM usage <= 300MB.
+    pub fn get_or_load_album_art(&mut self, ctx: &egui::Context, track_id: i64) -> Option<egui::TextureHandle> {
+        if let Some(handle) = self.album_art_cache.get(&track_id) {
+            if let Some(pos) = self.album_art_lru.iter().position(|&id| id == track_id) {
+                self.album_art_lru.remove(pos);
+            }
+            self.album_art_lru.push_back(track_id);
+            return Some(handle.clone());
+        }
+
+        let (bytes, _mime) = self.ctx.library.get_cover_art_by_track_id(track_id)?;
+
+        let img = image::load_from_memory(&bytes).ok()?;
+        let img = if img.width() > 256 || img.height() > 256 {
+            img.resize(256, 256, image::imageops::FilterType::Triangle)
+        } else {
+            img
+        };
+        let rgba = img.to_rgba8();
+        let (w, h) = (rgba.width() as usize, rgba.height() as usize);
+        let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], rgba.as_raw());
+
+        let handle = ctx.load_texture(
+            format!("cover_{}", track_id),
+            color_image,
+            egui::TextureOptions::LINEAR,
+        );
+
+        self.album_art_cache.insert(track_id, handle.clone());
+        self.album_art_lru.push_back(track_id);
+
+        while self.album_art_cache.len() > 100 && !self.album_art_lru.is_empty() {
+            if let Some(oldest_id) = self.album_art_lru.pop_front() {
+                if Some(oldest_id) == self.current_track_id {
+                    self.album_art_lru.push_back(oldest_id);
+                    break;
+                } else {
+                    self.album_art_cache.remove(&oldest_id);
+                }
+            } else {
+                break;
+            }
+        }
+
+        Some(handle)
     }
 }
 

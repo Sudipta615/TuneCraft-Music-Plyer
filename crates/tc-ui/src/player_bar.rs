@@ -92,7 +92,7 @@ fn draw_full(
     // Render real cover art or placeholder
     let art_tex = app
         .current_track_id
-        .and_then(|id| app.album_art_cache.get(&id).cloned());
+        .and_then(|id| app.get_or_load_album_art(ui.ctx(), id));
     if let Some(ref tex) = art_tex {
         // Background fill for rounded corners
         ui.painter().rect_filled(art_rect, 8.0, colors.card);
@@ -485,7 +485,7 @@ fn draw_compact(
     // Render real cover art or placeholder
     let compact_art_tex = app
         .current_track_id
-        .and_then(|id| app.album_art_cache.get(&id).cloned());
+        .and_then(|id| app.get_or_load_album_art(ui.ctx(), id));
     if let Some(ref tex) = compact_art_tex {
         ui.painter().rect_filled(art_rect, 4.0, colors.card);
         let uv = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0));

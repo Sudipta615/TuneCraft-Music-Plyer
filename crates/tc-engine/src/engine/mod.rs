@@ -293,7 +293,7 @@ impl AudioEngine {
                 };
 
                 while running.load(Ordering::Acquire) {
-                    std::thread::sleep(Duration::from_secs(2));
+                    std::thread::sleep(Duration::from_secs(5));
                     if !running.load(Ordering::Acquire) {
                         break;
                     }
