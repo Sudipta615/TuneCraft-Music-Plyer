@@ -41,10 +41,38 @@ impl CrossPlatformMediaControls {
     /// the controls will be None and media key events will not be forwarded.
     /// The application should fall back to keyboard shortcuts in this case.
     pub fn new(action_tx: Sender<MediaKeyAction>) -> Result<Self, String> {
+        #[cfg(target_os = "windows")]
+        let hwnd = {
+            #[link(name = "user32")]
+            extern "system" {
+                fn GetForegroundWindow() -> *mut std::ffi::c_void;
+                fn GetDesktopWindow() -> *mut std::ffi::c_void;
+            }
+            #[link(name = "kernel32")]
+            extern "system" {
+                fn GetConsoleWindow() -> *mut std::ffi::c_void;
+            }
+            unsafe {
+                let console = GetConsoleWindow();
+                if !console.is_null() {
+                    Some(console)
+                } else {
+                    let fg = GetForegroundWindow();
+                    if !fg.is_null() {
+                        Some(fg)
+                    } else {
+                        Some(GetDesktopWindow())
+                    }
+                }
+            }
+        };
+        #[cfg(not(target_os = "windows"))]
+        let hwnd = None;
+
         let config = PlatformConfig {
             dbus_name: "tunecraft",
             display_name: "TuneCraft",
-            hwnd: None,
+            hwnd,
         };
 
         let controls = match MediaControls::new(config) {
