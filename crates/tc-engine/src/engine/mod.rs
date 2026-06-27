@@ -231,11 +231,19 @@ impl AudioEngine {
     }
 
     pub(super) fn detect_output_sample_rate() -> Option<u32> {
-        use cpal::traits::{DeviceTrait, HostTrait};
-        let host = cpal::default_host();
-        let device = host.default_output_device()?;
-        let default_config = device.default_output_config().ok()?;
-        Some(default_config.sample_rate().0)
+        #[cfg(test)]
+        {
+            // Avoid querying OS audio drivers during unit tests to prevent WASAPI/COM access violations on Windows CI runners.
+            return None;
+        }
+        #[cfg(not(test))]
+        {
+            use cpal::traits::{DeviceTrait, HostTrait};
+            let host = cpal::default_host();
+            let device = host.default_output_device()?;
+            let default_config = device.default_output_config().ok()?;
+            Some(default_config.sample_rate().0)
+        }
     }
 
     pub fn start(&mut self) -> Result<(), EngineError> {
