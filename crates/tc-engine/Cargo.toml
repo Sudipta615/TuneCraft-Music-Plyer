@@ -8,6 +8,7 @@ default = []
 # v0.21.0: Merged duplicate [features] sections. The second section was
 # overriding the first, which lost the codec-* feature flags.
 audio-output = ["cpal", "thread-priority"]
+asio = ["cpal/asio"]
 resample = ["rubato"]
 # v0.9.5: Fixed High #H2 — codec feature flags now activate the corresponding
 # symphonia features instead of being no-ops.
@@ -37,7 +38,7 @@ thread-priority = { workspace = true, optional = true }
 dirs = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-cpal = { workspace = true, optional = true, features = ["asio"] }
+cpal = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 coreaudio-rs = "0.11"

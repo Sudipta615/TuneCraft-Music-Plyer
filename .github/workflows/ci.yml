@@ -15,10 +15,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest] # macos-latest, windows-latest temporarily disabled
+        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
             apt: libasound2-dev libgtk-3-dev libssl-dev pkg-config
+            artifact_name: tunecraft-linux
+            binary_path: target/release/tunecraft
+          - os: macos-latest
+            artifact_name: tunecraft-macos
+            binary_path: target/release/tunecraft
+          - os: windows-latest
+            artifact_name: tunecraft-windows
+            binary_path: target/release/tunecraft.exe
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -54,7 +62,12 @@ jobs:
         run: cargo fmt --check --all
 
       - name: Clippy
+        if: matrix.os != 'windows-latest'
         run: cargo clippy --workspace --all-features -- -D warnings
+
+      - name: Clippy (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Test (no default features)
         run: cargo test --workspace --no-default-features
@@ -65,9 +78,9 @@ jobs:
       - name: Build release
         run: cargo build --release --workspace
 
-      - name: Upload Linux Binary
+      - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
-          name: tunecraft-linux
-          path: target/release/tunecraft
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.binary_path }}
           retention-days: 7

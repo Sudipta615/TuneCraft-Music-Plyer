@@ -19,7 +19,9 @@ fn bench_pipeline(c: &mut Criterion) {
     group.bench_function("full_chain/block_512", |b| {
         let mut frames: [(f32, f32); BLOCK] = [(0.5, 0.3); BLOCK];
         b.iter(|| {
-            pipeline.process_batch(&mut frames);
+            for frame in frames.iter_mut() {
+                *frame = pipeline.process(frame.0, frame.1);
+            }
             black_box(&frames);
         });
     });
@@ -30,7 +32,9 @@ fn bench_pipeline(c: &mut Criterion) {
     group.bench_function("full_chain/block_4096", |b| {
         let mut frames: Vec<(f32, f32)> = vec![(0.5, 0.3); BLOCK_4K];
         b.iter(|| {
-            pipeline.process_batch(&mut frames);
+            for frame in frames.iter_mut() {
+                *frame = pipeline.process(frame.0, frame.1);
+            }
             black_box(&frames);
         });
     });

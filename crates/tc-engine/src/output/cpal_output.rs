@@ -76,10 +76,17 @@ impl CpalOutput {
                 log::info!("Audio output: Requesting exclusive ALSA host");
                 cpal::host_from_id(cpal::HostId::Alsa).unwrap_or_else(|_| cpal::default_host())
             },
-            #[cfg(target_os = "windows")]
+            #[cfg(all(target_os = "windows", feature = "asio"))]
             AudioBackend::ExclusiveAsio => {
                 log::info!("Audio output: Requesting exclusive ASIO host");
                 cpal::host_from_id(cpal::HostId::Asio).unwrap_or_else(|_| cpal::default_host())
+            },
+            #[cfg(all(target_os = "windows", not(feature = "asio")))]
+            AudioBackend::ExclusiveAsio => {
+                log::warn!(
+                    "Audio output: ASIO support not compiled in; falling back to default host"
+                );
+                cpal::default_host()
             },
             #[cfg(target_os = "macos")]
             AudioBackend::ExclusiveCoreAudioHog => {

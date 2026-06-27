@@ -223,12 +223,11 @@ impl AppContext {
                             eng.tick();
                             eng.playback_info().state
                         };
-                        let sleep_ms =
-                            if state == tc_engine::buffer::PlaybackState::Playing {
-                                5
-                            } else {
-                                250
-                            };
+                        let sleep_ms = if state == tc_engine::buffer::PlaybackState::Playing {
+                            5
+                        } else {
+                            250
+                        };
                         std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
                     }
                     info!("Engine tick thread stopped");
