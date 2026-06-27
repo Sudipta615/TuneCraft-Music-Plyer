@@ -96,6 +96,7 @@ impl CpalOutput {
             _ => cpal::default_host(),
         };
 
+        #[allow(unused_mut)]
         let mut device = None;
 
         // If ALSA was requested, try to find a hardware device rather than 'default'

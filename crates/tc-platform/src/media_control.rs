@@ -55,12 +55,12 @@ impl CrossPlatformMediaControls {
                 ctrl.attach(move |event: MediaControlEvent| {
                     Self::handle_event(event, &tx);
                 })
-                .map_err(|e| format!("Failed to attach media control handler: {}", e))?;
+                .map_err(|e| format!("Failed to attach media control handler: {:?}", e))?;
                 Some(ctrl)
             },
             Err(e) => {
                 log::warn!(
-                    "Failed to initialize cross-platform media controls: {}. \
+                    "Failed to initialize cross-platform media controls: {:?}. \
                      Media key events will not be forwarded. \
                      On Linux, ensure a D-Bus session is available. \
                      On macOS/Windows, this should not fail.",
@@ -128,7 +128,7 @@ impl CrossPlatformMediaControls {
                 MprisPlaybackStatus::Stopped => MediaPlayback::Stopped,
             };
             if let Err(e) = ctrl.set_playback(playback) {
-                log::warn!("Failed to update media playback status: {}", e);
+                log::warn!("Failed to update media playback status: {:?}", e);
             }
         }
     }
@@ -151,7 +151,7 @@ impl CrossPlatformMediaControls {
                 duration,
             };
             if let Err(e) = ctrl.set_metadata(metadata) {
-                log::warn!("Failed to update media metadata: {}", e);
+                log::warn!("Failed to update media metadata: {:?}", e);
             }
         }
     }
@@ -162,18 +162,14 @@ impl CrossPlatformMediaControls {
             if let Err(e) = ctrl.set_playback(MediaPlayback::Playing {
                 progress: Some(MediaPosition(position)),
             }) {
-                log::warn!("Failed to update media position: {}", e);
+                log::warn!("Failed to update media position: {:?}", e);
             }
         }
     }
 
     /// Update the volume shown in the OS media controls.
-    pub fn set_volume(&mut self, volume: f32) {
-        if let Some(ref mut ctrl) = self.controls {
-            if let Err(e) = ctrl.set_volume(volume as f64) {
-                log::warn!("Failed to update media volume: {}", e);
-            }
-        }
+    pub fn set_volume(&mut self, _volume: f32) {
+        // souvlaki::MediaControls does not support set_volume
     }
 
     /// Check if media controls are available on this platform.
