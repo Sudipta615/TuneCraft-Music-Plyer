@@ -234,7 +234,7 @@ impl AudioEngine {
         #[cfg(test)]
         {
             // Avoid querying OS audio drivers during unit tests to prevent WASAPI/COM access violations on Windows CI runners.
-            return None;
+            None
         }
         #[cfg(not(test))]
         {

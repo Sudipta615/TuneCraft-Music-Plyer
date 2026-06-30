@@ -974,7 +974,7 @@ pub(crate) fn draw_grid_view(
     let columns =
         ((available_width + card_spacing) / (card_width + card_spacing)).max(1.0) as usize;
 
-    let total_rows = (filtered_indices.len() + columns - 1) / columns;
+    let total_rows = filtered_indices.len().div_ceil(columns);
     let row_height = card_height + card_spacing;
 
     let mut draw_grid_rows = |ui: &mut Ui, row_range: std::ops::Range<usize>| {

@@ -45,7 +45,7 @@ pub struct AppContext {
     #[cfg(feature = "audio-output")]
     pub(crate) engine_thread_handle: Option<std::thread::JoinHandle<()>>,
     #[cfg(feature = "audio-output")]
-    pub(crate) shutdown_rx: Option<std::sync::mpsc::Receiver<()>>,
+    pub(crate) shutdown_rx: parking_lot::Mutex<Option<std::sync::mpsc::Receiver<()>>>,
 }
 
 impl Drop for AppContext {
@@ -71,7 +71,7 @@ impl Drop for AppContext {
         }
 
         #[cfg(feature = "audio-output")]
-        if let Some(rx) = self.shutdown_rx.take() {
+        if let Some(rx) = self.shutdown_rx.lock().take() {
             info!("Waiting up to 200ms for engine tick thread to terminate...");
             match rx.recv_timeout(std::time::Duration::from_millis(200)) {
                 Ok(()) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
@@ -332,7 +332,7 @@ impl AppContext {
             #[cfg(feature = "audio-output")]
             engine_thread_handle,
             #[cfg(feature = "audio-output")]
-            shutdown_rx,
+            shutdown_rx: parking_lot::Mutex::new(shutdown_rx),
         })
     }
 }
