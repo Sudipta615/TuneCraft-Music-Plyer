@@ -34,35 +34,62 @@ pub struct AppContext {
 
     pub tokio_runtime: Arc<Runtime>,
 
+    /// v2.8.6: Shared shutdown flag for all background threads (analysis,
+    /// scan, etc.). Set to true during shutdown so threads can exit their
+    /// loops promptly instead of blocking process exit.
+    pub(crate) app_shutdown: Arc<AtomicBool>,
+
     #[cfg(feature = "audio-output")]
+    #[allow(dead_code)]
     pub(crate) engine_running: Option<Arc<AtomicBool>>,
     #[cfg(feature = "audio-output")]
     pub(crate) engine_thread_handle: Option<std::thread::JoinHandle<()>>,
+    #[cfg(feature = "audio-output")]
+    pub(crate) shutdown_rx: Option<std::sync::mpsc::Receiver<()>>,
 }
 
 impl Drop for AppContext {
     fn drop(&mut self) {
         info!("AppContext dropping — initiating graceful shutdown");
 
+        // v2.8.6: Signal the app-wide shutdown flag so all background threads
+        // (analysis, scan, etc.) exit their loops promptly.
+        self.app_shutdown.store(true, Ordering::Release);
+
+        // v2.8.6: Directly signal the engine running flag to false.
+        // This is a belt-and-suspenders measure: on_exit() should have already
+        // set this, but Drop may also be called without on_exit() (e.g., panic
+        // unwind, or headless mode shutdown).
         #[cfg(feature = "audio-output")]
         if let Some(ref running) = self.engine_running {
-            running.store(false, Ordering::Relaxed);
-            info!("Engine stop signal sent");
+            running.store(false, std::sync::atomic::Ordering::Release);
         }
 
         #[cfg(feature = "audio-output")]
         {
-            let state = self.playback.state();
-            drop(state);
             self.playback.stop_engine();
         }
 
         #[cfg(feature = "audio-output")]
-        if let Some(handle) = self.engine_thread_handle.take() {
-            info!("Joining engine tick thread...");
-            if let Err(e) = handle.join() {
-                warn!("Engine tick thread join error: {:?}", e);
+        if let Some(rx) = self.shutdown_rx.take() {
+            info!("Waiting up to 200ms for engine tick thread to terminate...");
+            match rx.recv_timeout(std::time::Duration::from_millis(200)) {
+                Ok(()) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    info!("Engine tick thread stopped cleanly.");
+                },
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    warn!("Engine tick thread did not exit within 200ms; detaching.");
+                    // Drop the JoinHandle without joining — the thread will
+                    // be cleaned up by the OS when the process exits.
+                },
             }
+        }
+
+        // Detach the engine thread handle if still present.
+        // Joining would block indefinitely if CpalOutput::stop() is stuck.
+        #[cfg(feature = "audio-output")]
+        {
+            let _ = self.engine_thread_handle.take();
         }
 
         // Local scrobble service: nothing to flush to network.
@@ -198,7 +225,14 @@ impl AppContext {
         };
 
         #[cfg(feature = "audio-output")]
-        let (engine_handle, engine_mutex, engine_running, cmd_tx, engine_thread_handle) = {
+        let (
+            engine_handle,
+            engine_mutex,
+            engine_running,
+            cmd_tx,
+            engine_thread_handle,
+            shutdown_rx,
+        ) = {
             let engine_config = config.read().engine.clone();
             let mut engine = tc_engine::AudioEngine::new(engine_config)?;
             engine.start()?;
@@ -213,14 +247,20 @@ impl AppContext {
 
             let engine_clone = Arc::clone(&engine_mutex);
             let running_clone = Arc::clone(&engine_running);
+            let (shutdown_tx, shutdown_rx) = std::sync::mpsc::channel::<()>();
             let engine_thread_handle: std::thread::JoinHandle<()> = std::thread::Builder::new()
                 .name("tunecraft-engine-tick".to_string())
                 .spawn(move || {
+                    let _shutdown_tx = shutdown_tx; // dropped when thread exits
                     info!("Engine tick thread started");
                     while running_clone.load(Ordering::Relaxed) {
                         let state = {
                             let mut eng = engine_clone.lock();
                             eng.tick();
+                            if !eng.is_running() {
+                                running_clone.store(false, Ordering::Relaxed);
+                                break;
+                            }
                             eng.playback_info().state
                         };
                         let sleep_ms = if state == tc_engine::buffer::PlaybackState::Playing {
@@ -240,6 +280,7 @@ impl AppContext {
                 engine_running,
                 cmd_tx,
                 Some(engine_thread_handle),
+                Some(shutdown_rx),
             )
         };
 
@@ -284,10 +325,14 @@ impl AppContext {
             platform,
             tokio_runtime,
 
+            app_shutdown: Arc::new(AtomicBool::new(false)),
+
             #[cfg(feature = "audio-output")]
             engine_running: Some(engine_running),
             #[cfg(feature = "audio-output")]
             engine_thread_handle,
+            #[cfg(feature = "audio-output")]
+            shutdown_rx,
         })
     }
 }

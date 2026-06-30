@@ -79,9 +79,9 @@ impl EngineHandle {
         self.running.load(Ordering::Relaxed)
     }
 
-    /// Signal the engine to stop.
+    /// Signal the engine to stop gracefully via the command channel.
     pub fn stop(&self) {
-        self.running.store(false, Ordering::Relaxed);
+        self.send_command(EngineCommand::Shutdown);
     }
 }
 
@@ -249,7 +249,14 @@ impl PlaybackService {
 
         state.position_secs = info.position_secs;
         state.duration_secs = info.duration_secs;
-        state.volume = info.volume;
+        // v2.8.6: Do NOT sync volume from engine. The engine stores the
+        // quadratic (perceptual) value (vol * vol) set by set_volume(), but
+        // the UI and PlaybackState use the linear slider value (0.0–1.0).
+        // Overwriting state.volume with the quadratic value caused the UI
+        // slider to read the wrong value and, on next user adjustment,
+        // double-square it (producing near-silence at moderate settings).
+        // Volume is owned by the UI layer — only set_volume()/set_volume_dsp()
+        // should update state.volume.
         state.speed = info.speed;
 
         state.resampler_disabled = info.resampler_disabled;
@@ -294,6 +301,7 @@ impl PlaybackService {
                 },
             }
 
+            eng.update_playback_state(tc_engine::buffer::PlaybackState::Playing);
             self.engine.send_command(EngineCommand::Play);
         }
 
@@ -740,11 +748,11 @@ impl PlaybackService {
         &self.scrobble
     }
 
-    /// Signal the engine to stop the tick thread (v0.9.3: H-02/H-08 fix).
+    /// Signal the engine to stop gracefully (v0.9.3: H-02/H-08 fix).
     #[cfg(feature = "audio-output")]
     pub fn stop_engine(&self) {
         self.engine.stop();
-        info!("Engine stop signal sent via EngineHandle");
+        info!("Engine shutdown signal sent via EngineHandle");
     }
 
     #[cfg(not(feature = "audio-output"))]

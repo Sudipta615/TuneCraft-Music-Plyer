@@ -282,12 +282,13 @@ impl TuneCraftApp {
     pub fn trigger_background_analysis(&self) {
         let db = self.ctx.library.db().clone();
         let library_svc = Arc::clone(&self.ctx.library);
+        let shutdown = Arc::clone(&self.ctx.app_shutdown);
 
         std::thread::Builder::new()
             .name("tunecraft-audio-analysis".into())
             .spawn(move || {
                 use std::path::PathBuf;
-                use tc_analysis::analyze_file;
+                use std::sync::atomic::Ordering;
 
                 let unanalyzed = match db.get_unanalyzed_tracks() {
                     Ok(tracks) => tracks,
@@ -300,8 +301,14 @@ impl TuneCraftApp {
 
                 let mut changed = false;
                 for track in &unanalyzed {
+                    if shutdown.load(Ordering::Acquire) {
+                        log::info!("Audio analysis thread stopping due to app shutdown");
+                        break;
+                    }
                     let path = PathBuf::from(&track.path);
-                    if let Ok(analysis) = analyze_file(&path, Some(60.0)) {
+                    if let Ok(analysis) =
+                        tc_analysis::analyze_file_with_cancel(&path, Some(60.0), Some(&*shutdown))
+                    {
                         if track.bpm.is_none() {
                             let _ = db.update_bpm(track.id, analysis.bpm.bpm);
                             changed = true;

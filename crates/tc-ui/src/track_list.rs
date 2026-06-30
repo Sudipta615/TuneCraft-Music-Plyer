@@ -974,8 +974,15 @@ pub(crate) fn draw_grid_view(
     let columns =
         ((available_width + card_spacing) / (card_width + card_spacing)).max(1.0) as usize;
 
-    let mut draw_grid = |ui: &mut Ui| {
-        for chunk in filtered_indices.chunks(columns) {
+    let total_rows = (filtered_indices.len() + columns - 1) / columns;
+    let row_height = card_height + card_spacing;
+
+    let mut draw_grid_rows = |ui: &mut Ui, row_range: std::ops::Range<usize>| {
+        for row_idx in row_range {
+            let start = row_idx * columns;
+            let end = (start + columns).min(filtered_indices.len());
+            let chunk = &filtered_indices[start..end];
+
             ui.horizontal(|ui| {
                 for &idx in chunk {
                     // Copy track fields upfront to avoid borrow conflicts
@@ -1106,10 +1113,10 @@ pub(crate) fn draw_grid_view(
     };
 
     if disable_scroll {
-        draw_grid(ui);
+        draw_grid_rows(ui, 0..total_rows);
     } else {
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
-            .show(ui, draw_grid);
+            .show_rows(ui, row_height, total_rows, draw_grid_rows);
     }
 }

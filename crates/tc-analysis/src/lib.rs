@@ -93,6 +93,16 @@ pub fn analyze_file(
     path: &Path,
     max_duration_secs: Option<f32>,
 ) -> Result<TrackAnalysis, AnalysisError> {
+    analyze_file_with_cancel(path, max_duration_secs, None)
+}
+
+/// Analyze a complete audio file with optional cancellation support.
+pub fn analyze_file_with_cancel(
+    path: &Path,
+    max_duration_secs: Option<f32>,
+    cancel_flag: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<TrackAnalysis, AnalysisError> {
+    use std::sync::atomic::Ordering;
     use symphonia::core::{
         audio::SampleBuffer,
         codecs::{DecoderOptions, CODEC_TYPE_NULL},
@@ -151,6 +161,12 @@ pub fn analyze_file(
     let mut decode_errors: u32 = 0;
 
     loop {
+        if let Some(flag) = cancel_flag {
+            if flag.load(Ordering::Acquire) {
+                info!("Analysis cancelled during decode for {}", path.display());
+                break;
+            }
+        }
         let packet = match probed.format.next_packet() {
             Ok(p) => p,
             Err(symphonia::core::errors::Error::IoError(ref e))

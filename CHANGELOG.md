@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.8.6] — 2026-06-30
+
+### 🐛 Fixed
+- **Playback Engine**: Fixed startup volume spike where audio played at 100% volume on initial track load by snapping volume gain immediately after pipeline reset (`load_track`) and removing linear-to-quadratic volume state overwriting in UI sync (`sync_from_engine`).
+- **Application Shutdown**: Fixed application freeze ("not responding") and delayed shutdown on exit by implementing cooperative cancellation across background audio analysis threads (`tc-analysis`), adding early returns on close requests in UI update loop, adding a 50ms timeout to CPAL callback drain (`CpalOutput::pause`), and sending direct atomic running-flag termination signals.
+
 ## [2.8.5] — 2026-06-27
 
 ### 🐛 Fixed

@@ -11,7 +11,7 @@ impl AudioEngine {
         self.playback_info.load().state
     }
 
-    pub(super) fn update_playback_state(&self, state: PlaybackState) {
+    pub fn update_playback_state(&self, state: PlaybackState) {
         self.playback_info.rcu(|old| {
             Arc::new(PlaybackInfo {
                 state,

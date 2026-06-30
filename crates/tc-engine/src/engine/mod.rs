@@ -440,6 +440,15 @@ impl AudioEngine {
         // Without this, each new track plays at full volume until the next SetVolume command.
         let current_volume = self.playback_info.load().volume;
         self.pipeline.set_volume(current_volume);
+        // v2.8.6: Snap the volume gain immediately to the target value instead
+        // of ramping from 1.0 (unity). The smooth ramp is desirable for user
+        // volume changes during playback, but on track load the GainProcessor
+        // was just reset to gain=1.0 and set_volume() only sets target_gain.
+        // With the default slew_rate of 0.001, the gain takes hundreds of
+        // samples to converge — during which audio plays at near-full volume,
+        // ignoring the user's configured volume. This caused a dangerous
+        // volume spike on first playback that could damage speakers/hearing.
+        self.pipeline.volume.snap();
         // Start the mixer in PlayingCurrent state for the new track.
         self.pipeline.mixer_mut().start_playing();
 
@@ -453,7 +462,11 @@ impl AudioEngine {
                 speed,
                 // Preserve fields that survive a track load
                 volume: old.volume,
-                state: old.state,
+                state: if old.state == PlaybackState::Stopped {
+                    PlaybackState::Paused
+                } else {
+                    old.state
+                },
                 ..Default::default()
             })
         });

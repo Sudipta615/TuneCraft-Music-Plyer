@@ -471,7 +471,21 @@ impl CpalOutput {
     /// Pause the output
     pub fn pause(&self) {
         self.paused.store(true, Ordering::Release);
+        // v2.8.6: Added 50ms timeout to prevent infinite busy-wait deadlock.
+        // On Linux with PipeWire/PulseAudio, the audio callback may be blocked
+        // waiting for the audio server to drain during device release or stream
+        // teardown. Without a timeout, this spins forever — deadlocking the
+        // engine tick thread (which holds the engine mutex) and causing the
+        // app to freeze with "not responding" on close.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(50);
         while self.in_callback.load(Ordering::Acquire) {
+            if std::time::Instant::now() >= deadline {
+                log::warn!(
+                    "CpalOutput::pause(): callback did not exit within 50ms; \
+                     proceeding to avoid deadlock"
+                );
+                break;
+            }
             std::thread::sleep(std::time::Duration::from_micros(100));
         }
     }
@@ -508,6 +522,7 @@ impl CpalOutput {
 
     /// Stop the output stream
     pub fn stop(&mut self) {
+        self.pause();
         self.stream = None;
     }
 

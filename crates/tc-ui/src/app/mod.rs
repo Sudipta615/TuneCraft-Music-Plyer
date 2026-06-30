@@ -414,6 +414,20 @@ impl eframe::App for TuneCraftApp {
 
     #[allow(deprecated)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if ctx.input(|i| i.viewport().close_requested()) && !self.close_requested {
+            self.on_exit();
+        }
+
+        // v2.8.6: Once close has been requested, skip all UI sync and rendering.
+        // The engine and its threads are shutting down — attempting to sync
+        // playback state, poll media keys, or render the UI will either block
+        // on dead locks or produce stale data. eframe will call update() a
+        // few more times before the window is destroyed and Drop runs;
+        // returning early prevents the "not responding" OS dialog.
+        if self.close_requested {
+            return;
+        }
+
         let track_ended = self.sync_from_playback_service();
         if track_ended {
             self.play_next();
@@ -819,7 +833,25 @@ impl eframe::App for TuneCraftApp {
         info!("Application close requested — initiating graceful shutdown");
         self.close_requested = true;
 
-        self.ctx.playback.stop_playback();
+        // v2.8.6: Immediately signal all background threads (e.g. audio analysis)
+        // to abort so they don't delay window destruction or process termination.
+        self.ctx
+            .app_shutdown
+            .store(true, std::sync::atomic::Ordering::Release);
+
+        // v2.8.6: Signal the engine running flag directly to false BEFORE
+        // sending the Shutdown command. This causes the tick thread to exit
+        // its while-loop on the next iteration, even if the Shutdown command
+        // is delayed (e.g., the tick thread is blocked inside CpalOutput::stop).
+        // Previously, on_exit() only sent a channel command which required
+        // the tick thread to process it — if the thread was blocked, the
+        // command sat in the channel and the app froze.
+        #[cfg(feature = "audio-output")]
+        if let Some(ref running) = self.ctx.engine_running {
+            running.store(false, std::sync::atomic::Ordering::Release);
+        }
+
+        self.ctx.playback.stop_engine();
     }
 }
 
